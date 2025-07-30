@@ -15,11 +15,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy the requirements file into the container
 COPY requirements.txt .
 
-# Install any needed packages specified in requirements.txt
+# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application's code into the container
+# Copy the rest of the application code
 COPY . .
+
+# Set environment variable for the API key (will be passed during 'docker run')
+ENV OPENAI_API_KEY=""
 
 # Command to run the application
 CMD ["python", "main.py"]

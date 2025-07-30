@@ -97,6 +97,15 @@
             font-size: 20px;
         }
 
+        .item-list .item:nth-child(even) {
+            flex-direction: row-reverse;
+        }
+
+        .item-list .item:nth-child(even) img {
+            margin-right: 0;
+            margin-left: 20px;
+        }
+
         /* House Rules */
         .rules-list {
             list-style: none;
@@ -145,7 +154,7 @@
         <div class="item-list">
             {% for activity in things_to_do %}
             <div class="item">
-                {% if activity.image_url %}<img src="{{ activity.image_url }}">{% endif %}
+                {% if activity.image_url %}<img src="{{ activity.image_url }}" alt="{{ activity.name }}">{% endif %}
                 <div class="details">
                     <h3>{{ activity.name }}</h3>
                     <p>{{ activity.description }}</p>
@@ -161,7 +170,7 @@
         <div class="item-list">
             {% for place in places_to_eat %}
             <div class="item">
-                {% if place.image_url %}<img src="{{ place.image_url }}">{% endif %}
+                {% if place.image_url %}<img src="{{ place.image_url }}" alt="{{ place.name }}">{% endif %}
                 <div class="details">
                     <h3>{{ place.name }}</h3>
                     <p>{{ place.description }}</p>

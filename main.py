@@ -1,33 +1,8 @@
 import os
-import json
 from dotenv import load_dotenv
-from openai import OpenAI
 from jinja2 import Environment, FileSystemLoader
 from weasyprint import HTML
-
-def get_ai_recommendations(address):
-    """Get Things to Do and Places to Eat from OpenAI based on an address."""
-    try:
-        load_dotenv()
-        openai_api_key = os.getenv("OPENAI_API_KEY")
-        openai.Organization = os.getenv("OPENAI_ORG_ID")
-        client = OpenAI(api_key=openai_api_key)
-        prompt = f"""For the vacation rental located at {address}, please provide a list of local recommendations. I need a JSON object with two keys: 'things_to_do' and 'places_to_eat'. Each key should contain a list of exactly 3 items. Each item in the lists should be an object with 'name' and 'description' keys. Do not include image URLs."""
-
-        response = client.chat.completions.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant that provides local recommendations in a strict JSON format."},
-                {"role": "user", "content": prompt}
-            ],
-            response_format={"type": "json_object"}
-        )
-
-        recommendations = json.loads(response.choices[0].message.content)
-        return recommendations
-    except Exception as e:
-        print(f"Could not get AI recommendations: {e}")
-        return None
+from utils.aifunctions import get_ai_recommendations
 
 def create_pdf(data, template_name, output_filename):
     """Render HTML template with data and convert to PDF using WeasyPrint."""
@@ -63,13 +38,19 @@ if __name__ == "__main__":
         "things_to_do": [],
         "places_to_eat": [],
         "contact_name": "John Appleseed",
-        "contact_phone": "(555) 987-6543"
+        "contact_phone": "(555) 987-6543",
+        "num_things_to_do": 5,
+        "num_places_to_eat": 5
     }
 
     # If recommendation lists are empty, fetch them from AI
     if not guidebook_data.get('things_to_do') or not guidebook_data.get('places_to_eat'):
         print("Fetching AI recommendations...")
-        ai_recs = get_ai_recommendations(guidebook_data['location'])
+        ai_recs = get_ai_recommendations(
+            guidebook_data['location'], 
+            guidebook_data.get('num_things_to_do', 3),
+            guidebook_data.get('num_places_to_eat', 3)
+        )
         if ai_recs:
             guidebook_data['things_to_do'] = ai_recs.get('things_to_do', [])
             guidebook_data['places_to_eat'] = ai_recs.get('places_to_eat', [])
@@ -77,8 +58,7 @@ if __name__ == "__main__":
     template_file = "guidebook_template.html"
     output_file = "output/guidebook.pdf"
 
-    print("Calling create_pdf...")
+    # Create the PDF
     success, message = create_pdf(guidebook_data, template_file, output_file)
-    print("create_pdf returned.")
+
     print(message)
-    print("Script finished.")
