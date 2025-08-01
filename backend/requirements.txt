@@ -1,0 +1,6 @@
+Jinja2==3.1.4
+WeasyPrint==66.0
+openai==1.68.2
+python-dotenv==1.0.1
+Flask==3.0.3
+Flask-Cors==4.0.1
