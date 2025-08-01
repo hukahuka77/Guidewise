@@ -80,10 +80,18 @@ export default function CreateGuidebookPage() {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      // The response is the PDF file itself
+      // Get the live URL from the custom header
+      const liveUrlPath = response.headers.get('X-Guidebook-Url');
+      if (liveUrlPath) {
+        const fullLiveUrl = `http://localhost:5001${liveUrlPath}`;
+        sessionStorage.setItem('liveGuidebookUrl', fullLiveUrl);
+      }
+
+      // The response body is the PDF file itself
       const blob = await response.blob();
       const downloadUrl = URL.createObjectURL(blob);
       sessionStorage.setItem('guidebookUrl', downloadUrl);
+
       router.push('/success');
 
     } catch (err: any) {

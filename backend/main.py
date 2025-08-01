@@ -15,17 +15,7 @@ def create_guidebook_pdf(data):
     Returns:
         bytes: The generated PDF file as a byte string.
     """
-    # Get AI recommendations
-    address = data.get('address')
-    if not address:
-        raise ValueError("Address is required to get AI recommendations.")
-        
-    num_things_to_do = data.get('num_things_to_do', 5)
-    num_places_to_eat = data.get('num_places_to_eat', 5)
-    
-    recommendations = get_ai_recommendations(address, num_things_to_do, num_places_to_eat)
-    data['things_to_do'] = recommendations.get('things_to_do', [])
-    data['places_to_eat'] = recommendations.get('places_to_eat', [])
+
 
     # Setup Jinja2 environment
     env = Environment(loader=FileSystemLoader('.'))

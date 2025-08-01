@@ -14,10 +14,14 @@ import 'react-pdf/dist/Page/TextLayer.css';
 
 export default function SuccessPage() {
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const [liveGuidebookUrl, setLiveGuidebookUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    const url = sessionStorage.getItem('guidebookUrl');
-    setDownloadUrl(url);
+    const pdfUrl = sessionStorage.getItem('guidebookUrl');
+    setDownloadUrl(pdfUrl);
+
+    const liveUrl = sessionStorage.getItem('liveGuidebookUrl');
+    setLiveGuidebookUrl(liveUrl);
   }, []);
 
   const handleDownload = () => {
@@ -44,13 +48,23 @@ export default function SuccessPage() {
             <div className="space-y-4">
               <PdfViewer fileUrl={downloadUrl} />
             </div>
-            <div className="flex justify-center">
-              <button
+            <div className="flex justify-center gap-4 mt-4">
+              <Button
                 onClick={handleDownload}
                 className="bg-primary text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-primary/90 transition-transform transform hover:scale-105"
               >
-                Download Your Guidebook
-              </button>
+                Download PDF
+              </Button>
+              {liveGuidebookUrl && (
+                <Link href={liveGuidebookUrl} passHref target="_blank">
+                  <Button
+                    variant="outline"
+                    className="font-bold py-3 px-6 rounded-lg shadow-md transition-transform transform hover:scale-105"
+                  >
+                    View Live Guidebook
+                  </Button>
+                </Link>
+              )}
             </div>
           </>
         ) : (
