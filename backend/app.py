@@ -6,10 +6,16 @@ import io
 import json
 import base64
 import uuid
+from dotenv import load_dotenv
+import os
+
+load_dotenv() # Load environment variables from .env file
 
 app = Flask(__name__)
 CORS(app)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///guidebooks.db'
+
+# Configure the database using the DATABASE_URL from .env, with a fallback to SQLite
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
@@ -100,7 +106,8 @@ def generate_guidebook_route():
 
     return response
 
+with app.app_context():
+    db.create_all() # Create tables if they don't exist
+
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
     app.run(debug=True, port=5001)
