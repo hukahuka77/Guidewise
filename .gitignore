@@ -4,3 +4,4 @@ backend/__pycache__
 backend/*.pyc
 .dockerignore
 frontend/node_modules
+frontend/.next
