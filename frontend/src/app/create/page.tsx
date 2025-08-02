@@ -56,24 +56,43 @@ export default function CreateGuidebookPage() {
     setIsLoading(true);
     setError(null);
 
-    const apiFormData = new FormData();
-    Object.entries(formData).forEach(([key, value]) => {
-      if (key === 'rules') {
-        // Split rules by newline and send as a JSON array string
-        apiFormData.append(key, JSON.stringify((value as string).split('\n').filter((line: string) => line.trim() !== '')));
-      } else {
-        apiFormData.append(key, String(value));
-      }
-    });
-
-    if (coverImage) {
-      apiFormData.append('coverImage', coverImage);
-    }
+    // Helper function to convert file to Base64
+    const toBase64 = (file: File): Promise<string> =>
+      new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = (error) => reject(error);
+      });
 
     try {
+      let coverImageUrl: string | undefined = undefined;
+      if (coverImage) {
+        coverImageUrl = await toBase64(coverImage);
+      }
+
+      // Prepare the JSON payload with snake_case keys for the backend
+      const payload = {
+        property_name: formData.propertyName,
+        host_name: formData.hostName,
+        address_street: formData.address_street,
+        address_city_state: formData.address_city_state,
+        address_zip: formData.address_zip,
+        access_info: formData.access_info,
+        wifi_network: formData.wifiNetwork,
+        wifi_password: formData.wifiPassword,
+        check_in_time: formData.checkInTime,
+        check_out_time: formData.checkOutTime,
+        rules: (formData.rules as string).split('\n').filter((line: string) => line.trim() !== ''),
+        cover_image_url: coverImageUrl,
+      };
+
       const response = await fetch('http://localhost:5001/api/generate', {
         method: 'POST',
-        body: apiFormData, // No 'Content-Type' header, browser sets it for FormData
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
