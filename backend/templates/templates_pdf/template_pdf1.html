@@ -90,6 +90,8 @@
             height: 100px;
             object-fit: cover;
             margin-right: 20px;
+            border-radius: 10px; /* rounded corners */
+            display: block;
         }
         .item-list .item .details h3 {
             font-family: 'Playfair Display', serif;
@@ -97,14 +99,9 @@
             font-size: 20px;
         }
 
-        .item-list .item:nth-child(even) {
-            flex-direction: row-reverse;
-        }
-
-        .item-list .item:nth-child(even) img {
-            margin-right: 0;
-            margin-left: 20px;
-        }
+        /* Use an explicit class for alternating layout to ensure PDF engine compatibility */
+        .item-list .item.reverse { flex-direction: row-reverse; }
+        .item-list .item.reverse img { margin-right: 0; margin-left: 20px; }
 
         /* House Rules */
         .rules-list {
@@ -134,8 +131,14 @@
         {% if 'checkin' in included_tabs %}
         <h1 class="page-title">Welcome to Your Stay</h1>
         {% if welcome_message %}<p>{{ welcome_message }}</p>{% endif %}
+        {% if 'hostinfo' in included_tabs %}
+        <div class="info-section" style="margin-top:20px;">
+            <h2>Host</h2>
+            <p><strong>Host:</strong> {{ host_name }}</p>
+        </div>
         {% endif %}
-        
+        {% endif %}
+
         <div class="info-grid">
             {% if 'checkin' in included_tabs %}
             <div class="info-section">
@@ -150,11 +153,10 @@
                 <p><strong>Network:</strong> {{ wifi_network }}<br><strong>Password:</strong> {{ wifi_password }}</p>
             </div>
             {% endif %}
-            {% if 'hostinfo' in included_tabs or 'checkin' in included_tabs %}
+            {% if 'checkin' in included_tabs %}
             <div class="info-section">
-                <h2>Host & Timings</h2>
-                {% if 'hostinfo' in included_tabs %}<p><strong>Host:</strong> {{ host_name }}</p>{% endif %}
-                {% if 'checkin' in included_tabs %}<p><strong>Check-in:</strong> After {{ check_in_time }}<br><strong>Check-out:</strong> Before {{ check_out_time }}</p>{% endif %}
+                <h2>Timings</h2>
+                <p><strong>Check-in:</strong> After {{ check_in_time }}<br><strong>Check-out:</strong> Before {{ check_out_time }}</p>
             </div>
             {% endif %}
         </div>
@@ -166,7 +168,7 @@
         <h1 class="page-title">Things to Do Nearby</h1>
         <div class="item-list">
             {% for activity in things_to_do %}
-            <div class="item">
+            <div class="item {% if loop.index0 % 2 == 1 %}reverse{% endif %}">
                 {% if activity.image_url %}<img src="{{ activity.image_url }}" alt="{{ activity.name }}">{% endif %}
                 <div class="details">
                     <h3>{{ activity.name }}</h3>
@@ -184,7 +186,7 @@
         <h1 class="page-title">Places to Eat Nearby</h1>
         <div class="item-list">
             {% for place in places_to_eat %}
-            <div class="item">
+            <div class="item {% if loop.index0 % 2 == 1 %}reverse{% endif %}">
                 {% if place.image_url %}<img src="{{ place.image_url }}" alt="{{ place.name }}">{% endif %}
                 <div class="details">
                     <h3>{{ place.name }}</h3>
@@ -207,6 +209,26 @@
         </ul>
     </div>
     {% endif %}
+
+    {# Custom Sections: render in the same order as included_tabs #}
+    {% for tab in included_tabs %}
+    {% if tab.startswith('custom_') and custom_sections.get(tab) %}
+    {% set meta = (custom_tabs_meta.get(tab) if custom_tabs_meta else None) %}
+    <div class="page">
+        <h1 class="page-title">{{ (meta.label if meta and meta.label) or (tab | replace('custom_', '') | replace('_', ' ') | title) }}</h1>
+        <div class="item-list">
+            {% for text in custom_sections.get(tab) %}
+            <div class="item">
+                <div class="details">
+                    <h3>{{ (meta.label if meta and meta.label) or (tab | replace('custom_', '') | replace('_', ' ') | title) }}</h3>
+                    <p>{{ text }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    {% endfor %}
 
 </body>
 </html>

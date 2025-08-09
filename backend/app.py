@@ -2,8 +2,10 @@ from flask import Flask, request, send_file, jsonify, render_template, make_resp
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
+from sqlalchemy.orm import joinedload
 import main as pdf_generator
 import io
+import hashlib
 from dotenv import load_dotenv
 import os
 
@@ -15,6 +17,14 @@ from utils.ai_activities import get_ai_activity_recommendations
 load_dotenv() # Load environment variables from .env file
 
 app = Flask(__name__)
+
+# Optional gzip compression if Flask-Compress is available
+try:
+    from flask_compress import Compress
+    Compress(app)
+except Exception:
+    pass
+
 """
 Configure CORS to only allow requests from configured frontend origins and only for /api/* routes.
 Set FRONTEND_ORIGIN in backend/.env, e.g.:
@@ -43,9 +53,24 @@ TEMPLATE_REGISTRY = {
 }
 ALLOWED_TEMPLATE_KEYS = set(TEMPLATE_REGISTRY.keys())
 
+RENDER_CACHE = {}
+
+def _render_cache_key(gb: Guidebook, template_key: str) -> str:
+    ts = getattr(gb, 'last_modified_time', None)
+    ts_val = str(ts.timestamp()) if hasattr(ts, 'timestamp') else str(ts)
+    return f"{gb.id}:{template_key}:{ts_val}"
+
 @app.route('/guidebook/<guidebook_id>')
 def view_guidebook(guidebook_id):
-    guidebook = Guidebook.query.get_or_404(guidebook_id)
+    # Eager-load related objects to avoid N+1 queries
+    guidebook = (
+        Guidebook.query.options(
+            joinedload(Guidebook.host),
+            joinedload(Guidebook.property),
+            joinedload(Guidebook.wifi),
+            joinedload(Guidebook.rules),
+        ).get_or_404(guidebook_id)
+    )
     # Handle case where wifi might be null (pass through None/empty; template handles conditionals)
     wifi_network = guidebook.wifi.network if guidebook.wifi and guidebook.wifi.network else None
     wifi_password = guidebook.wifi.password if guidebook.wifi and guidebook.wifi.password else None
@@ -56,31 +81,55 @@ def view_guidebook(guidebook_id):
     base_tabs = ['checkin','property','hostinfo','wifi','food','activities','rules','checkout']
     included_tabs = getattr(guidebook, 'included_tabs', None) or base_tabs
     included_tabs = [t for t in included_tabs if (t in base_tabs) or (isinstance(t, str) and t.startswith('custom_'))]
-    return render_template(template_file, 
-        id=guidebook.id, 
-        host_name=getattr(guidebook.host, 'name', None), 
+
+    # Caching: reuse rendered HTML if guidebook/template unchanged
+    cache_key = _render_cache_key(guidebook, template_key)
+    etag = hashlib.sha256(cache_key.encode('utf-8')).hexdigest()
+    if request.headers.get('If-None-Match') == etag:
+        resp = make_response('', 304)
+        resp.headers['ETag'] = etag
+        return resp
+
+    cached = RENDER_CACHE.get(cache_key)
+    if cached is not None:
+        resp = make_response(cached)
+        resp.headers['Content-Type'] = 'text/html; charset=utf-8'
+        resp.headers['ETag'] = etag
+        resp.headers['Cache-Control'] = 'public, max-age=300'
+        return resp
+
+    html = render_template(
+        template_file,
+        id=guidebook.id,
+        host_name=getattr(guidebook.host, 'name', None),
         host_bio=getattr(guidebook.host, 'bio', None),
         host_photo_url=getattr(guidebook.host, 'host_image_base64', None),
-        property_name=guidebook.property.name, 
-        wifi_network=wifi_network, 
-        wifi_password=wifi_password, 
-        check_in_time=guidebook.check_in_time, 
-        check_out_time=guidebook.check_out_time, 
-        address_street=guidebook.property.address_street, 
-        address_city_state=guidebook.property.address_city_state, 
-        address_zip=guidebook.property.address_zip, 
-        access_info=guidebook.access_info, 
+        property_name=guidebook.property.name,
+        wifi_network=wifi_network,
+        wifi_password=wifi_password,
+        check_in_time=guidebook.check_in_time,
+        check_out_time=guidebook.check_out_time,
+        address_street=guidebook.property.address_street,
+        address_city_state=guidebook.property.address_city_state,
+        address_zip=guidebook.property.address_zip,
+        access_info=guidebook.access_info,
         welcome_message=getattr(guidebook, 'welcome_info', None),
         parking_info=getattr(guidebook, 'parking_info', None),
-        rules=[rule.text for rule in guidebook.rules], 
-        things_to_do=guidebook.things_to_do, 
-        places_to_eat=guidebook.places_to_eat, 
+        rules=[rule.text for rule in guidebook.rules],
+        things_to_do=guidebook.things_to_do,
+        places_to_eat=guidebook.places_to_eat,
         checkout_info=getattr(guidebook, 'checkout_info', None),
         included_tabs=included_tabs,
         custom_sections=getattr(guidebook, 'custom_sections', None),
         custom_tabs_meta=getattr(guidebook, 'custom_tabs_meta', None),
-        cover_image_url=guidebook.cover_image_url
+        cover_image_url=guidebook.cover_image_url,
     )
+    RENDER_CACHE[cache_key] = html
+    resp = make_response(html)
+    resp.headers['Content-Type'] = 'text/html; charset=utf-8'
+    resp.headers['ETag'] = etag
+    resp.headers['Cache-Control'] = 'public, max-age=300'
+    return resp
 
 @app.route('/api/generate', methods=['POST'])
 def generate_guidebook_route():
@@ -205,23 +254,15 @@ def generate_guidebook_route():
 
     db.session.commit()
 
-    # Generate PDF from the same data
-    # Pass the newly created guidebook object to the PDF generator.
-    pdf_bytes = pdf_generator.create_guidebook_pdf(new_guidebook)
-    
-    # Create the response with the PDF
-    response = send_file(
-        io.BytesIO(pdf_bytes),
-        mimetype='application/pdf',
-        as_attachment=True,
-        download_name='guidebook.pdf'
-    )
-
-    # Add the custom header with the live URL
-    response.headers['X-Guidebook-Url'] = f'/guidebook/{new_guidebook.id}'
-    response.headers['Access-Control-Expose-Headers'] = 'X-Guidebook-Url'
-
-    return response
+    # Do NOT generate the PDF here. Return JSON with identifiers and the live URL header.
+    resp = jsonify({
+        "ok": True,
+        "guidebook_id": new_guidebook.id,
+        "template_key": selected_template_key,
+    })
+    resp.headers['X-Guidebook-Url'] = f'/guidebook/{new_guidebook.id}'
+    resp.headers['Access-Control-Expose-Headers'] = 'X-Guidebook-Url'
+    return resp, 201
 
 def run_startup_migrations():
     """Add missing columns if they don't already exist (Postgres)."""
@@ -283,6 +324,67 @@ def update_template_key(guidebook_id):
     gb.template_key = new_key
     db.session.commit()
     return jsonify({"ok": True, "template_key": gb.template_key})
+
+# In-memory cache for generated PDFs for the lifetime of the process
+PDF_CACHE = {}
+
+def _pdf_cache_key(guidebook: Guidebook, template_key: str) -> str:
+    # Use id + template; include last_modified_time when available for better busting
+    ts = getattr(guidebook, 'last_modified_time', None)
+    ts_val = str(ts.timestamp()) if hasattr(ts, 'timestamp') else str(ts)
+    return f"{guidebook.id}:{template_key}:{ts_val}"
+
+@app.route('/api/guidebook/<guidebook_id>/pdf', methods=['GET'])
+def get_pdf_on_demand(guidebook_id):
+    gb = Guidebook.query.get_or_404(guidebook_id)
+    requested_template = request.args.get('template')
+    want_download = str(request.args.get('download', '0')).lower() in ('1', 'true', 'yes')
+    # Choose a valid template: request > guidebook > default
+    chosen_template = None
+    if requested_template in ALLOWED_TEMPLATE_KEYS:
+        chosen_template = requested_template
+    elif getattr(gb, 'template_key', None) in ALLOWED_TEMPLATE_KEYS:
+        chosen_template = gb.template_key
+    else:
+        chosen_template = 'template_1'
+
+    cache_key = _pdf_cache_key(gb, chosen_template)
+    etag = hashlib.sha256(cache_key.encode('utf-8')).hexdigest()
+    if request.headers.get('If-None-Match') == etag:
+        resp = make_response('', 304)
+        resp.headers['ETag'] = etag
+        return resp
+
+    cached = PDF_CACHE.get(cache_key)
+    if cached:
+        resp = send_file(
+            io.BytesIO(cached),
+            mimetype='application/pdf',
+            as_attachment=want_download,
+            download_name='guidebook.pdf'
+        )
+        resp.headers['ETag'] = etag
+        resp.headers['Cache-Control'] = 'public, max-age=3600'
+        return resp
+
+    # Generate PDF lazily. If the generator reads gb.template_key, temporarily override.
+    original_template = getattr(gb, 'template_key', None)
+    try:
+        gb.template_key = chosen_template
+        pdf_bytes = pdf_generator.create_guidebook_pdf(gb)
+    finally:
+        gb.template_key = original_template
+
+    PDF_CACHE[cache_key] = pdf_bytes
+    resp = send_file(
+        io.BytesIO(pdf_bytes),
+        mimetype='application/pdf',
+        as_attachment=want_download,
+        download_name='guidebook.pdf'
+    )
+    resp.headers['ETag'] = etag
+    resp.headers['Cache-Control'] = 'public, max-age=3600'
+    return resp
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)

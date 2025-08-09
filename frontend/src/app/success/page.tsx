@@ -13,63 +13,100 @@ import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
 export default function SuccessPage() {
-  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [liveGuidebookUrl, setLiveGuidebookUrl] = useState<string | null>(null);
   const [guidebookId, setGuidebookId] = useState<string | null>(null);
   const [isPdfModalOpen, setPdfModalOpen] = useState(false);
   const [isUpdatingTemplate, setIsUpdatingTemplate] = useState(false);
   const [templateMessage, setTemplateMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    const pdfUrl = sessionStorage.getItem('guidebookUrl');
-    setDownloadUrl(pdfUrl);
-
-    const liveUrl = sessionStorage.getItem('liveGuidebookUrl');
-    setLiveGuidebookUrl(liveUrl);
-    if (liveUrl) {
-      const match = liveUrl.match(/\/guidebook\/([^/?#]+)/);
-      if (match && match[1]) setGuidebookId(match[1]);
-    }
-  }, []);
-
-  const handleDownload = () => {
-    if (downloadUrl) {
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = 'guidebook.pdf';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
+  const getTemplateFromPdfUrl = (): 'template_1' | 'template_2' | undefined => {
+    if (!pdfUrl) return undefined;
+    if (pdfUrl.includes('template=template_2')) return 'template_2';
+    if (pdfUrl.includes('template=template_1')) return 'template_1';
+    return undefined;
   };
 
-  const PdfCard = () => (
-    <div className="group relative border rounded-xl p-4 bg-white shadow hover:shadow-lg transition cursor-pointer" onClick={() => setPdfModalOpen(true)}>
-      <div className="aspect-[4/3] w-full overflow-hidden rounded-lg bg-gray-100 flex items-center justify-center">
-        {downloadUrl ? (
-          <div className="w-full h-full flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
-            <div className="w-full h-full">
-              <PdfViewer fileUrl={downloadUrl} />
-            </div>
-          </div>
-        ) : (
-          <div className="text-gray-400">No PDF</div>
-        )}
+  const getPdfPlaceholder = (templateKey?: 'template_1' | 'template_2') => {
+    // Default to Standard placeholder
+    if (templateKey === 'template_2') return '/images/PDF_Basic.png';
+    return '/images/PDF_Standard.png';
+  };
+
+  const getUrlPlaceholder = (templateKey: 'template_1' | 'template_2') => {
+    return templateKey === 'template_1' ? '/images/URL_Generic1.png' : '/images/URL_Generic2.png';
+  };
+
+  useEffect(() => {
+    const liveUrl = sessionStorage.getItem('liveGuidebookUrl');
+    setLiveGuidebookUrl(liveUrl);
+    const storedId = sessionStorage.getItem('guidebookId');
+    if (storedId) setGuidebookId(storedId);
+  }, []);
+
+  const handleDownload = (templateKey?: 'template_1' | 'template_2') => {
+    // Build a URL that forces download on the server via ?download=1
+    if (!guidebookId) return;
+    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+    const tplParam = templateKey ? `&template=${templateKey}` : '';
+    const url = `${apiBase}/api/guidebook/${guidebookId}/pdf?download=1${tplParam}`;
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'guidebook.pdf';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const buildPdfUrl = async (templateKey?: 'template_1' | 'template_2') => {
+    if (!guidebookId) return null;
+    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+    const tplParam = templateKey ? `?template=${templateKey}` : '';
+    const url = `${apiBase}/api/guidebook/${guidebookId}/pdf${tplParam}`;
+    setPdfUrl(url);
+    return url;
+  };
+
+  const PdfCard = ({ label, templateKey }: { label: string; templateKey?: 'template_1' | 'template_2' }) => (
+    <div className="group relative border rounded-xl p-4 bg-white shadow hover:shadow-lg transition">
+      <div className="aspect-[8.5/11] w-full overflow-hidden rounded-lg bg-gray-100 flex items-center justify-center">
+        <img
+          src={getPdfPlaceholder(templateKey)}
+          alt={`${label} placeholder`}
+          className="object-contain w-full h-full"
+        />
       </div>
       <div className="mt-3 flex items-center justify-between">
         <div>
-          <h3 className="font-semibold">Standard PDF</h3>
-          <p className="text-sm text-gray-500">Click to preview larger</p>
+          <h3 className="font-semibold">{label}</h3>
+          <p className="text-sm text-gray-500">Preview the PDF or download it</p>
         </div>
-        <Button size="sm" onClick={(e) => { e.stopPropagation(); handleDownload(); }}>Download</Button>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="bg-white text-pink-600 border border-pink-500 hover:bg-pink-50"
+            onClick={async () => {
+              await buildPdfUrl(templateKey);
+              setPdfModalOpen(true);
+            }}
+          >
+            Preview
+          </Button>
+          <Button size="sm" onClick={() => handleDownload(templateKey)} disabled={!guidebookId}>Download</Button>
+        </div>
       </div>
     </div>
   );
 
   const TemplateCard = ({ label, templateKey }: { label: string; templateKey: 'template_1' | 'template_2' }) => (
     <div className="border rounded-xl p-4 bg-white shadow hover:shadow-lg transition">
-      <div className="aspect-[16/9] w-full overflow-hidden rounded-lg bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center">
-        <span className="text-gray-600 font-medium">{label}</span>
+      <div className="aspect-[16/9] w-full overflow-hidden rounded-lg bg-gray-100 flex items-center justify-center">
+        <img
+          src={getUrlPlaceholder(templateKey)}
+          alt={`${label} thumbnail`}
+          className="object-contain w-full h-full"
+        />
       </div>
       <div className="mt-3 flex items-center justify-between">
         <p className="text-sm text-gray-500">Public URL template</p>
@@ -109,13 +146,11 @@ export default function SuccessPage() {
         <section className="bg-white rounded-2xl shadow p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-semibold">PDF Templates</h2>
-            {downloadUrl && (
-              <Button onClick={handleDownload}>Download PDF</Button>
-            )}
           </div>
           <p className="text-sm text-gray-500 mb-4">Preview a compact PDF. Click to open a larger preview.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            <PdfCard />
+            <PdfCard label="Standard PDF" templateKey="template_1" />
+            <PdfCard label="Basic PDF" templateKey="template_2" />
           </div>
         </section>
 
@@ -142,17 +177,19 @@ export default function SuccessPage() {
         {/* Modal for PDF large preview */}
         {isPdfModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setPdfModalOpen(false)}>
-            <div className="bg-white rounded-xl shadow-2xl w-[95vw] h-[90vh] max-w-5xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between p-3 border-b">
+            <div className="bg-white rounded-xl shadow-2xl w-[95vw] h-[90vh] max-w-5xl overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between p-3 border-b shrink-0">
                 <h3 className="font-semibold">PDF Preview</h3>
                 <div className="flex gap-2">
-                  {downloadUrl && <Button size="sm" onClick={handleDownload}>Download</Button>}
+                  {guidebookId && (
+                    <Button size="sm" onClick={() => handleDownload(getTemplateFromPdfUrl())}>Download</Button>
+                  )}
                   <Button size="sm" variant="outline" onClick={() => setPdfModalOpen(false)}>Close</Button>
                 </div>
               </div>
-              <div className="w-full h-full">
-                {downloadUrl ? (
-                  <PdfViewer fileUrl={downloadUrl} />
+              <div className="w-full flex-1 min-h-0">
+                {pdfUrl ? (
+                  <PdfViewer fileUrl={pdfUrl} />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-gray-500">No PDF available</div>
                 )}
@@ -162,7 +199,7 @@ export default function SuccessPage() {
         )}
 
         {/* Fallback when nothing in storage */}
-        {!downloadUrl && !liveGuidebookUrl && (
+        {!guidebookId && !liveGuidebookUrl && (
           <div className="bg-white rounded-2xl shadow p-8 text-center">
             <p className="text-gray-600 mb-4">No guidebook found in this session.</p>
             <Link href="/create"><Button variant="outline">Create Another Guidebook</Button></Link>

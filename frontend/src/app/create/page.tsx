@@ -172,10 +172,11 @@ export default function CreateGuidebookPage() {
         sessionStorage.setItem('liveGuidebookUrl', fullLiveUrl);
       }
 
-      // The response body is the PDF file itself
-      const blob = await response.blob();
-      const downloadUrl = URL.createObjectURL(blob);
-      sessionStorage.setItem('guidebookUrl', downloadUrl);
+      // Read JSON with identifiers; do not create a blob now
+      const json = await response.json();
+      if (json && json.guidebook_id) {
+        sessionStorage.setItem('guidebookId', String(json.guidebook_id));
+      }
 
       router.push('/success');
 
