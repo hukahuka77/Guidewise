@@ -13,6 +13,7 @@ import ArrivalSection from "./ArrivalSection";
 import WifiSection from "./WifiSection";
 import CheckinSection from "./CheckinSection";
 import HostInfoSection from "./HostInfoSection";
+import PropertySection from "./PropertySection";
 import DynamicItemList, { DynamicItem } from "./DynamicItemList";
 import RulesSection from "./RulesSection";
 import CheckoutSection from "./CheckoutSection";
@@ -20,8 +21,21 @@ import CheckoutSection from "./CheckoutSection";
 export default function CreateGuidebookPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
+  // Ordered sections for sequential navigation
+  const sectionsOrder = [
+    "checkin",
+    "property",
+    "hostinfo",
+    "wifi",
+    "food",
+    "activities",
+    "rules",
+    "checkout",
+  ] as const;
   const [coverImage, setCoverImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [hostPhoto, setHostPhoto] = useState<File | null>(null);
+  const [hostPhotoPreviewUrl, setHostPhotoPreviewUrl] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     propertyName: 'Sunny Retreat Guest House',
     hostName: '', // Placeholder only
@@ -62,12 +76,14 @@ export default function CreateGuidebookPage() {
     }));
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setCoverImage(file);
-      setPreviewUrl(URL.createObjectURL(file));
-    }
+  const handleCoverImageSelect = (file: File | null) => {
+    setCoverImage(file);
+    setPreviewUrl(file ? URL.createObjectURL(file) : null);
+  };
+
+  const handleHostPhotoSelect = (file: File | null) => {
+    setHostPhoto(file);
+    setHostPhotoPreviewUrl(file ? URL.createObjectURL(file) : null);
   };
 
   const nextStep = () => setStep((prev) => prev + 1);
@@ -92,14 +108,31 @@ export default function CreateGuidebookPage() {
 
     try {
       let coverImageUrl: string | undefined = undefined;
+      let hostPhotoUrl: string | undefined = undefined;
       if (coverImage) {
         coverImageUrl = await toBase64(coverImage);
       }
+      if (hostPhoto) {
+        hostPhotoUrl = await toBase64(hostPhoto);
+      }
+
+      // Compile rules from state (send only checked rules as strings)
+      const compiledRules = rules
+        .filter(r => r.checked)
+        .map(r => (r.description ? `${r.name}: ${r.description}` : r.name))
+        .filter(Boolean);
 
       // Prepare the JSON payload with snake_case keys for the backend
       const payload = {
         property_name: formData.propertyName,
         host_name: formData.hostName,
+        // additional non-persisted or informational fields
+        location: formData.location,
+        welcome_message: formData.welcomeMessage,
+        parking_info: formData.parkingInfo,
+        host_bio: formData.hostBio,
+        host_contact: formData.hostContact,
+        host_photo_url: hostPhotoUrl,
         address_street: formData.address_street,
         address_city_state: formData.address_city_state,
         address_zip: formData.address_zip,
@@ -108,8 +141,11 @@ export default function CreateGuidebookPage() {
         wifi_password: formData.wifiPassword,
         check_in_time: formData.checkInTime,
         check_out_time: formData.checkOutTime,
-        rules: (formData.rules as string).split('\n').filter((line: string) => line.trim() !== ''),
+        rules: compiledRules,
         cover_image_url: coverImageUrl,
+        // lists
+        things_to_do: activityItems.map(i => ({ name: i.name, description: i.description, image_url: (i as any).image_url || "", address: (i as any).address || "" })),
+        places_to_eat: foodItems.map(i => ({ name: i.name, description: i.description, image_url: (i as any).image_url || "", address: (i as any).address || "" })),
       };
 
       const response = await fetch('http://localhost:5001/api/generate', {
@@ -148,11 +184,30 @@ export default function CreateGuidebookPage() {
 
   // Navigation state for sidebar
   const [currentSection, setCurrentSection] = useState<string>("checkin");
+  const [visitedMaxIndex, setVisitedMaxIndex] = useState<number>(0);
+  const [visited, setVisited] = useState<Set<string>>(new Set(["checkin"]));
+
+  const currentIndex = sectionsOrder.indexOf(currentSection as typeof sectionsOrder[number]);
+  const allVisited = visited.size === sectionsOrder.length;
+
+  const goToSection = (section: string) => {
+    setCurrentSection(section);
+    const idx = sectionsOrder.indexOf(section as typeof sectionsOrder[number]);
+    if (idx > visitedMaxIndex) setVisitedMaxIndex(idx);
+    setVisited(prev => new Set([...prev, section]));
+  };
+
+  const goNext = () => {
+    if (currentIndex < sectionsOrder.length - 1) {
+      const next = sectionsOrder[currentIndex + 1];
+      goToSection(next);
+    }
+  };
 
   return (
     <NavGuardContext.Provider value={{ locationFilled: !!formData.location }}>
       <CreateGuidebookLayout
-        sidebar={<SidebarNav currentSection={currentSection} onSectionChange={setCurrentSection} />}
+        sidebar={<SidebarNav currentSection={currentSection} onSectionChange={goToSection} visitedMaxIndex={visitedMaxIndex} allVisited={allVisited} />}
       >
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
@@ -176,6 +231,16 @@ export default function CreateGuidebookPage() {
           bio={formData.hostBio}
           contact={formData.hostContact}
           onChange={(id, value) => setFormData(f => ({ ...f, [id]: value }))}
+          onHostPhotoChange={handleHostPhotoSelect}
+          hostPhotoPreviewUrl={hostPhotoPreviewUrl}
+        />
+      )}
+      {currentSection === "property" && (
+        <PropertySection
+          propertyName={formData.propertyName}
+          onChange={(id, value) => setFormData(f => ({ ...f, [id]: value }))}
+          onCoverImageChange={handleCoverImageSelect}
+          coverPreviewUrl={previewUrl}
         />
       )}
       {currentSection === "wifi" && (
@@ -320,6 +385,33 @@ export default function CreateGuidebookPage() {
       {currentSection === "arrival" && (
         <ArrivalSection checkInTime={formData.checkInTime} onChange={(id, value) => setFormData(f => ({ ...f, [id]: value }))} />
       )}
+      {/* Footer Actions: Next or Publish */}
+      <div className="mt-8 flex justify-end">
+        <Button
+          type="button"
+          className="px-6 py-2 bg-pink-500 text-white font-semibold rounded shadow hover:bg-pink-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          onClick={(e) => {
+            if (allVisited || currentIndex === sectionsOrder.length - 1) {
+              return handleSubmit(e as unknown as React.FormEvent);
+            }
+            return goNext();
+          }}
+          disabled={
+            isLoading ||
+            (!formData.location && currentSection === "checkin") ||
+            // Host name required: block on hostinfo and whenever Publish would be available
+            (!formData.hostName?.trim() && (
+              currentSection === "hostinfo" || allVisited || currentIndex === sectionsOrder.length - 1
+            ))
+          }
+        >
+          {isLoading
+            ? "Processing…"
+            : (allVisited || currentIndex === sectionsOrder.length - 1)
+              ? "Publish"
+              : "Next Page"}
+        </Button>
+      </div>
       </CreateGuidebookLayout>
     </NavGuardContext.Provider>
   );

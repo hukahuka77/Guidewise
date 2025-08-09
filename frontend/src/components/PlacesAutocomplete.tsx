@@ -1,4 +1,6 @@
 import React, { useEffect, useRef } from "react";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 interface PlacesAutocompleteProps {
   value: string;
@@ -20,9 +22,16 @@ function loadGoogleScript(apiKey: string) {
 
 const GOOGLE_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || process.env.GOOGLE_API_KEY;
 
+// Minimal ambient declaration to satisfy TS without external type packages
+declare global {
+  interface Window {
+    google?: any;
+  }
+}
+
 const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({ value, onChange, placeholder, className }) => {
   const inputRef = useRef<HTMLInputElement>(null);
-  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+  const autocompleteRef = useRef<any | null>(null);
 
   useEffect(() => {
     if (!GOOGLE_API_KEY) return;
@@ -50,12 +59,12 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({ value, onChange
   }, [GOOGLE_API_KEY, onChange]);
 
   return (
-    <input
+    <Input
       ref={inputRef}
       value={value}
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder || "Enter a location"}
-      className={className}
+      className={cn("w-full", className)}
       autoComplete="off"
       id="location-autocomplete"
       name="location"

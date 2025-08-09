@@ -3,6 +3,7 @@ import { Home, Wifi, ParkingCircle, DoorOpen, CalendarCheck2 } from "lucide-reac
 
 const navItems = [
   { label: "Check-in Info", icon: <DoorOpen />, section: "checkin" },
+  { label: "Property Details", icon: <Home />, section: "property" },
   { label: "Host Info", icon: <Home />, section: "hostinfo" },
   { label: "Wifi", icon: <Wifi />, section: "wifi" },
   { label: "Food", icon: <Home />, section: "food" },
@@ -14,6 +15,8 @@ const navItems = [
 interface SidebarNavProps {
   currentSection: string;
   onSectionChange: (section: string) => void;
+  visitedMaxIndex: number;
+  allVisited: boolean;
 }
 
 import { useContext } from "react";
@@ -24,7 +27,7 @@ interface NavGuardContextProps {
 
 export const NavGuardContext = React.createContext<NavGuardContextProps>({ locationFilled: true });
 
-export default function SidebarNav({ currentSection, onSectionChange }: SidebarNavProps) {
+export default function SidebarNav({ currentSection, onSectionChange, visitedMaxIndex, allVisited }: SidebarNavProps) {
   return (
     <nav className="h-full w-56 bg-[oklch(0.6923_0.22_21.05)] text-white flex flex-col py-8 px-4 shadow-lg">
       <div className="mb-8 text-2xl font-bold tracking-tight">Guidebook</div>
@@ -32,7 +35,9 @@ export default function SidebarNav({ currentSection, onSectionChange }: SidebarN
         {({ locationFilled }) => (
           <ul className="flex flex-col gap-4">
             {navItems.map((item, idx) => {
-              const isDisabled = !locationFilled && item.section !== "checkin";
+              const lockedByLocation = !locationFilled && item.section !== "checkin";
+              const lockedByProgress = !allVisited && idx > (visitedMaxIndex + 1);
+              const isDisabled = lockedByLocation || lockedByProgress;
               return (
                 <li
                   key={item.section}
@@ -40,7 +45,7 @@ export default function SidebarNav({ currentSection, onSectionChange }: SidebarN
                   onClick={() => {
                     if (!isDisabled) onSectionChange(item.section);
                   }}
-                  title={isDisabled ? "Fill out Location to continue" : undefined}
+                  title={isDisabled ? (lockedByLocation ? "Fill out Location to continue" : "Please complete previous sections first") : undefined}
                   aria-disabled={isDisabled}
                 >
                   <span className="w-6 h-6">{item.icon}</span>

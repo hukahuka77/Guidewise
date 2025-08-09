@@ -52,17 +52,20 @@ def view_guidebook(guidebook_id):
 def generate_guidebook_route():
     data = request.json
 
-    # Get AI recommendations
-    full_address = f"{data.get('address_street', '')}, {data.get('address_city_state', '')}, {data.get('address_zip', '')}"
-    try:
-        from utils.aifunctions import get_ai_recommendations
-        recommendations = get_ai_recommendations(full_address)
-        data['things_to_do'] = recommendations.get('things_to_do', [])
-        data['places_to_eat'] = recommendations.get('places_to_eat', [])
-    except Exception as e:
-        print(f"Error getting AI recommendations: {e}")
-        data['things_to_do'] = []
-        data['places_to_eat'] = []
+    # Get AI recommendations only if not provided by client
+    has_things = isinstance(data.get('things_to_do'), list) and len(data.get('things_to_do')) > 0
+    has_places = isinstance(data.get('places_to_eat'), list) and len(data.get('places_to_eat')) > 0
+    if not (has_things and has_places):
+        full_address = f"{data.get('address_street', '')}, {data.get('address_city_state', '')}, {data.get('address_zip', '')}"
+        try:
+            from utils.aifunctions import get_ai_recommendations
+            recommendations = get_ai_recommendations(full_address)
+            data['things_to_do'] = data.get('things_to_do') or recommendations.get('things_to_do', [])
+            data['places_to_eat'] = data.get('places_to_eat') or recommendations.get('places_to_eat', [])
+        except Exception as e:
+            print(f"Error getting AI recommendations: {e}")
+            data['things_to_do'] = data.get('things_to_do') or []
+            data['places_to_eat'] = data.get('places_to_eat') or []
 
     # --- Create DB Objects with new normalized schema ---
     # Find or create Host
