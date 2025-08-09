@@ -8,3 +8,5 @@ WeasyPrint==66.0
 gunicorn==22.0.0
 openai==1.68.2
 requests==2.32.3
+PyJWT>=2.8.0
+cryptography>=42.0.0

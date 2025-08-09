@@ -7,7 +7,10 @@ class Host(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=True)
     bio = db.Column(db.Text, nullable=True)
+    contact = db.Column(db.Text, nullable=True)
     host_image_base64 = db.Column(db.Text, nullable=True)
+    # Ownership: Supabase user ID (UUID as string)
+    user_id = db.Column(db.String(36), index=True, nullable=True)
     guidebooks = db.relationship('Guidebook', backref='host', lazy=True)
 
 class Property(db.Model):
@@ -16,12 +19,16 @@ class Property(db.Model):
     address_street = db.Column(db.String(100))
     address_city_state = db.Column(db.String(100))
     address_zip = db.Column(db.String(50))
+    # Ownership: Supabase user ID (UUID as string)
+    user_id = db.Column(db.String(36), index=True, nullable=True)
     guidebooks = db.relationship('Guidebook', backref='property', lazy=True)
 
 class Wifi(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     network = db.Column(db.String(100), nullable=False)
     password = db.Column(db.String(100))
+    # Ownership: Supabase user ID (UUID as string)
+    user_id = db.Column(db.String(36), index=True, nullable=True)
     guidebooks = db.relationship('Guidebook', backref='wifi', lazy=True)
 
 class Rule(db.Model):
@@ -51,6 +58,9 @@ class Guidebook(db.Model):
 
     # Selected template (e.g., 'template_1' or 'template_2')
     template_key = db.Column(db.String(50), nullable=False, default='template_1')
+
+    # Ownership: Supabase user ID (UUID as string)
+    user_id = db.Column(db.String(36), index=True, nullable=True)
 
     # Foreign Keys
     host_id = db.Column(db.Integer, db.ForeignKey('host.id'), nullable=True)

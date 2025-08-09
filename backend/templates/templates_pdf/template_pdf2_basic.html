@@ -165,10 +165,11 @@
     </section>
     {% endif %}
 
-    {% if host_name %}
+    {% if host_name or host_contact %}
     <section class="section">
       <h2>Host</h2>
-      <p>{{ host_name }}</p>
+      {% if host_name %}<p class="kv"><span class="label">Name:</span> {{ host_name }}</p>{% endif %}
+      {% if host_contact %}<p class="kv"><span class="label">Contact:</span> {{ host_contact }}</p>{% endif %}
     </section>
     {% endif %}
 

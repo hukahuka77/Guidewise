@@ -1,4 +1,4 @@
-from flask import Flask, request, send_file, jsonify, render_template, make_response
+from flask import Flask, request, send_file, jsonify, render_template, make_response, g, abort
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
@@ -8,6 +8,12 @@ import io
 import hashlib
 from dotenv import load_dotenv
 import os
+import functools
+import logging
+
+# JWT/JWKS for Supabase auth verification
+import jwt
+from jwt import PyJWKClient
 
 # Import db and models from models.py
 from models import db, Guidebook, Host, Property, Wifi, Rule
@@ -17,6 +23,10 @@ from utils.ai_activities import get_ai_activity_recommendations
 load_dotenv() # Load environment variables from .env file
 
 app = Flask(__name__)
+
+# Basic logging setup
+logging.basicConfig(level=logging.INFO)
+log = logging.getLogger("auth")
 
 # Optional gzip compression if Flask-Compress is available
 try:
@@ -45,6 +55,88 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialize the database with the app
 db.init_app(app)
+
+# --- Supabase Auth (JWT via JWKS) ---
+SUPABASE_URL = os.environ.get('SUPABASE_URL', '').rstrip('/')
+SUPABASE_JWKS_URL = os.environ.get('SUPABASE_JWKS_URL') or (f"{SUPABASE_URL}/auth/v1/jwks" if SUPABASE_URL else None)
+SUPABASE_JWT_AUD = os.environ.get('SUPABASE_JWT_AUD')  # optional
+SUPABASE_JWT_SECRET = os.environ.get('SUPABASE_JWT_SECRET')  # for HS256 tokens (Supabase default)
+
+_jwks_client = None
+
+def _get_jwks_client():
+    global _jwks_client
+    if _jwks_client is None:
+        if not SUPABASE_JWKS_URL:
+            raise RuntimeError("SUPABASE_JWKS_URL not configured. Set SUPABASE_URL or SUPABASE_JWKS_URL in env.")
+        log.info(f"JWKS URL: {SUPABASE_JWKS_URL}")
+        if SUPABASE_JWT_AUD:
+            log.info(f"Expecting JWT aud={SUPABASE_JWT_AUD}")
+        _jwks_client = PyJWKClient(SUPABASE_JWKS_URL)
+    return _jwks_client
+
+def _verify_bearer_jwt(auth_header: str):
+    if not auth_header:
+        log.warning("Authorization header missing")
+        return None
+    if not auth_header.startswith('Bearer '):
+        log.warning("Authorization header not a Bearer token")
+        return None
+    token = auth_header.split(' ', 1)[1].strip()
+    try:
+        # Inspect header to determine algorithm
+        try:
+            hdr = jwt.get_unverified_header(token)
+            alg = hdr.get('alg')
+            log.info(f"JWT header kid={hdr.get('kid')} alg={alg}")
+        except Exception as e:
+            log.warning(f"Unable to read JWT header: {type(e).__name__}: {e}")
+            alg = None
+
+        # HS256 (Supabase default): verify with project JWT secret
+        if alg == 'HS256':
+            if not SUPABASE_JWT_SECRET:
+                log.error("SUPABASE_JWT_SECRET not set; cannot verify HS256 token")
+                return None
+            decoded = jwt.decode(
+                token,
+                SUPABASE_JWT_SECRET,
+                algorithms=["HS256"],
+                audience=SUPABASE_JWT_AUD if SUPABASE_JWT_AUD else None,
+            )
+            log.info("JWT (HS256) verified OK for sub=%s", decoded.get('sub'))
+            return decoded
+
+        # RS256: fetch signing key from JWKS
+        signing_key = _get_jwks_client().get_signing_key_from_jwt(token)
+        decoded = jwt.decode(
+            token,
+            signing_key.key,
+            algorithms=["RS256"],
+            audience=SUPABASE_JWT_AUD if SUPABASE_JWT_AUD else None,
+        )
+        log.info("JWT (RS256) verified OK for sub=%s", decoded.get('sub'))
+        return decoded
+    except Exception as e:
+        log.error("JWT verification failed: %s: %s", type(e).__name__, e)
+        return None
+
+def require_auth(fn):
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        authz = request.headers.get('Authorization')
+        claims = _verify_bearer_jwt(authz)
+        if not claims:
+            log.warning("Unauthorized request to %s %s", request.method, request.path)
+            return jsonify({"error": "Unauthorized"}), 401
+        # Supabase user id lives in sub
+        g.user_id = claims.get('sub')
+        g.user_email = claims.get('email') or claims.get('user_metadata', {}).get('email') if isinstance(claims.get('user_metadata'), dict) else None
+        if not g.user_id:
+            log.warning("JWT missing sub claim")
+            return jsonify({"error": "Unauthorized"}), 401
+        return fn(*args, **kwargs)
+    return wrapper
 
 # Template registry mapping keys to template files
 TEMPLATE_REGISTRY = {
@@ -103,6 +195,7 @@ def view_guidebook(guidebook_id):
         id=guidebook.id,
         host_name=getattr(guidebook.host, 'name', None),
         host_bio=getattr(guidebook.host, 'bio', None),
+        host_contact=getattr(guidebook.host, 'contact', None),
         host_photo_url=getattr(guidebook.host, 'host_image_base64', None),
         property_name=guidebook.property.name,
         wifi_network=wifi_network,
@@ -134,6 +227,9 @@ def view_guidebook(guidebook_id):
 @app.route('/api/generate', methods=['POST'])
 def generate_guidebook_route():
     data = request.json
+    # Optional auth: if a valid Supabase JWT is provided, associate created records to that user
+    claims = _verify_bearer_jwt(request.headers.get('Authorization'))
+    user_id = claims.get('sub') if claims else None
 
     # Do not auto-generate recommendations here; leave blank if none provided
     if not isinstance(data.get('things_to_do'), list):
@@ -146,27 +242,37 @@ def generate_guidebook_route():
     host = None
     incoming_host_name = (data.get('host_name') or '').strip()
     incoming_host_bio = data.get('host_bio')
+    incoming_host_contact = data.get('host_contact')
     incoming_host_photo = data.get('host_photo_url')
     if incoming_host_name or incoming_host_bio or incoming_host_photo:
         if incoming_host_name:
-            host = Host.query.filter_by(name=incoming_host_name).first()
+            if user_id:
+                host = Host.query.filter_by(name=incoming_host_name, user_id=user_id).first()
+            else:
+                host = Host.query.filter_by(name=incoming_host_name).first()
         if not host:
-            host = Host(name=incoming_host_name or None)
+            host = Host(name=incoming_host_name or None, user_id=user_id)
             db.session.add(host)
         # Update host optional fields
         if incoming_host_bio:
             host.bio = incoming_host_bio
+        if incoming_host_contact:
+            host.contact = incoming_host_contact
         if incoming_host_photo:
             host.host_image_base64 = incoming_host_photo
 
     # Find or create Property (update fields if it already exists)
-    prop = Property.query.filter_by(name=data['property_name']).first()
+    if user_id:
+        prop = Property.query.filter_by(name=data['property_name'], user_id=user_id).first()
+    else:
+        prop = Property.query.filter_by(name=data['property_name']).first()
     if not prop:
         prop = Property(
             name=data['property_name'],
             address_street=data.get('address_street'),
             address_city_state=data.get('address_city_state'),
-            address_zip=data.get('address_zip')
+            address_zip=data.get('address_zip'),
+            user_id=user_id,
         )
         db.session.add(prop)
     else:
@@ -181,9 +287,12 @@ def generate_guidebook_route():
     # Find or create Wifi (update password if it already exists)
     wifi = None
     if data.get('wifi_network'):
-        wifi = Wifi.query.filter_by(network=data['wifi_network']).first()
+        if user_id:
+            wifi = Wifi.query.filter_by(network=data['wifi_network'], user_id=user_id).first()
+        else:
+            wifi = Wifi.query.filter_by(network=data['wifi_network']).first()
         if not wifi:
-            wifi = Wifi(network=data['wifi_network'], password=data.get('wifi_password'))
+            wifi = Wifi(network=data['wifi_network'], password=data.get('wifi_password'), user_id=user_id)
             db.session.add(wifi)
         else:
             if 'wifi_password' in data:
@@ -241,7 +350,8 @@ def generate_guidebook_route():
         template_key=selected_template_key,
         host_id=host.id if host else None,
         property_id=prop.id,
-        wifi_id=wifi.id if wifi else None
+        wifi_id=wifi.id if wifi else None,
+        user_id=user_id,
     )
     db.session.add(new_guidebook)
 
@@ -264,10 +374,185 @@ def generate_guidebook_route():
     resp.headers['Access-Control-Expose-Headers'] = 'X-Guidebook-Url'
     return resp, 201
 
+# --- User-scoped Guidebooks API ---
+@app.route('/api/guidebooks', methods=['GET'])
+@require_auth
+def list_guidebooks():
+    q = Guidebook.query.filter_by(user_id=g.user_id).order_by(Guidebook.created_time.desc())
+    items = [
+        {
+            "id": gb.id,
+            "property_name": getattr(gb.property, 'name', None),
+            "template_key": gb.template_key,
+            "created_time": gb.created_time.isoformat() if gb.created_time else None,
+            "last_modified_time": gb.last_modified_time.isoformat() if gb.last_modified_time else None,
+            "cover_image_url": gb.cover_image_url,
+        }
+        for gb in q.all()
+    ]
+    return jsonify({"items": items})
+
+@app.route('/api/guidebooks/<guidebook_id>', methods=['GET'])
+@require_auth
+def get_guidebook(guidebook_id):
+    gb = Guidebook.query.get_or_404(guidebook_id)
+    if gb.user_id != g.user_id:
+        return jsonify({"error": "Not found"}), 404
+    # Minimal payload; extend as needed
+    payload = {
+        "id": gb.id,
+        "template_key": gb.template_key,
+        "property": {
+            "id": gb.property_id,
+            "name": getattr(gb.property, 'name', None),
+            "address_street": getattr(gb.property, 'address_street', None),
+            "address_city_state": getattr(gb.property, 'address_city_state', None),
+            "address_zip": getattr(gb.property, 'address_zip', None),
+        },
+        "host": {
+            "id": gb.host_id,
+            "name": getattr(gb.host, 'name', None),
+            "bio": getattr(gb.host, 'bio', None),
+            "contact": getattr(gb.host, 'contact', None),
+        },
+        "wifi": {
+            "id": gb.wifi_id,
+            "network": getattr(gb.wifi, 'network', None),
+        },
+        "included_tabs": gb.included_tabs,
+        "custom_sections": gb.custom_sections,
+        "custom_tabs_meta": gb.custom_tabs_meta,
+        "things_to_do": gb.things_to_do,
+        "places_to_eat": gb.places_to_eat,
+        "rules": [r.text for r in gb.rules],
+        "created_time": gb.created_time.isoformat() if gb.created_time else None,
+        "last_modified_time": gb.last_modified_time.isoformat() if gb.last_modified_time else None,
+    }
+    return jsonify(payload)
+
+@app.route('/api/guidebooks/<guidebook_id>', methods=['PUT', 'PATCH'])
+@require_auth
+def update_guidebook(guidebook_id):
+    gb = Guidebook.query.get_or_404(guidebook_id)
+    if gb.user_id != g.user_id:
+        return jsonify({"error": "Not found"}), 404
+
+    data = request.json or {}
+
+    # Update primary guidebook fields if present
+    field_map = {
+        'check_in_time': 'check_in_time',
+        'check_out_time': 'check_out_time',
+        'access_info': 'access_info',
+        'welcome_message': 'welcome_info',
+        'parking_info': 'parking_info',
+        'cover_image_url': 'cover_image_url',
+        'things_to_do': 'things_to_do',
+        'places_to_eat': 'places_to_eat',
+        'checkout_info': 'checkout_info',
+        'included_tabs': 'included_tabs',
+        'custom_sections': 'custom_sections',
+        'custom_tabs_meta': 'custom_tabs_meta',
+        'template_key': 'template_key',
+    }
+    for incoming, model_attr in field_map.items():
+        if incoming in data:
+            setattr(gb, model_attr, data.get(incoming))
+
+    # Update or create related Host
+    incoming_host_name = (data.get('host_name') or '').strip()
+    incoming_host_bio = data.get('host_bio')
+    incoming_host_contact = data.get('host_contact')
+    incoming_host_photo = data.get('host_photo_url')
+    if incoming_host_name or incoming_host_bio or incoming_host_photo:
+        host = None
+        if gb.host_id:
+            host = Host.query.get(gb.host_id)
+        if not host and incoming_host_name:
+            host = Host.query.filter_by(name=incoming_host_name, user_id=g.user_id).first()
+        if not host:
+            host = Host(name=incoming_host_name or None, user_id=g.user_id)
+            db.session.add(host)
+            db.session.flush()
+            gb.host_id = host.id
+        if incoming_host_name:
+            host.name = incoming_host_name
+        if incoming_host_bio is not None:
+            host.bio = incoming_host_bio
+        if incoming_host_contact is not None:
+            host.contact = incoming_host_contact
+        if incoming_host_photo is not None:
+            host.host_image_base64 = incoming_host_photo
+
+    # Update or create related Property
+    prop_name = data.get('property_name')
+    addr_street = data.get('address_street')
+    addr_city_state = data.get('address_city_state')
+    addr_zip = data.get('address_zip')
+    if any(v is not None for v in [prop_name, addr_street, addr_city_state, addr_zip]):
+        prop = Property.query.get(gb.property_id) if gb.property_id else None
+        if not prop:
+            prop = Property(name=prop_name or None, user_id=g.user_id)
+            db.session.add(prop)
+            db.session.flush()
+            gb.property_id = prop.id
+        if prop_name is not None:
+            prop.name = prop_name
+        if addr_street is not None:
+            prop.address_street = addr_street
+        if addr_city_state is not None:
+            prop.address_city_state = addr_city_state
+        if addr_zip is not None:
+            prop.address_zip = addr_zip
+
+    # Update or create related Wifi (create only if network provided)
+    wifi_network = data.get('wifi_network')
+    wifi_password = data.get('wifi_password')
+    if wifi_network is not None or wifi_password is not None:
+        wifi = Wifi.query.get(gb.wifi_id) if gb.wifi_id else None
+        # If we have a non-empty network, create or update
+        if isinstance(wifi_network, str) and wifi_network.strip():
+            if not wifi:
+                # try find existing by network for this user
+                wifi = Wifi.query.filter_by(network=wifi_network, user_id=g.user_id).first()
+            if not wifi:
+                wifi = Wifi(network=wifi_network.strip(), user_id=g.user_id)
+                db.session.add(wifi)
+                db.session.flush()
+                gb.wifi_id = wifi.id
+            else:
+                wifi.network = wifi_network.strip()
+            if wifi_password is not None:
+                wifi.password = wifi_password
+        else:
+            # No network provided; only update password if a wifi already exists
+            if wifi and wifi_password is not None:
+                wifi.password = wifi_password
+
+    # Replace Rules if provided
+    if 'rules' in data and isinstance(data.get('rules'), list):
+        # delete existing rules
+        for r in list(gb.rules):
+            db.session.delete(r)
+        for rule_text in data.get('rules'):
+            if rule_text:
+                db.session.add(Rule(text=rule_text, guidebook=gb))
+
+    # Update last_modified_time
+    try:
+        db.session.execute(text("UPDATE guidebook SET last_modified_time = NOW() WHERE id = :id"), {"id": gb.id})
+    except Exception:
+        pass
+
+    db.session.commit()
+
+    return jsonify({"ok": True, "guidebook_id": gb.id})
+
 def run_startup_migrations():
     """Add missing columns if they don't already exist (Postgres)."""
     stmts = [
         "ALTER TABLE host ADD COLUMN IF NOT EXISTS bio TEXT;",
+        "ALTER TABLE host ADD COLUMN IF NOT EXISTS contact TEXT;",
         "ALTER TABLE host ADD COLUMN IF NOT EXISTS host_image_base64 TEXT;",
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS welcome_info TEXT;",
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS parking_info TEXT;",

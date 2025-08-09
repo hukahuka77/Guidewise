@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/lib/supabaseClient";
+import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 
 import SidebarNav from "./SidebarNav";
 import CreateGuidebookLayout from "./CreateGuidebookLayout";
@@ -21,6 +23,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || '';
 
 export default function CreateGuidebookPage() {
   const router = useRouter();
+  const [accessToken, setAccessToken] = useState<string | null>(null);
   const sectionsOrder = [
     "checkin",
     "property",
@@ -93,6 +96,23 @@ export default function CreateGuidebookPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Load Supabase session Access Token for authenticated backend calls
+  useEffect(() => {
+    if (!supabase) return; // auth disabled; allow anonymous creation
+    let mounted = true;
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      if (mounted) setAccessToken(data.session?.access_token || null);
+    })();
+    const { data: sub } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
+      setAccessToken(session?.access_token || null);
+    });
+    return () => {
+      mounted = false;
+      sub.subscription?.unsubscribe();
+    };
+  }, [supabase]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -157,6 +177,7 @@ export default function CreateGuidebookPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         },
         body: JSON.stringify(payload),
       });

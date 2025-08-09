@@ -135,6 +135,9 @@
         <div class="info-section" style="margin-top:20px;">
             <h2>Host</h2>
             <p><strong>Host:</strong> {{ host_name }}</p>
+            {% if host_contact %}
+            <p><strong>Contact:</strong> {{ host_contact }}</p>
+            {% endif %}
         </div>
         {% endif %}
         {% endif %}
