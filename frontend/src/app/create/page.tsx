@@ -7,27 +7,52 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from '@/components/ui/textarea'; // Importing the new Textarea component
 
+import SidebarNav, { NavGuardContext } from "./SidebarNav";
+import CreateGuidebookLayout from "./CreateGuidebookLayout";
+import ArrivalSection from "./ArrivalSection";
+import WifiSection from "./WifiSection";
+import CheckinSection from "./CheckinSection";
+import HostInfoSection from "./HostInfoSection";
+import DynamicItemList, { DynamicItem } from "./DynamicItemList";
+import RulesSection from "./RulesSection";
+import CheckoutSection from "./CheckoutSection";
+
 export default function CreateGuidebookPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [coverImage, setCoverImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    propertyName: '',
-    hostName: '',
-    address: '',
-    address_street: '',
-    address_city_state: '',
-    address_zip: '',
-    access_info: '',
-    rules: '',
-    wifiNetwork: '',
-    wifiPassword: '',
+    propertyName: 'Sunny Retreat Guest House',
+    hostName: '', // Placeholder only
+    hostBio: 'I love hosting guests from around the world and sharing my favorite local spots. Let me know if you need anything during your stay!',
+    hostContact: '', // Placeholder only
+    address: '123 Beachside Ave',
+    address_street: '123 Beachside Ave',
+    address_city_state: 'Santa Monica, CA',
+    address_zip: '90401',
+    access_info: 'Front door code: 4321#\nSpare key in lockbox by the garage.',
+    welcomeMessage: 'Welcome to your home away from home! We hope you have a relaxing and memorable stay.',
+    location: '', // Only required field, leave blank
+    parkingInfo: 'You have a reserved spot in front of the garage. Street parking is also available.',
+    wifiNetwork: '', // Placeholder only
+    wifiPassword: '', // Placeholder only
+    wifiNotes: 'WiFi works best in the living room and kitchen. Please let us know if you have any issues.',
     checkInTime: '15:00',
     checkOutTime: '11:00',
-    thingsToDo: 5,
-    placesToEat: 5,
+    checkoutRequirements: '', // Placeholder only
   });
+  const [foodItems, setFoodItems] = useState<DynamicItem[]>([]);
+  const [activityItems, setActivityItems] = useState<DynamicItem[]>([]);
+  const [rules, setRules] = useState<{ name: string; description: string; checked: boolean }[]>([
+    { name: 'No Smoking', description: 'Smoking is not allowed inside the house or on the balcony.', checked: true },
+    { name: 'No Parties or Events', description: 'Parties and events are not allowed on the property.', checked: true },
+    { name: 'No Pets', description: 'Pets are not allowed unless approved in advance.', checked: false },
+    { name: 'Quiet Hours', description: 'Please keep noise to a minimum after 10pm to respect our neighbors.', checked: true },
+    { name: 'No Unregistered Guests', description: 'Only guests included in the reservation are allowed to stay.', checked: true },
+    { name: 'Remove Shoes Indoors', description: 'Please remove your shoes when entering the house.', checked: false },
+    { name: 'Turn Off Lights/AC', description: 'Turn off all lights and AC when leaving the property.', checked: false }
+  ]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value, type } = e.target;
@@ -121,140 +146,183 @@ export default function CreateGuidebookPage() {
     }
   };
 
+  // Navigation state for sidebar
+  const [currentSection, setCurrentSection] = useState<string>("checkin");
+
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 py-12">
-              <div className="mx-auto w-full max-w-2xl space-y-8 bg-white p-10 rounded-lg shadow-md">
-          {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-              <strong className="font-bold">Error:</strong>
-              <span className="block sm:inline"> {error}</span>
-            </div>
-          )}
-        {step === 1 && (
-          <form onSubmit={(e) => { e.preventDefault(); nextStep(); }}>
-            <div className="space-y-2 text-center">
-              <h1 className="text-3xl font-bold">Create Your Guidebook</h1>
-              <p className="text-gray-500">Step 1: Property Details</p>
-            </div>
-            <div className="space-y-4 mt-8">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="propertyName">Property Name</Label>
-                  <Input id="propertyName" placeholder="e.g. The Cozy Cottage" value={formData.propertyName} onChange={handleChange} required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="hostName">Host Name</Label>
-                  <Input id="hostName" placeholder="e.g. Jane Doe" value={formData.hostName} onChange={handleChange} required />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="address">Full Address (for AI lookups)</Label>
-                <Input id="address" placeholder="e.g. 123 Main Street, Anytown, USA" value={formData.address} onChange={handleChange} required />
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2 col-span-2">
-                  <Label htmlFor="address_street">Street</Label>
-                  <Input id="address_street" placeholder="e.g. 123 Main Street" value={formData.address_street} onChange={handleChange} required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="address_zip">Zip Code</Label>
-                  <Input id="address_zip" placeholder="e.g. 12345" value={formData.address_zip} onChange={handleChange} required />
-                </div>
-              </div>
-              <div className="space-y-2">
-                  <Label htmlFor="address_city_state">City & State</Label>
-                  <Input id="address_city_state" placeholder="e.g. Anytown, USA" value={formData.address_city_state} onChange={handleChange} required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="access_info">Access Information</Label>
-                <Textarea id="access_info" placeholder="e.g. The key is under the mat. The code for the lockbox is 1234." value={formData.access_info} onChange={handleChange} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="rules">House Rules (one rule per line)</Label>
-                <Textarea id="rules" placeholder="- No smoking\n- Quiet hours after 10pm" value={formData.rules} onChange={handleChange} />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="wifiNetwork">WiFi Network</Label>
-                  <Input id="wifiNetwork" placeholder="e.g. MySuperFastWiFi" value={formData.wifiNetwork} onChange={handleChange} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="wifiPassword">WiFi Password</Label>
-                  <Input id="wifiPassword" placeholder="e.g. guest1234" value={formData.wifiPassword} onChange={handleChange} />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="checkInTime">Check-in Time</Label>
-                  <Input id="checkInTime" type="time" value={formData.checkInTime} onChange={handleChange} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="checkOutTime">Check-out Time</Label>
-                  <Input id="checkOutTime" type="time" value={formData.checkOutTime} onChange={handleChange} />
-                </div>
-              </div>
-            </div>
-            <Button className="w-full mt-8" type="submit">
-              Next: Cover Image
-            </Button>
-          </form>
-        )} 
-
-        {step === 2 && (
-          <form onSubmit={(e) => { e.preventDefault(); nextStep(); }}>
-            <div className="space-y-2 text-center">
-              <h1 className="text-3xl font-bold">Upload a Cover Image</h1>
-              <p className="text-gray-500">Step 2: Make it beautiful</p>
-            </div>
-            <div className="space-y-4 mt-8">
-              <div className="space-y-2">
-                <Label htmlFor="coverImage">Cover Image</Label>
-                <Input id="coverImage" type="file" accept="image/*" onChange={handleImageChange} />
-              </div>
-              {previewUrl && (
-                <div className="mt-4">
-                  <img src={previewUrl} alt="Cover preview" className="w-full h-auto rounded-lg" />
-                </div>
-              )}
-            </div>
-            <div className="flex justify-between mt-8">
-                <Button type="button" variant="outline" onClick={prevStep}>
-                    Back
-                </Button>
-                <Button type="submit">
-                  Next: AI Recommendations
-                </Button>
-            </div>
-          </form>
-        )}
-
-        {step === 3 && (
-          <form onSubmit={handleSubmit}>
-            <div className="space-y-2 text-center">
-              <h1 className="text-3xl font-bold">AI Recommendations</h1>
-              <p className="text-gray-500">Step 3: Customize Your Guide</p>
-            </div>
-            <div className="space-y-4 mt-8">
-                <div className="space-y-2">
-                  <Label htmlFor="thingsToDo">Number of Things to Do</Label>
-                  <Input id="thingsToDo" type="number" min="1" max="10" value={formData.thingsToDo} onChange={handleChange} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="placesToEat">Number of Places to Eat</Label>
-                  <Input id="placesToEat" type="number" min="1" max="10" value={formData.placesToEat} onChange={handleChange} />
-                </div>
-            </div>
-            <div className="flex justify-between mt-8">
-                <Button type="button" variant="outline" onClick={prevStep}>
-                    Back
-                </Button>
-                <Button type="submit"  disabled={isLoading}>
-                  {isLoading ? 'Generating...' : 'Generate Guidebook'}
-                </Button>
-            </div>
-          </form>
-        )}
-      </div>
-    </div>
+    <NavGuardContext.Provider value={{ locationFilled: !!formData.location }}>
+      <CreateGuidebookLayout
+        sidebar={<SidebarNav currentSection={currentSection} onSectionChange={setCurrentSection} />}
+      >
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
+          <strong className="font-bold">Error:</strong>
+          <span className="block sm:inline"> {error}</span>
+        </div>
+      )}
+      {/* Section rendering based on sidebar navigation */}
+      {currentSection === "checkin" && (
+        <CheckinSection
+          welcomeMessage={formData.welcomeMessage}
+          location={formData.location}
+          accessInfo={formData.access_info}
+          parkingInfo={formData.parkingInfo}
+          onChange={(id, value) => setFormData(f => ({ ...f, [id]: value }))}
+        />
+      )}
+      {currentSection === "hostinfo" && (
+        <HostInfoSection
+          name={formData.hostName}
+          bio={formData.hostBio}
+          contact={formData.hostContact}
+          onChange={(id, value) => setFormData(f => ({ ...f, [id]: value }))}
+        />
+      )}
+      {currentSection === "wifi" && (
+        <WifiSection wifiNetwork={formData.wifiNetwork} wifiPassword={formData.wifiPassword} onChange={(id, value) => setFormData(f => ({ ...f, [id]: value }))} />
+      )}
+      {currentSection === "food" && (
+  <div>
+    <button
+      type="button"
+      className="mb-4 px-4 py-2 rounded bg-pink-500 text-white font-semibold shadow hover:bg-pink-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+      disabled={isLoading || !formData.location}
+      onClick={async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+          const res = await fetch("http://localhost:5001/api/ai-food", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ address: formData.location, num_places_to_eat: 5 })
+          });
+          if (!res.ok) throw new Error("Failed to fetch food recommendations");
+          const data = await res.json();
+          let items = [];
+          if (Array.isArray(data)) {
+            items = data;
+          } else if (Array.isArray(data.restaurants)) {
+            items = data.restaurants;
+          } else if (Array.isArray(data.places_to_eat)) {
+            items = data.places_to_eat;
+          } else if (Array.isArray(data.food)) {
+            items = data.food;
+          }
+          if (items.length > 0) {
+            setFoodItems(items.map((item: any) => ({
+              name: item.name || "",
+              address: item.address || "",
+              description: item.description || "",
+              image_url: item.image_url || ""
+            })));
+          } else {
+            setError("No recommendations found.");
+          }
+        } catch (e: any) {
+          setError(e.message || "Failed to fetch recommendations");
+        } finally {
+          setIsLoading(false);
+        }
+      }}
+    >
+      {isLoading ? "Loading..." : "Prepopulate with AI"}
+    </button>
+    <DynamicItemList
+      items={foodItems}
+      label="Nearby Food"
+      onChange={(idx, field, value) => {
+        setFoodItems(items => items.map((item, i) => i === idx ? { ...item, [field]: value } : item));
+      }}
+      onAdd={() => setFoodItems(items => [...items, { name: '', address: '', description: '' }])}
+      onDelete={idx => setFoodItems(items => items.filter((_, i) => i !== idx))}
+    />
+  </div>
+)}
+      {currentSection === "activities" && (
+  <div>
+    <button
+      type="button"
+      className="mb-4 px-4 py-2 rounded bg-pink-500 text-white font-semibold shadow hover:bg-pink-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+      disabled={isLoading || !formData.location}
+      onClick={async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+          const res = await fetch("http://localhost:5001/api/ai-activities", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ address: formData.location, num_things_to_do: 5 })
+          });
+          if (!res.ok) throw new Error("Failed to fetch activities recommendations");
+          const data = await res.json();
+          let items = [];
+          if (Array.isArray(data)) {
+            items = data;
+          } else if (Array.isArray(data.activities)) {
+            items = data.activities;
+          } else if (Array.isArray(data.things_to_do)) {
+            items = data.things_to_do;
+          } else if (Array.isArray(data.activityItems)) {
+            items = data.activityItems;
+          }
+          if (items.length > 0) {
+            setActivityItems(items.map((item: any) => ({
+              name: item.name || "",
+              address: item.address || "",
+              description: item.description || "",
+              image_url: item.image_url || ""
+            })));
+          } else {
+            setError("No recommendations found.");
+          }
+        } catch (e: any) {
+          setError(e.message || "Failed to fetch recommendations");
+        } finally {
+          setIsLoading(false);
+        }
+      }}
+    >
+      {isLoading ? "Loading..." : "Prepopulate with AI"}
+    </button>
+    <DynamicItemList
+      items={activityItems}
+      label="Nearby Activities"
+      onChange={(idx, field, value) => {
+        setActivityItems(items => items.map((item, i) => i === idx ? { ...item, [field]: value } : item));
+      }}
+      onAdd={() => setActivityItems(items => [...items, { name: '', address: '', description: '' }])}
+      onDelete={idx => setActivityItems(items => items.filter((_, i) => i !== idx))}
+    />
+  </div>
+  )}
+      {currentSection === "rules" && (
+        <RulesSection
+          rules={rules}
+          onChange={(idx, field, value) => {
+            setRules(rules =>
+              rules.map((rule, i) =>
+                i === idx ? { ...rule, [field]: field === 'checked' ? Boolean(value) : value } : rule
+              )
+            );
+          }}
+          onAdd={() => setRules([...rules, { name: '', description: '', checked: false }])}
+          onDelete={idx => setRules(rules => rules.filter((_, i) => i !== idx))}
+        />
+      )}
+      {currentSection === "checkout" && (
+        <CheckoutSection
+          checkoutTime={formData.checkOutTime}
+          requirements={formData.checkoutRequirements}
+          onChange={(id, value) => setFormData(f => ({ ...f, [id]: value }))}
+          requirementsPlaceholder="e.g. Please place used towels in the basket and take out the trash before you leave."
+        />
+      )}
+      {currentSection === "arrival" && (
+        <ArrivalSection checkInTime={formData.checkInTime} onChange={(id, value) => setFormData(f => ({ ...f, [id]: value }))} />
+      )}
+      </CreateGuidebookLayout>
+    </NavGuardContext.Provider>
   );
+
+
 }

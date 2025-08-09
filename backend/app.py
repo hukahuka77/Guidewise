@@ -8,6 +8,8 @@ import os
 
 # Import db and models from models.py
 from models import db, Guidebook, Host, Property, Wifi, Rule
+from utils.ai_food import get_ai_food_recommendations
+from utils.ai_activities import get_ai_activity_recommendations
 
 load_dotenv() # Load environment variables from .env file
 
@@ -134,6 +136,26 @@ def generate_guidebook_route():
 
 with app.app_context():
     db.create_all() # Create tables if they don't exist
+
+@app.route('/api/ai-food', methods=['POST'])
+def ai_food_route():
+    data = request.json
+    address = data.get('location') or data.get('address')
+    num_places_to_eat = data.get('num_places_to_eat', 5)
+    if not address or not str(address).strip():
+        return jsonify({"error": "Please provide a valid location to generate recommendations."}), 400
+    recs = get_ai_food_recommendations(address, num_places_to_eat)
+    return jsonify(recs or {"error": "Could not get recommendations"})
+
+@app.route('/api/ai-activities', methods=['POST'])
+def ai_activities_route():
+    data = request.json
+    address = data.get('location') or data.get('address')
+    num_things_to_do = data.get('num_things_to_do', 5)
+    if not address or not str(address).strip():
+        return jsonify({"error": "Please provide a valid location to generate recommendations."}), 400
+    recs = get_ai_activity_recommendations(address, num_things_to_do)
+    return jsonify(recs or {"error": "Could not get recommendations"})
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)

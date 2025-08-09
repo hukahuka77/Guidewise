@@ -7,3 +7,4 @@ psycopg2==2.9.10
 WeasyPrint==66.0
 gunicorn==22.0.0
 openai==1.68.2
+requests==2.32.3
