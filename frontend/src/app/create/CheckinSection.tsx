@@ -39,7 +39,7 @@ export default function CheckinSection({ welcomeMessage, location, accessInfo, p
         className="mb-2 mt-1"
       />
       <Label htmlFor="accessInfo">Access Info</Label>
-      <Textarea id="accessInfo" value={accessInfo} onChange={e => onChange("accessInfo", e.target.value)} className="mb-2 mt-1" placeholder="Door code, lockbox location, entry instructions, or concierge details." />
+      <Textarea id="accessInfo" value={accessInfo} onChange={e => onChange("access_info", e.target.value)} className="mb-2 mt-1" placeholder="Door code, lockbox location, entry instructions, or concierge details." />
       <Label htmlFor="parkingInfo">Parking Info</Label>
       <Textarea id="parkingInfo" value={parkingInfo} onChange={e => onChange("parkingInfo", e.target.value)} className="mt-1" placeholder="Where to park, permit requirements, garage/spot number, and any restrictions." />
     </section>

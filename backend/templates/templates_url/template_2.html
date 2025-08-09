@@ -218,22 +218,44 @@
     </div>
 
     <div class="tabs-container">
+        {% set first_tab = included_tabs[0] if included_tabs and included_tabs|length > 0 else 'checkin' %}
+        {% set first_tab_mapped = 'host' if first_tab == 'hostinfo' else first_tab %}
         <div class="tabs">
-            <button class="tab-button active" onclick="openTab(event, 'checkin', 0)">Check-in Info</button>
-            <button class="tab-button" onclick="openTab(event, 'property', 1)">Property Details</button>
-            <button class="tab-button" onclick="openTab(event, 'host', 2)">Host Info</button>
-            <button class="tab-button" onclick="openTab(event, 'wifi', 3)">Wifi</button>
-            <button class="tab-button" onclick="openTab(event, 'food', 4)">Food</button>
-            <button class="tab-button" onclick="openTab(event, 'activities', 5)">Activities</button>
-            <button class="tab-button" onclick="openTab(event, 'rules', 6)">Rules</button>
-            <button class="tab-button" onclick="openTab(event, 'checkout', 7)">Checkout Info</button>
+            {# Render tabs strictly in the order provided by included_tabs, including custom_* #}
+            {% for tab in included_tabs %}
+                {% set data_tab = 'host' if tab == 'hostinfo' else tab %}
+                {% if tab == 'checkin' %}
+                    <button class="tab-button {% if first_tab_mapped == data_tab %}active{% endif %}" onclick="openTab(event, '{{ data_tab }}', {{ loop.index0 }})">Check-in Info</button>
+                {% elif tab == 'property' %}
+                    <button class="tab-button {% if first_tab_mapped == data_tab %}active{% endif %}" onclick="openTab(event, '{{ data_tab }}', {{ loop.index0 }})">Property Details</button>
+                {% elif tab == 'hostinfo' %}
+                    <button class="tab-button {% if first_tab_mapped == data_tab %}active{% endif %}" onclick="openTab(event, '{{ data_tab }}', {{ loop.index0 }})">Host Info</button>
+                {% elif tab == 'wifi' %}
+                    <button class="tab-button {% if first_tab_mapped == data_tab %}active{% endif %}" onclick="openTab(event, '{{ data_tab }}', {{ loop.index0 }})">Wifi</button>
+                {% elif tab == 'food' %}
+                    <button class="tab-button {% if first_tab_mapped == data_tab %}active{% endif %}" onclick="openTab(event, '{{ data_tab }}', {{ loop.index0 }})">Food</button>
+                {% elif tab == 'activities' %}
+                    <button class="tab-button {% if first_tab_mapped == data_tab %}active{% endif %}" onclick="openTab(event, '{{ data_tab }}', {{ loop.index0 }})">Activities</button>
+                {% elif tab == 'rules' %}
+                    <button class="tab-button {% if first_tab_mapped == data_tab %}active{% endif %}" onclick="openTab(event, '{{ data_tab }}', {{ loop.index0 }})">Rules</button>
+                {% elif tab == 'checkout' %}
+                    <button class="tab-button {% if first_tab_mapped == data_tab %}active{% endif %}" onclick="openTab(event, '{{ data_tab }}', {{ loop.index0 }})">Checkout Info</button>
+                {% elif tab.startswith('custom_') %}
+                    {% set meta = (custom_tabs_meta.get(tab) if custom_tabs_meta else None) %}
+                    <button class="tab-button {% if first_tab_mapped == data_tab %}active{% endif %}" onclick="openTab(event, '{{ data_tab }}', {{ loop.index0 }})">
+                        {% if meta and meta.icon %}<span>{{ meta.icon }}</span>{% endif %}
+                        <span>{{ (meta.label if meta and meta.label) or (tab | replace('custom_', '') | replace('_', ' ') | title) }}</span>
+                    </button>
+                {% endif %}
+            {% endfor %}
         </div>
         <div class="tab-slider"></div>
     </div>
 
     <main class="content-container">
         <!-- Check-in Info -->
-        <div id="checkin" class="tab-content active">
+        {% if 'checkin' in included_tabs %}
+        <div id="checkin" class="tab-content {% if first_tab_mapped == 'checkin' %}active{% endif %}">
             <div class="card">
                 <h2>Check-in Info</h2>
                 {% if welcome_message %}
@@ -268,9 +290,37 @@
                 </div>
             </div>
         </div>
+        {% endif %}
 
+        {# Custom sections: render in DOM so they can be opened, and preserve order via included_tabs #}
+        {% if custom_sections %}
+        {% for key, blocks in custom_sections.items() %}
+            {% if key in included_tabs %}
+            <div id="{{ key }}" class="tab-content {% if first_tab_mapped == key %}active{% endif %}">
+                <div class="card">
+                    {% set meta = (custom_tabs_meta.get(key) if custom_tabs_meta else None) %}
+                    <h2>{{ (meta.label if meta and meta.label) or (key | replace('custom_', '') | replace('_', ' ') | title) }}</h2>
+                    {% if blocks and blocks|length > 0 %}
+                    <div class="info-grid">
+                        {% for text in blocks %}
+                        {% if text %}
+                        <div class="info-item">
+                            <div>{{ text }}</div>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="light-text-color">No content provided.</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        {% endfor %}
+        {% endif %}
         <!-- Property Details -->
-        <div id="property" class="tab-content">
+        {% if 'property' in included_tabs %}
+        <div id="property" class="tab-content {% if first_tab_mapped == 'property' %}active{% endif %}">
             <div class="card">
                 <h2>Property Details</h2>
                 {% if property_name %}
@@ -278,9 +328,11 @@
                 {% endif %}
             </div>
         </div>
+        {% endif %}
 
         <!-- Host Info -->
-        <div id="host" class="tab-content">
+        {% if 'hostinfo' in included_tabs %}
+        <div id="host" class="tab-content {% if first_tab_mapped == 'host' %}active{% endif %}">
             <div class="card">
                 <h2>Host Info</h2>
                 {% if host_name %}
@@ -300,9 +352,11 @@
                 {% endif %}
             </div>
         </div>
+        {% endif %}
 
         <!-- Wifi -->
-        <div id="wifi" class="tab-content">
+        {% if 'wifi' in included_tabs %}
+        <div id="wifi" class="tab-content {% if first_tab_mapped == 'wifi' %}active{% endif %}">
             <div class="card">
                 <h2>Wi‑Fi Details</h2>
                 <div class="info-grid">
@@ -315,9 +369,11 @@
                 </div>
             </div>
         </div>
+        {% endif %}
 
         <!-- Food -->
-        <div id="food" class="tab-content">
+        {% if 'food' in included_tabs %}
+        <div id="food" class="tab-content {% if first_tab_mapped == 'food' %}active{% endif %}">
             <div class="card recommendation-container-card">
                 <h2>Nearby Food</h2>
                 {% if places_to_eat and places_to_eat|length > 0 %}
@@ -338,9 +394,11 @@
                 {% endif %}
             </div>
         </div>
+        {% endif %}
 
         <!-- Activities -->
-        <div id="activities" class="tab-content">
+        {% if 'activities' in included_tabs %}
+        <div id="activities" class="tab-content {% if first_tab_mapped == 'activities' %}active{% endif %}">
             <div class="card recommendation-container-card">
                 <h2>Nearby Activities</h2>
                 {% if things_to_do and things_to_do|length > 0 %}
@@ -361,9 +419,11 @@
                 {% endif %}
             </div>
         </div>
+        {% endif %}
 
         <!-- Rules -->
-        <div id="rules" class="tab-content">
+        {% if 'rules' in included_tabs %}
+        <div id="rules" class="tab-content {% if first_tab_mapped == 'rules' %}active{% endif %}">
             <div class="card">
                 <h2>Rules</h2>
                 {% if rules and rules|length > 0 %}
@@ -377,23 +437,30 @@
                 {% endif %}
             </div>
         </div>
+        {% endif %}
 
         <!-- Checkout -->
-        <div id="checkout" class="tab-content">
+        {% if 'checkout' in included_tabs %}
+        <div id="checkout" class="tab-content {% if first_tab_mapped == 'checkout' %}active{% endif %}">
             <div class="card">
                 <h2>Checkout Info</h2>
                 <div class="info-grid">
                     {% if check_out_time %}
                     <div class="info-item"><strong>Checkout Time:</strong> {{ check_out_time }}</div>
                     {% endif %}
-                    {% if checkout_requirements %}
-                    <div class="info-item"><strong>Requirements:</strong>
-                        <div>{{ checkout_requirements }}</div>
+                    {% if checkout_info and checkout_info|length > 0 %}
+                    <div class="info-item"><strong>Info:</strong>
+                        <ul>
+                        {% for info in checkout_info %}
+                          <li><strong>{{ info.name }}</strong>{% if info.description %}: {{ info.description }}{% endif %}</li>
+                        {% endfor %}
+                        </ul>
                     </div>
                     {% endif %}
                 </div>
             </div>
         </div>
+        {% endif %}
     </main>
 
     <script>

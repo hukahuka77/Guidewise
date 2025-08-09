@@ -47,8 +47,8 @@ export default function SuccessPage() {
     <div className="group relative border rounded-xl p-4 bg-white shadow hover:shadow-lg transition cursor-pointer" onClick={() => setPdfModalOpen(true)}>
       <div className="aspect-[4/3] w-full overflow-hidden rounded-lg bg-gray-100 flex items-center justify-center">
         {downloadUrl ? (
-          <div className="w-full h-full flex items-center justify-center">
-            <div className="pointer-events-none w-full h-full">
+          <div className="w-full h-full flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+            <div className="w-full h-full">
               <PdfViewer fileUrl={downloadUrl} />
             </div>
           </div>
@@ -78,7 +78,9 @@ export default function SuccessPage() {
           setIsUpdatingTemplate(true);
           setTemplateMessage(null);
           try {
-            const res = await fetch(`http://localhost:5001/api/guidebook/${guidebookId}/template`, {
+            const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+            const url = `${apiBase}/api/guidebook/${guidebookId}/template`;
+            const res = await fetch(url, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ template_key: templateKey })

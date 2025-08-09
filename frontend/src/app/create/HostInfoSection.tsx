@@ -20,8 +20,8 @@ export default function HostInfoSection({ name, bio, contact, onChange, onHostPh
       <div className="flex items-center gap-2 mb-2">
         <h2 className="text-xl font-semibold">Host Info</h2>
       </div>
-      <Label htmlFor="hostName">Host Name <span className="text-red-600">*</span></Label>
-      <Input id="hostName" required value={name} onChange={e => onChange("hostName", e.target.value)} className="mb-2 mt-1" placeholder="e.g. Alex Morgan" />
+      <Label htmlFor="hostName">Host Name</Label>
+      <Input id="hostName" value={name} onChange={e => onChange("hostName", e.target.value)} className="mb-2 mt-1" placeholder="e.g. Alex Morgan" />
       <Label htmlFor="hostBio">Bio</Label>
       <Textarea id="hostBio" value={bio} onChange={e => onChange("hostBio", e.target.value)} className="mb-2 mt-1" placeholder="Tell guests about yourself and how you like to host." />
       <Label htmlFor="hostContact">Contact Info</Label>

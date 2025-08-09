@@ -5,7 +5,7 @@ db = SQLAlchemy()
 
 class Host(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
+    name = db.Column(db.String(100), nullable=True)
     bio = db.Column(db.Text, nullable=True)
     host_image_base64 = db.Column(db.Text, nullable=True)
     guidebooks = db.relationship('Guidebook', backref='host', lazy=True)
@@ -40,12 +40,20 @@ class Guidebook(db.Model):
     things_to_do = db.Column(db.JSON)
     places_to_eat = db.Column(db.JSON)
     checkout_info = db.Column(db.JSON)
+    included_tabs = db.Column(db.JSON)
+    # Map of custom tab key -> list of strings (content blocks)
+    custom_sections = db.Column(db.JSON)
+    # Map of custom tab key -> { label: string, icon: string }
+    custom_tabs_meta = db.Column(db.JSON)
+    # Timestamps
+    created_time = db.Column(db.DateTime(timezone=True), server_default=db.func.now(), nullable=False)
+    last_modified_time = db.Column(db.DateTime(timezone=True), server_default=db.func.now(), onupdate=db.func.now(), nullable=False)
 
     # Selected template (e.g., 'template_1' or 'template_2')
     template_key = db.Column(db.String(50), nullable=False, default='template_1')
 
     # Foreign Keys
-    host_id = db.Column(db.Integer, db.ForeignKey('host.id'), nullable=False)
+    host_id = db.Column(db.Integer, db.ForeignKey('host.id'), nullable=True)
     property_id = db.Column(db.Integer, db.ForeignKey('property.id'), nullable=False)
     wifi_id = db.Column(db.Integer, db.ForeignKey('wifi.id'))
 

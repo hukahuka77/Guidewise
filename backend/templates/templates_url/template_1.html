@@ -26,14 +26,34 @@
             {% endif %}
           </div>
           <ul class="flex flex-col gap-4">
-            <li class="flex items-center justify-center md:justify-start gap-0 md:gap-3 px-2 md:px-3 py-2 rounded-lg bg-white/20 cursor-pointer" data-tab-link data-tab="checkin"><span class="w-6 h-6">🏠</span><span class="font-medium hidden md:inline">Check-in Info</span></li>
-            <li class="flex items-center justify-center md:justify-start gap-0 md:gap-3 px-2 md:px-3 py-2 rounded-lg hover:bg-white/10 cursor-pointer" data-tab-link data-tab="property"><span class="w-6 h-6">🏡</span><span class="font-medium hidden md:inline">Property Details</span></li>
-            <li class="flex items-center justify-center md:justify-start gap-0 md:gap-3 px-2 md:px-3 py-2 rounded-lg hover:bg-white/10 cursor-pointer" data-tab-link data-tab="host"><span class="w-6 h-6">👤</span><span class="font-medium hidden md:inline">Host Info</span></li>
-            <li class="flex items-center justify-center md:justify-start gap-0 md:gap-3 px-2 md:px-3 py-2 rounded-lg hover:bg-white/10 cursor-pointer" data-tab-link data-tab="wifi"><span class="w-6 h-6">📶</span><span class="font-medium hidden md:inline">Wifi</span></li>
-            <li class="flex items-center justify-center md:justify-start gap-0 md:gap-3 px-2 md:px-3 py-2 rounded-lg hover:bg-white/10 cursor-pointer" data-tab-link data-tab="food"><span class="w-6 h-6">🍽️</span><span class="font-medium hidden md:inline">Food</span></li>
-            <li class="flex items-center justify-center md:justify-start gap-0 md:gap-3 px-2 md:px-3 py-2 rounded-lg hover:bg-white/10 cursor-pointer" data-tab-link data-tab="activities"><span class="w-6 h-6">🎡</span><span class="font-medium hidden md:inline">Activities</span></li>
-            <li class="flex items-center justify-center md:justify-start gap-0 md:gap-3 px-2 md:px-3 py-2 rounded-lg hover:bg-white/10 cursor-pointer" data-tab-link data-tab="rules"><span class="w-6 h-6">📋</span><span class="font-medium hidden md:inline">Rules</span></li>
-            <li class="flex items-center justify-center md:justify-start gap-0 md:gap-3 px-2 md:px-3 py-2 rounded-lg hover:bg-white/10 cursor-pointer" data-tab-link data-tab="checkout"><span class="w-6 h-6">🧳</span><span class="font-medium hidden md:inline">Checkout Info</span></li>
+            {# Render tabs in the exact order of included_tabs #}
+            {% for tab in included_tabs %}
+              {% set data_tab = 'host' if tab == 'hostinfo' else tab %}
+              {% if tab == 'checkin' %}
+                <li class="flex items-center justify-center md:justify-start gap-0 md:gap-3 px-2 md:px-3 py-2 rounded-lg {{ 'bg-white/20' if loop.index0 == 0 else 'hover:bg-white/10' }} cursor-pointer" data-tab-link data-tab="{{ data_tab }}"><span class="w-6 h-6">🏠</span><span class="font-medium hidden md:inline">Check-in Info</span></li>
+              {% elif tab == 'property' %}
+                <li class="flex items-center justify-center md:justify-start gap-0 md:gap-3 px-2 md:px-3 py-2 rounded-lg hover:bg-white/10 cursor-pointer" data-tab-link data-tab="{{ data_tab }}"><span class="w-6 h-6">🏡</span><span class="font-medium hidden md:inline">Property Details</span></li>
+              {% elif tab == 'hostinfo' %}
+                <li class="flex items-center justify-center md:justify-start gap-0 md:gap-3 px-2 md:px-3 py-2 rounded-lg hover:bg-white/10 cursor-pointer" data-tab-link data-tab="{{ data_tab }}"><span class="w-6 h-6">👤</span><span class="font-medium hidden md:inline">Host Info</span></li>
+              {% elif tab == 'wifi' %}
+                <li class="flex items-center justify-center md:justify-start gap-0 md:gap-3 px-2 md:px-3 py-2 rounded-lg hover:bg-white/10 cursor-pointer" data-tab-link data-tab="{{ data_tab }}"><span class="w-6 h-6">📶</span><span class="font-medium hidden md:inline">Wifi</span></li>
+              {% elif tab == 'food' %}
+                <li class="flex items-center justify-center md:justify-start gap-0 md:gap-3 px-2 md:px-3 py-2 rounded-lg hover:bg-white/10 cursor-pointer" data-tab-link data-tab="{{ data_tab }}"><span class="w-6 h-6">🍽️</span><span class="font-medium hidden md:inline">Food</span></li>
+              {% elif tab == 'activities' %}
+                <li class="flex items-center justify-center md:justify-start gap-0 md:gap-3 px-2 md:px-3 py-2 rounded-lg hover:bg-white/10 cursor-pointer" data-tab-link data-tab="{{ data_tab }}"><span class="w-6 h-6">🎡</span><span class="font-medium hidden md:inline">Activities</span></li>
+              {% elif tab == 'rules' %}
+                <li class="flex items-center justify-center md:justify-start gap-0 md:gap-3 px-2 md:px-3 py-2 rounded-lg hover:bg-white/10 cursor-pointer" data-tab-link data-tab="{{ data_tab }}"><span class="w-6 h-6">📋</span><span class="font-medium hidden md:inline">Rules</span></li>
+              {% elif tab == 'checkout' %}
+                <li class="flex items-center justify-center md:justify-start gap-0 md:gap-3 px-2 md:px-3 py-2 rounded-lg hover:bg-white/10 cursor-pointer" data-tab-link data-tab="{{ data_tab }}"><span class="w-6 h-6">🧳</span><span class="font-medium hidden md:inline">Checkout Info</span></li>
+              {% elif tab.startswith('custom_') %}
+                {# Only show custom tab if there is a matching section map or allow empty #}
+                {% set meta = (custom_tabs_meta.get(tab) if custom_tabs_meta else None) %}
+                <li class="flex items-center justify-center md:justify-start gap-0 md:gap-3 px-2 md:px-3 py-2 rounded-lg hover:bg-white/10 cursor-pointer" data-tab-link data-tab="{{ data_tab }}">
+                  <span class="w-6 h-6">{{ (meta.icon if meta and meta.icon) or '🧩' }}</span>
+                  <span class="font-medium hidden md:inline">{{ (meta.label if meta and meta.label) or (tab | replace('custom_', '') | replace('_', ' ') | title) }}</span>
+                </li>
+              {% endif %}
+            {% endfor %}
           </ul>
         </nav>
       </aside>
@@ -51,6 +71,7 @@
         </div>
 
         <!-- Check-in Info (from CheckinSection) -->
+        {% if 'checkin' in included_tabs %}
         <section class="mb-8" data-tab-section="checkin">
           <div class="flex items-center gap-2 mb-2">
             <h2 class="text-xl font-semibold">Check-in Info</h2>
@@ -72,8 +93,10 @@
           <p class="mt-1 text-gray-900 font-medium whitespace-pre-line">{{ parking_info }}</p>
           {% endif %}
         </section>
+        {% endif %}
 
         <!-- Host Info (from HostInfoSection) -->
+        {% if 'hostinfo' in included_tabs %}
         <section class="mb-8 hidden" data-tab-section="host">
           <div class="flex items-center gap-2 mb-2">
             <h2 class="text-xl font-semibold">Host Info</h2>
@@ -94,8 +117,10 @@
             <img src="{{ host_photo_url }}" alt="Host" class="mt-3 h-32 w-32 object-cover rounded-full border shadow" />
           {% endif %}
         </section>
+        {% endif %}
 
         <!-- Property Details (from PropertySection) -->
+        {% if 'property' in included_tabs %}
         <section class="mb-8 hidden" data-tab-section="property">
           <div class="flex items-center gap-2 mb-2">
             <h2 class="text-xl font-semibold">Property Details</h2>
@@ -105,8 +130,10 @@
           <p class="mb-4 mt-1 text-gray-900 font-medium">{{ property_name }}</p>
           {% endif %}
         </section>
+        {% endif %}
 
         <!-- Wifi (from WifiSection) -->
+        {% if 'wifi' in included_tabs %}
         <section class="mb-8 hidden" data-tab-section="wifi">
           <div class="flex items-center gap-2 mb-2">
             <h2 class="text-xl font-semibold">Wifi</h2>
@@ -120,8 +147,10 @@
           <p class="mt-1 text-gray-900 font-medium">{{ wifi_password }}</p>
           {% endif %}
         </section>
+        {% endif %}
 
         <!-- Food (from DynamicItemList for food) -->
+        {% if 'food' in included_tabs %}
         <section class="mb-8 hidden" data-tab-section="food">
           <div class="flex items-center gap-2 mb-2">
             <h2 class="text-xl font-semibold">Nearby Food</h2>
@@ -158,8 +187,10 @@
             <p class="text-gray-600">No food recommendations yet.</p>
           {% endif %}
         </section>
+        {% endif %}
 
         <!-- Activities (from DynamicItemList for activities) -->
+        {% if 'activities' in included_tabs %}
         <section class="mb-8 hidden" data-tab-section="activities">
           <div class="flex items-center gap-2 mb-2">
             <h2 class="text-xl font-semibold">Nearby Activities</h2>
@@ -190,8 +221,10 @@
             <p class="text-gray-600">No activity recommendations yet.</p>
           {% endif %}
         </section>
+        {% endif %}
 
         <!-- Rules (from RulesSection) -->
+        {% if 'rules' in included_tabs %}
         <section class="mb-8 hidden" data-tab-section="rules">
           <div class="flex items-center gap-2 mb-2">
             <h2 class="text-xl font-semibold">Rules</h2>
@@ -206,6 +239,7 @@
             <p class="text-gray-600">No rules provided.</p>
           {% endif %}
         </section>
+        {% endif %}
 
         <!-- Arrival (part of Check-in tab) -->
         <section class="mb-8" data-tab-section="checkin">
@@ -218,6 +252,7 @@
           {% endif %}
         </section>
 
+        {% if 'checkout' in included_tabs %}
         <section class="mb-8 hidden" data-tab-section="checkout">
           <div class="flex items-center gap-2 mb-2">
             <h2 class="text-xl font-semibold">Checkout Info</h2>
@@ -226,16 +261,47 @@
           <label class="block text-xs uppercase tracking-wide text-gray-500">Checkout Time</label>
           <p class="mb-2 mt-1 text-gray-900 font-medium">{{ check_out_time }}</p>
           {% endif %}
-          {% if checkout_requirements %}
-          <label class="block text-xs uppercase tracking-wide text-gray-500">Requirements</label>
-          <p class="mt-1 text-gray-900 font-medium whitespace-pre-line">{{ checkout_requirements }}</p>
+          {% if checkout_info and checkout_info|length > 0 %}
+          <label class="block text-xs uppercase tracking-wide text-gray-500">Info</label>
+          <ul class="list-disc pl-6 text-gray-800 space-y-1">
+            {% for info in checkout_info %}
+              <li><span class="font-medium">{{ info.name }}</span>{% if info.description %}: {{ info.description }}{% endif %}</li>
+            {% endfor %}
+          </ul>
           {% endif %}
         </section>
+        {% endif %}
+
+        {# Custom sections rendering #}
+        {% if custom_sections %}
+          {% for key, blocks in custom_sections.items() %}
+            {% if key in included_tabs %}
+              <section class="mb-8 hidden" data-tab-section="{{ key }}">
+                <div class="flex items-center gap-2 mb-2">
+                  {% set meta = (custom_tabs_meta.get(key) if custom_tabs_meta else None) %}
+                  <h2 class="text-xl font-semibold">{{ (meta.label if meta and meta.label) or (key | replace('custom_', '') | replace('_', ' ') | title) }}</h2>
+                </div>
+                {% if blocks and blocks|length > 0 %}
+                  <div class="space-y-3">
+                    {% for text in blocks %}
+                      {% if text %}
+                        <p class="text-gray-900 font-medium whitespace-pre-line">{{ text }}</p>
+                      {% endif %}
+                    {% endfor %}
+                  </div>
+                {% else %}
+                  <p class="text-gray-600">No content provided.</p>
+                {% endif %}
+              </section>
+            {% endif %}
+          {% endfor %}
+        {% endif %}
 
       </main>
       <script>
         document.addEventListener('DOMContentLoaded', function () {
-          const DEFAULT_TAB = 'checkin';
+          const DEFAULT_TAB = '{{ included_tabs[0] if included_tabs and included_tabs|length > 0 else "checkin" }}';
+          const DEFAULT_TAB_MAPPED = DEFAULT_TAB === 'hostinfo' ? 'host' : DEFAULT_TAB;
           const links = Array.from(document.querySelectorAll('[data-tab-link]'));
           const sections = Array.from(document.querySelectorAll('[data-tab-section]'));
 
@@ -261,7 +327,7 @@
           });
 
           // Initialize
-          showTab(DEFAULT_TAB);
+          showTab(DEFAULT_TAB_MAPPED);
         });
       </script>
     </div>

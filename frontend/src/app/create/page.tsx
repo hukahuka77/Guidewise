@@ -1,13 +1,10 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Textarea } from '@/components/ui/textarea'; // Importing the new Textarea component
 
-import SidebarNav, { NavGuardContext } from "./SidebarNav";
+import SidebarNav from "./SidebarNav";
 import CreateGuidebookLayout from "./CreateGuidebookLayout";
 import ArrivalSection from "./ArrivalSection";
 import WifiSection from "./WifiSection";
@@ -18,10 +15,12 @@ import DynamicItemList, { DynamicItem } from "./DynamicItemList";
 import RulesSection from "./RulesSection";
 import CheckoutSection from "./CheckoutSection";
 
+// Base URL for backend API, configured via environment. Example in .env.local:
+// NEXT_PUBLIC_API_BASE_URL=http://localhost:5001
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+
 export default function CreateGuidebookPage() {
   const router = useRouter();
-  const [step, setStep] = useState(1);
-  // Ordered sections for sequential navigation
   const sectionsOrder = [
     "checkin",
     "property",
@@ -41,10 +40,10 @@ export default function CreateGuidebookPage() {
     hostName: '', // Placeholder only
     hostBio: '',
     hostContact: '', // Placeholder only
-    address: '123 Beachside Ave',
-    address_street: '123 Beachside Ave',
-    address_city_state: 'Santa Monica, CA',
-    address_zip: '90401',
+    address: '',
+    address_street: '',
+    address_city_state: '',
+    address_zip: '',
     access_info: '',
     welcomeMessage: '',
     location: '', // Only required field, leave blank
@@ -58,6 +57,12 @@ export default function CreateGuidebookPage() {
   const [foodItems, setFoodItems] = useState<DynamicItem[]>([]);
   const [activityItems, setActivityItems] = useState<DynamicItem[]>([]);
   const [checkoutItems, setCheckoutItems] = useState<{ name: string; description: string; checked: boolean }[]>([]);
+  // Sidebar state: included order and excluded list
+  const [included, setIncluded] = useState<string[]>([...sectionsOrder]);
+  const [excluded, setExcluded] = useState<string[]>([]);
+  // Custom tabs: map tab key -> array of text boxes
+  const [customSections, setCustomSections] = useState<Record<string, string[]>>({});
+  const [customTabsMeta, setCustomTabsMeta] = useState<Record<string, { icon: string; label: string }>>({});
   const [rules, setRules] = useState<{ name: string; description: string; checked: boolean }[]>([
     { name: 'No Smoking', description: 'Smoking is not allowed inside the house or on the balcony.', checked: true },
     { name: 'No Parties or Events', description: 'Parties and events are not allowed on the property.', checked: true },
@@ -84,9 +89,6 @@ export default function CreateGuidebookPage() {
     setHostPhoto(file);
     setHostPhotoPreviewUrl(file ? URL.createObjectURL(file) : null);
   };
-
-  const nextStep = () => setStep((prev) => prev + 1);
-  const prevStep = () => setStep((prev) => prev - 1);
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -146,9 +148,12 @@ export default function CreateGuidebookPage() {
         things_to_do: activityItems.map(i => ({ name: i.name, description: i.description, image_url: (i as any).image_url || "", address: (i as any).address || "" })),
         places_to_eat: foodItems.map(i => ({ name: i.name, description: i.description, image_url: (i as any).image_url || "", address: (i as any).address || "" })),
         checkout_info: checkoutItems.filter(i => i.checked).map(i => ({ name: i.name, description: i.description })),
+        included_tabs: included,
+        custom_sections: customSections,
+        custom_tabs_meta: customTabsMeta,
       };
 
-      const response = await fetch('http://localhost:5001/api/generate', {
+      const response = await fetch(`${API_BASE}/api/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -163,7 +168,7 @@ export default function CreateGuidebookPage() {
       // Get the live URL from the custom header
       const liveUrlPath = response.headers.get('X-Guidebook-Url');
       if (liveUrlPath) {
-        const fullLiveUrl = `http://localhost:5001${liveUrlPath}`;
+        const fullLiveUrl = `${API_BASE}${liveUrlPath}`;
         sessionStorage.setItem('liveGuidebookUrl', fullLiveUrl);
       }
 
@@ -182,32 +187,70 @@ export default function CreateGuidebookPage() {
     }
   };
 
-  // Navigation state for sidebar
+  // Navigation state for sidebar (free navigation among included)
   const [currentSection, setCurrentSection] = useState<string>("checkin");
-  const [visitedMaxIndex, setVisitedMaxIndex] = useState<number>(0);
-  const [visited, setVisited] = useState<Set<string>>(new Set(["checkin"]));
+  const goToSection = (section: string) => setCurrentSection(section);
 
-  const currentIndex = sectionsOrder.indexOf(currentSection as typeof sectionsOrder[number]);
-  const allVisited = visited.size === sectionsOrder.length;
-
-  const goToSection = (section: string) => {
-    setCurrentSection(section);
-    const idx = sectionsOrder.indexOf(section as typeof sectionsOrder[number]);
-    if (idx > visitedMaxIndex) setVisitedMaxIndex(idx);
-    setVisited(prev => new Set([...prev, section]));
-  };
-
-  const goNext = () => {
-    if (currentIndex < sectionsOrder.length - 1) {
-      const next = sectionsOrder[currentIndex + 1];
-      goToSection(next);
+  // Ensure current section is always one of the included; if it becomes excluded or removed, jump to first included
+  useEffect(() => {
+    if (!included.includes(currentSection)) {
+      setCurrentSection(included[0] || "checkin");
     }
-  };
+  }, [included, currentSection]);
+
+  // Initialize newly added custom tabs with a default single textbox
+  useEffect(() => {
+    setCustomSections(prev => {
+      let changed = false;
+      const next = { ...prev };
+      for (const key of included) {
+        if (key.startsWith("custom_") && !(key in next)) {
+          next[key] = [""]; // default single textbox
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [included]);
+
+  // Keep backend address fields in sync with the selected location so the live view shows the user's address
+  useEffect(() => {
+    setFormData(prev => {
+      if (prev.address_street === prev.location) return prev;
+      return { ...prev, address_street: prev.location };
+    });
+  }, [formData.location]);
 
   return (
-    <NavGuardContext.Provider value={{ locationFilled: !!formData.location }}>
+    <div className="w-full">
+      {/* Top-right Publish button above the guidebook container (bigger, tighter to top-right) */}
+      <div className="w-full sticky top-0 z-20 bg-transparent">
+        <div className="max-w-[1800px] mx-auto px-4 py-2 flex items-center justify-end">
+          <Button
+            type="button"
+            className="px-10 py-4 bg-[oklch(0.6923_0.22_21.05)] text-white font-semibold rounded-lg shadow-lg hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed text-lg md:text-xl"
+            onClick={(e) => handleSubmit(e as unknown as React.FormEvent)}
+            disabled={isLoading}
+          >
+            {isLoading ? "Processing…" : "Publish"}
+          </Button>
+        </div>
+      </div>
+
       <CreateGuidebookLayout
-        sidebar={<SidebarNav currentSection={currentSection} onSectionChange={goToSection} visitedMaxIndex={visitedMaxIndex} allVisited={allVisited} />}
+        sidebar={
+          <SidebarNav
+            currentSection={currentSection}
+            onSectionChange={goToSection}
+            included={included}
+            excluded={excluded}
+            onUpdate={(inc, exc) => {
+              setIncluded(inc);
+              setExcluded(exc);
+            }}
+            onCustomMetaChange={(meta) => setCustomTabsMeta(meta)}
+          />
+        }
       >
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
@@ -257,7 +300,7 @@ export default function CreateGuidebookPage() {
         setIsLoading(true);
         setError(null);
         try {
-          const res = await fetch("http://localhost:5001/api/ai-food", {
+          const res = await fetch(`${API_BASE}/api/ai-food`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ address: formData.location, num_places_to_eat: 5 })
@@ -314,7 +357,7 @@ export default function CreateGuidebookPage() {
         setIsLoading(true);
         setError(null);
         try {
-          const res = await fetch("http://localhost:5001/api/ai-activities", {
+          const res = await fetch(`${API_BASE}/api/ai-activities`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ address: formData.location, num_things_to_do: 5 })
@@ -375,6 +418,54 @@ export default function CreateGuidebookPage() {
           onDelete={idx => setRules(rules => rules.filter((_, i) => i !== idx))}
         />
       )}
+      {currentSection.startsWith("custom_") && (
+        <div className="space-y-4">
+          <div className="text-xl font-semibold">Custom Section</div>
+          <div className="space-y-3">
+            {(customSections[currentSection] || [""]).map((val, idx) => (
+              <div key={idx} className="flex items-start gap-2">
+                <textarea
+                  className="w-full min-h-[90px] border rounded px-3 py-2"
+                  placeholder={`Text box ${idx + 1}`}
+                  value={val}
+                  onChange={(e) =>
+                    setCustomSections(cs => ({
+                      ...cs,
+                      [currentSection]: cs[currentSection].map((v, i) => (i === idx ? e.target.value : v)),
+                    }))
+                  }
+                />
+                <button
+                  type="button"
+                  className="shrink-0 px-3 py-2 rounded border border-gray-300 text-gray-700 hover:bg-gray-50"
+                  onClick={() =>
+                    setCustomSections(cs => ({
+                      ...cs,
+                      [currentSection]: cs[currentSection].filter((_, i) => i !== idx),
+                    }))
+                  }
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+          <div>
+            <button
+              type="button"
+              className="px-4 py-2 rounded bg-[oklch(0.6923_0.22_21.05)] text-white font-semibold shadow hover:opacity-90"
+              onClick={() =>
+                setCustomSections(cs => ({
+                  ...cs,
+                  [currentSection]: [...(cs[currentSection] || [""]), ""],
+                }))
+              }
+            >
+              Add text box
+            </button>
+          </div>
+        </div>
+      )}
       {currentSection === "checkout" && (
         <CheckoutSection
           checkoutTime={formData.checkOutTime}
@@ -390,35 +481,20 @@ export default function CreateGuidebookPage() {
       {currentSection === "arrival" && (
         <ArrivalSection checkInTime={formData.checkInTime} onChange={(id, value) => setFormData(f => ({ ...f, [id]: value }))} />
       )}
-      {/* Footer Actions: Next or Publish */}
-      <div className="mt-8 flex justify-end">
+      </CreateGuidebookLayout>
+
+      {/* Bottom centered Publish button */}
+      <div className="w-full mt-10 mb-16 flex items-center justify-center">
         <Button
           type="button"
-          className="px-6 py-2 bg-[oklch(0.6923_0.22_21.05)] text-white font-semibold rounded shadow hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
-          onClick={(e) => {
-            if (allVisited || currentIndex === sectionsOrder.length - 1) {
-              return handleSubmit(e as unknown as React.FormEvent);
-            }
-            return goNext();
-          }}
-          disabled={
-            isLoading ||
-            (!formData.location && currentSection === "checkin") ||
-            // Host name required: block on hostinfo and whenever Publish would be available
-            (!formData.hostName?.trim() && (
-              currentSection === "hostinfo" || allVisited || currentIndex === sectionsOrder.length - 1
-            ))
-          }
+          className="px-10 py-4 bg-[oklch(0.6923_0.22_21.05)] text-white font-semibold rounded-lg shadow-lg hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed text-lg md:text-xl"
+          onClick={(e) => handleSubmit(e as unknown as React.FormEvent)}
+          disabled={isLoading}
         >
-          {isLoading
-            ? "Processing…"
-            : (allVisited || currentIndex === sectionsOrder.length - 1)
-              ? "Publish"
-              : "Next Page"}
+          {isLoading ? "Processing…" : "Publish"}
         </Button>
       </div>
-      </CreateGuidebookLayout>
-    </NavGuardContext.Provider>
+    </div>
   );
 
 

@@ -1,4 +1,4 @@
-from flask import Flask, request, send_file, render_template, jsonify
+from flask import Flask, request, send_file, jsonify, render_template, make_response
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
@@ -15,7 +15,19 @@ from utils.ai_activities import get_ai_activity_recommendations
 load_dotenv() # Load environment variables from .env file
 
 app = Flask(__name__)
-CORS(app)
+"""
+Configure CORS to only allow requests from configured frontend origins and only for /api/* routes.
+Set FRONTEND_ORIGIN in backend/.env, e.g.:
+  FRONTEND_ORIGIN=http://localhost:3000
+You can also provide multiple origins comma-separated.
+"""
+frontend_origins_env = os.environ.get('FRONTEND_ORIGIN', 'http://localhost:3000')
+_origins = [o.strip() for o in frontend_origins_env.split(',') if o.strip()]
+CORS(
+    app,
+    resources={r"/api/*": {"origins": _origins}},
+    expose_headers=["X-Guidebook-Url"],
+)
 
 # Configure the database using the DATABASE_URL from .env, with a fallback to SQLite
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
@@ -40,9 +52,13 @@ def view_guidebook(guidebook_id):
 
     template_key = getattr(guidebook, 'template_key', None) or 'template_1'
     template_file = TEMPLATE_REGISTRY.get(template_key, TEMPLATE_REGISTRY['template_1'])
+    # Compute included_tabs default (all) if missing; keep any custom_* keys
+    base_tabs = ['checkin','property','hostinfo','wifi','food','activities','rules','checkout']
+    included_tabs = getattr(guidebook, 'included_tabs', None) or base_tabs
+    included_tabs = [t for t in included_tabs if (t in base_tabs) or (isinstance(t, str) and t.startswith('custom_'))]
     return render_template(template_file, 
         id=guidebook.id, 
-        host_name=guidebook.host.name, 
+        host_name=getattr(guidebook.host, 'name', None), 
         host_bio=getattr(guidebook.host, 'bio', None),
         host_photo_url=getattr(guidebook.host, 'host_image_base64', None),
         property_name=guidebook.property.name, 
@@ -60,6 +76,9 @@ def view_guidebook(guidebook_id):
         things_to_do=guidebook.things_to_do, 
         places_to_eat=guidebook.places_to_eat, 
         checkout_info=getattr(guidebook, 'checkout_info', None),
+        included_tabs=included_tabs,
+        custom_sections=getattr(guidebook, 'custom_sections', None),
+        custom_tabs_meta=getattr(guidebook, 'custom_tabs_meta', None),
         cover_image_url=guidebook.cover_image_url
     )
 
@@ -67,34 +86,31 @@ def view_guidebook(guidebook_id):
 def generate_guidebook_route():
     data = request.json
 
-    # Get AI recommendations only if not provided by client
-    has_things = isinstance(data.get('things_to_do'), list) and len(data.get('things_to_do')) > 0
-    has_places = isinstance(data.get('places_to_eat'), list) and len(data.get('places_to_eat')) > 0
-    if not (has_things and has_places):
-        full_address = f"{data.get('address_street', '')}, {data.get('address_city_state', '')}, {data.get('address_zip', '')}"
-        try:
-            from utils.aifunctions import get_ai_recommendations
-            recommendations = get_ai_recommendations(full_address)
-            data['things_to_do'] = data.get('things_to_do') or recommendations.get('things_to_do', [])
-            data['places_to_eat'] = data.get('places_to_eat') or recommendations.get('places_to_eat', [])
-        except Exception as e:
-            print(f"Error getting AI recommendations: {e}")
-            data['things_to_do'] = data.get('things_to_do') or []
-            data['places_to_eat'] = data.get('places_to_eat') or []
+    # Do not auto-generate recommendations here; leave blank if none provided
+    if not isinstance(data.get('things_to_do'), list):
+        data['things_to_do'] = []
+    if not isinstance(data.get('places_to_eat'), list):
+        data['places_to_eat'] = []
 
     # --- Create DB Objects with new normalized schema ---
-    # Find or create Host
-    host = Host.query.filter_by(name=data['host_name']).first()
-    if not host:
-        host = Host(name=data['host_name'])
-        db.session.add(host)
-    # Update host optional fields
-    if 'host_bio' in data and data['host_bio']:
-        host.bio = data['host_bio']
-    if 'host_photo_url' in data and data['host_photo_url']:
-        host.host_image_base64 = data['host_photo_url']
+    # Find or create Host (optional)
+    host = None
+    incoming_host_name = (data.get('host_name') or '').strip()
+    incoming_host_bio = data.get('host_bio')
+    incoming_host_photo = data.get('host_photo_url')
+    if incoming_host_name or incoming_host_bio or incoming_host_photo:
+        if incoming_host_name:
+            host = Host.query.filter_by(name=incoming_host_name).first()
+        if not host:
+            host = Host(name=incoming_host_name or None)
+            db.session.add(host)
+        # Update host optional fields
+        if incoming_host_bio:
+            host.bio = incoming_host_bio
+        if incoming_host_photo:
+            host.host_image_base64 = incoming_host_photo
 
-    # Find or create Property
+    # Find or create Property (update fields if it already exists)
     prop = Property.query.filter_by(name=data['property_name']).first()
     if not prop:
         prop = Property(
@@ -104,20 +120,62 @@ def generate_guidebook_route():
             address_zip=data.get('address_zip')
         )
         db.session.add(prop)
+    else:
+        # Update existing property details with latest values if provided
+        if 'address_street' in data:
+            prop.address_street = data.get('address_street')
+        if 'address_city_state' in data:
+            prop.address_city_state = data.get('address_city_state')
+        if 'address_zip' in data:
+            prop.address_zip = data.get('address_zip')
 
-    # Find or create Wifi
+    # Find or create Wifi (update password if it already exists)
     wifi = None
     if data.get('wifi_network'):
         wifi = Wifi.query.filter_by(network=data['wifi_network']).first()
         if not wifi:
             wifi = Wifi(network=data['wifi_network'], password=data.get('wifi_password'))
             db.session.add(wifi)
+        else:
+            if 'wifi_password' in data:
+                wifi.password = data.get('wifi_password')
     
     # Flush session to assign IDs to new host, prop, wifi before linking to guidebook
     db.session.flush()
 
     # Create Guidebook
     selected_template_key = data.get('template_key') if data.get('template_key') in ALLOWED_TEMPLATE_KEYS else 'template_1'
+    # Validate included_tabs: allow base tabs + any keys starting with custom_
+    base_tabs = {'checkin','property','hostinfo','wifi','food','activities','rules','checkout'}
+    incoming_tabs = data.get('included_tabs')
+    if not isinstance(incoming_tabs, list):
+        incoming_tabs = list(base_tabs)
+    included_tabs = []
+    for t in incoming_tabs:
+        if isinstance(t, str) and (t in base_tabs or t.startswith('custom_')):
+            included_tabs.append(t)
+
+    # Custom sections payload: map custom tab key -> list of strings
+    custom_sections = {}
+    if isinstance(data.get('custom_sections'), dict):
+        for k, v in data.get('custom_sections', {}).items():
+            if isinstance(k, str) and k.startswith('custom_'):
+                # normalize to list of strings
+                if isinstance(v, list):
+                    custom_sections[k] = [str(x) for x in v if x is not None]
+
+    # Custom tabs meta: map custom key -> { label, icon }
+    custom_tabs_meta = {}
+    if isinstance(data.get('custom_tabs_meta'), dict):
+        for k, v in data.get('custom_tabs_meta', {}).items():
+            if isinstance(k, str) and k.startswith('custom_') and isinstance(v, dict):
+                label = v.get('label')
+                icon = v.get('icon')
+                custom_tabs_meta[k] = {
+                    'label': str(label) if label is not None else '',
+                    'icon': str(icon) if icon is not None else ''
+                }
+
     new_guidebook = Guidebook(
         check_in_time=data.get('check_in_time'),
         check_out_time=data.get('check_out_time'),
@@ -128,8 +186,11 @@ def generate_guidebook_route():
         things_to_do=data.get('things_to_do'),
         places_to_eat=data.get('places_to_eat'),
         checkout_info=data.get('checkout_info'),
+        included_tabs=included_tabs,
+        custom_sections=custom_sections,
+        custom_tabs_meta=custom_tabs_meta if custom_tabs_meta else None,
         template_key=selected_template_key,
-        host_id=host.id,
+        host_id=host.id if host else None,
         property_id=prop.id,
         wifi_id=wifi.id if wifi else None
     )
@@ -170,6 +231,15 @@ def run_startup_migrations():
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS welcome_info TEXT;",
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS parking_info TEXT;",
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS checkout_info JSON;",
+        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS included_tabs JSON;",
+        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS custom_sections JSON;",
+        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS custom_tabs_meta JSON;",
+        # Timestamps
+        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS created_time TIMESTAMPTZ DEFAULT NOW();",
+        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS last_modified_time TIMESTAMPTZ DEFAULT NOW();",
+        # Make host name and guidebook.host_id optional
+        "ALTER TABLE host ALTER COLUMN name DROP NOT NULL;",
+        "ALTER TABLE guidebook ALTER COLUMN host_id DROP NOT NULL;",
     ]
     for s in stmts:
         try:

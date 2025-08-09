@@ -131,28 +131,37 @@
 
     <!-- Page 2: Welcome & Info -->
     <div class="page">
+        {% if 'checkin' in included_tabs %}
         <h1 class="page-title">Welcome to Your Stay</h1>
-        <p>{{ welcome_message }}</p>
+        {% if welcome_message %}<p>{{ welcome_message }}</p>{% endif %}
+        {% endif %}
         
         <div class="info-grid">
+            {% if 'checkin' in included_tabs %}
             <div class="info-section">
                 <h2>Location & Access</h2>
                 <p><strong>Address:</strong><br>{{ address_street }}<br>{{ address_city_state }}, {{ address_zip }}</p>
                 <p><strong>Access:</strong><br>{{ access_info }}</p>
             </div>
+            {% endif %}
+            {% if 'wifi' in included_tabs %}
             <div class="info-section">
                 <h2>Wi-Fi</h2>
                 <p><strong>Network:</strong> {{ wifi_network }}<br><strong>Password:</strong> {{ wifi_password }}</p>
             </div>
+            {% endif %}
+            {% if 'hostinfo' in included_tabs or 'checkin' in included_tabs %}
             <div class="info-section">
                 <h2>Host & Timings</h2>
-                <p><strong>Host:</strong> {{ host_name }}</p>
-                <p><strong>Check-in:</strong> After {{ check_in_time }}<br><strong>Check-out:</strong> Before {{ check_out_time }}</p>
+                {% if 'hostinfo' in included_tabs %}<p><strong>Host:</strong> {{ host_name }}</p>{% endif %}
+                {% if 'checkin' in included_tabs %}<p><strong>Check-in:</strong> After {{ check_in_time }}<br><strong>Check-out:</strong> Before {{ check_out_time }}</p>{% endif %}
             </div>
+            {% endif %}
         </div>
     </div>
 
     <!-- Page 3: Things to Do -->
+    {% if 'activities' in included_tabs %}
     <div class="page">
         <h1 class="page-title">Things to Do Nearby</h1>
         <div class="item-list">
@@ -167,8 +176,10 @@
             {% endfor %}
         </div>
     </div>
+    {% endif %}
 
     <!-- Page 4: Places to Eat -->
+    {% if 'food' in included_tabs %}
     <div class="page">
         <h1 class="page-title">Places to Eat Nearby</h1>
         <div class="item-list">
@@ -183,8 +194,10 @@
             {% endfor %}
         </div>
     </div>
+    {% endif %}
 
     <!-- Page 5: House Rules -->
+    {% if 'rules' in included_tabs %}
     <div class="page">
         <h1 class="page-title">House Rules & Notes</h1>
         <ul class="rules-list">
@@ -193,6 +206,7 @@
             {% endfor %}
         </ul>
     </div>
+    {% endif %}
 
 </body>
 </html>
