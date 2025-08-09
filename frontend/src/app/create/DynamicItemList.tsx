@@ -33,7 +33,7 @@ export default function DynamicItemList({ items, onChange, onAdd, onDelete, labe
         <h2 className="text-xl font-semibold">{label}</h2>
       </div>
       {items.length === 0 ? (
-        <button type="button" onClick={onAdd} className="flex items-center gap-2 px-4 py-2 border-2 border-dashed border-pink-400 rounded-lg hover:bg-pink-50 transition">
+        <button type="button" onClick={onAdd} className="flex items-center gap-2 px-4 py-2 border-2 border-dashed border-[oklch(0.6923_0.22_21.05)]/60 rounded-lg hover:bg-[oklch(0.6923_0.22_21.05)]/10 transition">
           <Plus style={{ color: 'oklch(0.6923 0.22 21.05)' }} />
           <span>Add</span>
         </button>
@@ -46,7 +46,7 @@ export default function DynamicItemList({ items, onChange, onAdd, onDelete, labe
                   <button
                     type="button"
                     aria-label="Delete item"
-                    className="absolute top-2 right-2 p-1 rounded hover:bg-pink-100 transition"
+                    className="absolute top-2 right-2 p-1 rounded hover:bg-[oklch(0.6923_0.22_21.05)]/10 transition"
                     onClick={() => onDelete(idx)}
                   >
                     <Trash style={{ color: 'oklch(0.6923 0.22 21.05)' }} size={20} />
@@ -80,7 +80,7 @@ export default function DynamicItemList({ items, onChange, onAdd, onDelete, labe
               </div>
             ))}
           </div>
-          <button type="button" onClick={onAdd} className="flex items-center gap-2 px-4 py-2 border-2 border-dashed border-pink-400 rounded-lg hover:bg-pink-50 transition mt-6">
+          <button type="button" onClick={onAdd} className="flex items-center gap-2 px-4 py-2 border-2 border-dashed border-[oklch(0.6923_0.22_21.05)]/60 rounded-lg hover:bg-[oklch(0.6923_0.22_21.05)]/10 transition mt-6">
             <Plus style={{ color: 'oklch(0.6923 0.22 21.05)' }} />
             <span>Add another</span>
           </button>

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useRef } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 
@@ -10,6 +10,8 @@ interface PropertySectionProps {
 }
 
 export default function PropertySection({ propertyName, onChange, onCoverImageChange, coverPreviewUrl }: PropertySectionProps) {
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   return (
     <section className="mb-8">
       <div className="flex items-center gap-2 mb-2">
@@ -27,20 +29,40 @@ export default function PropertySection({ propertyName, onChange, onCoverImageCh
 
       <div className="mt-4">
         <Label htmlFor="coverImage">Property Cover Image</Label>
-        <Input
-          id="coverImage"
-          type="file"
-          accept="image/*"
-          className="mt-1"
-          onChange={(e) => {
-            const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
-            onCoverImageChange(file);
-          }}
-        />
-        <p className="text-sm text-gray-600 mt-1">This image will be used as the default cover of the guidebook.</p>
-        {coverPreviewUrl && (
-          <img src={coverPreviewUrl} alt="Cover Preview" className="mt-3 h-40 w-auto rounded border" />
-        )}
+        <label htmlFor="coverImage" className="inline-block mt-1">
+          <input
+            id="coverImage"
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="sr-only"
+            onChange={(e) => {
+              const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+              onCoverImageChange(file);
+            }}
+          />
+          <div
+            className={`h-40 w-40 rounded-xl border-2 border-dashed flex items-center justify-center cursor-pointer bg-white text-gray-500 hover:border-[oklch(0.6923_0.22_21.05)]/70 hover:text-[oklch(0.6923_0.22_21.05)] ${dragOver ? 'border-[oklch(0.6923_0.22_21.05)] bg-[oklch(0.6923_0.22_21.05)]/10 text-[oklch(0.6923_0.22_21.05)]' : 'border-gray-300'}`}
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={(e) => { e.preventDefault(); setDragOver(false); }}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragOver(false);
+              const file = e.dataTransfer.files && e.dataTransfer.files[0] ? e.dataTransfer.files[0] : null;
+              onCoverImageChange(file);
+            }}
+          >
+            {coverPreviewUrl ? (
+              <img src={coverPreviewUrl} alt="Cover Preview" className="h-full w-full object-cover rounded-xl" />
+            ) : (
+              <div className="text-center px-2">
+                <span className="block text-sm">Click to upload</span>
+                <span className="block text-xs text-gray-400">or drag & drop</span>
+              </div>
+            )}
+          </div>
+        </label>
+        <p className="text-sm text-gray-600 mt-2">This image will be used as the default cover of the guidebook.</p>
       </div>
     </section>
   );

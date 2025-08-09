@@ -1,15 +1,14 @@
 import React from "react";
-import { Home, Wifi, ParkingCircle, DoorOpen, CalendarCheck2 } from "lucide-react";
 
 const navItems = [
-  { label: "Check-in Info", icon: <DoorOpen />, section: "checkin" },
-  { label: "Property Details", icon: <Home />, section: "property" },
-  { label: "Host Info", icon: <Home />, section: "hostinfo" },
-  { label: "Wifi", icon: <Wifi />, section: "wifi" },
-  { label: "Food", icon: <Home />, section: "food" },
-  { label: "Activities", icon: <CalendarCheck2 />, section: "activities" },
-  { label: "Rules", icon: <ParkingCircle />, section: "rules" },
-  { label: "Checkout Info", icon: <CalendarCheck2 />, section: "checkout" },
+  { label: "Check-in Info", icon: "🏠", section: "checkin" },
+  { label: "Property Details", icon: "🏡", section: "property" },
+  { label: "Host Info", icon: "👤", section: "hostinfo" },
+  { label: "Wifi", icon: "📶", section: "wifi" },
+  { label: "Food", icon: "🍽️", section: "food" },
+  { label: "Activities", icon: "🎡", section: "activities" },
+  { label: "Rules", icon: "📋", section: "rules" },
+  { label: "Checkout Info", icon: "🧳", section: "checkout" },
 ];
 
 interface SidebarNavProps {

@@ -219,104 +219,178 @@
 
     <div class="tabs-container">
         <div class="tabs">
-            <button class="tab-button active" onclick="openTab(event, 'welcome', 0)">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-                Welcome
-            </button>
-            <button class="tab-button" onclick="openTab(event, 'arrival', 1)">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16.2 4-9.1 9.1a2.8 2.8 0 0 0 0 4l9.1 9.1"/><path d="m22 12-4.1 4.1a2.8 2.8 0 0 1 0-4l4.1-4.1"/></svg>
-                Arrival & Departure
-            </button>
-            <button class="tab-button" onclick="openTab(event, 'info', 2)">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-                House Info
-            </button>
-            <button class="tab-button" onclick="openTab(event, 'todo', 3)">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m13 10-3 5 5-2-3-5"/></svg>
-                Things to Do
-            </button>
-            <button class="tab-button" onclick="openTab(event, 'eat', 4)">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v2"/><path d="M14 11V2h6v9a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2z"/><path d="M18 11V7"/><path d="M12 22a4 4 0 0 0 4-4v-6H8v6a4 4 0 0 0 4 4z"/></svg>
-                Places to Eat
-            </button>
+            <button class="tab-button active" onclick="openTab(event, 'checkin', 0)">Check-in Info</button>
+            <button class="tab-button" onclick="openTab(event, 'property', 1)">Property Details</button>
+            <button class="tab-button" onclick="openTab(event, 'host', 2)">Host Info</button>
+            <button class="tab-button" onclick="openTab(event, 'wifi', 3)">Wifi</button>
+            <button class="tab-button" onclick="openTab(event, 'food', 4)">Food</button>
+            <button class="tab-button" onclick="openTab(event, 'activities', 5)">Activities</button>
+            <button class="tab-button" onclick="openTab(event, 'rules', 6)">Rules</button>
+            <button class="tab-button" onclick="openTab(event, 'checkout', 7)">Checkout Info</button>
         </div>
         <div class="tab-slider"></div>
     </div>
 
     <main class="content-container">
-        <div id="welcome" class="tab-content active">
+        <!-- Check-in Info -->
+        <div id="checkin" class="tab-content active">
             <div class="card">
-                <h2>Welcome!</h2>
-                <p>We're thrilled to have you at {{ property_name }}. We hope you have a fantastic stay!</p>
-                <p>Your host, <strong>{{ host_name }}</strong>, is available if you need anything.</p>
-            </div>
-        </div>
-
-        <div id="arrival" class="tab-content">
-            <div class="card">
-                <h2>Arrival & Departure</h2>
-                <div class="info-grid">
-                    <div class="info-item"><strong>Check-in Time:</strong> After {{ check_in_time }}</div>
-                    <div class="info-item"><strong>Check-out Time:</strong> Before {{ check_out_time }}</div>
+                <h2>Check-in Info</h2>
+                {% if welcome_message %}
+                <div class="info-item"><strong>Welcome Message:</strong>
+                    <div>{{ welcome_message }}</div>
                 </div>
-            </div>
-            <div class="card">
-                <h2>Location & Access</h2>
+                {% endif %}
                 <div class="info-grid">
-                    <div class="info-item"><strong>Address:</strong> {{ address_street }}, {{ address_city_state }}, {{ address_zip }}</div>
-                    <div class="info-item"><strong>Access Info:</strong> {{ access_info }}</div>
-                </div>
-            </div>
-        </div>
-
-        <div id="info" class="tab-content">
-            <div class="card">
-                <h2>Wi-Fi Details</h2>
-                <div class="info-grid">
-                    <div class="info-item"><strong>Network:</strong> {{ wifi_network }}</div>
-                    <div class="info-item"><strong>Password:</strong> {{ wifi_password }}</div>
-                </div>
-            </div>
-            <div class="card">
-                <h2>House Rules</h2>
-                <ul class="rules-list">
-                    {% for rule in rules %}
-                    <li>{{ rule }}</li>
-                    {% endfor %}
-                </ul>
-            </div>
-        </div>
-
-        <div id="todo" class="tab-content">
-            <div class="card recommendation-container-card">
-                <h2>Things to Do</h2>
-                <div class="recommendation-grid">
-                    {% for activity in things_to_do %}
-                    <div class="recommendation-card">
-                        {% if activity.image_url %}<img src="{{ activity.image_url }}" alt="{{ activity.name }}">{% endif %}
-                        <div class="recommendation-card-content">
-                            <h3>{{ activity.name }}</h3>
-                            <p>{{ activity.description }}</p>
-                        </div>
+                    {% if address_street or address_city_state or address_zip %}
+                    <div class="info-item"><strong>Location:</strong>
+                        <div>{{ address_street }}{% if address_city_state %}, {{ address_city_state }}{% endif %}{% if address_zip %}, {{ address_zip }}{% endif %}</div>
                     </div>
-                    {% endfor %}
+                    {% endif %}
+                    {% if access_info %}
+                    <div class="info-item"><strong>Access Info:</strong>
+                        <div>{{ access_info }}</div>
+                    </div>
+                    {% endif %}
+                    {% if parking_info %}
+                    <div class="info-item"><strong>Parking Info:</strong>
+                        <div>{{ parking_info }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card">
+                <h2>Arrival</h2>
+                <div class="info-grid">
+                    {% if check_in_time %}
+                    <div class="info-item"><strong>Check-in Time:</strong> {{ check_in_time }}</div>
+                    {% endif %}
                 </div>
             </div>
         </div>
 
-        <div id="eat" class="tab-content">
+        <!-- Property Details -->
+        <div id="property" class="tab-content">
+            <div class="card">
+                <h2>Property Details</h2>
+                {% if property_name %}
+                <div class="info-item"><strong>Property Name:</strong> {{ property_name }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Host Info -->
+        <div id="host" class="tab-content">
+            <div class="card">
+                <h2>Host Info</h2>
+                {% if host_name %}
+                <div class="info-item"><strong>Host Name:</strong> {{ host_name }}</div>
+                {% endif %}
+                {% if host_bio %}
+                <div class="info-item"><strong>Bio:</strong>
+                    <div>{{ host_bio }}</div>
+                </div>
+                {% endif %}
+                {% if host_photo_url %}
+                <div class="info-item"><strong>Photo:</strong>
+                    <div>
+                        <img src="{{ host_photo_url }}" alt="Host" style="width: 96px; height: 96px; object-fit: cover; border-radius: 9999px; border: 1px solid #e2e8f0;"/>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Wifi -->
+        <div id="wifi" class="tab-content">
+            <div class="card">
+                <h2>Wi‑Fi Details</h2>
+                <div class="info-grid">
+                    {% if wifi_network %}
+                    <div class="info-item"><strong>Network:</strong> {{ wifi_network }}</div>
+                    {% endif %}
+                    {% if wifi_password %}
+                    <div class="info-item"><strong>Password:</strong> {{ wifi_password }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Food -->
+        <div id="food" class="tab-content">
             <div class="card recommendation-container-card">
-                <h2>Places to Eat</h2>
+                <h2>Nearby Food</h2>
+                {% if places_to_eat and places_to_eat|length > 0 %}
                 <div class="recommendation-grid">
                     {% for place in places_to_eat %}
                     <div class="recommendation-card">
                         {% if place.image_url %}<img src="{{ place.image_url }}" alt="{{ place.name }}">{% endif %}
                         <div class="recommendation-card-content">
-                            <h3>{{ place.name }}</h3>
-                            <p>{{ place.description }}</p>
+                            {% if place.name %}<h3>{{ place.name }}</h3>{% endif %}
+                            {% if place.description %}<p>{{ place.description }}</p>{% endif %}
+                            {% if place.address %}<p style="color: #64748b; font-size: 0.9rem; margin-top: 0.25rem;">{{ place.address }}</p>{% endif %}
                         </div>
                     </div>
                     {% endfor %}
+                </div>
+                {% else %}
+                <p class="light-text-color">No food recommendations yet.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Activities -->
+        <div id="activities" class="tab-content">
+            <div class="card recommendation-container-card">
+                <h2>Nearby Activities</h2>
+                {% if things_to_do and things_to_do|length > 0 %}
+                <div class="recommendation-grid">
+                    {% for activity in things_to_do %}
+                    <div class="recommendation-card">
+                        {% if activity.image_url %}<img src="{{ activity.image_url }}" alt="{{ activity.name }}">{% endif %}
+                        <div class="recommendation-card-content">
+                            {% if activity.name %}<h3>{{ activity.name }}</h3>{% endif %}
+                            {% if activity.description %}<p>{{ activity.description }}</p>{% endif %}
+                            {% if activity.address %}<p style="color: #64748b; font-size: 0.9rem; margin-top: 0.25rem;">{{ activity.address }}</p>{% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="light-text-color">No activity recommendations yet.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Rules -->
+        <div id="rules" class="tab-content">
+            <div class="card">
+                <h2>Rules</h2>
+                {% if rules and rules|length > 0 %}
+                <ul class="rules-list">
+                    {% for rule in rules %}
+                    <li>{{ rule }}</li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="light-text-color">No rules provided.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Checkout -->
+        <div id="checkout" class="tab-content">
+            <div class="card">
+                <h2>Checkout Info</h2>
+                <div class="info-grid">
+                    {% if check_out_time %}
+                    <div class="info-item"><strong>Checkout Time:</strong> {{ check_out_time }}</div>
+                    {% endif %}
+                    {% if checkout_requirements %}
+                    <div class="info-item"><strong>Requirements:</strong>
+                        <div>{{ checkout_requirements }}</div>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>

@@ -1,6 +1,7 @@
 from flask import Flask, request, send_file, render_template, jsonify
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import text
 import main as pdf_generator
 import io
 from dotenv import load_dotenv
@@ -23,16 +24,27 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Initialize the database with the app
 db.init_app(app)
 
+# Template registry mapping keys to template files
+TEMPLATE_REGISTRY = {
+    "template_1": "templates_url/template_1.html",
+    "template_2": "templates_url/template_2.html",
+}
+ALLOWED_TEMPLATE_KEYS = set(TEMPLATE_REGISTRY.keys())
+
 @app.route('/guidebook/<guidebook_id>')
 def view_guidebook(guidebook_id):
     guidebook = Guidebook.query.get_or_404(guidebook_id)
-    # Handle case where wifi might be null
-    wifi_network = guidebook.wifi.network if guidebook.wifi else 'N/A'
-    wifi_password = guidebook.wifi.password if guidebook.wifi else 'N/A'
+    # Handle case where wifi might be null (pass through None/empty; template handles conditionals)
+    wifi_network = guidebook.wifi.network if guidebook.wifi and guidebook.wifi.network else None
+    wifi_password = guidebook.wifi.password if guidebook.wifi and guidebook.wifi.password else None
 
-    return render_template('guidebook_url_template.html', 
+    template_key = getattr(guidebook, 'template_key', None) or 'template_1'
+    template_file = TEMPLATE_REGISTRY.get(template_key, TEMPLATE_REGISTRY['template_1'])
+    return render_template(template_file, 
         id=guidebook.id, 
         host_name=guidebook.host.name, 
+        host_bio=getattr(guidebook.host, 'bio', None),
+        host_photo_url=getattr(guidebook.host, 'host_image_base64', None),
         property_name=guidebook.property.name, 
         wifi_network=wifi_network, 
         wifi_password=wifi_password, 
@@ -42,9 +54,12 @@ def view_guidebook(guidebook_id):
         address_city_state=guidebook.property.address_city_state, 
         address_zip=guidebook.property.address_zip, 
         access_info=guidebook.access_info, 
+        welcome_message=getattr(guidebook, 'welcome_info', None),
+        parking_info=getattr(guidebook, 'parking_info', None),
         rules=[rule.text for rule in guidebook.rules], 
         things_to_do=guidebook.things_to_do, 
         places_to_eat=guidebook.places_to_eat, 
+        checkout_info=getattr(guidebook, 'checkout_info', None),
         cover_image_url=guidebook.cover_image_url
     )
 
@@ -73,6 +88,11 @@ def generate_guidebook_route():
     if not host:
         host = Host(name=data['host_name'])
         db.session.add(host)
+    # Update host optional fields
+    if 'host_bio' in data and data['host_bio']:
+        host.bio = data['host_bio']
+    if 'host_photo_url' in data and data['host_photo_url']:
+        host.host_image_base64 = data['host_photo_url']
 
     # Find or create Property
     prop = Property.query.filter_by(name=data['property_name']).first()
@@ -97,13 +117,18 @@ def generate_guidebook_route():
     db.session.flush()
 
     # Create Guidebook
+    selected_template_key = data.get('template_key') if data.get('template_key') in ALLOWED_TEMPLATE_KEYS else 'template_1'
     new_guidebook = Guidebook(
         check_in_time=data.get('check_in_time'),
         check_out_time=data.get('check_out_time'),
         access_info=data.get('access_info'),
+        welcome_info=data.get('welcome_message'),
+        parking_info=data.get('parking_info'),
         cover_image_url=data.get('cover_image_url'),
         things_to_do=data.get('things_to_do'),
         places_to_eat=data.get('places_to_eat'),
+        checkout_info=data.get('checkout_info'),
+        template_key=selected_template_key,
         host_id=host.id,
         property_id=prop.id,
         wifi_id=wifi.id if wifi else None
@@ -137,8 +162,26 @@ def generate_guidebook_route():
 
     return response
 
+def run_startup_migrations():
+    """Add missing columns if they don't already exist (Postgres)."""
+    stmts = [
+        "ALTER TABLE host ADD COLUMN IF NOT EXISTS bio TEXT;",
+        "ALTER TABLE host ADD COLUMN IF NOT EXISTS host_image_base64 TEXT;",
+        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS welcome_info TEXT;",
+        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS parking_info TEXT;",
+        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS checkout_info JSON;",
+    ]
+    for s in stmts:
+        try:
+            db.session.execute(text(s))
+            db.session.commit()
+        except Exception as e:
+            # Log and continue so the app still boots
+            print(f"Migration statement failed or already applied: {s} => {e}")
+
 with app.app_context():
     db.create_all() # Create tables if they don't exist
+    run_startup_migrations()
 
 @app.route('/api/ai-food', methods=['POST'])
 def ai_food_route():
@@ -159,6 +202,17 @@ def ai_activities_route():
         return jsonify({"error": "Please provide a valid location to generate recommendations."}), 400
     recs = get_ai_activity_recommendations(address, num_things_to_do)
     return jsonify(recs or {"error": "Could not get recommendations"})
+
+@app.route('/api/guidebook/<guidebook_id>/template', methods=['POST'])
+def update_template_key(guidebook_id):
+    gb = Guidebook.query.get_or_404(guidebook_id)
+    body = request.json or {}
+    new_key = body.get('template_key')
+    if new_key not in ALLOWED_TEMPLATE_KEYS:
+        return jsonify({"error": "Invalid template_key", "allowed": list(ALLOWED_TEMPLATE_KEYS)}), 400
+    gb.template_key = new_key
+    db.session.commit()
+    return jsonify({"ok": True, "template_key": gb.template_key})
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)

@@ -6,6 +6,8 @@ db = SQLAlchemy()
 class Host(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
+    bio = db.Column(db.Text, nullable=True)
+    host_image_base64 = db.Column(db.Text, nullable=True)
     guidebooks = db.relationship('Guidebook', backref='host', lazy=True)
 
 class Property(db.Model):
@@ -32,9 +34,15 @@ class Guidebook(db.Model):
     check_in_time = db.Column(db.String(20))
     check_out_time = db.Column(db.String(20))
     access_info = db.Column(db.String(255), nullable=True)
+    welcome_info = db.Column(db.Text, nullable=True)
+    parking_info = db.Column(db.Text, nullable=True)
     cover_image_url = db.Column(db.Text, nullable=True)
     things_to_do = db.Column(db.JSON)
     places_to_eat = db.Column(db.JSON)
+    checkout_info = db.Column(db.JSON)
+
+    # Selected template (e.g., 'template_1' or 'template_2')
+    template_key = db.Column(db.String(50), nullable=False, default='template_1')
 
     # Foreign Keys
     host_id = db.Column(db.Integer, db.ForeignKey('host.id'), nullable=False)

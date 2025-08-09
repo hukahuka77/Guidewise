@@ -37,35 +37,34 @@ export default function CreateGuidebookPage() {
   const [hostPhoto, setHostPhoto] = useState<File | null>(null);
   const [hostPhotoPreviewUrl, setHostPhotoPreviewUrl] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    propertyName: 'Sunny Retreat Guest House',
+    propertyName: '',
     hostName: '', // Placeholder only
-    hostBio: 'I love hosting guests from around the world and sharing my favorite local spots. Let me know if you need anything during your stay!',
+    hostBio: '',
     hostContact: '', // Placeholder only
     address: '123 Beachside Ave',
     address_street: '123 Beachside Ave',
     address_city_state: 'Santa Monica, CA',
     address_zip: '90401',
-    access_info: 'Front door code: 4321#\nSpare key in lockbox by the garage.',
-    welcomeMessage: 'Welcome to your home away from home! We hope you have a relaxing and memorable stay.',
+    access_info: '',
+    welcomeMessage: '',
     location: '', // Only required field, leave blank
-    parkingInfo: 'You have a reserved spot in front of the garage. Street parking is also available.',
+    parkingInfo: '',
     wifiNetwork: '', // Placeholder only
     wifiPassword: '', // Placeholder only
     wifiNotes: 'WiFi works best in the living room and kitchen. Please let us know if you have any issues.',
     checkInTime: '15:00',
     checkOutTime: '11:00',
-    checkoutRequirements: '', // Placeholder only
   });
   const [foodItems, setFoodItems] = useState<DynamicItem[]>([]);
   const [activityItems, setActivityItems] = useState<DynamicItem[]>([]);
+  const [checkoutItems, setCheckoutItems] = useState<{ name: string; description: string; checked: boolean }[]>([]);
   const [rules, setRules] = useState<{ name: string; description: string; checked: boolean }[]>([
     { name: 'No Smoking', description: 'Smoking is not allowed inside the house or on the balcony.', checked: true },
     { name: 'No Parties or Events', description: 'Parties and events are not allowed on the property.', checked: true },
-    { name: 'No Pets', description: 'Pets are not allowed unless approved in advance.', checked: false },
+    { name: 'No Pets', description: 'Pets are not allowed unless approved in advance.', checked: true },
     { name: 'Quiet Hours', description: 'Please keep noise to a minimum after 10pm to respect our neighbors.', checked: true },
     { name: 'No Unregistered Guests', description: 'Only guests included in the reservation are allowed to stay.', checked: true },
-    { name: 'Remove Shoes Indoors', description: 'Please remove your shoes when entering the house.', checked: false },
-    { name: 'Turn Off Lights/AC', description: 'Turn off all lights and AC when leaving the property.', checked: false }
+    { name: 'Remove Shoes Indoors', description: 'Please remove your shoes when entering the house.', checked: true }
   ]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -146,6 +145,7 @@ export default function CreateGuidebookPage() {
         // lists
         things_to_do: activityItems.map(i => ({ name: i.name, description: i.description, image_url: (i as any).image_url || "", address: (i as any).address || "" })),
         places_to_eat: foodItems.map(i => ({ name: i.name, description: i.description, image_url: (i as any).image_url || "", address: (i as any).address || "" })),
+        checkout_info: checkoutItems.filter(i => i.checked).map(i => ({ name: i.name, description: i.description })),
       };
 
       const response = await fetch('http://localhost:5001/api/generate', {
@@ -222,6 +222,7 @@ export default function CreateGuidebookPage() {
           location={formData.location}
           accessInfo={formData.access_info}
           parkingInfo={formData.parkingInfo}
+          checkInTime={formData.checkInTime}
           onChange={(id, value) => setFormData(f => ({ ...f, [id]: value }))}
         />
       )}
@@ -250,7 +251,7 @@ export default function CreateGuidebookPage() {
   <div>
     <button
       type="button"
-      className="mb-4 px-4 py-2 rounded bg-pink-500 text-white font-semibold shadow hover:bg-pink-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+      className="mb-4 px-4 py-2 rounded bg-[oklch(0.6923_0.22_21.05)] text-white font-semibold shadow hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
       disabled={isLoading || !formData.location}
       onClick={async () => {
         setIsLoading(true);
@@ -307,7 +308,7 @@ export default function CreateGuidebookPage() {
   <div>
     <button
       type="button"
-      className="mb-4 px-4 py-2 rounded bg-pink-500 text-white font-semibold shadow hover:bg-pink-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+      className="mb-4 px-4 py-2 rounded bg-[oklch(0.6923_0.22_21.05)] text-white font-semibold shadow hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
       disabled={isLoading || !formData.location}
       onClick={async () => {
         setIsLoading(true);
@@ -377,9 +378,13 @@ export default function CreateGuidebookPage() {
       {currentSection === "checkout" && (
         <CheckoutSection
           checkoutTime={formData.checkOutTime}
-          requirements={formData.checkoutRequirements}
-          onChange={(id, value) => setFormData(f => ({ ...f, [id]: value }))}
-          requirementsPlaceholder="e.g. Please place used towels in the basket and take out the trash before you leave."
+          items={checkoutItems}
+          onTimeChange={(value: string) => setFormData(f => ({ ...f, checkOutTime: value }))}
+          onChange={(idx, field, value) => {
+            setCheckoutItems(items => items.map((item, i) => i === idx ? { ...item, [field]: value as any } : item));
+          }}
+          onAdd={() => setCheckoutItems(items => [...items, { name: '', description: '', checked: false }])}
+          onDelete={(idx) => setCheckoutItems(items => items.filter((_, i) => i !== idx))}
         />
       )}
       {currentSection === "arrival" && (
@@ -389,7 +394,7 @@ export default function CreateGuidebookPage() {
       <div className="mt-8 flex justify-end">
         <Button
           type="button"
-          className="px-6 py-2 bg-pink-500 text-white font-semibold rounded shadow hover:bg-pink-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-6 py-2 bg-[oklch(0.6923_0.22_21.05)] text-white font-semibold rounded shadow hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
           onClick={(e) => {
             if (allVisited || currentIndex === sectionsOrder.length - 1) {
               return handleSubmit(e as unknown as React.FormEvent);

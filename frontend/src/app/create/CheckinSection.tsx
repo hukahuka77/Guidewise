@@ -10,18 +10,27 @@ interface CheckinSectionProps {
   location: string;
   accessInfo: string;
   parkingInfo: string;
+  checkInTime: string;
   onChange: (id: string, value: string) => void;
 }
 
-export default function CheckinSection({ welcomeMessage, location, accessInfo, parkingInfo, onChange }: CheckinSectionProps) {
+export default function CheckinSection({ welcomeMessage, location, accessInfo, parkingInfo, checkInTime, onChange }: CheckinSectionProps) {
   return (
     <section className="mb-8">
       <div className="flex items-center gap-2 mb-2">
         <DoorOpen style={{ color: 'oklch(0.6923 0.22 21.05)' }} />
         <h2 className="text-xl font-semibold">Check-in Info</h2>
       </div>
+      <Label htmlFor="checkInTime">Check-in Time</Label>
+      <Input
+        id="checkInTime"
+        type="time"
+        value={checkInTime}
+        onChange={e => onChange("checkInTime", e.target.value)}
+        className="w-40 mb-2 mt-1"
+      />
       <Label htmlFor="welcomeMessage">Welcome Message</Label>
-      <Textarea id="welcomeMessage" value={welcomeMessage} onChange={e => onChange("welcomeMessage", e.target.value)} className="mb-2 mt-1" />
+      <Textarea id="welcomeMessage" value={welcomeMessage} onChange={e => onChange("welcomeMessage", e.target.value)} className="mb-2 mt-1" placeholder="Write a friendly greeting and what guests can expect during their stay." />
       <Label htmlFor="location">Location <span className="text-red-500" title="Required">*</span></Label>
       <PlacesAutocomplete
         value={location}
@@ -30,9 +39,9 @@ export default function CheckinSection({ welcomeMessage, location, accessInfo, p
         className="mb-2 mt-1"
       />
       <Label htmlFor="accessInfo">Access Info</Label>
-      <Textarea id="accessInfo" value={accessInfo} onChange={e => onChange("accessInfo", e.target.value)} className="mb-2 mt-1" />
+      <Textarea id="accessInfo" value={accessInfo} onChange={e => onChange("accessInfo", e.target.value)} className="mb-2 mt-1" placeholder="Door code, lockbox location, entry instructions, or concierge details." />
       <Label htmlFor="parkingInfo">Parking Info</Label>
-      <Textarea id="parkingInfo" value={parkingInfo} onChange={e => onChange("parkingInfo", e.target.value)} className="mt-1" />
+      <Textarea id="parkingInfo" value={parkingInfo} onChange={e => onChange("parkingInfo", e.target.value)} className="mt-1" placeholder="Where to park, permit requirements, garage/spot number, and any restrictions." />
     </section>
   );
 }

@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ property_name }} • Guidebook</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style> body{ font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; } </style>
+</head>
+<body class="min-h-screen w-full">
+  <!-- Wrapper mirrors CreateGuidebookLayout -->
+  <div class="flex items-center justify-center min-h-screen w-full">
+    <div class="flex h-[90vh] w-[90vw] max-w-[1800px] rounded-2xl shadow-lg overflow-hidden bg-white/60">
+      <!-- Sidebar mirrors SidebarNav.tsx styling -->
+      <aside class="w-14 md:w-56 flex-shrink-0 rounded-l-2xl shadow-lg bg-[oklch(0.6923_0.22_21.05)] text-white">
+        <nav class="h-full w-14 md:w-56 text-white flex flex-col py-6 md:py-8 px-2 md:px-4">
+          <div class="hidden md:block">
+            {% if cover_image_url %}
+              <img src="{{ cover_image_url }}" alt="Cover" class="w-full h-28 object-cover rounded-xl border border-white/10 shadow mb-4" />
+            {% endif %}
+            {% if property_name %}
+            <div class="mb-8 text-2xl font-bold tracking-tight truncate">{{ property_name }}</div>
+            {% endif %}
+          </div>
+          <ul class="flex flex-col gap-4">
+            <li class="flex items-center justify-center md:justify-start gap-0 md:gap-3 px-2 md:px-3 py-2 rounded-lg bg-white/20 cursor-pointer" data-tab-link data-tab="checkin"><span class="w-6 h-6">🏠</span><span class="font-medium hidden md:inline">Check-in Info</span></li>
+            <li class="flex items-center justify-center md:justify-start gap-0 md:gap-3 px-2 md:px-3 py-2 rounded-lg hover:bg-white/10 cursor-pointer" data-tab-link data-tab="property"><span class="w-6 h-6">🏡</span><span class="font-medium hidden md:inline">Property Details</span></li>
+            <li class="flex items-center justify-center md:justify-start gap-0 md:gap-3 px-2 md:px-3 py-2 rounded-lg hover:bg-white/10 cursor-pointer" data-tab-link data-tab="host"><span class="w-6 h-6">👤</span><span class="font-medium hidden md:inline">Host Info</span></li>
+            <li class="flex items-center justify-center md:justify-start gap-0 md:gap-3 px-2 md:px-3 py-2 rounded-lg hover:bg-white/10 cursor-pointer" data-tab-link data-tab="wifi"><span class="w-6 h-6">📶</span><span class="font-medium hidden md:inline">Wifi</span></li>
+            <li class="flex items-center justify-center md:justify-start gap-0 md:gap-3 px-2 md:px-3 py-2 rounded-lg hover:bg-white/10 cursor-pointer" data-tab-link data-tab="food"><span class="w-6 h-6">🍽️</span><span class="font-medium hidden md:inline">Food</span></li>
+            <li class="flex items-center justify-center md:justify-start gap-0 md:gap-3 px-2 md:px-3 py-2 rounded-lg hover:bg-white/10 cursor-pointer" data-tab-link data-tab="activities"><span class="w-6 h-6">🎡</span><span class="font-medium hidden md:inline">Activities</span></li>
+            <li class="flex items-center justify-center md:justify-start gap-0 md:gap-3 px-2 md:px-3 py-2 rounded-lg hover:bg-white/10 cursor-pointer" data-tab-link data-tab="rules"><span class="w-6 h-6">📋</span><span class="font-medium hidden md:inline">Rules</span></li>
+            <li class="flex items-center justify-center md:justify-start gap-0 md:gap-3 px-2 md:px-3 py-2 rounded-lg hover:bg-white/10 cursor-pointer" data-tab-link data-tab="checkout"><span class="w-6 h-6">🧳</span><span class="font-medium hidden md:inline">Checkout Info</span></li>
+          </ul>
+        </nav>
+      </aside>
+
+      <!-- Main mirrors CreateGuidebookLayout main gradient -->
+      <main class="flex-1 bg-gradient-to-br from-blue-50 via-pink-50 to-purple-100 p-6 md:p-10 overflow-y-auto">
+        <!-- Mobile top header: cover and title -->
+        <div class="md:hidden mb-6">
+          {% if cover_image_url %}
+            <img src="{{ cover_image_url }}" alt="Cover" class="w-full h-40 object-cover rounded-xl border border-white/50 shadow mb-3" />
+          {% endif %}
+          {% if property_name %}
+            <h1 class="text-2xl font-bold text-gray-900 truncate">{{ property_name }}</h1>
+          {% endif %}
+        </div>
+
+        <!-- Check-in Info (from CheckinSection) -->
+        <section class="mb-8" data-tab-section="checkin">
+          <div class="flex items-center gap-2 mb-2">
+            <h2 class="text-xl font-semibold">Check-in Info</h2>
+          </div>
+          {% if welcome_message %}
+          <label class="block text-xs uppercase tracking-wide text-gray-500">Welcome Message</label>
+          <p class="mb-3 mt-1 text-gray-900 font-medium whitespace-pre-line">{{ welcome_message }}</p>
+          {% endif %}
+          {% if address_street or address_city_state or address_zip %}
+          <label class="block text-xs uppercase tracking-wide text-gray-500">Location</label>
+          <p class="mb-3 mt-1 text-gray-900 font-medium">{{ address_street }}{% if address_city_state %}, {{ address_city_state }}{% endif %}{% if address_zip %}, {{ address_zip }}{% endif %}</p>
+          {% endif %}
+          {% if access_info %}
+          <label class="block text-xs uppercase tracking-wide text-gray-500">Access Info</label>
+          <p class="mb-3 mt-1 text-gray-900 font-medium whitespace-pre-line">{{ access_info }}</p>
+          {% endif %}
+          {% if parking_info %}
+          <label class="block text-xs uppercase tracking-wide text-gray-500">Parking Info</label>
+          <p class="mt-1 text-gray-900 font-medium whitespace-pre-line">{{ parking_info }}</p>
+          {% endif %}
+        </section>
+
+        <!-- Host Info (from HostInfoSection) -->
+        <section class="mb-8 hidden" data-tab-section="host">
+          <div class="flex items-center gap-2 mb-2">
+            <h2 class="text-xl font-semibold">Host Info</h2>
+          </div>
+          {% if host_name %}
+          <label class="block text-xs uppercase tracking-wide text-gray-500">Host Name</label>
+          <p class="mb-3 mt-1 text-gray-900 font-medium">{{ host_name }}</p>
+          {% endif %}
+          {% if host_bio %}
+          <label class="block text-xs uppercase tracking-wide text-gray-500">Bio</label>
+          <p class="mb-3 mt-1 text-gray-900 font-medium whitespace-pre-line">{{ host_bio }}</p>
+          {% endif %}
+          {% if host_contact %}
+          <label class="block text-xs uppercase tracking-wide text-gray-500">Contact Info</label>
+          <p class="mt-1 text-gray-900 font-medium">{{ host_contact }}</p>
+          {% endif %}
+          {% if host_photo_url %}
+            <img src="{{ host_photo_url }}" alt="Host" class="mt-3 h-32 w-32 object-cover rounded-full border shadow" />
+          {% endif %}
+        </section>
+
+        <!-- Property Details (from PropertySection) -->
+        <section class="mb-8 hidden" data-tab-section="property">
+          <div class="flex items-center gap-2 mb-2">
+            <h2 class="text-xl font-semibold">Property Details</h2>
+          </div>
+          {% if property_name %}
+          <label class="block text-xs uppercase tracking-wide text-gray-500">Property Name</label>
+          <p class="mb-4 mt-1 text-gray-900 font-medium">{{ property_name }}</p>
+          {% endif %}
+        </section>
+
+        <!-- Wifi (from WifiSection) -->
+        <section class="mb-8 hidden" data-tab-section="wifi">
+          <div class="flex items-center gap-2 mb-2">
+            <h2 class="text-xl font-semibold">Wifi</h2>
+          </div>
+          {% if wifi_network %}
+          <label class="block text-xs uppercase tracking-wide text-gray-500">Network Name</label>
+          <p class="mb-3 mt-1 text-gray-900 font-medium">{{ wifi_network }}</p>
+          {% endif %}
+          {% if wifi_password %}
+          <label class="block text-xs uppercase tracking-wide text-gray-500">Password</label>
+          <p class="mt-1 text-gray-900 font-medium">{{ wifi_password }}</p>
+          {% endif %}
+        </section>
+
+        <!-- Food (from DynamicItemList for food) -->
+        <section class="mb-8 hidden" data-tab-section="food">
+          <div class="flex items-center gap-2 mb-2">
+            <h2 class="text-xl font-semibold">Nearby Food</h2>
+          </div>
+          {% if places_to_eat and places_to_eat|length > 0 %}
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {% for item in places_to_eat %}
+            <div class="p-4 rounded-lg bg-white/80 shadow flex flex-col gap-2">
+              {% if item.image_url %}
+                <img src="{{ item.image_url }}" alt="{{ item.name }} image" class="w-full h-32 object-cover rounded mb-2 border shadow" />
+              {% endif %}
+              {% if item.name %}
+              <label class="text-xs uppercase tracking-wide text-gray-500">Name</label>
+              <p class="text-gray-900 font-medium">{{ item.name }}</p>
+              {% endif %}
+              {% if item.address %}
+              <div class="flex items-center text-xs text-gray-600 mt-1 mb-2">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="mr-1"><path stroke-linecap="round" stroke-linejoin="round" d="M12 11.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7-7.5 11-7.5 11s-7.5-4-7.5-11a7.5 7.5 0 1115 0z"/></svg>
+                <span>{{ item.address }}</span>
+              </div>
+              {% endif %}
+              {% if item.address %}
+              <label class="text-xs uppercase tracking-wide text-gray-500">Address</label>
+              <p class="text-gray-900 font-medium">{{ item.address }}</p>
+              {% endif %}
+              {% if item.description %}
+              <label class="text-xs uppercase tracking-wide text-gray-500">Description</label>
+              <p class="text-gray-900 font-medium whitespace-pre-line">{{ item.description }}</p>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+            <p class="text-gray-600">No food recommendations yet.</p>
+          {% endif %}
+        </section>
+
+        <!-- Activities (from DynamicItemList for activities) -->
+        <section class="mb-8 hidden" data-tab-section="activities">
+          <div class="flex items-center gap-2 mb-2">
+            <h2 class="text-xl font-semibold">Nearby Activities</h2>
+          </div>
+          {% if things_to_do and things_to_do|length > 0 %}
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {% for item in things_to_do %}
+            <div class="p-4 rounded-lg bg-white/80 shadow flex flex-col gap-2">
+              {% if item.image_url %}
+                <img src="{{ item.image_url }}" alt="{{ item.name }} image" class="w-full h-32 object-cover rounded mb-2 border shadow" />
+              {% endif %}
+              <label class="text-sm font-medium">Name</label>
+              <p class="text-gray-800">{{ item.name }}</p>
+              {% if item.address %}
+              <div class="flex items-center text-xs text-gray-600 mt-1 mb-2">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="mr-1"><path stroke-linecap="round" stroke-linejoin="round" d="M12 11.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7-7.5 11-7.5 11s-7.5-4-7.5-11a7.5 7.5 0 1115 0z"/></svg>
+                <span>{{ item.address }}</span>
+              </div>
+              {% endif %}
+              <label class="text-sm font-medium">Address</label>
+              <p class="text-gray-800">{{ item.address }}</p>
+              <label class="text-sm font-medium">Description</label>
+              <p class="text-gray-800 whitespace-pre-line">{{ item.description }}</p>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+            <p class="text-gray-600">No activity recommendations yet.</p>
+          {% endif %}
+        </section>
+
+        <!-- Rules (from RulesSection) -->
+        <section class="mb-8 hidden" data-tab-section="rules">
+          <div class="flex items-center gap-2 mb-2">
+            <h2 class="text-xl font-semibold">Rules</h2>
+          </div>
+          {% if rules and rules|length > 0 %}
+            <ul class="list-disc pl-6 text-gray-800 space-y-2">
+              {% for rule in rules %}
+                <li>{{ rule }}</li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="text-gray-600">No rules provided.</p>
+          {% endif %}
+        </section>
+
+        <!-- Arrival (part of Check-in tab) -->
+        <section class="mb-8" data-tab-section="checkin">
+          <div class="flex items-center gap-2 mb-2">
+            <h2 class="text-xl font-semibold">Arrival</h2>
+          </div>
+          {% if check_in_time %}
+          <label class="block text-xs uppercase tracking-wide text-gray-500">Check-in Time</label>
+          <p class="w-40 mt-1 text-gray-900 font-medium">{{ check_in_time }}</p>
+          {% endif %}
+        </section>
+
+        <section class="mb-8 hidden" data-tab-section="checkout">
+          <div class="flex items-center gap-2 mb-2">
+            <h2 class="text-xl font-semibold">Checkout Info</h2>
+          </div>
+          {% if check_out_time %}
+          <label class="block text-xs uppercase tracking-wide text-gray-500">Checkout Time</label>
+          <p class="mb-2 mt-1 text-gray-900 font-medium">{{ check_out_time }}</p>
+          {% endif %}
+          {% if checkout_requirements %}
+          <label class="block text-xs uppercase tracking-wide text-gray-500">Requirements</label>
+          <p class="mt-1 text-gray-900 font-medium whitespace-pre-line">{{ checkout_requirements }}</p>
+          {% endif %}
+        </section>
+
+      </main>
+      <script>
+        document.addEventListener('DOMContentLoaded', function () {
+          const DEFAULT_TAB = 'checkin';
+          const links = Array.from(document.querySelectorAll('[data-tab-link]'));
+          const sections = Array.from(document.querySelectorAll('[data-tab-section]'));
+
+          function showTab(tab) {
+            sections.forEach(sec => {
+              if (sec.getAttribute('data-tab-section') === tab) {
+                sec.classList.remove('hidden');
+              } else {
+                sec.classList.add('hidden');
+              }
+            });
+            links.forEach(link => {
+              const isActive = link.getAttribute('data-tab') === tab;
+              link.classList.toggle('bg-white/20', isActive);
+            });
+          }
+
+          links.forEach(link => {
+            link.addEventListener('click', () => {
+              const tab = link.getAttribute('data-tab');
+              showTab(tab);
+            });
+          });
+
+          // Initialize
+          showTab(DEFAULT_TAB);
+        });
+      </script>
+    </div>
+  </div>
+</body>
+</html>

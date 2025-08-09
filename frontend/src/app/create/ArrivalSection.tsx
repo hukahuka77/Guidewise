@@ -19,10 +19,12 @@ export default function ArrivalSection({ checkInTime, onChange }: ArrivalSection
       <Input
         id="checkInTime"
         type="time"
+        step={300}
         value={checkInTime}
         onChange={e => onChange("checkInTime", e.target.value)}
         className="w-40 mt-1"
       />
+      <p className="text-sm text-gray-500 mt-1">Select your preferred arrival time (5-minute increments).</p>
     </section>
   );
 }

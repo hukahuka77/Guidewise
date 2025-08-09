@@ -7,6 +7,13 @@ from models import Guidebook, Host, Property, Wifi, Rule
 
 load_dotenv()
 
+# Map template keys to HTML template files for PDF rendering (PDF-only)
+# For now, both keys use the same PDF template until additional variants are added.
+TEMPLATE_REGISTRY = {
+    "template_1": "templates/templates_pdf/template_pdf1.html",
+    "template_2": "templates/templates_pdf/template_pdf1.html",
+}
+
 def create_guidebook_pdf(guidebook):
     """
     Generates a PDF guidebook from a Guidebook database object.
@@ -38,7 +45,9 @@ def create_guidebook_pdf(guidebook):
 
     # Setup Jinja2 environment
     env = Environment(loader=FileSystemLoader('.'))
-    template = env.get_template("templates/guidebook_template.html")
+    selected_key = getattr(guidebook, 'template_key', None) or 'template_1'
+    template_path = TEMPLATE_REGISTRY.get(selected_key, TEMPLATE_REGISTRY['template_1'])
+    template = env.get_template(template_path)
 
     # Render the HTML template with data
     html_out = template.render(data)
