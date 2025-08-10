@@ -32,7 +32,7 @@ export default function LoginPage() {
           return !!(url && url.includes('/preview/') && id);
         } catch { return false; }
       })();
-      router.push(hasPendingPreview ? "/success" : "/create");
+      router.push(hasPendingPreview ? "/success" : "/dashboard");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Login failed";
       setError(msg);

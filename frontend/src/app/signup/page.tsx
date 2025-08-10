@@ -28,8 +28,12 @@ export default function SignupPage() {
         const gb = (sessionStorage.getItem('guidebookId') || localStorage.getItem('guidebookId')) || '';
         const token = (sessionStorage.getItem('claimToken') || localStorage.getItem('claimToken')) || '';
         const hasPending = gb && token;
-        const hash = hasPending ? `#gb=${encodeURIComponent(gb)}&token=${encodeURIComponent(token)}` : '';
-        emailRedirectTo = `${baseUrl}/success${hash}`;
+        if (hasPending) {
+          const hash = `#gb=${encodeURIComponent(gb)}&token=${encodeURIComponent(token)}`;
+          emailRedirectTo = `${baseUrl}/success${hash}`;
+        } else {
+          emailRedirectTo = `${baseUrl}/dashboard`;
+        }
       }
       const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo } });
       if (error) throw error;
