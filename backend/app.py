@@ -38,13 +38,7 @@ try:
 except Exception:
     pass
 
-"""
-Configure CORS to only allow requests from configured frontend origins and only for /api/* routes.
-Set FRONTEND_ORIGIN in backend/.env, e.g.:
-  FRONTEND_ORIGIN=http://localhost:3000
-You can also provide multiple origins comma-separated.
-"""
-frontend_origins_env = os.environ.get('FRONTEND_ORIGIN', 'http://localhost:3000')
+frontend_origins_env = os.environ.get('FRONTEND_ORIGIN')
 _origins = [o.strip() for o in frontend_origins_env.split(',') if o.strip()]
 CORS(
     app,
