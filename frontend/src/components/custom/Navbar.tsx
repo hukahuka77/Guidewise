@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import { Marcellus } from "next/font/google";
+
+const marcellus = Marcellus({ subsets: ["latin"], weight: ["400"] });
 
 export default function Navbar() {
   const [isAuthed, setIsAuthed] = useState(false);
@@ -29,26 +31,19 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 z-50 w-full px-4 lg:px-6 h-14 flex items-center bg-white shadow-sm">
       <Link className="flex items-center justify-center" href="/">
-        <Image src="/Guidewise_logo.png" alt="GuideWise Logo" width={32} height={32} className="mr-2 rounded-full" />
-        <span className="text-xl font-bold text-primary">GuideWise</span>
+        <span className={`${marcellus.className} text-2xl sm:text-3xl text-gray-900 tracking-[0.15em] uppercase leading-none`}>Guidewise</span>
       </Link>
-      <nav className="ml-auto flex gap-4 sm:gap-6">
-        <Link className="text-sm font-medium hover:underline underline-offset-4" href="/#features">
+      <nav className="ml-auto flex gap-2 sm:gap-3">
+        <Link className="text-sm font-medium no-underline hover:no-underline px-3 py-1 rounded-lg hover:bg-pink-50 hover:text-pink-700 transition-colors" href="/#digital">
           Features
         </Link>
-        <Link className="text-sm font-medium hover:underline underline-offset-4" href="/#pricing">
-          Pricing
-        </Link>
-        <Link className="text-sm font-medium hover:underline underline-offset-4" href="/#about">
-          About
-        </Link>
-        <Link className="text-sm font-medium hover:underline underline-offset-4" href="/#contact">
+        <Link className="text-sm font-medium no-underline hover:no-underline px-3 py-1 rounded-lg hover:bg-pink-50 hover:text-pink-700 transition-colors" href="/#contact">
           Contact
         </Link>
         <span className="mx-1 text-gray-300">|</span>
         {isAuthed ? (
           <>
-            <Link className="text-sm font-medium hover:underline underline-offset-4" href="/dashboard">
+            <Link className="text-sm font-medium no-underline hover:no-underline px-3 py-1 rounded-lg hover:bg-gray-100 transition-colors" href="/dashboard">
               Dashboard
             </Link>
             <button
@@ -59,17 +54,17 @@ export default function Navbar() {
                   router.push("/");
                 }
               }}
-              className="text-sm font-medium hover:underline underline-offset-4"
+              className="text-sm font-medium no-underline hover:no-underline px-3 py-1 rounded-lg hover:bg-gray-100 transition-colors"
             >
               Logout
             </button>
           </>
         ) : (
           <>
-            <Link className="text-sm font-medium hover:underline underline-offset-4" href="/login">
+            <Link className="text-sm font-medium no-underline hover:no-underline px-3 py-1 rounded-lg hover:bg-gray-100 transition-colors" href="/login">
               Login
             </Link>
-            <Link className="text-sm font-medium hover:underline underline-offset-4" href="/signup">
+            <Link className="text-sm font-medium no-underline hover:no-underline px-3 py-1 rounded-lg hover:bg-gray-100 transition-colors" href="/signup">
               Sign up
             </Link>
           </>

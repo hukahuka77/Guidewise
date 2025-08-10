@@ -68,6 +68,19 @@
     li { margin: 0.15rem 0; }
     .muted { color: #6b7280; }
     .small { font-size: 10pt; }
+    .qr-right {
+      position: absolute;
+      right: 0;
+      top: 0;
+      width: 1.25in;
+      padding: 0.1in;
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .qr-right img { width: 100%; height: auto; display: block; }
+    .qr-right .cap { font-size: 9pt; color: #6b7280; margin-top: 0.05in; }
   </style>
 </head>
 <body>
@@ -76,6 +89,13 @@
       <h1 class="title">{{ property_name or 'Your Stay' }}</h1>
       <p class="subtitle">Guidebook • ID: {{ id }}</p>
     </header>
+
+    {% if qr_img_src %}
+    <div class="qr-right">
+      <img src="{{ qr_img_src }}" alt="Scan to view guidebook" />
+      <div class="cap">Scan to view online</div>
+    </div>
+    {% endif %}
 
     <section class="section">
       <h2>Address & Times</h2>

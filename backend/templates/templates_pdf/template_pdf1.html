@@ -35,6 +35,21 @@
             page-break-after: auto;
         }
 
+        /* QR badge positioned in the top-right of a page */
+        .qr-badge {
+            position: absolute;
+            top: 2.5cm; /* align with page padding */
+            right: 2.5cm;
+            background: #ffffff;
+            border: 1px solid #D5D8DC;
+            border-radius: 12px;
+            padding: 8px;
+            width: 3.5cm;
+            text-align: center;
+        }
+        .qr-badge img { width: 100%; height: auto; display: block; }
+        .qr-badge .caption { font-size: 10px; color: #555; margin-top: 4px; }
+
         /* Cover Page */
         .cover-page {
             padding: 0;
@@ -128,6 +143,12 @@
 
     <!-- Page 2: Welcome & Info -->
     <div class="page">
+        {% if qr_img_src %}
+        <div class="qr-badge">
+            <img src="{{ qr_img_src }}" alt="Scan to view guidebook" />
+            <div class="caption">Scan to view online</div>
+        </div>
+        {% endif %}
         {% if 'checkin' in included_tabs %}
         <h1 class="page-title">Welcome to Your Stay</h1>
         {% if welcome_message %}<p>{{ welcome_message }}</p>{% endif %}

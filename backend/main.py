@@ -6,6 +6,7 @@ from utils.aifunctions import get_ai_recommendations
 from models import Guidebook, Host, Property, Wifi, Rule
 import json
 import ast
+import urllib.parse
 
 load_dotenv()
 
@@ -53,7 +54,7 @@ def _normalize_recommendations(items):
     return normalized
 
 
-def create_guidebook_pdf(guidebook):
+def create_guidebook_pdf(guidebook, qr_url: str | None = None):
     """
     Generates a PDF guidebook from a Guidebook database object.
     
@@ -64,6 +65,17 @@ def create_guidebook_pdf(guidebook):
         bytes: The generated PDF file as a byte string.
     """
     # Construct the data dictionary for the template from the guidebook object
+    # Precompute QR image source if provided (embed external QR service URL)
+    qr_img_src = None
+    if qr_url:
+        try:
+            qr_img_src = (
+                "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data="
+                + urllib.parse.quote(qr_url, safe="")
+            )
+        except Exception:
+            qr_img_src = None
+
     data = {
         'id': guidebook.id,
         'host_name': guidebook.host.name if getattr(guidebook, 'host', None) else 'N/A',
@@ -84,6 +96,8 @@ def create_guidebook_pdf(guidebook):
         'included_tabs': getattr(guidebook, 'included_tabs', []) or [],
         'custom_sections': getattr(guidebook, 'custom_sections', {}) or {},
         'custom_tabs_meta': getattr(guidebook, 'custom_tabs_meta', {}) or {},
+        # Optional QR image URL to include in the PDF templates
+        'qr_img_src': qr_img_src,
     }
 
     # Setup Jinja2 environment

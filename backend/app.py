@@ -624,6 +624,8 @@ def get_pdf_on_demand(guidebook_id):
     gb = Guidebook.query.get_or_404(guidebook_id)
     requested_template = request.args.get('template')
     want_download = str(request.args.get('download', '0')).lower() in ('1', 'true', 'yes')
+    include_qr = str(request.args.get('include_qr', '0')).lower() in ('1', 'true', 'yes')
+    qr_url_param = request.args.get('qr_url') if include_qr else None
     # Choose a valid template: request > guidebook > default
     chosen_template = None
     if requested_template in ALLOWED_TEMPLATE_KEYS:
@@ -633,7 +635,14 @@ def get_pdf_on_demand(guidebook_id):
     else:
         chosen_template = 'template_1'
 
+    # Incorporate QR params into cache key so variants don't collide
     cache_key = _pdf_cache_key(gb, chosen_template)
+    if include_qr and qr_url_param:
+        try:
+            qh = hashlib.sha256(qr_url_param.encode('utf-8')).hexdigest()[:12]
+        except Exception:
+            qh = 'qr'
+        cache_key = f"{cache_key}:qr:{qh}"
     etag = hashlib.sha256(cache_key.encode('utf-8')).hexdigest()
     if request.headers.get('If-None-Match') == etag:
         resp = make_response('', 304)
@@ -656,7 +665,7 @@ def get_pdf_on_demand(guidebook_id):
     original_template = getattr(gb, 'template_key', None)
     try:
         gb.template_key = chosen_template
-        pdf_bytes = pdf_generator.create_guidebook_pdf(gb)
+        pdf_bytes = pdf_generator.create_guidebook_pdf(gb, qr_url=qr_url_param)
     finally:
         gb.template_key = original_template
 
