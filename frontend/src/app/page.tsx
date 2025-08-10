@@ -65,7 +65,7 @@ export default function Home() {
                   </Link>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src="/images/defaultqr.png"
+                    src="/images/defaultQR.png"
                     alt="QR code to view example guidebook"
                     className="w-40 h-40 sm:w-48 sm:h-48 object-contain rounded-xl border bg-white p-3"
                   />
