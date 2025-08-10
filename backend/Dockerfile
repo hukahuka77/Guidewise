@@ -24,5 +24,6 @@ COPY . .
 # Set environment variable for the API key (will be passed during 'docker run')
 ENV OPENAI_API_KEY=""
 
-# Command to run the application
-CMD ["python", "main.py"]
+# Command to run the application (use gunicorn in production)
+# If you prefer to run the module directly, you can switch to: CMD ["python", "app.py"]
+CMD ["sh", "-c", "gunicorn app:app --workers 2 --threads 4 --timeout 120 --bind 0.0.0.0:$PORT"]
