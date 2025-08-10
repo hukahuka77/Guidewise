@@ -132,7 +132,7 @@ export default function LoginPage() {
                 await supabase.auth.signInWithOAuth({
                   provider: 'google',
                   options: {
-                    redirectTo: `${window.location.origin}${hasPendingPreview ? `/success#gb=${encodeURIComponent(gb as string)}&token=${encodeURIComponent(token as string)}` : '/dashboard'}`,
+                    redirectTo: `${(process.env.NEXT_PUBLIC_SITE_URL || window.location.origin)}${hasPendingPreview ? `/success#gb=${encodeURIComponent(gb as string)}&token=${encodeURIComponent(token as string)}` : '/dashboard'}`,
                     queryParams: { prompt: 'select_account' },
                   },
                 });

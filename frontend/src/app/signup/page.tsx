@@ -24,12 +24,12 @@ export default function SignupPage() {
       setLoading(true);
       let emailRedirectTo: string | undefined = undefined;
       if (typeof window !== 'undefined') {
-        const origin = window.location.origin;
+        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
         const gb = (sessionStorage.getItem('guidebookId') || localStorage.getItem('guidebookId')) || '';
         const token = (sessionStorage.getItem('claimToken') || localStorage.getItem('claimToken')) || '';
         const hasPending = gb && token;
         const hash = hasPending ? `#gb=${encodeURIComponent(gb)}&token=${encodeURIComponent(token)}` : '';
-        emailRedirectTo = `${origin}/success${hash}`;
+        emailRedirectTo = `${baseUrl}/success${hash}`;
       }
       const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo } });
       if (error) throw error;
@@ -128,7 +128,7 @@ export default function SignupPage() {
                   await supabase.auth.signInWithOAuth({
                     provider: 'google',
                     options: {
-                      redirectTo: `${window.location.origin}${hasPendingPreview ? `/success#gb=${encodeURIComponent(gb as string)}&token=${encodeURIComponent(token as string)}` : '/dashboard'}`,
+                      redirectTo: `${(process.env.NEXT_PUBLIC_SITE_URL || window.location.origin)}${hasPendingPreview ? `/success#gb=${encodeURIComponent(gb as string)}&token=${encodeURIComponent(token as string)}` : '/dashboard'}`,
                       queryParams: { prompt: 'select_account' },
                     },
                   });

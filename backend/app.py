@@ -38,8 +38,8 @@ try:
 except Exception:
     pass
 
-frontend_origins_env = os.environ.get('FRONTEND_ORIGIN')
-_origins = [o.strip() for o in frontend_origins_env.split(',') if o.strip()]
+origins_str = os.environ.get('FRONTEND_ORIGIN', '')
+_origins = [o.strip() for o in origins_str.split(',') if o.strip()] if origins_str else ['http://localhost:3000']
 CORS(
     app,
     resources={r"/api/*": {"origins": _origins}},
