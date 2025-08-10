@@ -47,12 +47,7 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
     e.dataTransfer.effectAllowed = "move";
   };
 
-  const reorder = (list: string[], fromIndex: number, toIndex: number) => {
-    const arr = list.slice();
-    const [moved] = arr.splice(fromIndex, 1);
-    arr.splice(toIndex, 0, moved);
-    return arr;
-  };
+  // Note: reordering handled inline during drag operations; no standalone helper needed
 
   const handleDropOnList = (
     e: React.DragEvent,
@@ -146,7 +141,7 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
   );
 
   const renderItem = (section: string, index: number, listName: "included" | "excluded") => {
-    const meta = (NAV_META as any)[section] || customMeta[section] || { icon: "📝", label: section };
+    const meta: { icon: string; label: string } = NAV_META[section] ?? customMeta[section] ?? { icon: "📝", label: section };
     return (
       <li
         key={section}

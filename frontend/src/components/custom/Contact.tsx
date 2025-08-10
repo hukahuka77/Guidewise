@@ -32,8 +32,9 @@ export default function Contact() {
       if (!res.ok) throw new Error(`Failed to submit (${res.status})`);
       setSent(true);
       form.reset();
-    } catch (err: any) {
-      setError(err?.message || "Something went wrong. Please try again.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+      setError(msg);
     } finally {
       setSubmitting(false);
     }
@@ -45,7 +46,7 @@ export default function Contact() {
         <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl text-center mb-8">Contact Us</h2>
         <div className="mx-auto max-w-md space-y-4">
           <div className="space-y-2 text-center">
-            <p className="text-gray-500">Fill out the form below and we'll get back to you as soon as possible.</p>
+            <p className="text-gray-500">Fill out the form below and we&#39;ll get back to you as soon as possible.</p>
           </div>
           <form className="space-y-4" onSubmit={handleSubmit}>
             {/* Honeypot */}

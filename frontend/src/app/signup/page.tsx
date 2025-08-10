@@ -1,12 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 
 export default function SignupPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -39,8 +37,9 @@ export default function SignupPage() {
       setMessage("Check your email to confirm your account. Once confirmed, you can log in.");
       // Optionally redirect to login immediately
       // router.push("/login");
-    } catch (err: any) {
-      setError(err.message || "Signup failed");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Signup failed";
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -133,14 +132,16 @@ export default function SignupPage() {
                       queryParams: { prompt: 'select_account' },
                     },
                   });
-                } catch (e: any) {
-                  setError(e.message || 'Google sign-in failed');
+                } catch (e: unknown) {
+                  const msg = e instanceof Error ? e.message : 'Google sign-in failed';
+                  setError(msg);
                 } finally {
                   setOauthLoading(false);
                 }
               }}
               className="w-full px-4 py-2.5 rounded-lg border border-gray-300 font-semibold disabled:opacity-50 hover:bg-gray-50 transition-colors flex items-center justify-center gap-3"
             >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
                 alt=""

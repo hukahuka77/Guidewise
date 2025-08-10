@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useMemo, useState } from "react";
@@ -31,8 +32,6 @@ export default function GuidebookPdfPage() {
   };
 
   const getQrTargetUrl = () => liveGuidebookUrl;
-  const getQrImageUrl = (url: string, size: number = 300) =>
-    `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(url)}`;
 
   const handleDownload = (templateKey?: TemplateKey) => {
     if (!guidebookId) return;

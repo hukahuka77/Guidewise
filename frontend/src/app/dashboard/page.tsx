@@ -4,10 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
-
-const PdfViewer = dynamic(() => import("@/components/custom/PdfViewer"), { ssr: false });
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
@@ -24,16 +21,12 @@ export default function DashboardPage() {
   const [items, setItems] = useState<GuidebookItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
   const router = useRouter();
 
   // UI state
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
-  const [isPdfModalOpen, setPdfModalOpen] = useState(false);
   const [qrModalFor, setQrModalFor] = useState<string | null>(null); // guidebook id
 
   useEffect(() => {
-    let mounted = true;
     (async () => {
       if (!supabase) {
         setError("Authentication is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.");
@@ -47,7 +40,6 @@ export default function DashboardPage() {
         router.push("/login");
         return;
       }
-      if (mounted) setAccessToken(token);
       try {
         const res = await fetch(`${API_BASE}/api/guidebooks`, {
           headers: {
@@ -62,19 +54,21 @@ export default function DashboardPage() {
         if (!res.ok) throw new Error(`Failed to load guidebooks (${res.status})`);
         const json = await res.json();
         setItems(Array.isArray(json.items) ? json.items : []);
-      } catch (e: any) {
-        setError(e.message || "Failed to load guidebooks");
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "Failed to load guidebooks";
+        setError(msg);
       } finally {
         setLoading(false);
       }
     })();
     return () => {
-      mounted = false;
+      // no-op cleanup
     };
-  }, []);
+  }, [router]);
 
   const getQrTargetUrl = (id: string) => `${API_BASE}/guidebook/${id}`;
-  const getQrImageUrl = (url: string, size = 300) => `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(url)}`;
+  const getQrImageUrl = (url: string, size = 300) =>
+    `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(url)}`;
 
   // No direct PDF building here; navigate to per-guidebook PDF page
 
@@ -177,6 +171,7 @@ export default function DashboardPage() {
               <div className="p-6 flex flex-col items-center gap-4">
                 {qrModalFor && (
                   <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={getQrImageUrl(getQrTargetUrl(qrModalFor), 400)}
                       alt="Guidebook QR"

@@ -33,8 +33,9 @@ export default function LoginPage() {
         } catch { return false; }
       })();
       router.push(hasPendingPreview ? "/success" : "/create");
-    } catch (err: any) {
-      setError(err.message || "Login failed");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Login failed";
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -135,14 +136,16 @@ export default function LoginPage() {
                     queryParams: { prompt: 'select_account' },
                   },
                 });
-              } catch (e: any) {
-                setError(e.message || 'Google sign-in failed');
+              } catch (e: unknown) {
+                const msg = e instanceof Error ? e.message : 'Google sign-in failed';
+                setError(msg);
               } finally {
                 setOauthLoading(false);
               }
             }}
             className="w-full px-4 py-2.5 rounded-lg border border-gray-300 font-semibold disabled:opacity-50 hover:bg-gray-50 transition-colors flex items-center justify-center gap-3"
           >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
               alt=""
@@ -155,7 +158,7 @@ export default function LoginPage() {
           </button>
 
           <div className="mt-6 text-sm text-gray-600">
-            Don't have an account? <Link href="/signup" className="text-pink-700 hover:text-pink-800 underline-offset-2 hover:underline">Sign up</Link>
+            Don&#39;t have an account? <Link href="/signup" className="text-pink-700 hover:text-pink-800 underline-offset-2 hover:underline">Sign up</Link>
           </div>
         </div>
       </div>

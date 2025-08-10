@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabaseClient";
@@ -75,13 +75,7 @@ export default function CreateGuidebookPage() {
     { name: 'Remove Shoes Indoors', description: 'Please remove your shoes when entering the house.', checked: true }
   ]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { id, value, type } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [id]: type === 'number' ? parseInt(value, 10) : value,
-    }));
-  };
+  // Note: controlled inputs update state inline where needed; remove unused generic handler
 
   const handleCoverImageSelect = (file: File | null) => {
     setCoverImage(file);
@@ -111,7 +105,7 @@ export default function CreateGuidebookPage() {
       mounted = false;
       sub.subscription?.unsubscribe();
     };
-  }, [supabase]);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -165,8 +159,8 @@ export default function CreateGuidebookPage() {
         rules: compiledRules,
         cover_image_url: coverImageUrl,
         // lists
-        things_to_do: activityItems.map(i => ({ name: i.name, description: i.description, image_url: (i as any).image_url || "", address: (i as any).address || "" })),
-        places_to_eat: foodItems.map(i => ({ name: i.name, description: i.description, image_url: (i as any).image_url || "", address: (i as any).address || "" })),
+        things_to_do: activityItems.map(i => ({ name: i.name, description: i.description, image_url: i.image_url || "", address: i.address || "" })),
+        places_to_eat: foodItems.map(i => ({ name: i.name, description: i.description, image_url: i.image_url || "", address: i.address || "" })),
         checkout_info: checkoutItems.filter(i => i.checked).map(i => ({ name: i.name, description: i.description })),
         included_tabs: included,
         custom_sections: customSections,
@@ -201,9 +195,10 @@ export default function CreateGuidebookPage() {
 
       router.push('/success');
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to generate guidebook:', err);
-      setError(err.message || 'An unexpected error occurred. Please try again.');
+      const msg = err instanceof Error ? err.message : 'An unexpected error occurred. Please try again.';
+      setError(msg);
     } finally {
       setIsLoading(false);
     }
@@ -340,7 +335,7 @@ export default function CreateGuidebookPage() {
             items = data.food;
           }
           if (items.length > 0) {
-            setFoodItems(items.map((item: any) => ({
+            setFoodItems(items.map((item: Partial<DynamicItem>) => ({
               name: item.name || "",
               address: item.address || "",
               description: item.description || "",
@@ -349,8 +344,9 @@ export default function CreateGuidebookPage() {
           } else {
             setError("No recommendations found.");
           }
-        } catch (e: any) {
-          setError(e.message || "Failed to fetch recommendations");
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : "Failed to fetch recommendations";
+          setError(msg);
         } finally {
           setIsLoading(false);
         }
@@ -397,7 +393,7 @@ export default function CreateGuidebookPage() {
             items = data.activityItems;
           }
           if (items.length > 0) {
-            setActivityItems(items.map((item: any) => ({
+            setActivityItems(items.map((item: Partial<DynamicItem>) => ({
               name: item.name || "",
               address: item.address || "",
               description: item.description || "",
@@ -406,8 +402,9 @@ export default function CreateGuidebookPage() {
           } else {
             setError("No recommendations found.");
           }
-        } catch (e: any) {
-          setError(e.message || "Failed to fetch recommendations");
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : "Failed to fetch recommendations";
+          setError(msg);
         } finally {
           setIsLoading(false);
         }
@@ -494,7 +491,9 @@ export default function CreateGuidebookPage() {
           items={checkoutItems}
           onTimeChange={(value: string) => setFormData(f => ({ ...f, checkOutTime: value }))}
           onChange={(idx, field, value) => {
-            setCheckoutItems(items => items.map((item, i) => i === idx ? { ...item, [field]: value as any } : item));
+            setCheckoutItems(items => items.map((item, i) =>
+              i === idx ? { ...item, [field]: field === 'checked' ? Boolean(value) : String(value) } : item
+            ));
           }}
           onAdd={() => setCheckoutItems(items => [...items, { name: '', description: '', checked: false }])}
           onDelete={(idx) => setCheckoutItems(items => items.filter((_, i) => i !== idx))}

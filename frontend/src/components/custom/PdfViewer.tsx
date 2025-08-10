@@ -30,7 +30,7 @@ export default function PdfViewer({ fileUrl, showControls = true, enforcePdfAspe
     setError(null);
   }
 
-  function onDocumentLoadError(err: any) {
+  function onDocumentLoadError(err: unknown) {
     console.error('PDF load error', err);
     setError('Failed to load PDF preview.');
   }

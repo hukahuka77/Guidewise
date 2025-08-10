@@ -13,7 +13,7 @@ export default function About() {
           <div>
             <h3 className="text-xl font-bold">Our Story</h3>
             <p className="text-sm text-gray-500 mt-2">
-              Founded in 2023, GuideWise started as a simple tool to help a friend manage their vacation rental. Today, we're on a mission to help hosts all over the world.
+              Founded in 2023, GuideWise started as a simple tool to help a friend manage their vacation rental. Today, we&#39;re on a mission to help hosts all over the world.
             </p>
           </div>
         </div>

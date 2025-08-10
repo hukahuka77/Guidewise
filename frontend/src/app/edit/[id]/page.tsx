@@ -9,7 +9,7 @@ import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 // Reuse create flow components
 import SidebarNav from "@/app/create/SidebarNav";
 import CreateGuidebookLayout from "@/app/create/CreateGuidebookLayout";
-import ArrivalSection from "@/app/create/ArrivalSection";
+// import ArrivalSection from "@/app/create/ArrivalSection"; // not used on edit page
 import WifiSection from "@/app/create/WifiSection";
 import CheckinSection from "@/app/create/CheckinSection";
 import HostInfoSection from "@/app/create/HostInfoSection";
@@ -43,8 +43,8 @@ type GuidebookDetail = {
   included_tabs?: string[] | null;
   custom_sections?: Record<string, string[]> | null;
   custom_tabs_meta?: Record<string, { icon: string; label: string }>| null;
-  things_to_do?: any[] | null;
-  places_to_eat?: any[] | null;
+  things_to_do?: DynamicItem[] | null;
+  places_to_eat?: DynamicItem[] | null;
   rules?: string[] | null;
   created_time?: string | null;
   last_modified_time?: string | null;
@@ -63,16 +63,18 @@ export default function EditGuidebookPage() {
   const guidebookId = params?.id as string;
 
   const [accessToken, setAccessToken] = useState<string | null>(null);
-  const sectionsOrder = [
-    "checkin",
-    "property",
-    "hostinfo",
-    "wifi",
-    "food",
-    "activities",
-    "rules",
-    "checkout",
-  ] as const;
+  const sectionsOrder = useMemo(() => (
+    [
+      "checkin",
+      "property",
+      "hostinfo",
+      "wifi",
+      "food",
+      "activities",
+      "rules",
+      "checkout",
+    ] as const
+  ), []);
 
   const [coverImage, setCoverImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -129,7 +131,7 @@ export default function EditGuidebookPage() {
       mounted = false;
       sub.subscription?.unsubscribe();
     };
-  }, [supabase]);
+  }, []);
 
   // Fetch existing guidebook details
   useEffect(() => {
@@ -173,13 +175,13 @@ export default function EditGuidebookPage() {
         setIncluded(Array.isArray(data.included_tabs) && data.included_tabs.length ? data.included_tabs : [...sectionsOrder]);
         setCustomSections(data.custom_sections || {});
         setCustomTabsMeta(data.custom_tabs_meta || {});
-        setFoodItems((data.places_to_eat || []).map((i: any) => ({
+        setFoodItems((data.places_to_eat || []).map((i: Partial<DynamicItem>) => ({
           name: i.name || "",
           address: i.address || "",
           description: i.description || "",
           image_url: i.image_url || "",
         })));
-        setActivityItems((data.things_to_do || []).map((i: any) => ({
+        setActivityItems((data.things_to_do || []).map((i: Partial<DynamicItem>) => ({
           name: i.name || "",
           address: i.address || "",
           description: i.description || "",
@@ -188,14 +190,15 @@ export default function EditGuidebookPage() {
         setCheckoutItems((data.checkout_info || []).map(i => ({ ...i, checked: true })));
         setRules((data.rules || []).map((text: string) => ({ name: text.split(":")[0] || text, description: text.includes(":") ? text.split(":").slice(1).join(":").trim() : "", checked: true })));
         if (data.cover_image_url) setPreviewUrl(data.cover_image_url);
-      } catch (e: any) {
+      } catch (e: unknown) {
         console.error(e);
-        setError(e.message || "Failed to load guidebook");
+        const msg = e instanceof Error ? e.message : "Failed to load guidebook";
+        setError(msg);
       } finally {
         setIsLoading(false);
       }
     })();
-  }, [guidebookId, accessToken, authReady]);
+  }, [guidebookId, accessToken, authReady, router, sectionsOrder]);
 
   const handleCoverImageSelect = (file: File | null) => {
     setCoverImage(file);
@@ -231,7 +234,7 @@ export default function EditGuidebookPage() {
         .filter(Boolean);
 
       // Build payload; only include optional images if user changed them
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         property_name: formData.propertyName,
         location: formData.location,
         welcome_message: formData.welcomeMessage,
@@ -248,8 +251,8 @@ export default function EditGuidebookPage() {
         check_in_time: formData.checkInTime,
         check_out_time: formData.checkOutTime,
         rules: compiledRules,
-        things_to_do: activityItems.map(i => ({ name: i.name, description: i.description, image_url: (i as any).image_url || "", address: (i as any).address || "" })),
-        places_to_eat: foodItems.map(i => ({ name: i.name, description: i.description, image_url: (i as any).image_url || "", address: (i as any).address || "" })),
+        things_to_do: activityItems.map(i => ({ name: i.name, description: i.description, image_url: i.image_url || "", address: i.address || "" })),
+        places_to_eat: foodItems.map(i => ({ name: i.name, description: i.description, image_url: i.image_url || "", address: i.address || "" })),
         checkout_info: checkoutItems.filter(i => i.checked).map(i => ({ name: i.name, description: i.description })),
         included_tabs: included,
         custom_sections: customSections,
@@ -275,9 +278,10 @@ export default function EditGuidebookPage() {
 
       // After update, go to live view
       window.location.href = `${API_BASE}/guidebook/${guidebookId}`;
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message || "An unexpected error occurred. Please try again.");
+      const msg = err instanceof Error ? err.message : "An unexpected error occurred. Please try again.";
+      setError(msg);
     } finally {
       setIsLoading(false);
     }
@@ -402,7 +406,7 @@ export default function EditGuidebookPage() {
                   });
                   if (!res.ok) throw new Error("Failed to fetch food recommendations");
                   const data = await res.json();
-                  let items: any[] = [];
+                  let items: Partial<DynamicItem>[] = [];
                   if (Array.isArray(data)) {
                     items = data;
                   } else if (Array.isArray(data.restaurants)) {
@@ -413,7 +417,7 @@ export default function EditGuidebookPage() {
                     items = data.food;
                   }
                   if (items.length > 0) {
-                    setFoodItems(items.map((item: any) => ({
+                    setFoodItems(items.map((item: Partial<DynamicItem>) => ({
                       name: item.name || "",
                       address: item.address || "",
                       description: item.description || "",
@@ -422,8 +426,9 @@ export default function EditGuidebookPage() {
                   } else {
                     setError("No recommendations found.");
                   }
-                } catch (e: any) {
-                  setError(e.message || "Failed to fetch recommendations");
+                } catch (e: unknown) {
+                  const msg = e instanceof Error ? e.message : "Failed to fetch recommendations";
+                  setError(msg);
                 } finally {
                   setIsLoading(false);
                 }
@@ -459,7 +464,7 @@ export default function EditGuidebookPage() {
                   });
                   if (!res.ok) throw new Error("Failed to fetch activities recommendations");
                   const data = await res.json();
-                  let items: any[] = [];
+                  let items: Partial<DynamicItem>[] = [];
                   if (Array.isArray(data)) {
                     items = data;
                   } else if (Array.isArray(data.activities)) {
@@ -470,7 +475,7 @@ export default function EditGuidebookPage() {
                     items = data.activityItems;
                   }
                   if (items.length > 0) {
-                    setActivityItems(items.map((item: any) => ({
+                    setActivityItems(items.map((item: Partial<DynamicItem>) => ({
                       name: item.name || "",
                       address: item.address || "",
                       description: item.description || "",
@@ -479,8 +484,9 @@ export default function EditGuidebookPage() {
                   } else {
                     setError("No recommendations found.");
                   }
-                } catch (e: any) {
-                  setError(e.message || "Failed to fetch recommendations");
+                } catch (e: unknown) {
+                  const msg = e instanceof Error ? e.message : "Failed to fetch recommendations";
+                  setError(msg);
                 } finally {
                   setIsLoading(false);
                 }
@@ -505,7 +511,7 @@ export default function EditGuidebookPage() {
             onChange={(idx, field, value) => {
               setRules(rules =>
                 rules.map((rule, i) =>
-                  i === idx ? { ...rule, [field]: field === 'checked' ? Boolean(value) : (value as any) } : rule
+                  i === idx ? { ...rule, [field]: field === 'checked' ? Boolean(value) : String(value) } : rule
                 )
               );
             }}
@@ -519,7 +525,9 @@ export default function EditGuidebookPage() {
             items={checkoutItems}
             onTimeChange={(value: string) => setFormData(f => ({ ...f, checkOutTime: value }))}
             onChange={(idx, field, value) => {
-              setCheckoutItems(items => items.map((item, i) => i === idx ? { ...item, [field]: value as any } : item));
+              setCheckoutItems(items => items.map((item, i) =>
+                i === idx ? { ...item, [field]: field === 'checked' ? Boolean(value) : String(value) } : item
+              ));
             }}
             onAdd={() => setCheckoutItems(items => [...items, { name: '', description: '', checked: false }])}
             onDelete={(idx) => setCheckoutItems(items => items.filter((_, i) => i !== idx))}

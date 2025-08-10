@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -56,7 +57,7 @@ const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({ value, onChange
       }
     }, 200);
     return () => clearInterval(interval);
-  }, [GOOGLE_API_KEY, onChange]);
+  }, [onChange]);
 
   return (
     <Input

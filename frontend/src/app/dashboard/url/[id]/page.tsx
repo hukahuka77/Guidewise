@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -36,6 +37,7 @@ export default function GuidebookUrlTemplatesPage() {
     (async () => {
       if (!guidebookId) return;
       try {
+        if (!supabase) return; // guard for TS: supabase possibly null
         const { data } = await supabase.auth.getSession();
         const token = data.session?.access_token || null;
         const res = await fetch(`${API_BASE}/api/guidebooks/${guidebookId}`, {
@@ -48,14 +50,15 @@ export default function GuidebookUrlTemplatesPage() {
         if (!res.ok) throw new Error(`Failed to load guidebook (${res.status})`);
         const json = await res.json();
         if (mounted) setGb(json);
-      } catch (e: any) {
-        if (mounted) setError(e.message || "Failed to load guidebook");
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "Failed to load guidebook";
+        if (mounted) setError(msg);
       } finally {
         if (mounted) setLoading(false);
       }
     })();
     return () => { mounted = false; };
-  }, [guidebookId]);
+  }, [guidebookId, router]);
 
   const selectTemplate = async (template: TemplateKey) => {
     if (!guidebookId) return;
@@ -69,7 +72,7 @@ export default function GuidebookUrlTemplatesPage() {
       if (!res.ok) throw new Error(`Failed to update template (${res.status})`);
       const json = await res.json();
       setGb((prev) => (prev ? { ...prev, template_key: json.template_key as TemplateKey } : prev));
-    } catch (e) {
+    } catch (e: unknown) {
       console.error(e);
       alert("Could not save template. Please try again.");
     } finally {
@@ -87,7 +90,6 @@ export default function GuidebookUrlTemplatesPage() {
           )}
         </div>
         <div className="aspect-[16/10] w-full overflow-hidden rounded-lg bg-gray-100 flex items-center justify-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={img} alt={`${title} preview`} className="object-cover w-full h-full" />
         </div>
         <div className="mt-3 flex items-center justify-between">

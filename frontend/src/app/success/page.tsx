@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -199,8 +200,9 @@ export default function SuccessPage() {
           try { localStorage.setItem('liveGuidebookUrl', full); } catch {}
           setClaimed(true);
         }
-      } catch (e: any) {
-        setClaimError(e.message || 'Failed to claim');
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : 'Failed to claim';
+        setClaimError(msg);
       } finally {
         setIsClaiming(false);
       }
@@ -276,8 +278,9 @@ export default function SuccessPage() {
             if (!res.ok) throw new Error('Failed to set template');
             setTemplateMessage(`${label} selected. Your live guidebook is ready.`);
             setSelectedTemplateKey(templateKey);
-          } catch (e: any) {
-            setTemplateMessage(e.message || 'Failed to select template');
+          } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : 'Failed to select template';
+            setTemplateMessage(msg);
           } finally {
             setIsUpdatingTemplate(false);
           }
