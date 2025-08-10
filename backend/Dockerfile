@@ -1,5 +1,5 @@
-# Use an official Python runtime as a parent image
-FROM python:3.9-slim
+# Use an official Python runtime as a parent image (3.11 supports PEP 604 `X | Y` type unions)
+FROM python:3.11-slim
 
 # Set the working directory in the container
 WORKDIR /app
