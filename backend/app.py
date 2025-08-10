@@ -5,6 +5,9 @@ from sqlalchemy import text
 from sqlalchemy.orm import joinedload
 import main as pdf_generator
 import io
+import secrets
+import re
+from datetime import datetime, timedelta, timezone
 import hashlib
 from dotenv import load_dotenv
 import os
@@ -61,6 +64,7 @@ SUPABASE_URL = os.environ.get('SUPABASE_URL', '').rstrip('/')
 SUPABASE_JWKS_URL = os.environ.get('SUPABASE_JWKS_URL') or (f"{SUPABASE_URL}/auth/v1/jwks" if SUPABASE_URL else None)
 SUPABASE_JWT_AUD = os.environ.get('SUPABASE_JWT_AUD')  # optional
 SUPABASE_JWT_SECRET = os.environ.get('SUPABASE_JWT_SECRET')  # for HS256 tokens (Supabase default)
+CLN_SECRET = os.environ.get('CLEANUP_SECRET')  # optional secret for maintenance endpoints
 
 _jwks_client = None
 
@@ -152,30 +156,17 @@ def _render_cache_key(gb: Guidebook, template_key: str) -> str:
     ts_val = str(ts.timestamp()) if hasattr(ts, 'timestamp') else str(ts)
     return f"{gb.id}:{template_key}:{ts_val}"
 
-@app.route('/guidebook/<guidebook_id>')
-def view_guidebook(guidebook_id):
-    # Eager-load related objects to avoid N+1 queries
-    guidebook = (
-        Guidebook.query.options(
-            joinedload(Guidebook.host),
-            joinedload(Guidebook.property),
-            joinedload(Guidebook.wifi),
-            joinedload(Guidebook.rules),
-        ).get_or_404(guidebook_id)
-    )
-    # Handle case where wifi might be null (pass through None/empty; template handles conditionals)
-    wifi_network = guidebook.wifi.network if guidebook.wifi and guidebook.wifi.network else None
-    wifi_password = guidebook.wifi.password if guidebook.wifi and guidebook.wifi.password else None
-
-    template_key = getattr(guidebook, 'template_key', None) or 'template_1'
+def _render_guidebook(gb: Guidebook):
+    """Render a guidebook to HTML using its selected template with caching."""
+    template_key = getattr(gb, 'template_key', None) or 'template_1'
     template_file = TEMPLATE_REGISTRY.get(template_key, TEMPLATE_REGISTRY['template_1'])
     # Compute included_tabs default (all) if missing; keep any custom_* keys
     base_tabs = ['checkin','property','hostinfo','wifi','food','activities','rules','checkout']
-    included_tabs = getattr(guidebook, 'included_tabs', None) or base_tabs
+    included_tabs = getattr(gb, 'included_tabs', None) or base_tabs
     included_tabs = [t for t in included_tabs if (t in base_tabs) or (isinstance(t, str) and t.startswith('custom_'))]
 
     # Caching: reuse rendered HTML if guidebook/template unchanged
-    cache_key = _render_cache_key(guidebook, template_key)
+    cache_key = _render_cache_key(gb, template_key)
     etag = hashlib.sha256(cache_key.encode('utf-8')).hexdigest()
     if request.headers.get('If-None-Match') == etag:
         resp = make_response('', 304)
@@ -191,31 +182,31 @@ def view_guidebook(guidebook_id):
         return resp
 
     html = render_template(
-        template_file,
-        id=guidebook.id,
-        host_name=getattr(guidebook.host, 'name', None),
-        host_bio=getattr(guidebook.host, 'bio', None),
-        host_contact=getattr(guidebook.host, 'contact', None),
-        host_photo_url=getattr(guidebook.host, 'host_image_base64', None),
-        property_name=guidebook.property.name,
-        wifi_network=wifi_network,
-        wifi_password=wifi_password,
-        check_in_time=guidebook.check_in_time,
-        check_out_time=guidebook.check_out_time,
-        address_street=guidebook.property.address_street,
-        address_city_state=guidebook.property.address_city_state,
-        address_zip=guidebook.property.address_zip,
-        access_info=guidebook.access_info,
-        welcome_message=getattr(guidebook, 'welcome_info', None),
-        parking_info=getattr(guidebook, 'parking_info', None),
-        rules=[rule.text for rule in guidebook.rules],
-        things_to_do=guidebook.things_to_do,
-        places_to_eat=guidebook.places_to_eat,
-        checkout_info=getattr(guidebook, 'checkout_info', None),
+        TEMPLATE_REGISTRY.get(template_key, TEMPLATE_REGISTRY['template_1']),
+        id=gb.id,
+        host_name=getattr(gb.host, 'name', None),
+        host_bio=getattr(gb.host, 'bio', None),
+        host_contact=getattr(gb.host, 'contact', None),
+        host_photo_url=getattr(gb.host, 'host_image_base64', None),
+        property_name=gb.property.name,
+        wifi_network=gb.wifi.network if gb.wifi and gb.wifi.network else None,
+        wifi_password=gb.wifi.password if gb.wifi and gb.wifi.password else None,
+        check_in_time=gb.check_in_time,
+        check_out_time=gb.check_out_time,
+        address_street=gb.property.address_street,
+        address_city_state=gb.property.address_city_state,
+        address_zip=gb.property.address_zip,
+        access_info=gb.access_info,
+        welcome_message=getattr(gb, 'welcome_info', None),
+        parking_info=getattr(gb, 'parking_info', None),
+        rules=[rule.text for rule in gb.rules],
+        things_to_do=gb.things_to_do,
+        places_to_eat=gb.places_to_eat,
+        checkout_info=getattr(gb, 'checkout_info', None),
         included_tabs=included_tabs,
-        custom_sections=getattr(guidebook, 'custom_sections', None),
-        custom_tabs_meta=getattr(guidebook, 'custom_tabs_meta', None),
-        cover_image_url=guidebook.cover_image_url,
+        custom_sections=getattr(gb, 'custom_sections', None),
+        custom_tabs_meta=getattr(gb, 'custom_tabs_meta', None),
+        cover_image_url=gb.cover_image_url,
     )
     RENDER_CACHE[cache_key] = html
     resp = make_response(html)
@@ -223,6 +214,56 @@ def view_guidebook(guidebook_id):
     resp.headers['ETag'] = etag
     resp.headers['Cache-Control'] = 'public, max-age=300'
     return resp
+
+
+def _slugify(text: str) -> str:
+    s = re.sub(r"[^a-zA-Z0-9\s-]", "", text or "")
+    s = re.sub(r"\s+", "-", s).strip('-').lower()
+    return s or "guidebook"
+
+
+@app.route('/g/<public_slug>')
+def view_live_by_slug(public_slug):
+    gb = Guidebook.query.filter_by(public_slug=public_slug, active=True).first_or_404()
+    return _render_guidebook(gb)
+
+
+@app.route('/preview/<guidebook_id>')
+def preview_guidebook(guidebook_id):
+    token = request.args.get('token')
+    if not token:
+        return jsonify({"error": "token required"}), 400
+    gb = Guidebook.query.get_or_404(guidebook_id)
+    if gb.claim_token != token:
+        return jsonify({"error": "invalid token"}), 403
+    # Check expiry if set
+    if gb.expires_at and datetime.now(timezone.utc) > gb.expires_at:
+        return jsonify({"error": "preview expired"}), 410
+    resp = _render_guidebook(gb)
+    # discourage indexing
+    try:
+        resp.headers['X-Robots-Tag'] = 'noindex, nofollow'
+        resp.headers['Cache-Control'] = 'private, no-store'
+    except Exception:
+        pass
+    return resp
+
+
+@app.route('/guidebook/<guidebook_id>')
+def view_guidebook(guidebook_id):
+    # Eager-load related objects to avoid N+1 queries
+    guidebook = (
+        Guidebook.query.options(
+            joinedload(Guidebook.host),
+            joinedload(Guidebook.property),
+            joinedload(Guidebook.wifi),
+            joinedload(Guidebook.rules),
+        ).get_or_404(guidebook_id)
+    )
+    # Legacy direct-by-id path. Only allow if active; otherwise require preview token path.
+    if not getattr(guidebook, 'active', False):
+        return jsonify({"error": "This guidebook is not active. Use preview link to view."}), 403
+    return _render_guidebook(guidebook)
 
 @app.route('/api/generate', methods=['POST'])
 def generate_guidebook_route():
@@ -362,15 +403,36 @@ def generate_guidebook_route():
                 new_rule = Rule(text=rule_text, guidebook=new_guidebook)
                 db.session.add(new_rule)
 
+    # Set lifecycle fields depending on auth
+    if user_id:
+        # Active immediately; assign slug
+        base = _slugify(getattr(prop, 'name', '') or 'guidewise')
+        suffix = secrets.token_hex(4)
+        new_guidebook.public_slug = f"{base}-{suffix}"
+        new_guidebook.active = True
+        new_guidebook.claimed_at = datetime.now(timezone.utc)
+        new_guidebook.expires_at = None
+        new_guidebook.claim_token = None
+    else:
+        new_guidebook.active = False
+        new_guidebook.claimed_at = None
+        new_guidebook.expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+        new_guidebook.claim_token = secrets.token_hex(24)
+        new_guidebook.public_slug = None
+
     db.session.commit()
 
-    # Do NOT generate the PDF here. Return JSON with identifiers and the live URL header.
-    resp = jsonify({
+    # Respond with identifiers and appropriate URL
+    payload = {
         "ok": True,
         "guidebook_id": new_guidebook.id,
         "template_key": selected_template_key,
-    })
-    resp.headers['X-Guidebook-Url'] = f'/guidebook/{new_guidebook.id}'
+    }
+    resp = jsonify(payload)
+    if new_guidebook.active and new_guidebook.public_slug:
+        resp.headers['X-Guidebook-Url'] = f"/g/{new_guidebook.public_slug}"
+    else:
+        resp.headers['X-Guidebook-Url'] = f"/preview/{new_guidebook.id}?token={new_guidebook.claim_token}"
     resp.headers['Access-Control-Expose-Headers'] = 'X-Guidebook-Url'
     return resp, 201
 
@@ -560,6 +622,15 @@ def run_startup_migrations():
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS included_tabs JSON;",
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS custom_sections JSON;",
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS custom_tabs_meta JSON;",
+        # Lifecycle fields
+        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS active BOOLEAN DEFAULT FALSE;",
+        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS claimed_at TIMESTAMPTZ;",
+        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;",
+        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS claim_token TEXT;",
+        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS public_slug TEXT;",
+        # Uniques (Postgres): create unique indexes if not exist
+        "CREATE UNIQUE INDEX IF NOT EXISTS ux_guidebook_claim_token ON guidebook (claim_token);",
+        "CREATE UNIQUE INDEX IF NOT EXISTS ux_guidebook_public_slug ON guidebook (public_slug);",
         # Timestamps
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS created_time TIMESTAMPTZ DEFAULT NOW();",
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS last_modified_time TIMESTAMPTZ DEFAULT NOW();",
@@ -578,6 +649,59 @@ def run_startup_migrations():
 with app.app_context():
     db.create_all() # Create tables if they don't exist
     run_startup_migrations()
+
+
+@app.route('/api/guidebook/<guidebook_id>/claim', methods=['POST'])
+@require_auth
+def claim_guidebook(guidebook_id):
+    body = request.json or {}
+    token = body.get('claim_token')
+    if not token:
+        return jsonify({"error": "claim_token required"}), 400
+    gb = Guidebook.query.get_or_404(guidebook_id)
+    if gb.active:
+        return jsonify({"ok": True, "already_active": True, "live_url": f"/g/{gb.public_slug}" if gb.public_slug else None})
+    if gb.claim_token != token:
+        return jsonify({"error": "invalid token"}), 403
+    if gb.expires_at and datetime.now(timezone.utc) > gb.expires_at:
+        return jsonify({"error": "expired"}), 410
+    # Assign ownership and activate
+    gb.user_id = g.user_id
+    gb.active = True
+    gb.claimed_at = datetime.now(timezone.utc)
+    gb.expires_at = None
+    gb.claim_token = None
+    base = _slugify(getattr(gb.property, 'name', '') or 'guidewise')
+    gb.public_slug = f"{base}-{secrets.token_hex(4)}"
+    db.session.commit()
+    return jsonify({"ok": True, "live_url": f"/g/{gb.public_slug}"})
+
+
+@app.route('/api/maintenance/cleanup-expired', methods=['POST'])
+def cleanup_expired():
+    """Delete expired, unclaimed guidebooks. Secure with CLEANUP_SECRET header.
+
+    Criteria: active = false AND claimed_at IS NULL AND expires_at < now().
+    """
+    if not CLN_SECRET:
+        return jsonify({"error": "CLEANUP_SECRET not configured"}), 501
+    supplied = request.headers.get('X-Cleanup-Secret')
+    if supplied != CLN_SECRET:
+        return jsonify({"error": "Unauthorized"}), 401
+    now_utc = datetime.now(timezone.utc)
+    # Find candidates
+    q = Guidebook.query.filter(
+        Guidebook.active.is_(False),
+        Guidebook.claimed_at.is_(None),
+        Guidebook.expires_at.isnot(None),
+        Guidebook.expires_at < now_utc,
+    )
+    count = 0
+    for gb in q.all():
+        db.session.delete(gb)
+        count += 1
+    db.session.commit()
+    return jsonify({"ok": True, "deleted": count})
 
 @app.route('/api/ai-food', methods=['POST'])
 def ai_food_route():

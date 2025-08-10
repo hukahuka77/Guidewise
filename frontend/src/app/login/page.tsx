@@ -24,7 +24,15 @@ export default function LoginPage() {
       setLoading(true);
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-      router.push("/create");
+      // If there's a pending preview, go to success to auto-claim; else proceed
+      const hasPendingPreview = (() => {
+        try {
+          const url = sessionStorage.getItem('liveGuidebookUrl') || localStorage.getItem('liveGuidebookUrl');
+          const id = sessionStorage.getItem('guidebookId') || localStorage.getItem('guidebookId');
+          return !!(url && url.includes('/preview/') && id);
+        } catch { return false; }
+      })();
+      router.push(hasPendingPreview ? "/success" : "/create");
     } catch (err: any) {
       setError(err.message || "Login failed");
     } finally {
@@ -113,10 +121,17 @@ export default function LoginPage() {
               }
               try {
                 setOauthLoading(true);
+                const { hasPendingPreview, gb, token } = (() => {
+                  try {
+                    const id = sessionStorage.getItem('guidebookId') || localStorage.getItem('guidebookId');
+                    const tok = sessionStorage.getItem('claimToken') || localStorage.getItem('claimToken');
+                    return { hasPendingPreview: !!(id && tok), gb: id, token: tok };
+                  } catch { return { hasPendingPreview: false, gb: null, token: null }; }
+                })();
                 await supabase.auth.signInWithOAuth({
                   provider: 'google',
                   options: {
-                    redirectTo: `${window.location.origin}/dashboard`,
+                    redirectTo: `${window.location.origin}${hasPendingPreview ? `/success#gb=${encodeURIComponent(gb as string)}&token=${encodeURIComponent(token as string)}` : '/dashboard'}`,
                     queryParams: { prompt: 'select_account' },
                   },
                 });

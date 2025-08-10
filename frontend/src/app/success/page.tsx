@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
+import { supabase } from '@/lib/supabaseClient';
 
 const PdfViewer = dynamic(() => import('@/components/custom/PdfViewer'), { 
   ssr: false 
@@ -16,11 +17,35 @@ export default function SuccessPage() {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [liveGuidebookUrl, setLiveGuidebookUrl] = useState<string | null>(null);
   const [guidebookId, setGuidebookId] = useState<string | null>(null);
-  const [selectedTemplateKey, setSelectedTemplateKey] = useState<'template_1' | 'template_2' | null>(null);
+  const [selectedTemplateKey, setSelectedTemplateKey] = useState<'template_1' | 'template_2' | null>('template_1');
   const [isPdfModalOpen, setPdfModalOpen] = useState(false);
   const [isUpdatingTemplate, setIsUpdatingTemplate] = useState(false);
   const [templateMessage, setTemplateMessage] = useState<string | null>(null);
   const [includeQrInPdf, setIncludeQrInPdf] = useState<boolean>(false);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [isClaiming, setIsClaiming] = useState(false);
+  const [claimError, setClaimError] = useState<string | null>(null);
+  const [claimed, setClaimed] = useState(false);
+
+  // Derived flags
+  const isPreviewLink = useMemo(() => !!liveGuidebookUrl && liveGuidebookUrl.includes('/preview/'), [liveGuidebookUrl]);
+  const claimTokenFromUrl = useMemo(() => {
+    try {
+      if (!isPreviewLink || !liveGuidebookUrl) return null;
+      const u = new URL(liveGuidebookUrl);
+      return u.searchParams.get('token');
+    } catch { return null; }
+  }, [isPreviewLink, liveGuidebookUrl]);
+
+  // Persist claim token for use in auth redirects
+  useEffect(() => {
+    if (claimTokenFromUrl) {
+      try {
+        sessionStorage.setItem('claimToken', claimTokenFromUrl);
+        localStorage.setItem('claimToken', claimTokenFromUrl);
+      } catch {}
+    }
+  }, [claimTokenFromUrl]);
 
   const getTemplateFromPdfUrl = (): 'template_1' | 'template_2' | undefined => {
     if (!pdfUrl) return undefined;
@@ -44,10 +69,53 @@ export default function SuccessPage() {
     `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(url)}`;
 
   useEffect(() => {
-    const liveUrl = sessionStorage.getItem('liveGuidebookUrl');
-    setLiveGuidebookUrl(liveUrl);
-    const storedId = sessionStorage.getItem('guidebookId');
-    if (storedId) setGuidebookId(storedId);
+    try {
+      // If arriving from email/OAuth redirect, the signup/login flow may have attached a hash with gb/token
+      if (typeof window !== 'undefined' && window.location.hash) {
+        const hash = window.location.hash.replace(/^#/, '');
+        const params = new URLSearchParams(hash);
+        const gb = params.get('gb');
+        const token = params.get('token');
+        if (gb && token) {
+          const previewPath = `/preview/${gb}?token=${encodeURIComponent(token)}`;
+          setGuidebookId(gb);
+          setLiveGuidebookUrl(previewPath);
+          try {
+            sessionStorage.setItem('guidebookId', gb);
+            sessionStorage.setItem('liveGuidebookUrl', previewPath);
+            localStorage.setItem('guidebookId', gb);
+            localStorage.setItem('liveGuidebookUrl', previewPath);
+          } catch {}
+          // Clean the hash to avoid re-processing
+          try { window.history.replaceState(null, '', window.location.pathname); } catch {}
+        }
+      }
+      const liveUrl = sessionStorage.getItem('liveGuidebookUrl') || localStorage.getItem('liveGuidebookUrl');
+      if (liveUrl) {
+        setLiveGuidebookUrl(liveUrl);
+        // Mirror to localStorage to survive email redirect/new tab
+        localStorage.setItem('liveGuidebookUrl', liveUrl);
+      }
+      const storedId = sessionStorage.getItem('guidebookId') || localStorage.getItem('guidebookId');
+      if (storedId) {
+        setGuidebookId(storedId);
+        localStorage.setItem('guidebookId', storedId);
+      }
+    } catch {}
+  }, []);
+
+  // Load auth token (if user logs in after anonymous creation)
+  useEffect(() => {
+    if (!supabase) return;
+    let mounted = true;
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      if (mounted) setAccessToken(data.session?.access_token || null);
+    })();
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAccessToken(session?.access_token || null);
+    });
+    return () => { sub.subscription?.unsubscribe(); mounted = false; };
   }, []);
 
   // Attempt to load the currently selected URL template for this guidebook
@@ -101,6 +169,44 @@ export default function SuccessPage() {
     setPdfUrl(url);
     return url;
   };
+
+  // Attempt auto-claim once authenticated and we have a preview link + token
+  useEffect(() => {
+    const doClaim = async () => {
+      if (!guidebookId || !isPreviewLink || !claimTokenFromUrl || !accessToken) return;
+      setIsClaiming(true);
+      setClaimError(null);
+      try {
+        const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+        const res = await fetch(`${apiBase}/api/guidebook/${guidebookId}/claim`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({ claim_token: claimTokenFromUrl })
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || `Failed to claim (HTTP ${res.status})`);
+        }
+        const data = await res.json();
+        if (data?.live_url) {
+          const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+          const full = data.live_url.startsWith('http') ? data.live_url : `${apiBase}${data.live_url}`;
+          setLiveGuidebookUrl(full);
+          sessionStorage.setItem('liveGuidebookUrl', full);
+          try { localStorage.setItem('liveGuidebookUrl', full); } catch {}
+          setClaimed(true);
+        }
+      } catch (e: any) {
+        setClaimError(e.message || 'Failed to claim');
+      } finally {
+        setIsClaiming(false);
+      }
+    };
+    doClaim();
+  }, [guidebookId, isPreviewLink, claimTokenFromUrl, accessToken]);
 
   const PdfCard = ({ label, templateKey }: { label: string; templateKey?: 'template_1' | 'template_2' }) => (
     <div className="group relative border rounded-xl p-4 bg-white shadow hover:shadow-lg transition">
@@ -203,7 +309,7 @@ export default function SuccessPage() {
           </div>
         </section>
 
-        {/* Live CTA + QR (no container) */}
+        {/* Live/Preview CTA + QR */}
         {liveGuidebookUrl && (
           <div className="w-full flex flex-col items-center justify-center gap-6 md:gap-8">
             <Link href={liveGuidebookUrl} target="_blank">
@@ -211,6 +317,35 @@ export default function SuccessPage() {
                 View Live Guidebook
               </Button>
             </Link>
+            {isPreviewLink && (
+              <div className="w-full max-w-4xl rounded-2xl border border-amber-300 bg-gradient-to-br from-amber-50 to-white text-amber-900 p-5 md:p-6 shadow-md">
+                <div className="flex items-start gap-4">
+                  <div className="shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-10 h-10 text-amber-500">
+                      <path fillRule="evenodd" d="M10.53 2.53a1.5 1.5 0 0 1 2.94 0l8 18A1.5 1.5 0 0 1 20.06 23H3.94a1.5 1.5 0 0 1-1.41-2.47l8-18ZM12 8a1 1 0 0 0-1 1v5a1 1 0 1 0 2 0V9a1 1 0 0 0-1-1Zm0 9a1.25 1.25 0 1 0 0-2.5A1.25 1.25 0 0 0 12 17Z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                      <div>
+                        <h3 className="text-xl md:text-2xl font-semibold">This is a temporary preview link</h3>
+                        <p className="mt-1 text-sm md:text-base text-amber-800">Sign up or log in to save this guidebook to your account and publish a permanent live URL.</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Link href="/signup"><Button className="bg-pink-600 hover:bg-pink-700">Sign up to Save</Button></Link>
+                        <Link href="/login"><Button variant="outline" className="border-pink-600 text-pink-700 hover:bg-pink-50">Log in</Button></Link>
+                      </div>
+                    </div>
+                    {accessToken && (
+                      <div className="mt-3 text-xs md:text-sm text-amber-800">Attempting to save to your account…</div>
+                    )}
+                    {isClaiming && <div className="mt-2 text-xs md:text-sm">Claiming…</div>}
+                    {claimError && <div className="mt-2 text-xs md:text-sm text-red-700">{claimError}</div>}
+                    {claimed && <div className="mt-2 text-xs md:text-sm text-emerald-700">Saved! Your permanent link is ready above.</div>}
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 items-start gap-6 md:gap-10">
               {/* Words/description (left) */}
               <div className="px-2 md:px-4">

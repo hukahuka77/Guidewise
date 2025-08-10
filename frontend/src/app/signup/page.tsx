@@ -24,7 +24,16 @@ export default function SignupPage() {
     }
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signUp({ email, password });
+      let emailRedirectTo: string | undefined = undefined;
+      if (typeof window !== 'undefined') {
+        const origin = window.location.origin;
+        const gb = (sessionStorage.getItem('guidebookId') || localStorage.getItem('guidebookId')) || '';
+        const token = (sessionStorage.getItem('claimToken') || localStorage.getItem('claimToken')) || '';
+        const hasPending = gb && token;
+        const hash = hasPending ? `#gb=${encodeURIComponent(gb)}&token=${encodeURIComponent(token)}` : '';
+        emailRedirectTo = `${origin}/success${hash}`;
+      }
+      const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo } });
       if (error) throw error;
       // Depending on Supabase email confirmation settings, user may need to confirm via email
       setMessage("Check your email to confirm your account. Once confirmed, you can log in.");
@@ -110,10 +119,17 @@ export default function SignupPage() {
                 }
                 try {
                   setOauthLoading(true);
+                  const { hasPendingPreview, gb, token } = (() => {
+                    try {
+                      const id = sessionStorage.getItem('guidebookId') || localStorage.getItem('guidebookId');
+                      const tok = sessionStorage.getItem('claimToken') || localStorage.getItem('claimToken');
+                      return { hasPendingPreview: !!(id && tok), gb: id, token: tok };
+                    } catch { return { hasPendingPreview: false, gb: null, token: null }; }
+                  })();
                   await supabase.auth.signInWithOAuth({
                     provider: 'google',
                     options: {
-                      redirectTo: `${window.location.origin}/dashboard`,
+                      redirectTo: `${window.location.origin}${hasPendingPreview ? `/success#gb=${encodeURIComponent(gb as string)}&token=${encodeURIComponent(token as string)}` : '/dashboard'}`,
                       queryParams: { prompt: 'select_account' },
                     },
                   });

@@ -19,9 +19,23 @@ export default function Home() {
                     Impress your short‑term rental guests with a professional guidebook tailored to your home. No design skills needed—delight guests, reduce questions, and boost reviews.
                   </p>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                  <Link href="/create">
-                    <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                <div className="flex flex-col sm:flex-row gap-3 justify-center relative py-4">
+                  {/* Arrows wrapper to sync animation */}
+                  <div className="hidden md:block absolute inset-0 pointer-events-none animate-pulse">
+                    {/* Left arrow */}
+                    <div className="absolute left-0 -translate-x-32 lg:-translate-x-44 top-1/2 -translate-y-1/2 select-none">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src="/images/arrow.png" alt="arrow" className="w-[7.5rem] h-[7.5rem] md:w-[10.5rem] md:h-[10.5rem] object-contain drop-shadow rotate-6" />
+                    </div>
+                    {/* Right arrow (mirrored) */}
+                    <div className="absolute right-0 translate-x-32 lg:translate-x-44 top-1/2 -translate-y-1/2 select-none">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src="/images/arrow.png" alt="arrow" className="w-[7.5rem] h-[7.5rem] md:w-[10.5rem] md:h-[10.5rem] object-contain drop-shadow -rotate-6 scale-x-[-1]" />
+                    </div>
+                  </div>
+                  {/* CTA Button */}
+                  <Link href="/create" className="z-10">
+                    <Button className="text-xl md:text-2xl px-10 md:px-14 py-6 md:py-8 rounded-2xl font-semibold shadow-lg bg-primary hover:bg-primary/90 text-primary-foreground">
                       Get Started for Free
                     </Button>
                   </Link>
