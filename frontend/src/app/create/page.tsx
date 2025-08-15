@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
+import { LIMITS } from "@/constants/limits";
 import { supabase } from "@/lib/supabaseClient";
 import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 
@@ -14,6 +15,8 @@ import CheckinSection from "./CheckinSection";
 import HostInfoSection from "./HostInfoSection";
 import PropertySection from "./PropertySection";
 import DynamicItemList, { DynamicItem } from "./DynamicItemList";
+import PlacePickerModal from "@/components/places/PlacePickerModal";
+import AddItemChoiceModal from "@/components/places/AddItemChoiceModal";
 import RulesSection from "./RulesSection";
 import CheckoutSection from "./CheckoutSection";
 
@@ -59,6 +62,10 @@ export default function CreateGuidebookPage() {
   });
   const [foodItems, setFoodItems] = useState<DynamicItem[]>([]);
   const [activityItems, setActivityItems] = useState<DynamicItem[]>([]);
+  const [foodPickerOpen, setFoodPickerOpen] = useState(false);
+  const [activityPickerOpen, setActivityPickerOpen] = useState(false);
+  const [foodAddChoiceOpen, setFoodAddChoiceOpen] = useState(false);
+  const [activityAddChoiceOpen, setActivityAddChoiceOpen] = useState(false);
   const [checkoutItems, setCheckoutItems] = useState<{ name: string; description: string; checked: boolean }[]>([]);
   // Sidebar state: included order and excluded list
   const [included, setIncluded] = useState<string[]>([...sectionsOrder]);
@@ -74,6 +81,7 @@ export default function CreateGuidebookPage() {
     { name: 'No Unregistered Guests', description: 'Only guests included in the reservation are allowed to stay.', checked: true },
     { name: 'Remove Shoes Indoors', description: 'Please remove your shoes when entering the house.', checked: true }
   ]);
+  const [ruleAutoEditIndex, setRuleAutoEditIndex] = useState<number | null>(null);
 
   // Note: controlled inputs update state inline where needed; remove unused generic handler
 
@@ -308,121 +316,171 @@ export default function CreateGuidebookPage() {
         <WifiSection wifiNetwork={formData.wifiNetwork} wifiPassword={formData.wifiPassword} onChange={(id, value) => setFormData(f => ({ ...f, [id]: value }))} />
       )}
       {currentSection === "food" && (
-  <div>
-    <button
-      type="button"
-      className="mb-4 px-4 py-2 rounded bg-[oklch(0.6923_0.22_21.05)] text-white font-semibold shadow hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
-      disabled={isLoading || !formData.location}
-      onClick={async () => {
-        setIsLoading(true);
-        setError(null);
-        try {
-          const res = await fetch(`${API_BASE}/api/ai-food`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ address: formData.location, num_places_to_eat: 5 })
-          });
-          if (!res.ok) throw new Error("Failed to fetch food recommendations");
-          const data = await res.json();
-          let items = [];
-          if (Array.isArray(data)) {
-            items = data;
-          } else if (Array.isArray(data.restaurants)) {
-            items = data.restaurants;
-          } else if (Array.isArray(data.places_to_eat)) {
-            items = data.places_to_eat;
-          } else if (Array.isArray(data.food)) {
-            items = data.food;
-          }
-          if (items.length > 0) {
-            setFoodItems(items.map((item: Partial<DynamicItem>) => ({
-              name: item.name || "",
-              address: item.address || "",
-              description: item.description || "",
-              image_url: item.image_url || ""
-            })));
-          } else {
-            setError("No recommendations found.");
-          }
-        } catch (e: unknown) {
-          const msg = e instanceof Error ? e.message : "Failed to fetch recommendations";
-          setError(msg);
-        } finally {
-          setIsLoading(false);
-        }
-      }}
-    >
-      {isLoading ? "Loading..." : "Prepopulate with AI"}
-    </button>
-    <DynamicItemList
-      items={foodItems}
-      label="Nearby Food"
-      onChange={(idx, field, value) => {
-        setFoodItems(items => items.map((item, i) => i === idx ? { ...item, [field]: value } : item));
-      }}
-      onAdd={() => setFoodItems(items => [...items, { name: '', address: '', description: '' }])}
-      onDelete={idx => setFoodItems(items => items.filter((_, i) => i !== idx))}
-    />
-  </div>
-)}
+        <div>
+          <button
+            type="button"
+            className="mb-4 px-4 py-2 rounded bg-[oklch(0.6923_0.22_21.05)] text-white font-semibold shadow hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isLoading || !formData.location}
+            onClick={async () => {
+              setIsLoading(true);
+              setError(null);
+              try {
+                const res = await fetch(`${API_BASE}/api/ai-food`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ address: formData.location, num_places_to_eat: 5 })
+                });
+                if (!res.ok) throw new Error("Failed to fetch food recommendations");
+                const data = await res.json();
+                let items = [];
+                if (Array.isArray(data)) {
+                  items = data;
+                } else if (Array.isArray(data.restaurants)) {
+                  items = data.restaurants;
+                } else if (Array.isArray(data.places_to_eat)) {
+                  items = data.places_to_eat;
+                } else if (Array.isArray(data.food)) {
+                  items = data.food;
+                }
+                if (items.length > 0) {
+                  setFoodItems(items.map((item: Partial<DynamicItem>) => ({
+                    name: item.name || "",
+                    address: item.address || "",
+                    description: item.description || "",
+                    image_url: item.image_url || ""
+                  })));
+                } else {
+                  setError("No recommendations found.");
+                }
+              } catch (e: unknown) {
+                const msg = e instanceof Error ? e.message : "Failed to fetch recommendations";
+                setError(msg);
+              } finally {
+                setIsLoading(false);
+              }
+            }}
+          >
+            {isLoading ? "Loading..." : "Prepopulate with AI"}
+          </button>
+          <DynamicItemList
+            items={foodItems}
+            label="Nearby Food"
+            onChange={(idx, field, value) => {
+              setFoodItems(items => items.map((item, i) => i === idx ? { ...item, [field]: value } : item));
+            }}
+            onAdd={() => setFoodAddChoiceOpen(true)}
+            onDelete={idx => setFoodItems(items => items.filter((_, i) => i !== idx))}
+          />
+          <AddItemChoiceModal
+            open={foodAddChoiceOpen}
+            onClose={() => setFoodAddChoiceOpen(false)}
+            title="Add Food"
+            onGoogle={() => setFoodPickerOpen(true)}
+            onManual={() =>
+              setFoodItems(items =>
+                items.length >= LIMITS.maxFoodActivityItems ? items : [...items, { name: '', address: '', description: '' }]
+              )
+            }
+          />
+          <PlacePickerModal
+            open={foodPickerOpen}
+            onClose={() => setFoodPickerOpen(false)}
+            apiBase={API_BASE}
+            near={formData.location}
+            title="Add Food Place"
+            onSelect={(item) => {
+              setFoodItems(items =>
+                items.length >= LIMITS.maxFoodActivityItems
+                  ? items
+                  : [...items, { name: item.name, address: item.address, description: item.description || '', image_url: item.image_url || '' }]
+              );
+            }}
+          />
+        </div>
+      )}
       {currentSection === "activities" && (
-  <div>
-    <button
-      type="button"
-      className="mb-4 px-4 py-2 rounded bg-[oklch(0.6923_0.22_21.05)] text-white font-semibold shadow hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
-      disabled={isLoading || !formData.location}
-      onClick={async () => {
-        setIsLoading(true);
-        setError(null);
-        try {
-          const res = await fetch(`${API_BASE}/api/ai-activities`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ address: formData.location, num_things_to_do: 5 })
-          });
-          if (!res.ok) throw new Error("Failed to fetch activities recommendations");
-          const data = await res.json();
-          let items = [];
-          if (Array.isArray(data)) {
-            items = data;
-          } else if (Array.isArray(data.activities)) {
-            items = data.activities;
-          } else if (Array.isArray(data.things_to_do)) {
-            items = data.things_to_do;
-          } else if (Array.isArray(data.activityItems)) {
-            items = data.activityItems;
-          }
-          if (items.length > 0) {
-            setActivityItems(items.map((item: Partial<DynamicItem>) => ({
-              name: item.name || "",
-              address: item.address || "",
-              description: item.description || "",
-              image_url: item.image_url || ""
-            })));
-          } else {
-            setError("No recommendations found.");
-          }
-        } catch (e: unknown) {
-          const msg = e instanceof Error ? e.message : "Failed to fetch recommendations";
-          setError(msg);
-        } finally {
-          setIsLoading(false);
-        }
-      }}
-    >
-      {isLoading ? "Loading..." : "Prepopulate with AI"}
-    </button>
-    <DynamicItemList
-      items={activityItems}
-      label="Nearby Activities"
-      onChange={(idx, field, value) => {
-        setActivityItems(items => items.map((item, i) => i === idx ? { ...item, [field]: value } : item));
-      }}
-      onAdd={() => setActivityItems(items => [...items, { name: '', address: '', description: '' }])}
-      onDelete={idx => setActivityItems(items => items.filter((_, i) => i !== idx))}
-    />
-  </div>
-  )}
+        <div>
+          <button
+            type="button"
+            className="mb-4 px-4 py-2 rounded bg-[oklch(0.6923_0.22_21.05)] text-white font-semibold shadow hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isLoading || !formData.location}
+            onClick={async () => {
+              setIsLoading(true);
+              setError(null);
+              try {
+                const res = await fetch(`${API_BASE}/api/ai-activities`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ address: formData.location, num_things_to_do: 5 })
+                });
+                if (!res.ok) throw new Error("Failed to fetch activities recommendations");
+                const data = await res.json();
+                let items = [] as any[];
+                if (Array.isArray(data)) {
+                  items = data;
+                } else if (Array.isArray(data.activities)) {
+                  items = data.activities;
+                } else if (Array.isArray(data.things_to_do)) {
+                  items = data.things_to_do;
+                } else if (Array.isArray(data.activityItems)) {
+                  items = data.activityItems;
+                }
+                if (items.length > 0) {
+                  setActivityItems(items.map((item: Partial<DynamicItem>) => ({
+                    name: item.name || "",
+                    address: item.address || "",
+                    description: item.description || "",
+                    image_url: item.image_url || ""
+                  })));
+                } else {
+                  setError("No recommendations found.");
+                }
+              } catch (e: unknown) {
+                const msg = e instanceof Error ? e.message : "Failed to fetch recommendations";
+                setError(msg);
+              } finally {
+                setIsLoading(false);
+              }
+            }}
+          >
+            {isLoading ? "Loading..." : "Prepopulate with AI"}
+          </button>
+          <DynamicItemList
+            items={activityItems}
+            label="Nearby Activities"
+            onChange={(idx, field, value) => {
+              setActivityItems(items => items.map((item, i) => i === idx ? { ...item, [field]: value } : item));
+            }}
+            onAdd={() => setActivityAddChoiceOpen(true)}
+            onDelete={idx => setActivityItems(items => items.filter((_, i) => i !== idx))}
+          />
+          <AddItemChoiceModal
+            open={activityAddChoiceOpen}
+            onClose={() => setActivityAddChoiceOpen(false)}
+            title="Add Activity"
+            onGoogle={() => setActivityPickerOpen(true)}
+            onManual={() =>
+              setActivityItems(items =>
+                items.length >= LIMITS.maxFoodActivityItems ? items : [...items, { name: '', address: '', description: '' }]
+              )
+            }
+          />
+          <PlacePickerModal
+            open={activityPickerOpen}
+            onClose={() => setActivityPickerOpen(false)}
+            apiBase={API_BASE}
+            near={formData.location}
+            title="Add Activity"
+            onSelect={(item) => {
+              setActivityItems(items =>
+                items.length >= LIMITS.maxFoodActivityItems
+                  ? items
+                  : [...items, { name: item.name, address: item.address, description: item.description || '', image_url: item.image_url || '' }]
+              );
+            }}
+          />
+        </div>
+      )}
       {currentSection === "rules" && (
         <RulesSection
           rules={rules}
@@ -433,8 +491,16 @@ export default function CreateGuidebookPage() {
               )
             );
           }}
-          onAdd={() => setRules([...rules, { name: '', description: '', checked: false }])}
+          onAdd={() =>
+            setRules(prev => {
+              const next = [...prev, { name: '', description: '', checked: false }];
+              setRuleAutoEditIndex(next.length - 1);
+              return next;
+            })
+          }
           onDelete={idx => setRules(rules => rules.filter((_, i) => i !== idx))}
+          autoEditIndex={ruleAutoEditIndex}
+          onAutoEditHandled={() => setRuleAutoEditIndex(null)}
         />
       )}
       {currentSection.startsWith("custom_") && (
@@ -447,6 +513,7 @@ export default function CreateGuidebookPage() {
                   className="w-full min-h-[90px] border rounded px-3 py-2"
                   placeholder={`Text box ${idx + 1}`}
                   value={val}
+                  maxLength={LIMITS.customText}
                   onChange={(e) =>
                     setCustomSections(cs => ({
                       ...cs,
@@ -472,13 +539,15 @@ export default function CreateGuidebookPage() {
           <div>
             <button
               type="button"
-              className="px-4 py-2 rounded bg-[oklch(0.6923_0.22_21.05)] text-white font-semibold shadow hover:opacity-90"
               onClick={() =>
-                setCustomSections(cs => ({
-                  ...cs,
-                  [currentSection]: [...(cs[currentSection] || [""]), ""],
-                }))
+                setCustomSections(cs => {
+                  const list = cs[currentSection] || [""];
+                  if (list.length >= LIMITS.maxCustomTextBoxes) return cs;
+                  return { ...cs, [currentSection]: [...list, ""] };
+                })
               }
+              disabled={(customSections[currentSection] || [""]).length >= LIMITS.maxCustomTextBoxes}
+              className={`px-4 py-2 rounded bg-[oklch(0.6923_0.22_21.05)] text-white font-semibold shadow hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed`}
             >
               Add text box
             </button>

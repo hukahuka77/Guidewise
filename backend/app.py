@@ -22,6 +22,11 @@ from jwt import PyJWKClient
 from models import db, Guidebook, Host, Property, Wifi, Rule
 from utils.ai_food import get_ai_food_recommendations
 from utils.ai_activities import get_ai_activity_recommendations
+from utils.google_places import (
+    google_places_text_search,
+    google_places_details,
+    google_places_photo_url,
+)
 
 load_dotenv() # Load environment variables from .env file
 
@@ -727,6 +732,71 @@ def update_template_key(guidebook_id):
     gb.template_key = new_key
     db.session.commit()
     return jsonify({"ok": True, "template_key": gb.template_key})
+
+@app.route('/api/places/search', methods=['POST'])
+def places_search():
+    """Proxy Google Places Text Search. Returns minimal normalized items.
+    Body: { "query": string, "near": string|null }
+    Response: { items: [ { name, address, place_id } ] }
+    """
+    data = request.json or {}
+    query = (data.get('query') or '').strip()
+    near = (data.get('near') or '').strip()
+    if not query:
+        return jsonify({"error": "query is required"}), 400
+    try:
+        resp = google_places_text_search(query, location=near or None)
+        items = []
+        for r in resp.get('results', [])[:8]:
+            items.append({
+                'name': r.get('name') or '',
+                'address': r.get('formatted_address') or '',
+                'place_id': r.get('place_id') or '',
+            })
+        return jsonify({ 'items': items })
+    except Exception as e:
+        log.error("places_search error: %s: %s", type(e).__name__, e)
+        return jsonify({"error": "Failed to search places"}), 502
+
+@app.route('/api/places/enrich', methods=['GET'])
+def places_enrich():
+    """Given a place_id, return a DynamicItem-like normalized object.
+    Response: { name, address, description, image_url }
+    """
+    place_id = (request.args.get('place_id') or '').strip()
+    if not place_id:
+        return jsonify({"error": "place_id is required"}), 400
+    try:
+        det = google_places_details(place_id)
+        result = det.get('result') or {}
+        name = result.get('name') or ''
+        address = result.get('formatted_address') or ''
+        website = result.get('website') or ''
+        rating = result.get('rating')
+        types = result.get('types') or []
+        parts = []
+        if rating is not None:
+            parts.append(f"Rating {rating}")
+        if types:
+            parts.append((types[0] or '').replace('_', ' ').title())
+        if website:
+            parts.append(website)
+        description = ' • '.join([p for p in parts if p])
+        image_url = ''
+        photos = result.get('photos') or []
+        if photos:
+            ref = (photos[0] or {}).get('photo_reference')
+            if ref:
+                image_url = google_places_photo_url(ref, maxwidth=800)
+        return jsonify({
+            'name': name,
+            'address': address,
+            'description': description,
+            'image_url': image_url,
+        })
+    except Exception as e:
+        log.error("places_enrich error: %s: %s", type(e).__name__, e)
+        return jsonify({"error": "Failed to enrich place"}), 502
 
 # In-memory cache for generated PDFs for the lifetime of the process
 PDF_CACHE = {}

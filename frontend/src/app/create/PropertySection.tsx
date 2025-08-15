@@ -2,6 +2,7 @@
 import React, { useState, useRef } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { LIMITS } from "@/constants/limits";
 
 interface PropertySectionProps {
   propertyName: string;
@@ -23,6 +24,7 @@ export default function PropertySection({ propertyName, onChange, onCoverImageCh
       <Input
         id="propertyName"
         value={propertyName}
+        maxLength={LIMITS.propertyName}
         onChange={(e) => onChange("propertyName", e.target.value)}
         className="mb-4 mt-1"
         placeholder="e.g. Sunny Retreat Guest House"

@@ -1,9 +1,11 @@
 /* eslint-disable @next/next/no-img-element */
-import React from "react";
+import React, { useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
+import { LIMITS } from "@/constants/limits";
 
 export interface DynamicItem {
   name: string;
@@ -27,7 +29,41 @@ interface DynamicItemListProps {
   label: string;
 }
 
+const BUCKET_NAME = process.env.NEXT_PUBLIC_SUPABASE_FOOD_ACTIVITIES_BUCKET || "food-activities-photos";
+
 export default function DynamicItemList({ items, onChange, onAdd, onDelete, label }: DynamicItemListProps) {
+  const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
+
+  const uploadImage = async (idx: number, file: File) => {
+    try {
+      setUploadingIdx(idx);
+      if (!supabase) throw new Error("Supabase not configured");
+      const ext = file.name.split('.').pop() || 'jpg';
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = `guidebook/${Date.now()}-${idx}-${safeName}`;
+      const { error: uploadErr } = await supabase.storage
+        .from(BUCKET_NAME)
+        .upload(path, file, { contentType: file.type || `image/${ext}`, upsert: true });
+      if (uploadErr) throw uploadErr;
+      const { data: pub } = supabase.storage.from(BUCKET_NAME).getPublicUrl(path);
+      if (pub?.publicUrl) {
+        onChange(idx, "image_url", pub.publicUrl);
+        return;
+      }
+      throw new Error("No public URL returned");
+    } catch (e) {
+      console.error("Upload failed, falling back to data URL:", e);
+      // Fallback: inline data URL to avoid blocking the user
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        onChange(idx, "image_url", dataUrl);
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setUploadingIdx(null);
+    }
+  };
   return (
     <section className="mb-8">
       <div className="flex items-center gap-2 mb-2">
@@ -54,20 +90,48 @@ export default function DynamicItemList({ items, onChange, onAdd, onDelete, labe
                   </button>
                 )}
                 {item.image_url ? (
-                  <img
-                    src={item.image_url}
-                    alt={item.name + " image"}
-                    className="w-full h-32 object-cover rounded mb-2 border shadow"
-                  />
+                  <div className="relative mb-2">
+                    <img
+                      src={item.image_url}
+                      alt={item.name + " image"}
+                      className="w-full h-32 object-cover rounded border shadow"
+                    />
+                    <button
+                      type="button"
+                      className="absolute top-2 right-2 px-2 py-1 text-xs rounded bg-white/90 border shadow hover:bg-white"
+                      onClick={() => onChange(idx, "image_url", "")}
+                    >
+                      Remove image
+                    </button>
+                  </div>
                 ) : (
-                  <img
-                    src={`https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(item.address)}&zoom=15&size=400x200&maptype=roadmap&markers=color:pink%7C${encodeURIComponent(item.address)}&key=${process.env.NEXT_PUBLIC_GOOGLE_API_KEY}`}
-                    alt={item.name + " map preview"}
-                    className="w-full h-32 object-cover rounded mb-2 border shadow opacity-80"
-                  />
+                  <div
+                    className="mb-2 w-full h-32 rounded border-2 border-dashed border-gray-300 flex items-center justify-center text-sm text-gray-500 bg-gray-50/40 hover:bg-gray-50 cursor-pointer"
+                    onClick={() => document.getElementById(`upload-${idx}`)?.dispatchEvent(new MouseEvent('click', {bubbles: true}))}
+                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                    onDrop={async (e) => {
+                      e.preventDefault();
+                      const file = e.dataTransfer.files?.[0];
+                      if (!file) return;
+                      await uploadImage(idx, file);
+                    }}
+                  >
+                    {uploadingIdx === idx ? "Uploading…" : "Drop image here or click to upload"}
+                  </div>
                 )}
+                <input
+                  id={`upload-${idx}`}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    await uploadImage(idx, file);
+                  }}
+                />
                 <Label>Name</Label>
-                <Input value={item.name} onChange={e => onChange(idx, "name", e.target.value)} />
+                <Input maxLength={LIMITS.itemName} value={item.name} onChange={e => onChange(idx, "name", e.target.value)} />
                 {item.address && (
                   <div className="flex items-center text-xs text-gray-600 mt-1 mb-2">
                     <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="mr-1"><path strokeLinecap="round" strokeLinejoin="round" d="M12 11.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z"/><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7-7.5 11-7.5 11s-7.5-4-7.5-11a7.5 7.5 0 1115 0z"/></svg>
@@ -75,13 +139,21 @@ export default function DynamicItemList({ items, onChange, onAdd, onDelete, labe
                   </div>
                 )}
                 <Label>Address</Label>
-                <Input value={item.address} onChange={e => onChange(idx, "address", e.target.value)} />
+                <Input maxLength={LIMITS.itemAddress} value={item.address} onChange={e => onChange(idx, "address", e.target.value)} />
                 <Label>Description</Label>
-                <Textarea value={item.description} onChange={e => onChange(idx, "description", e.target.value)} />
+                <Textarea maxLength={LIMITS.itemDescription} value={item.description} onChange={e => onChange(idx, "description", e.target.value)} />
               </div>
             ))}
           </div>
-          <button type="button" onClick={onAdd} className="flex items-center gap-2 px-4 py-2 border-2 border-dashed border-[oklch(0.6923_0.22_21.05)]/60 rounded-lg hover:bg-[oklch(0.6923_0.22_21.05)]/10 transition mt-6">
+          <button
+            type="button"
+            onClick={() => {
+              if (items.length >= LIMITS.maxFoodActivityItems) return;
+              onAdd();
+            }}
+            disabled={items.length >= LIMITS.maxFoodActivityItems}
+            className={`flex items-center gap-2 px-4 py-2 border-2 border-dashed border-[oklch(0.6923_0.22_21.05)]/60 rounded-lg hover:bg-[oklch(0.6923_0.22_21.05)]/10 transition mt-6 ${items.length >= LIMITS.maxFoodActivityItems ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
             <Plus style={{ color: 'oklch(0.6923 0.22 21.05)' }} />
             <span>Add another</span>
           </button>

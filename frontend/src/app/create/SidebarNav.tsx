@@ -1,4 +1,5 @@
 import React from "react";
+import { LIMITS } from "../../constants/limits";
 
 const NAV_META: Record<string, { label: string; icon: string }> = {
   checkin: { label: "Check-in Info", icon: "🏠" },
@@ -30,6 +31,19 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
   const [customEmoji, setCustomEmoji] = React.useState("");
   const [customTitle, setCustomTitle] = React.useState("");
   const [customMeta, setCustomMeta] = React.useState<Record<string, { icon: string; label: string }>>({});
+  const EMOJI_OPTIONS = React.useMemo(
+    () => [
+      "📝","✨","⭐","📍","📷","🗺️","🏖️","⛰️","🌇","🌃",
+      "🍽️","🍕","🍔","🍣","☕","🍺","🍷","🍹","🧁","🍩",
+      "🎡","🎟️","🎵","🏃","🚴","🏊","🛶","🎨","🏛️","🛍️",
+      "🚗","🚕","🚆","✈️","⛵","🧭","🪪","💡","🔧","🧼"
+    ],
+    []
+  );
+  const customCount = React.useMemo(() => (
+    [...included, ...excluded].filter(k => k.startsWith("custom_")).length
+  ), [included, excluded]);
+  const canAddCustom = customCount < LIMITS.maxCustomTabs;
 
   // Whenever customMeta changes, notify parent if provided
   React.useEffect(() => {
@@ -201,9 +215,10 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
       {/* Add custom button (below Included, above Excluded) */}
       <button
         type="button"
-        className="mb-2 inline-flex items-center gap-2 text-sm px-3 py-2 rounded bg-white/10 hover:bg-white/20 transition"
-        onClick={() => setShowCustomModal(true)}
+        className={`mb-2 inline-flex items-center gap-2 text-sm px-3 py-2 rounded bg-white/10 hover:bg-white/20 transition ${!canAddCustom ? 'opacity-50 cursor-not-allowed' : ''}`}
+        onClick={() => { if (!canAddCustom) return; setShowCustomModal(true); }}
         aria-label="Add custom tab"
+        disabled={!canAddCustom}
       >
         <span>➕</span>
         <span>Add custom</span>
@@ -249,14 +264,29 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
             <div className="space-y-3">
               <div>
                 <label className="block text-sm font-medium mb-1">Emoji</label>
+                <div className="grid grid-cols-10 gap-1 mb-2">
+                  {EMOJI_OPTIONS.map((e) => (
+                    <button
+                      key={e}
+                      type="button"
+                      className={`h-9 w-9 flex items-center justify-center rounded border text-lg hover:bg-gray-50 ${customEmoji === e ? 'ring-2 ring-[oklch(0.6923_0.22_21.05)]' : ''}`}
+                      onClick={() => setCustomEmoji(e)}
+                      aria-label={`Choose ${e}`}
+                    >
+                      {e}
+                    </button>
+                  ))}
+                </div>
                 <input
                   type="text"
                   inputMode="text"
-                  placeholder="e.g. ✨"
+                  placeholder="Or type/paste an emoji (1 char)"
                   className="w-full border rounded px-3 py-2"
                   value={customEmoji}
-                  onChange={(e) => setCustomEmoji(e.target.value)}
+                  maxLength={LIMITS.customTabEmojiChars}
+                  onChange={(e) => setCustomEmoji(e.target.value.slice(0, LIMITS.customTabEmojiChars))}
                 />
+                <p className="mt-1 text-xs text-gray-500">Pick from above or type a single emoji.</p>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Title</label>
@@ -265,7 +295,8 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
                   placeholder="Custom section title"
                   className="w-full border rounded px-3 py-2"
                   value={customTitle}
-                  onChange={(e) => setCustomTitle(e.target.value)}
+                  maxLength={LIMITS.customTabTitle}
+                  onChange={(e) => setCustomTitle(e.target.value.slice(0, LIMITS.customTabTitle))}
                 />
               </div>
             </div>
@@ -279,11 +310,11 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
               </button>
               <button
                 type="button"
-                className="px-3 py-2 rounded bg-[oklch(0.6923_0.22_21.05)] text-white hover:opacity-90"
+                className={`px-3 py-2 rounded bg-[oklch(0.6923_0.22_21.05)] text-white hover:opacity-90 ${!canAddCustom ? 'opacity-50 cursor-not-allowed' : ''}`}
                 onClick={() => {
-                  const title = customTitle.trim();
-                  const emoji = (customEmoji || "").trim() || "📝";
-                  if (!title) return;
+                  const title = customTitle.trim().slice(0, LIMITS.customTabTitle);
+                  const emoji = ((customEmoji || "").trim().slice(0, LIMITS.customTabEmojiChars)) || "📝";
+                  if (!title || !canAddCustom) return;
                   const key = `custom_${Date.now()}`;
                   setCustomMeta((prev) => ({ ...prev, [key]: { icon: emoji, label: title } }));
                   onUpdate([...included, key], excluded);
@@ -292,6 +323,7 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
                   setCustomEmoji("");
                   setCustomTitle("");
                 }}
+                disabled={!canAddCustom}
               >
                 Add
               </button>

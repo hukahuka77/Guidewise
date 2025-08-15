@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import PlacesAutocomplete from "@/components/PlacesAutocomplete";
 import { Textarea } from "@/components/ui/textarea";
+import { LIMITS } from "@/constants/limits";
 
 interface CheckinSectionProps {
   welcomeMessage: string;
@@ -30,7 +31,7 @@ export default function CheckinSection({ welcomeMessage, location, accessInfo, p
         className="w-40 mb-2 mt-1"
       />
       <Label htmlFor="welcomeMessage">Welcome Message</Label>
-      <Textarea id="welcomeMessage" value={welcomeMessage} onChange={e => onChange("welcomeMessage", e.target.value)} className="mb-2 mt-1" placeholder="Write a friendly greeting and what guests can expect during their stay." />
+      <Textarea id="welcomeMessage" maxLength={LIMITS.welcomeMessage} value={welcomeMessage} onChange={e => onChange("welcomeMessage", e.target.value)} className="mb-2 mt-1" placeholder="Write a friendly greeting and what guests can expect during their stay." />
       <Label htmlFor="location">Location <span className="text-red-500" title="Required">*</span></Label>
       <PlacesAutocomplete
         value={location}
@@ -39,9 +40,9 @@ export default function CheckinSection({ welcomeMessage, location, accessInfo, p
         className="mb-2 mt-1"
       />
       <Label htmlFor="accessInfo">Access Info</Label>
-      <Textarea id="accessInfo" value={accessInfo} onChange={e => onChange("access_info", e.target.value)} className="mb-2 mt-1" placeholder="Door code, lockbox location, entry instructions, or concierge details." />
+      <Textarea id="accessInfo" maxLength={LIMITS.accessInfo} value={accessInfo} onChange={e => onChange("access_info", e.target.value)} className="mb-2 mt-1" placeholder="Door code, lockbox location, entry instructions, or concierge details." />
       <Label htmlFor="parkingInfo">Parking Info</Label>
-      <Textarea id="parkingInfo" value={parkingInfo} onChange={e => onChange("parkingInfo", e.target.value)} className="mt-1" placeholder="Where to park, permit requirements, garage/spot number, and any restrictions." />
+      <Textarea id="parkingInfo" maxLength={LIMITS.parkingInfo} value={parkingInfo} onChange={e => onChange("parkingInfo", e.target.value)} className="mt-1" placeholder="Where to park, permit requirements, garage/spot number, and any restrictions." />
     </section>
   );
 }

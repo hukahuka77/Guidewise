@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { LIMITS } from "@/constants/limits";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from '@/components/ui/textarea';
@@ -15,16 +16,40 @@ interface RulesSectionProps {
   onChange: (index: number, field: keyof Rule, value: string | boolean) => void;
   onAdd: () => void;
   onDelete?: (idx: number) => void;
+  autoEditIndex?: number | null;
+  onAutoEditHandled?: () => void;
 }
 
 
 
-export default function RulesSection({ rules, onChange, onAdd, onDelete }: RulesSectionProps) {
+export default function RulesSection({ rules, onChange, onAdd, onDelete, autoEditIndex, onAutoEditHandled }: RulesSectionProps) {
   const [editing, setEditing] = useState<Set<number>>(new Set());
+  const prevLen = useRef<number>(rules.length);
+
+  // When a new rule is added (length increases), automatically open the newest in edit mode.
+  useEffect(() => {
+    if (rules.length > prevLen.current) {
+      const newIdx = rules.length - 1;
+      setEditing(prev => new Set(prev).add(newIdx));
+    } else if (rules.length < prevLen.current) {
+      // If items removed, ensure we don't keep editing indexes out of range
+      setEditing(prev => new Set(Array.from(prev).filter(i => i < rules.length)));
+    }
+    prevLen.current = rules.length;
+  }, [rules.length]);
+
+  // Parent-driven auto-edit trigger
+  useEffect(() => {
+    if (autoEditIndex != null && autoEditIndex >= 0 && autoEditIndex < rules.length) {
+      setEditing(prev => new Set(prev).add(autoEditIndex));
+      onAutoEditHandled?.();
+    }
+  }, [autoEditIndex, rules.length, onAutoEditHandled]);
 
   const startEdit = (idx: number) => setEditing(prev => new Set(prev).add(idx));
   const finishEdit = (idx: number) => setEditing(prev => { const next = new Set(prev); next.delete(idx); return next; });
   const cancelEdit = (idx: number) => finishEdit(idx); // changes are live; cancel just exits
+  const canAdd = rules.length < LIMITS.maxRules;
   return (
     <section className="mb-8">
       <div className="flex items-center gap-2 mb-2">
@@ -94,11 +119,11 @@ export default function RulesSection({ rules, onChange, onAdd, onDelete }: Rules
                   <div className="flex-1 flex flex-col gap-2">
                     <div>
                       <Label>Rule Name</Label>
-                      <Input value={rule.name} onChange={e => onChange(idx, 'name', e.target.value)} placeholder="e.g. Quiet Hours" />
+                      <Input autoFocus maxLength={LIMITS.ruleName} value={rule.name} onChange={e => onChange(idx, 'name', e.target.value)} placeholder="e.g. Quiet Hours" />
                     </div>
                     <div>
                       <Label>Description</Label>
-                      <Textarea value={rule.description} onChange={e => onChange(idx, 'description', e.target.value)} placeholder="Explain the rule details..." />
+                      <Textarea maxLength={LIMITS.ruleDescription} value={rule.description} onChange={e => onChange(idx, 'description', e.target.value)} placeholder="Explain the rule details..." />
                     </div>
                   </div>
                 )}
@@ -107,7 +132,18 @@ export default function RulesSection({ rules, onChange, onAdd, onDelete }: Rules
           );
         })}
       </div>
-      <button type="button" onClick={onAdd} className="flex items-center gap-2 px-4 py-2 border-2 border-dashed border-[oklch(0.6923_0.22_21.05)]/60 rounded-lg hover:bg-[oklch(0.6923_0.22_21.05)]/10 transition">
+      <button
+        type="button"
+        onClick={() => {
+          if (!canAdd) return;
+          const newIdx = rules.length;
+          onAdd();
+          // Mark the soon-to-exist item as editing so it renders in edit mode on the next render
+          setEditing(prev => new Set(prev).add(newIdx));
+        }}
+        disabled={!canAdd}
+        className={`flex items-center gap-2 px-4 py-2 border-2 border-dashed border-[oklch(0.6923_0.22_21.05)]/60 rounded-lg hover:bg-[oklch(0.6923_0.22_21.05)]/10 transition ${!canAdd ? 'opacity-50 cursor-not-allowed' : ''}`}
+      >
         <Plus style={{ color: 'oklch(0.6923 0.22 21.05)' }} />
         <span>Add another rule</span>
       </button>

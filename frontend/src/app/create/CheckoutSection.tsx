@@ -3,6 +3,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash, Pencil, Check, X } from "lucide-react";
+import { LIMITS } from "@/constants/limits";
 
 export interface CheckoutInfoItem {
   name: string;
@@ -24,6 +25,7 @@ export default function CheckoutSection({ checkoutTime, items, onTimeChange, onC
   const startEdit = (idx: number) => setEditing(prev => new Set(prev).add(idx));
   const finishEdit = (idx: number) => setEditing(prev => { const next = new Set(prev); next.delete(idx); return next; });
   const cancelEdit = (idx: number) => finishEdit(idx);
+  const canAdd = items.length < LIMITS.maxCheckoutItems;
   return (
     <section className="mb-8">
       <div className="flex items-center gap-2 mb-2">
@@ -94,11 +96,11 @@ export default function CheckoutSection({ checkoutTime, items, onTimeChange, onC
                   <div className="flex-1 flex flex-col gap-2">
                     <div>
                       <Label>Title</Label>
-                      <Input value={item.name} onChange={e => onChange(idx, 'name', e.target.value)} placeholder="e.g. Trash & linens" />
+                      <Input maxLength={LIMITS.checkoutName} value={item.name} onChange={e => onChange(idx, 'name', e.target.value)} placeholder="e.g. Trash & linens" />
                     </div>
                     <div>
                       <Label>Description</Label>
-                      <Textarea value={item.description} onChange={e => onChange(idx, 'description', e.target.value)} placeholder="What guests should know before checkout..." />
+                      <Textarea maxLength={LIMITS.checkoutDescription} value={item.description} onChange={e => onChange(idx, 'description', e.target.value)} placeholder="What guests should know before checkout..." />
                     </div>
                   </div>
                 )}
@@ -107,7 +109,12 @@ export default function CheckoutSection({ checkoutTime, items, onTimeChange, onC
           );
         })}
       </div>
-      <button type="button" onClick={onAdd} className="mt-6 flex items-center gap-2 px-4 py-2 border-2 border-dashed border-[oklch(0.6923_0.22_21.05)]/60 rounded-lg hover:bg-[oklch(0.6923_0.22_21.05)]/10 transition">
+      <button
+        type="button"
+        onClick={() => { if (!canAdd) return; onAdd(); }}
+        disabled={!canAdd}
+        className={`mt-6 flex items-center gap-2 px-4 py-2 border-2 border-dashed border-[oklch(0.6923_0.22_21.05)]/60 rounded-lg hover:bg-[oklch(0.6923_0.22_21.05)]/10 transition ${!canAdd ? 'opacity-50 cursor-not-allowed' : ''}`}
+      >
         <Plus style={{ color: 'oklch(0.6923 0.22 21.05)' }} />
         <span>Add another</span>
       </button>

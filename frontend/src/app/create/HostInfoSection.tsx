@@ -3,6 +3,7 @@ import React, { useState, useRef } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { LIMITS } from "@/constants/limits";
 
 interface HostInfoSectionProps {
   name: string;
@@ -22,11 +23,11 @@ export default function HostInfoSection({ name, bio, contact, onChange, onHostPh
         <h2 className="text-xl font-semibold">Host Info</h2>
       </div>
       <Label htmlFor="hostName">Host Name</Label>
-      <Input id="hostName" value={name} onChange={e => onChange("hostName", e.target.value)} className="mb-2 mt-1" placeholder="e.g. Alex Morgan" />
+      <Input id="hostName" maxLength={LIMITS.hostName} value={name} onChange={e => onChange("hostName", e.target.value)} className="mb-2 mt-1" placeholder="e.g. Alex Morgan" />
       <Label htmlFor="hostBio">Bio</Label>
-      <Textarea id="hostBio" value={bio} onChange={e => onChange("hostBio", e.target.value)} className="mb-2 mt-1" placeholder="Tell guests about yourself and how you like to host." />
+      <Textarea id="hostBio" maxLength={LIMITS.hostBio} value={bio} onChange={e => onChange("hostBio", e.target.value)} className="mb-2 mt-1" placeholder="Tell guests about yourself and how you like to host." />
       <Label htmlFor="hostContact">Contact Info</Label>
-      <Input id="hostContact" value={contact} onChange={e => onChange("hostContact", e.target.value)} className="mt-1" placeholder="e.g. alex@email.com | (555) 123-4567" />
+      <Input id="hostContact" maxLength={LIMITS.hostContact} value={contact} onChange={e => onChange("hostContact", e.target.value)} className="mt-1" placeholder="e.g. alex@email.com | (555) 123-4567" />
 
       <div className="mt-4">
         <Label htmlFor="hostPhoto">Host Photo</Label>
