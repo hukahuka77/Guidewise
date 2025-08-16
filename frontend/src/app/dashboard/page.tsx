@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import Spinner from "@/components/ui/spinner";
+import { cacheGet, cacheSet } from "@/lib/cache";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
@@ -28,42 +29,52 @@ export default function DashboardPage() {
   const [qrModalFor, setQrModalFor] = useState<string | null>(null); // guidebook id
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
-      if (!supabase) {
-        setError("Authentication is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+      // Serve from cache immediately if available
+      const cached = cacheGet<GuidebookItem[]>("dashboard:guidebooks");
+      if (cached && !cancelled) {
+        setItems(cached);
         setLoading(false);
+      }
+
+      if (!supabase) {
+        if (!cached) setError("Authentication is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.");
         return;
       }
       const { data } = await supabase.auth.getSession();
       const token = data.session?.access_token || null;
       if (!token) {
-        // Not logged in, send to login
         router.push("/login");
         return;
       }
       try {
         const res = await fetch(`${API_BASE}/api/guidebooks`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
         if (res.status === 401) {
-          // Session invalid/expired -> login
           router.push("/login");
           return;
         }
         if (!res.ok) throw new Error(`Failed to load guidebooks (${res.status})`);
         const json = await res.json();
-        setItems(Array.isArray(json.items) ? json.items : []);
+        const newItems = Array.isArray(json.items) ? json.items : [];
+        if (!cancelled) {
+          setItems(newItems);
+          cacheSet("dashboard:guidebooks", newItems, 5 * 60_000);
+          if (!cached) setLoading(false);
+        }
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : "Failed to load guidebooks";
-        setError(msg);
+        if (!cancelled) {
+          if (!cached) setError(msg);
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled && !cached) setLoading(false);
       }
     })();
     return () => {
-      // no-op cleanup
+      cancelled = true;
     };
   }, [router]);
 
@@ -115,7 +126,7 @@ export default function DashboardPage() {
             {items.map((gb) => {
               const liveUrl = `${API_BASE}/guidebook/${gb.id}`;
               return (
-                <li key={gb.id} className="group bg-white rounded-2xl border shadow-sm hover:shadow-md transition">
+                <li key={gb.id} className="group bg-white rounded-2xl border shadow-sm hover:shadow-md transition min-h-[360px]">
                   <div className="aspect-[16/9] w-full overflow-hidden rounded-t-2xl bg-gray-100">
                     {gb.cover_image_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -124,7 +135,7 @@ export default function DashboardPage() {
                       <div className="w-full h-full flex items-center justify-center text-gray-400">No cover</div>
                     )}
                   </div>
-                  <div className="p-4">
+                  <div className="p-5 pb-6">
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <h3 className="font-semibold text-gray-800 truncate">{gb.property_name || "Untitled Property"}</h3>
@@ -138,21 +149,21 @@ export default function DashboardPage() {
 
                     <div className="mt-4 grid grid-cols-2 gap-2">
                       <Link href={liveUrl} target="_blank">
-                        <Button variant="outline" className="w-full">View Live</Button>
+                        <Button variant="outline" className="w-full whitespace-nowrap text-sm">View Live</Button>
                       </Link>
                       <Link href={`/edit/${gb.id}`}>
-                        <Button className="w-full">Edit</Button>
+                        <Button className="w-full whitespace-nowrap text-sm">Edit</Button>
                       </Link>
                       <Button
                         variant="outline"
-                        className="w-full"
+                        className="w-full whitespace-nowrap text-sm"
                         onClick={() => setQrModalFor(gb.id)}
                       >QR Code</Button>
                       <Link href={`/dashboard/pdf/${gb.id}`}>
-                        <Button variant="outline" className="w-full">PDF Templates</Button>
+                        <Button variant="outline" className="w-full whitespace-nowrap text-sm">PDF Templates</Button>
                       </Link>
-                      <Link href={`/dashboard/url/${gb.id}`}>
-                        <Button variant="outline" className="w-full">Guidebook Templates</Button>
+                      <Link href={`/dashboard/url/${gb.id}`} className="col-span-2">
+                        <Button variant="outline" className="w-full whitespace-nowrap text-sm">Guidebook Templates</Button>
                       </Link>
                     </div>
                   </div>
