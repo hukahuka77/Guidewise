@@ -3,11 +3,17 @@
 
 {% block body %}
   <!-- Cover -->
+  {% if ctx.cover_image_url %}
   <div class="page cover">
     <div class="cover-overlay">
-      <h1 class="cover-title">{{ ctx.property_name or 'Your Stay' }}</h1>
+      <h1 class="cover-title">{{ ctx.property_name or 'My Guidebook' }}</h1>
     </div>
   </div>
+  {% else %}
+  <div class="page" style="display:flex; align-items:center; justify-content:center; text-align:center;">
+    <h1 class="title" style="border:none; margin:0; font-size:40px;">{{ ctx.property_name or 'My Guidebook' }}</h1>
+  </div>
+  {% endif %}
 
   <!-- Welcome & Info -->
   <div class="page">
@@ -32,6 +38,9 @@
         {% if ctx.access_info %}
         <p class="kv"><span class="label">Access:</span><br/>{{ ctx.access_info }}</p>
         {% endif %}
+        {% if ctx.parking_info %}
+        <p class="kv"><span class="label">Parking:</span><br/>{{ ctx.parking_info }}</p>
+        {% endif %}
       </div>
       <div>
         {% if ctx.wifi.network or ctx.wifi.password %}
@@ -44,9 +53,32 @@
         {% if ctx.check_out_time %}<p class="kv"><span class="label">Check-out:</span> {{ ctx.check_out_time }}</p>{% endif %}
       </div>
     </div>
+
+    {# Safety Info #}
+    {% set has_safety = ctx.safety_info and (ctx.safety_info.get('emergency_contact') or ctx.safety_info.get('fire_extinguisher_location')) %}
+    {% if has_safety %}
+    <div style="margin-top: 14px;">
+      <h2 style="margin:0 0 6px 0;">Safety Info</h2>
+      {% if ctx.safety_info.get('emergency_contact') %}
+      <p class="kv"><span class="label">Emergency Contact:</span> {{ ctx.safety_info.get('emergency_contact') }}</p>
+      {% endif %}
+      {% if ctx.safety_info.get('fire_extinguisher_location') %}
+      <p class="kv"><span class="label">Fire Extinguisher Location:</span> {{ ctx.safety_info.get('fire_extinguisher_location') }}</p>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {# Host Info #}
+    {% if ctx.host.name or ctx.host.contact %}
+    <div style="margin-top: 14px;">
+      <h2 style="margin:0 0 6px 0;">Host</h2>
+      {% if ctx.host.name %}<p class="kv"><span class="label">Name:</span> {{ ctx.host.name }}</p>{% endif %}
+      {% if ctx.host.contact %}<p class="kv"><span class="label">Contact:</span> {{ ctx.host.contact }}</p>{% endif %}
+    </div>
+    {% endif %}
   </div>
 
-  {% if 'activities' in ctx.included_tabs %}
+  {% if 'activities' in ctx.included_tabs and ctx.things_to_do and ctx.things_to_do|length > 0 %}
   <div class="page">
     <h1 class="title">Things to Do Nearby</h1>
     {{ pm.items_list(ctx.things_to_do) }}
@@ -67,44 +99,60 @@
   </div>
   {% endif %}
 
-  {% if 'food' in ctx.included_tabs %}
+  {% if 'food' in ctx.included_tabs and ctx.places_to_eat and ctx.places_to_eat|length > 0 %}
   <div class="page">
     <h1 class="title">Places to Eat Nearby</h1>
     {{ pm.items_list(ctx.places_to_eat) }}
   </div>
   {% endif %}
 
-  {% if 'rules' in ctx.included_tabs %}
+  {% if 'rules' in ctx.included_tabs and ctx.rules and ctx.rules|length > 0 %}
   <div class="page">
     <h1 class="title">House Rules & Notes</h1>
-    {% if ctx.rules and ctx.rules|length > 0 %}
     <ul class="rules">
       {% for rule in ctx.rules %}
         {% if rule %}<li>{{ rule }}</li>{% endif %}
       {% endfor %}
     </ul>
-    {% else %}
-      <p class="muted small">No rules provided.</p>
-    {% endif %}
   </div>
   {% endif %}
 
   {% for tab in ctx.included_tabs %}
     {% if tab.startswith('custom_') and ctx.custom_sections.get(tab) %}
     {% set meta = (ctx.custom_tabs_meta.get(tab) if ctx.custom_tabs_meta else None) %}
+    {% set blocks = ctx.custom_sections.get(tab) %}
+    {% if blocks and blocks|length > 0 %}
     <div class="page">
       <h1 class="title">{{ (meta.label if meta and meta.label) or (tab | replace('custom_', '') | replace('_', ' ') | title) }}</h1>
-      {% set blocks = ctx.custom_sections.get(tab) %}
-      {% if blocks and blocks|length > 0 %}
       <div>
         {% for text in blocks %}
           {% if text %}<p style="margin: 8px 0;">{{ text }}</p>{% endif %}
         {% endfor %}
       </div>
-      {% else %}
-        <p class="muted small">No content provided.</p>
-      {% endif %}
     </div>
     {% endif %}
+    {% endif %}
   {% endfor %}
+
+  {% if ctx.checkout_info and ctx.checkout_info|length > 0 %}
+  <div class="page">
+    <h1 class="title">Checkout</h1>
+    <ul>
+      {% for item in ctx.checkout_info %}
+        {% if item is string %}
+          <li>{{ item }}</li>
+        {% elif item.text %}
+          <li>{{ item.text }}</li>
+        {% elif item.name or item.description %}
+          <li>
+            {% if item.name %}<span class="label">{{ item.name }}:</span>{% endif %}
+            {% if item.description %} <span>{{ item.description }}</span>{% endif %}
+          </li>
+        {% else %}
+          <li>{{ item|string }}</li>
+        {% endif %}
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
 {% endblock %}

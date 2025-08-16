@@ -4,7 +4,7 @@ import { LIMITS } from "../../constants/limits";
 const NAV_META: Record<string, { label: string; icon: string }> = {
   welcome: { label: "Welcome", icon: "👋" },
   checkin: { label: "Check-in Info", icon: "🏠" },
-  property: { label: "Property Details", icon: "🏡" },
+  property: { label: "House Manual", icon: "📘" },
   food: { label: "Food", icon: "🍽️" },
   activities: { label: "Activities", icon: "🎡" },
   rules: { label: "House Rules", icon: "📋" },
@@ -18,9 +18,13 @@ interface SidebarNavProps {
   excluded: string[];
   onUpdate: (included: string[], excluded: string[]) => void;
   onCustomMetaChange?: (meta: Record<string, { icon: string; label: string }>) => void;
+  /** Sections that are allowed to be clicked (enabled). Others render greyed-out and are not clickable. */
+  allowedSections?: string[];
+  /** Whether the Add custom button is enabled. Defaults to true. */
+  customEnabled?: boolean;
 }
 
-export default function SidebarNav({ currentSection, onSectionChange, included, excluded, onUpdate, onCustomMetaChange }: SidebarNavProps) {
+export default function SidebarNav({ currentSection, onSectionChange, included, excluded, onUpdate, onCustomMetaChange, allowedSections, customEnabled = true }: SidebarNavProps) {
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const [dragOver, setDragOver] = React.useState<{
     list: "included" | "excluded" | null;
@@ -42,7 +46,7 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
   const customCount = React.useMemo(() => (
     [...included, ...excluded].filter(k => k.startsWith("custom_")).length
   ), [included, excluded]);
-  const canAddCustom = customCount < LIMITS.maxCustomTabs;
+  const canAddCustom = customCount < LIMITS.maxCustomTabs && customEnabled;
 
   // Whenever customMeta changes, notify parent if provided
   React.useEffect(() => {
@@ -155,6 +159,7 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
 
   const renderItem = (section: string, index: number, listName: "included" | "excluded") => {
     const meta: { icon: string; label: string } = NAV_META[section] ?? customMeta[section] ?? { icon: "📝", label: section };
+    const isEnabled = listName === "included" ? (!allowedSections || allowedSections.includes(section)) : true;
     return (
       <li
         key={section}
@@ -175,10 +180,14 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
           const insertion = dragOver.list === listName ? dragOver.index : index;
           handleDropOnList(e, listName, insertion);
         }}
-        className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors cursor-move ${
+        className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
           currentSection === section && listName === "included" ? "bg-white/20" : "hover:bg-white/10"
-        }`}
-        onClick={() => listName === "included" && onSectionChange(section)}
+        } ${!isEnabled && listName === 'included' ? 'opacity-50 cursor-not-allowed' : 'cursor-move'}`}
+        onClick={() => {
+          if (listName !== "included") return;
+          if (!isEnabled) return;
+          onSectionChange(section);
+        }}
         title="Drag to reorder or move between lists"
       >
         <span className="w-6 h-6">{meta.icon}</span>

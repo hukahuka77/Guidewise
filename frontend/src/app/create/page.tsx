@@ -14,7 +14,6 @@ import ArrivalSection from "./ArrivalSection";
 import WifiSection from "./WifiSection";
 import CheckinSection from "./CheckinSection";
 import WelcomeSection from "./WelcomeSection";
-import PropertySection from "./PropertySection";
 import HouseManualList from "./HouseManualList";
 import DynamicItemList, { DynamicItem } from "./DynamicItemList";
 import PlacePickerModal from "@/components/places/PlacePickerModal";
@@ -214,8 +213,26 @@ export default function CreateGuidebookPage() {
 
       // Read JSON with identifiers; do not create a blob now
       const json = await response.json();
+      let newId: string | null = null;
       if (json && json.guidebook_id) {
-        sessionStorage.setItem('guidebookId', String(json.guidebook_id));
+        newId = String(json.guidebook_id);
+        sessionStorage.setItem('guidebookId', newId);
+      }
+
+      // Render and store HTML snapshot so first live load is instant
+      try {
+        if (newId) {
+          await fetch(`${API_BASE}/api/guidebooks/${newId}/publish`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+            },
+          });
+        }
+      } catch (e) {
+        // Non-fatal—fallback to live render if publish snapshot fails
+        console.warn('Snapshot publish failed (create):', e);
       }
 
       router.push('/success');
@@ -229,9 +246,23 @@ export default function CreateGuidebookPage() {
     }
   };
 
-  // Navigation state for sidebar (free navigation among included)
+  // Navigation state for sidebar (guided flow)
   const [currentSection, setCurrentSection] = useState<string>("welcome");
-  const goToSection = (section: string) => setCurrentSection(section);
+  const [visitedSections, setVisitedSections] = useState<string[]>(["welcome"]);
+  const goToSection = (section: string) => {
+    // Only allow navigating to allowed sections (visited or next when eligible)
+    // allowedSections is computed below but we can conservatively allow
+    // - already visited, or
+    // - immediate next if current can advance
+    const idx = included.indexOf(currentSection);
+    const next = idx >= 0 ? included[idx + 1] : undefined;
+    const isAllowed = visitedSections.includes(section) || (section === next && (currentSection === "welcome" ? Boolean(formData.location && formData.location.trim()) : true));
+    if (!isAllowed) return;
+    if (!visitedSections.includes(section)) {
+      setVisitedSections((prev) => [...prev, section]);
+    }
+    setCurrentSection(section);
+  };
 
   // Ensure current section is always one of the included; if it becomes excluded or removed, jump to first included
   useEffect(() => {
@@ -239,6 +270,43 @@ export default function CreateGuidebookPage() {
       setCurrentSection(included[0] || "welcome");
     }
   }, [included, currentSection]);
+
+  // Ensure current is tracked as visited when it appears in included
+  useEffect(() => {
+    if (!visitedSections.includes(currentSection)) {
+      setVisitedSections((prev) => [...prev, currentSection]);
+    }
+  }, [currentSection]);
+
+  // Guided rules
+  const currentIdx = included.indexOf(currentSection);
+  const nextSection = currentIdx >= 0 ? included[currentIdx + 1] : undefined;
+  const isWelcome = currentSection === "welcome";
+  const canAdvanceFromCurrent = isWelcome ? Boolean(formData.location && formData.location.trim()) : true;
+  const allRequiredVisited = included.every((s) => visitedSections.includes(s));
+
+  // Allowed sections in sidebar:
+  // - any previously visited
+  // - current section
+  // - next section if current can advance
+  const allowedSections = Array.from(new Set([
+    ...visitedSections.filter((s) => included.includes(s)),
+    currentSection,
+    ...(canAdvanceFromCurrent && nextSection ? [nextSection] : []),
+  ]));
+
+  const goNext = () => {
+    if (!nextSection) return;
+    if (!canAdvanceFromCurrent) return;
+    setVisitedSections((prev) => (prev.includes(nextSection) ? prev : [...prev, nextSection]));
+    setCurrentSection(nextSection);
+  };
+
+  // Once user has reached the end at least once, keep showing Publish everywhere
+  const [hasReachedEnd, setHasReachedEnd] = useState<boolean>(false);
+  useEffect(() => {
+    if (allRequiredVisited && !hasReachedEnd) setHasReachedEnd(true);
+  }, [allRequiredVisited, hasReachedEnd]);
 
   // Initialize newly added custom tabs with a default single textbox
   useEffect(() => {
@@ -265,26 +333,6 @@ export default function CreateGuidebookPage() {
 
   return (
     <div className="w-full">
-      {/* Top-right Publish button above the guidebook container (bigger, tighter to top-right) */}
-      <div className="w-full sticky top-0 z-20 bg-transparent">
-        <div className="max-w-[1800px] mx-auto px-4 py-2 flex items-center justify-end">
-          <Button
-            type="button"
-            className="px-10 py-4 bg-[oklch(0.6923_0.22_21.05)] text-white font-semibold rounded-lg shadow-lg hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed text-lg md:text-xl"
-            onClick={(e) => handleSubmit(e as unknown as React.FormEvent)}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <span className="inline-flex items-center gap-2">
-                <Spinner size={18} />
-                Processing…
-              </span>
-            ) : (
-              "Publish"
-            )}
-          </Button>
-        </div>
-      </div>
 
       <CreateGuidebookLayout
         sidebar={
@@ -298,6 +346,8 @@ export default function CreateGuidebookPage() {
               setExcluded(exc);
             }}
             onCustomMetaChange={(meta) => setCustomTabsMeta(meta)}
+            allowedSections={allowedSections}
+            customEnabled={allRequiredVisited}
           />
         }
       >
@@ -313,8 +363,9 @@ export default function CreateGuidebookPage() {
           welcomeMessage={formData.welcomeMessage}
           location={formData.location}
           onChange={(id, value) => setFormData(f => ({ ...f, [id]: value }))}
-          emergencyContact={formData.emergencyContact}
-          fireExtinguisherLocation={formData.fireExtinguisherLocation}
+          propertyName={formData.propertyName}
+          onCoverImageChange={handleCoverImageSelect}
+          coverPreviewUrl={previewUrl}
           hostName={formData.hostName}
           hostBio={formData.hostBio}
           hostContact={formData.hostContact}
@@ -328,6 +379,8 @@ export default function CreateGuidebookPage() {
             accessInfo={formData.access_info}
             parkingInfo={formData.parkingInfo}
             checkInTime={formData.checkInTime}
+            emergencyContact={formData.emergencyContact}
+            fireExtinguisherLocation={formData.fireExtinguisherLocation}
             onChange={(id, value) => setFormData(f => ({ ...f, [id]: value }))}
           />
           <div className="mt-6">
@@ -340,25 +393,18 @@ export default function CreateGuidebookPage() {
         </>
       )}
       {currentSection === "property" && (
-        <>
-          <PropertySection
-            propertyName={formData.propertyName}
-            onChange={(id, value) => setFormData(f => ({ ...f, [id]: value }))}
-            onCoverImageChange={handleCoverImageSelect}
-            coverPreviewUrl={previewUrl}
+        <div className="mt-0">
+          <HouseManualList
+            items={houseManualItems}
+            onChange={(idx, field, value) => {
+              setHouseManualItems(items => items.map((it, i) => (i === idx ? { ...it, [field]: value } : it)));
+            }}
+            onAdd={() => setHouseManualItems(items => [...items, { name: "", description: "" }])}
+            onDelete={(idx) => setHouseManualItems(items => items.filter((_, i) => i !== idx))}
           />
-          <div className="mt-6">
-            <HouseManualList
-              items={houseManualItems}
-              onChange={(idx, field, value) => {
-                setHouseManualItems(items => items.map((it, i) => (i === idx ? { ...it, [field]: value } : it)));
-              }}
-              onAdd={() => setHouseManualItems(items => [...items, { name: "", description: "" }])}
-              onDelete={(idx) => setHouseManualItems(items => items.filter((_, i) => i !== idx))}
-            />
-          </div>
-        </>
+        </div>
       )}
+      
       {currentSection === "food" && (
         <div>
           <button
@@ -404,7 +450,14 @@ export default function CreateGuidebookPage() {
               }
             }}
           >
-            {isLoading ? "Loading..." : "Prepopulate with AI"}
+            {isLoading ? (
+              <span className="inline-flex items-center gap-2">
+                <Spinner size={18} />
+                Loading…
+              </span>
+            ) : (
+              "Prepopulate with AI"
+            )}
           </button>
           <DynamicItemList
             items={foodItems}
@@ -487,7 +540,14 @@ export default function CreateGuidebookPage() {
               }
             }}
           >
-            {isLoading ? "Loading..." : "Prepopulate with AI"}
+            {isLoading ? (
+              <span className="inline-flex items-center gap-2">
+                <Spinner size={18} />
+                Loading…
+              </span>
+            ) : (
+              "Prepopulate with AI"
+            )}
           </button>
           <DynamicItemList
             items={activityItems}
@@ -613,26 +673,36 @@ export default function CreateGuidebookPage() {
       {currentSection === "arrival" && (
         <ArrivalSection checkInTime={formData.checkInTime} onChange={(id, value) => setFormData(f => ({ ...f, [id]: value }))} />
       )}
+        {/* Next button (guided flow): sticky bottom-right within guidebook container */}
+        <div className="sticky bottom-4 z-10 mt-8 flex justify-end">
+          {hasReachedEnd ? (
+            <Button
+              type="button"
+              className="px-10 py-3 bg-[oklch(0.6923_0.22_21.05)] text-white rounded-lg shadow hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={(e) => handleSubmit(e as unknown as React.FormEvent)}
+              disabled={isLoading || !allRequiredVisited}
+            >
+              {isLoading ? (
+                <span className="inline-flex items-center gap-2">
+                  <Spinner size={18} />
+                  Processing…
+                </span>
+              ) : (
+                "Publish"
+              )}
+            </Button>
+          ) : nextSection ? (
+            <Button
+              type="button"
+              className="px-6 py-3 bg-[oklch(0.6923_0.22_21.05)] text-white rounded-lg shadow hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={goNext}
+              disabled={!canAdvanceFromCurrent}
+            >
+              Next
+            </Button>
+          ) : null}
+        </div>
       </CreateGuidebookLayout>
-
-      {/* Bottom centered Publish button */}
-      <div className="w-full mt-10 mb-16 flex items-center justify-center">
-        <Button
-          type="button"
-          className="px-10 py-4 bg-[oklch(0.6923_0.22_21.05)] text-white font-semibold rounded-lg shadow-lg hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed text-lg md:text-xl"
-          onClick={(e) => handleSubmit(e as unknown as React.FormEvent)}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <span className="inline-flex items-center gap-2">
-              <Spinner size={18} />
-              Processing…
-            </span>
-          ) : (
-            "Publish"
-          )}
-        </Button>
-      </div>
     </div>
   );
 

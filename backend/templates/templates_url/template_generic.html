@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Marcellus&display=swap" rel="stylesheet">
   <style>
     :root {
       --primary-color: oklch(0.6923 0.22 21.05);
@@ -46,6 +47,7 @@
     @media (min-width: 640px) { .recommendation-grid { grid-template-columns: repeat(2, 1fr); } }
     @media (min-width: 1024px) { .recommendation-grid { grid-template-columns: repeat(3, 1fr); } }
     @media (min-width: 768px) { .info-grid { grid-template-columns: 1fr 1fr; } .tabs { justify-content: center; } }
+    .gw-logo{ font-family: 'Marcellus', serif; letter-spacing: 0.15em; text-transform: uppercase; }
   </style>
 </head>
 <body>
@@ -65,7 +67,7 @@
         {% elif tab == 'checkin' %}
           <button class="tab-button {% if first_tab == tab %}active{% endif %}" data-tab="checkin" data-index="{{ loop.index0 }}">Check-in Info</button>
         {% elif tab == 'property' %}
-          <button class="tab-button {% if first_tab == tab %}active{% endif %}" data-tab="property" data-index="{{ loop.index0 }}">Property Details</button>
+          <button class="tab-button {% if first_tab == tab %}active{% endif %}" data-tab="property" data-index="{{ loop.index0 }}">House Manual</button>
         {% elif tab == 'food' %}
           <button class="tab-button {% if first_tab == tab %}active{% endif %}" data-tab="food" data-index="{{ loop.index0 }}">Food</button>
         {% elif tab == 'activities' %}
@@ -123,20 +125,7 @@
         </div>
       </div>
       {% endif %}
-      {% set si = ctx.safety_info or {} %}
-      {% if si.emergency_contact or si.fire_extinguisher_location %}
-      <div class="card">
-        <h2>Safety Info</h2>
-        <div class="info-grid">
-          {% if si.emergency_contact %}
-          <div class="info-item"><strong>Emergency Contact:</strong> {{ si.emergency_contact }}</div>
-          {% endif %}
-          {% if si.fire_extinguisher_location %}
-          <div class="info-item"><strong>Fire Extinguisher Location:</strong> {{ si.fire_extinguisher_location }}</div>
-          {% endif %}
-        </div>
-      </div>
-      {% endif %}
+      {# Safety Info removed from Welcome; now shown under Check-in #}
     </div>
     {% endif %}
     {% if 'checkin' in ctx.included_tabs %}
@@ -186,6 +175,20 @@
         </div>
       </div>
       {% endif %}
+      {% set si = ctx.safety_info or {} %}
+      {% if si.emergency_contact or si.fire_extinguisher_location %}
+      <div class="card">
+        <h2>Safety Info</h2>
+        <div class="info-grid">
+          {% if si.emergency_contact %}
+          <div class="info-item"><strong>Emergency Contact:</strong> {{ si.emergency_contact }}</div>
+          {% endif %}
+          {% if si.fire_extinguisher_location %}
+          <div class="info-item"><strong>Fire Extinguisher Location:</strong> {{ si.fire_extinguisher_location }}</div>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
     </div>
     {% endif %}
 
@@ -215,12 +218,6 @@
 
     {% if 'property' in ctx.included_tabs %}
     <div id="property" class="tab-content {% if first_tab == 'property' %}active{% endif %}">
-      {% if ctx.property_name %}
-      <div class="card">
-        <h2>Property Details</h2>
-        <div class="info-item"><strong>Property Name:</strong> {{ ctx.property_name }}</div>
-      </div>
-      {% endif %}
       {% if ctx.house_manual and ctx.house_manual|length > 0 %}
       <div class="card">
         <h2>House Manual</h2>
@@ -314,6 +311,13 @@
     </div>
     {% endif %}
   </main>
+
+  <footer style="width:100%; padding: 1.25rem 0; text-align:center; color:#475569;">
+    <div style="display:flex; align-items:center; justify-content:center; gap:0.5rem; font-size:0.95rem;">
+      <span>Powered by</span>
+      <a href="https://guidewiseapp.com/" class="gw-logo" style="color:#0f172a; text-decoration:none;">GUIDEWISE</a>
+    </div>
+  </footer>
 
   <script>
     (function(){

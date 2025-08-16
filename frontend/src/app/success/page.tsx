@@ -48,16 +48,18 @@ export default function SuccessPage() {
     }
   }, [claimTokenFromUrl]);
 
-  const getTemplateFromPdfUrl = (): 'template_pdf_original' | 'template_pdf_basic' | undefined => {
+  const getTemplateFromPdfUrl = (): 'template_pdf_original' | 'template_pdf_basic' | 'template_pdf_mobile' | undefined => {
     if (!pdfUrl) return undefined;
     if (pdfUrl.includes('template=template_pdf_basic')) return 'template_pdf_basic';
     if (pdfUrl.includes('template=template_pdf_original')) return 'template_pdf_original';
+    if (pdfUrl.includes('template=template_pdf_mobile')) return 'template_pdf_mobile';
     return undefined;
   };
 
-  const getPdfPlaceholder = (templateKey?: 'template_pdf_original' | 'template_pdf_basic') => {
+  const getPdfPlaceholder = (templateKey?: 'template_pdf_original' | 'template_pdf_basic' | 'template_pdf_mobile') => {
     // Default to Standard placeholder
     if (templateKey === 'template_pdf_basic') return '/images/PDF_Basic.png';
+    if (templateKey === 'template_pdf_mobile') return '/images/PDF_Mobile.png';
     return '/images/PDF_Standard.png';
   };
 
@@ -143,7 +145,7 @@ export default function SuccessPage() {
     return null;
   };
 
-  const handleDownload = (templateKey?: 'template_pdf_original' | 'template_pdf_basic') => {
+  const handleDownload = (templateKey?: 'template_pdf_original' | 'template_pdf_basic' | 'template_pdf_mobile') => {
     // Build a URL that forces download on the server via ?download=1
     if (!guidebookId) return;
     const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || '';
@@ -159,7 +161,7 @@ export default function SuccessPage() {
     document.body.removeChild(link);
   };
 
-  const buildPdfUrl = async (templateKey?: 'template_pdf_original' | 'template_pdf_basic') => {
+  const buildPdfUrl = async (templateKey?: 'template_pdf_original' | 'template_pdf_basic' | 'template_pdf_mobile') => {
     if (!guidebookId) return null;
     const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || '';
     const hasTemplate = Boolean(templateKey);
@@ -210,7 +212,7 @@ export default function SuccessPage() {
     doClaim();
   }, [guidebookId, isPreviewLink, claimTokenFromUrl, accessToken]);
 
-  const PdfCard = ({ label, templateKey }: { label: string; templateKey?: 'template_pdf_original' | 'template_pdf_basic' }) => (
+  const PdfCard = ({ label, templateKey }: { label: string; templateKey?: 'template_pdf_original' | 'template_pdf_basic' | 'template_pdf_mobile' }) => (
     <div className="group relative border rounded-xl p-4 bg-white shadow hover:shadow-lg transition">
       <div className="aspect-[8.5/11] w-full overflow-hidden rounded-lg bg-gray-100 flex items-center justify-center">
         <img
@@ -244,6 +246,7 @@ export default function SuccessPage() {
 
   const TemplateCard = ({ label, templateKey }: { label: string; templateKey: 'template_original' | 'template_generic' }) => {
     const isSelected = selectedTemplateKey === templateKey;
+    const displayName = templateKey === 'template_original' ? 'Original' : 'Generic';
     return (
     <div className={`relative rounded-xl p-4 bg-white shadow hover:shadow-lg transition border ${isSelected ? 'border-emerald-300 ring-2 ring-emerald-200' : 'border-gray-200'}`}>
       {selectedTemplateKey === templateKey && (
@@ -262,7 +265,7 @@ export default function SuccessPage() {
         />
       </div>
       <div className="mt-3 flex items-center justify-between">
-        <p className="text-sm text-gray-500">Public URL template</p>
+        <p className="text-sm text-gray-700 font-medium">{displayName}</p>
         <Button size="sm" disabled={!guidebookId || isUpdatingTemplate} onClick={async () => {
           if (!guidebookId) return;
           setIsUpdatingTemplate(true);
@@ -276,7 +279,7 @@ export default function SuccessPage() {
               body: JSON.stringify({ template_key: templateKey })
             });
             if (!res.ok) throw new Error('Failed to set template');
-            setTemplateMessage(`${label} selected. Your live guidebook is ready.`);
+            setTemplateMessage(`${displayName} template selected. Your live guidebook is ready.`);
             setSelectedTemplateKey(templateKey);
           } catch (e: unknown) {
             const msg = e instanceof Error ? e.message : 'Failed to select template';
@@ -414,8 +417,9 @@ export default function SuccessPage() {
           </div>
           <p className="text-sm text-gray-500 mb-4">Preview a compact PDF. Click to open a larger preview.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            <PdfCard label="Standard PDF" templateKey="template_pdf_original" />
             <PdfCard label="Basic PDF" templateKey="template_pdf_basic" />
+            <PdfCard label="Standard PDF" templateKey="template_pdf_original" />
+            <PdfCard label="Mobile PDF" templateKey="template_pdf_mobile" />
           </div>
         </section>
 

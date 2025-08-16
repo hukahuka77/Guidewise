@@ -67,7 +67,7 @@ export default function Home() {
                   <img
                     src="/images/defaultQR.png"
                     alt="QR code to view example guidebook"
-                    className="w-40 h-40 sm:w-48 sm:h-48 object-contain rounded-xl border bg-white p-3"
+                    className="hidden md:block w-40 h-40 md:w-48 md:h-48 object-contain rounded-xl border bg-white p-3"
                   />
                 </div>
               </div>

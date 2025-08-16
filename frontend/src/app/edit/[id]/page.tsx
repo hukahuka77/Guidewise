@@ -15,7 +15,6 @@ import CheckinSection from "@/app/create/CheckinSection";
 import WelcomeSection from "@/app/create/WelcomeSection";
 import Spinner from "@/components/ui/spinner";
 import HostInfoSection from "@/app/create/HostInfoSection";
-import PropertySection from "@/app/create/PropertySection";
 import DynamicItemList, { DynamicItem } from "@/app/create/DynamicItemList";
 import HouseManualList from "@/app/create/HouseManualList";
 import RulesSection from "@/app/create/RulesSection";
@@ -301,7 +300,20 @@ export default function EditGuidebookPage() {
       }
       if (!res.ok) throw new Error(`Update failed (${res.status})`);
 
-      // After update, go to live view
+      // After update, render and store the HTML snapshot so next view is instant
+      try {
+        await fetch(`${API_BASE}/api/guidebooks/${guidebookId}/publish`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+          },
+        });
+      } catch (e) {
+        console.warn('Snapshot publish failed (edit):', e);
+      }
+
+      // Then go to live view
       window.location.href = `${API_BASE}/guidebook/${guidebookId}`;
     } catch (err: unknown) {
       console.error(err);
@@ -402,8 +414,9 @@ export default function EditGuidebookPage() {
             welcomeMessage={formData.welcomeMessage}
             location={formData.location}
             onChange={(id: string, value: string) => setFormData(f => ({ ...f, [id]: value }))}
-            emergencyContact={formData.emergencyContact}
-            fireExtinguisherLocation={formData.fireExtinguisherLocation}
+            propertyName={formData.propertyName}
+            onCoverImageChange={handleCoverImageSelect}
+            coverPreviewUrl={previewUrl}
             hostName={formData.hostName}
             hostBio={formData.hostBio}
             hostContact={formData.hostContact}
@@ -416,6 +429,8 @@ export default function EditGuidebookPage() {
             accessInfo={formData.access_info}
             parkingInfo={formData.parkingInfo}
             checkInTime={formData.checkInTime}
+            emergencyContact={formData.emergencyContact}
+            fireExtinguisherLocation={formData.fireExtinguisherLocation}
             onChange={(id: string, value: string) => setFormData(f => ({ ...f, [id]: value }))}
           />
         )}
@@ -431,13 +446,7 @@ export default function EditGuidebookPage() {
         )}
         {currentSection === "property" && (
           <>
-            <PropertySection
-              propertyName={formData.propertyName}
-              onChange={(id, value) => setFormData(f => ({ ...f, [id]: value }))}
-              onCoverImageChange={handleCoverImageSelect}
-              coverPreviewUrl={previewUrl}
-            />
-            <div className="mt-6">
+            <div className="mt-0">
               <HouseManualList
                 items={houseManualItems}
                 onChange={(idx, field, value) => {

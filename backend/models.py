@@ -80,3 +80,8 @@ class Guidebook(db.Model):
 
     # Relationships
     rules = db.relationship('Rule', backref='guidebook', lazy=True, cascade="all, delete-orphan")
+
+    # Snapshot fields for fast live serving
+    published_html = db.Column(db.Text, nullable=True)
+    published_etag = db.Column(db.String(64), nullable=True)
+    published_at = db.Column(db.DateTime(timezone=True), nullable=True)

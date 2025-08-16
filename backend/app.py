@@ -60,9 +60,23 @@ CORS(
     expose_headers=["X-Guidebook-Url"],
 )
 
-# Configure the database using the DATABASE_URL from .env, with a fallback to SQLite
+# Configure the database using the DATABASE_URL from .env
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# Prevent stale connections (common with managed Postgres like Supabase)
+# - pool_pre_ping: checks connection liveness before using it
+# - pool_recycle: proactively recycle connections after N seconds (e.g., 300s)
+# - connect_args: enable TCP keepalives so idle connections are kept alive
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,
+    'pool_recycle': 300,
+    'connect_args': {
+        'keepalives': 1,
+        'keepalives_idle': 30,
+        'keepalives_interval': 10,
+        'keepalives_count': 5,
+    },
+}
 
 # Initialize the database with the app
 db.init_app(app)
@@ -158,7 +172,7 @@ TEMPLATE_REGISTRY = {
 }
 ALLOWED_TEMPLATE_KEYS = set(TEMPLATE_REGISTRY.keys())
 # Allowed PDF template keys (canonical)
-ALLOWED_PDF_TEMPLATE_KEYS = {"template_pdf_original", "template_pdf_basic"}
+ALLOWED_PDF_TEMPLATE_KEYS = {"template_pdf_original", "template_pdf_basic", "template_pdf_mobile"}
 
 RENDER_CACHE = {}
 
@@ -316,6 +330,24 @@ def _slugify(text: str) -> str:
 @app.route('/g/<public_slug>')
 def view_live_by_slug(public_slug):
     gb = Guidebook.query.filter_by(public_slug=public_slug, active=True).first_or_404()
+    # Serve snapshot if fresh; otherwise render on demand
+    if getattr(gb, 'published_html', None) and getattr(gb, 'published_at', None):
+        try:
+            if gb.published_at and gb.last_modified_time and gb.published_at >= gb.last_modified_time:
+                # Validate ETag
+                incoming = request.headers.get('If-None-Match')
+                etag = gb.published_etag or hashlib.sha256((gb.id + (gb.template_key or '') + str(gb.last_modified_time)).encode('utf-8')).hexdigest()
+                if incoming == etag:
+                    resp = make_response('', 304)
+                    resp.headers['ETag'] = etag
+                    return resp
+                resp = make_response(gb.published_html)
+                resp.headers['Content-Type'] = 'text/html; charset=utf-8'
+                resp.headers['ETag'] = etag
+                resp.headers['Cache-Control'] = 'public, max-age=300, stale-while-revalidate=86400'
+                return resp
+        except Exception:
+            pass
     return _render_guidebook(gb)
 
 
@@ -354,6 +386,23 @@ def view_guidebook(guidebook_id):
     # Legacy direct-by-id path. Only allow if active; otherwise require preview token path.
     if not getattr(guidebook, 'active', False):
         return jsonify({"error": "This guidebook is not active. Use preview link to view."}), 403
+    # Serve snapshot if fresh; otherwise render on demand
+    if getattr(guidebook, 'published_html', None) and getattr(guidebook, 'published_at', None):
+        try:
+            if guidebook.published_at and guidebook.last_modified_time and guidebook.published_at >= guidebook.last_modified_time:
+                incoming = request.headers.get('If-None-Match')
+                etag = guidebook.published_etag or hashlib.sha256((guidebook.id + (guidebook.template_key or '') + str(guidebook.last_modified_time)).encode('utf-8')).hexdigest()
+                if incoming == etag:
+                    resp = make_response('', 304)
+                    resp.headers['ETag'] = etag
+                    return resp
+                resp = make_response(guidebook.published_html)
+                resp.headers['Content-Type'] = 'text/html; charset=utf-8'
+                resp.headers['ETag'] = etag
+                resp.headers['Cache-Control'] = 'public, max-age=300, stale-while-revalidate=86400'
+                return resp
+        except Exception:
+            pass
     return _render_guidebook(guidebook)
 
 @app.route('/api/generate', methods=['POST'])
@@ -549,7 +598,127 @@ def list_guidebooks():
         }
         for gb in q.all()
     ]
-    return jsonify({"items": items})
+    return jsonify({"ok": True, "items": items})
+
+@app.route('/api/guidebooks/<guidebook_id>/publish', methods=['POST'])
+@require_auth
+def publish_guidebook(guidebook_id):
+    """Render the selected template to a static HTML snapshot and store it.
+
+    Returns: { ok: true, etag, published_at }
+    """
+    gb = Guidebook.query.get_or_404(guidebook_id)
+    if gb.user_id != g.user_id:
+        return jsonify({"error": "Not found"}), 404
+
+    # Reuse the same context and template selection as live renderer, but produce HTML string only
+    try:
+        template_key = getattr(gb, 'template_key', None) or 'template_original'
+        if template_key not in ALLOWED_TEMPLATE_KEYS:
+            template_key = 'template_original'
+        template_file = TEMPLATE_REGISTRY.get(template_key, TEMPLATE_REGISTRY['template_original'])
+
+        base_tabs = ['welcome','checkin','property','food','activities','rules','checkout']
+        included_tabs = getattr(gb, 'included_tabs', None) or base_tabs
+        included_tabs = [t for t in included_tabs if (t in base_tabs) or (isinstance(t, str) and t.startswith('custom_'))]
+
+        # Sanitize custom tabs meta
+        safe_custom_tabs_meta = None
+        meta = getattr(gb, 'custom_tabs_meta', None)
+        if isinstance(meta, dict):
+            safe_custom_tabs_meta = {}
+            for k, v in meta.items():
+                if isinstance(v, dict):
+                    lbl = _strip_surrogates(str(v.get('label'))) if v.get('label') is not None else ''
+                    ico = _strip_surrogates(str(v.get('icon'))) if v.get('icon') is not None else ''
+                    safe_custom_tabs_meta[k] = {'label': lbl, 'icon': ico}
+
+        PLACEHOLDER_COVER_URL = (
+            "https://hojncqasasvvrhdmwwhv.supabase.co/storage/v1/object/public/my_images/home_placeholder.jpg"
+        )
+
+        ctx = {
+            "schema_version": 1,
+            "id": gb.id,
+            "property_name": (getattr(gb.property, 'name', None) or 'My Guidebook'),
+            "host": {
+                "name": getattr(gb.host, 'name', None),
+                "bio": getattr(gb.host, 'bio', None),
+                "contact": getattr(gb.host, 'contact', None),
+                "photo_url": getattr(gb.host, 'host_image_base64', None),
+            },
+            "welcome_message": getattr(gb, 'welcome_info', None),
+            "safety_info": getattr(gb, 'safety_info', {}) or {},
+            "address": {
+                "street": getattr(gb.property, 'address_street', None),
+                "city_state": getattr(gb.property, 'address_city_state', None),
+                "zip": getattr(gb.property, 'address_zip', None),
+            },
+            "wifi": {
+                "network": getattr(gb.wifi, 'network', None) if gb.wifi else None,
+                "password": getattr(gb.wifi, 'password', None) if gb.wifi else None,
+            },
+            "check_in_time": gb.check_in_time,
+            "check_out_time": gb.check_out_time,
+            "access_info": gb.access_info,
+            "parking_info": gb.parking_info,
+            "rules": [r.text for r in gb.rules],
+            "things_to_do": gb.things_to_do or [],
+            "places_to_eat": gb.places_to_eat or [],
+            "checkout_info": getattr(gb, 'checkout_info', None) or [],
+            "house_manual": getattr(gb, 'house_manual', None) or [],
+            "included_tabs": included_tabs,
+            "custom_sections": getattr(gb, 'custom_sections', None) or {},
+            "custom_tabs_meta": safe_custom_tabs_meta or (getattr(gb, 'custom_tabs_meta', None) or {}),
+            "cover_image_url": (gb.cover_image_url or PLACEHOLDER_COVER_URL),
+        }
+
+        html = render_template(
+            template_file,
+            ctx=ctx,
+            id=gb.id,
+            host_name=getattr(gb.host, 'name', None),
+            host_bio=getattr(gb.host, 'bio', None),
+            host_contact=getattr(gb.host, 'contact', None),
+            host_photo_url=getattr(gb.host, 'host_image_base64', None),
+            property_name=gb.property.name,
+            wifi_network=gb.wifi.network if gb.wifi and gb.wifi.network else None,
+            wifi_password=gb.wifi.password if gb.wifi and gb.wifi.password else None,
+            check_in_time=gb.check_in_time,
+            check_out_time=gb.check_out_time,
+            address_street=gb.property.address_street,
+            address_city_state=gb.property.address_city_state,
+            address_zip=gb.property.address_zip,
+            access_info=gb.access_info,
+            welcome_message=getattr(gb, 'welcome_info', None),
+            parking_info=getattr(gb, 'parking_info', None),
+            rules=[rule.text for rule in gb.rules],
+            things_to_do=gb.things_to_do,
+            places_to_eat=gb.places_to_eat,
+            checkout_info=getattr(gb, 'checkout_info', None),
+            house_manual=getattr(gb, 'house_manual', None),
+            included_tabs=included_tabs,
+            custom_sections=getattr(gb, 'custom_sections', None),
+            custom_tabs_meta=safe_custom_tabs_meta,
+            cover_image_url=gb.cover_image_url,
+        )
+
+        # Compute ETag and store snapshot
+        etag = hashlib.sha256((gb.id + (template_key or '') + str(gb.last_modified_time) + str(len(html))).encode('utf-8')).hexdigest()
+        gb.published_html = html
+        gb.published_etag = etag
+        gb.published_at = datetime.now(timezone.utc)
+
+        # Persist and bump last_modified_time so downstream caches notice if needed
+        try:
+            db.session.execute(text("UPDATE guidebook SET last_modified_time = NOW() WHERE id = :id"), {"id": gb.id})
+        except Exception:
+            pass
+        db.session.commit()
+        return jsonify({"ok": True, "etag": etag, "published_at": gb.published_at.isoformat()})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"publish failed: {type(e).__name__}: {e}"}), 500
 
 @app.route('/api/guidebooks/<guidebook_id>', methods=['GET'])
 @require_auth
@@ -747,6 +916,10 @@ def run_startup_migrations():
         # Timestamps
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS created_time TIMESTAMPTZ DEFAULT NOW();",
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS last_modified_time TIMESTAMPTZ DEFAULT NOW();",
+        # Snapshot columns
+        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS published_html TEXT;",
+        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS published_etag TEXT;",
+        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS published_at TIMESTAMPTZ;",
         # Make host name and guidebook.host_id optional
         "ALTER TABLE host ALTER COLUMN name DROP NOT NULL;",
         "ALTER TABLE guidebook ALTER COLUMN host_id DROP NOT NULL;",

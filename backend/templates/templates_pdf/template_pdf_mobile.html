@@ -1,0 +1,256 @@
+{% extends "base_pdf.html" %}
+{% import "_pdf_macros.html" as pm %}
+
+{% block head_extra %}
+  <style>
+    /* Mobile-friendly page sizing and typography */
+    @page { size: 420px 740px; margin: 0; }
+    body { font-family: Inter, Arial, sans-serif; font-size: 12px; background: #F8F5F1; }
+    .page { position: relative; padding: 16px; min-height: 740px; box-sizing: border-box; }
+
+    .nav-title { font-size: 20px; font-weight: 800; letter-spacing: 0.5px; }
+    .subtitle { color: #444; font-size: 12px; margin-top: 2px; }
+
+    .menu-wrap { min-height: calc(740px - 32px); display:flex; flex-direction:column; align-items:center; justify-content:center; gap: 10px; }
+    .nav-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 8px; width: 100%; max-width: 360px; }
+    .nav-btn { display: block; text-decoration: none; color: #222; border: 1px solid #ddd; border-radius: 12px; padding: 10px 8px; text-align: center; background: #fafafa; min-height: 76px; }
+    .nav-icon { font-size: 20px; display:block; margin-bottom: 6px; line-height: 1; height: 20px; overflow: hidden; font-family: "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji", sans-serif; }
+    .nav-label { font-size: 11px; font-weight: 600; }
+
+    .qr { position:absolute; right: 8px; top: 8px; width: 70px; text-align: center; }
+    .qr img { width: 100%; height: auto; }
+    .qr .cap { font-size: 9px; margin-top: 2px; color:#666; }
+
+    h1.title { font-size: 18px; margin: 0 0 8px 0; }
+    h2 { font-size: 13px; margin: 10px 0 4px 0; }
+    p { margin: 4px 0; }
+    .kv .label { font-weight: 700; }
+    .small { font-size: 11px; }
+    /* Home (Back-to-menu) circular icon button using inline SVG to avoid emoji duplication */
+    .back { position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border-radius: 50%; border: 1px solid #d1d5db; background:#ffffff; display:block; text-decoration:none; overflow:hidden; text-indent: -9999px; }
+    .back { background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23111' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M3 11l9-8 9 8'/><path d='M5 12v9h14v-9'/></svg>"); background-repeat:no-repeat; background-position:center; background-size:18px 18px; }
+
+    ul { margin: 6px 0 0 14px; }
+    ul.rules { list-style: disc; }
+
+    /* Card-like blocks for check-in/out page */
+    .chip { background: #f1f1f1; border-radius: 16px; padding: 8px 10px; margin: 8px 0; }
+  </style>
+{% endblock %}
+
+{% block body %}
+  {# Navigation (Menu) page #}
+  <div class="page" id="menu">
+    {% if ctx.qr_img_src %}
+    <div class="qr">
+      <img src="{{ ctx.qr_img_src }}" alt="QR" />
+      <div class="cap">Open online</div>
+    </div>
+    {% endif %}
+
+    <div class="menu-wrap">
+      <div style="text-align:center;">
+        <div class="nav-title">{{ ctx.property_name or 'My Guidebook' }}</div>
+        {% if ctx.address.street or ctx.address.city_state %}
+          <div class="subtitle">{{ ctx.address.street }}{% if ctx.address.city_state %}, {{ ctx.address.city_state }}{% endif %}</div>
+        {% endif %}
+      </div>
+
+      <div class="nav-grid">
+        <a class="nav-btn" href="#sec-welcome"><span class="nav-icon">👋</span><span class="nav-label">Welcome</span></a>
+        <a class="nav-btn" href="#sec-checkin"><span class="nav-icon">🛎️</span><span class="nav-label">Check-in/Out</span></a>
+        {% if 'property' in ctx.included_tabs and ctx.house_manual and ctx.house_manual|length > 0 %}
+        <a class="nav-btn" href="#sec-manual"><span class="nav-icon">🏠</span><span class="nav-label">House Manual</span></a>
+        {% endif %}
+        {% if ctx.wifi.network or ctx.wifi.password %}
+        <a class="nav-btn" href="#sec-wifi"><span class="nav-icon">📶</span><span class="nav-label">Wi‑Fi</span></a>
+        {% endif %}
+        {% if 'rules' in ctx.included_tabs and ctx.rules and ctx.rules|length > 0 %}
+        <a class="nav-btn" href="#sec-rules"><span class="nav-icon">📋</span><span class="nav-label">Rules</span></a>
+        {% endif %}
+        {% if 'activities' in ctx.included_tabs and ctx.things_to_do and ctx.things_to_do|length > 0 %}
+        <a class="nav-btn" href="#sec-activities"><span class="nav-icon">🗺️</span><span class="nav-label">Things to Do</span></a>
+        {% endif %}
+        {% if 'food' in ctx.included_tabs and ctx.places_to_eat and ctx.places_to_eat|length > 0 %}
+        <a class="nav-btn" href="#sec-food"><span class="nav-icon">🍽️</span><span class="nav-label">Places to Eat</span></a>
+        {% endif %}
+        {% set has_safety = ctx.safety_info and (ctx.safety_info.get('emergency_contact') or ctx.safety_info.get('fire_extinguisher_location')) %}
+        {% if has_safety %}
+        <a class="nav-btn" href="#sec-safety"><span class="nav-icon">⛑️</span><span class="nav-label">Safety</span></a>
+        {% endif %}
+        {% if ctx.host.name or ctx.host.contact %}
+        <a class="nav-btn" href="#sec-host"><span class="nav-icon">👤</span><span class="nav-label">Host</span></a>
+        {% endif %}
+        {% for tab in ctx.included_tabs %}
+          {% if tab.startswith('custom_') and ctx.custom_sections.get(tab) %}
+            {% set blocks = ctx.custom_sections.get(tab) %}
+            {% if blocks and blocks|length > 0 %}
+            {% set meta = (ctx.custom_tabs_meta.get(tab) if ctx.custom_tabs_meta else None) %}
+            <a class="nav-btn" href="#sec-{{ tab }}"><span class="nav-icon">📄</span><span class="nav-label">{{ (meta.label if meta and meta.label) or (tab | replace('custom_', '') | replace('_', ' ') | title) }}</span></a>
+            {% endif %}
+          {% endif %}
+        {% endfor %}
+        {% if ctx.checkout_info and ctx.checkout_info|length > 0 %}
+        <a class="nav-btn" href="#sec-checkout"><span class="nav-icon">🧳</span><span class="nav-label">Checkout</span></a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# Welcome #}
+  <div class="page" id="sec-welcome">
+    <a class="back" href="#menu">Back to menu</a>
+    <h1 class="title">Welcome</h1>
+    {% if ctx.welcome_message %}<p>{{ ctx.welcome_message }}</p>{% endif %}
+
+    <h2>Location & Access</h2>
+    {% if ctx.address.street or ctx.address.city_state or ctx.address.zip %}
+      <p class="kv"><span class="label">Address:</span><br/>
+      {{ ctx.address.street }}{% if ctx.address.city_state %}<br/>{{ ctx.address.city_state }}{% endif %}{% if ctx.address.zip %}{% if ctx.address.city_state %}, {% endif %}{{ ctx.address.zip }}{% endif %}
+      </p>
+    {% endif %}
+    {% if ctx.access_info %}<p class="kv"><span class="label">Access:</span> {{ ctx.access_info }}</p>{% endif %}
+    {% if ctx.parking_info %}<p class="kv"><span class="label">Parking:</span> {{ ctx.parking_info }}</p>{% endif %}
+  </div>
+
+  {# Check-in / out (special layout) #}
+  {% if ctx.check_in_time or ctx.check_out_time %}
+  <div class="page" id="sec-checkin">
+    <a class="back" href="#menu">Back to menu</a>
+    <style>
+      .check-wrap { display:flex; flex-direction:column; gap:16px; margin-top: 6px; }
+      .stripe { position: relative; border-radius: 16px; padding: 18px; min-height: 140px; color:#0f172a; overflow:hidden; }
+      .stripe .label { font-weight:800; letter-spacing:0.3px; font-size:14px; }
+      .stripe .time { font-size:36px; font-weight:800; margin-top:6px; }
+      .stripe--in { background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); }
+      .stripe--out { background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%); }
+      /* decorative shapes */
+      .stripe::after { content:""; position:absolute; width:220px; height:220px; right:-60px; bottom:-80px; background: rgba(255,255,255,0.35); border-radius: 50%; filter: blur(2px); }
+    </style>
+    <div class="check-wrap">
+      {% if ctx.check_in_time %}
+      <div class="stripe stripe--in">
+        <div class="label">Check‑in</div>
+        <div class="time">{{ ctx.check_in_time }}</div>
+      </div>
+      {% endif %}
+      {% if ctx.check_out_time %}
+      <div class="stripe stripe--out">
+        <div class="label">Check‑out</div>
+        <div class="time">{{ ctx.check_out_time }}</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if 'property' in ctx.included_tabs and ctx.house_manual and ctx.house_manual|length > 0 %}
+  <div class="page" id="sec-manual">
+    <a class="back" href="#menu">Back to menu</a>
+    <h1 class="title">House Manual</h1>
+    {% for item in ctx.house_manual %}
+      <div class="chip">
+        {% if item.name %}<div style="font-weight: 600;">{{ item.name }}</div>{% endif %}
+        {% if item.description %}<div style="white-space: pre-line;" class="small">{{ item.description }}</div>{% endif %}
+      </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if 'rules' in ctx.included_tabs and ctx.rules and ctx.rules|length > 0 %}
+  <div class="page" id="sec-rules">
+    <a class="back" href="#menu">Back to menu</a>
+    <h1 class="title">House Rules</h1>
+    <ul class="rules">
+      {% for rule in ctx.rules %}
+        {% if rule %}<li>{{ rule }}</li>{% endif %}
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {% if ctx.wifi.network or ctx.wifi.password %}
+  <div class="page" id="sec-wifi">
+    <a class="back" href="#menu">Back to menu</a>
+    <h1 class="title">Wi‑Fi</h1>
+    {% if ctx.wifi.network %}<p class="kv"><span class="label">Network:</span> {{ ctx.wifi.network }}</p>{% endif %}
+    {% if ctx.wifi.password %}<p class="kv"><span class="label">Password:</span> {{ ctx.wifi.password }}</p>{% endif %}
+  </div>
+  {% endif %}
+
+  {% if 'activities' in ctx.included_tabs and ctx.things_to_do and ctx.things_to_do|length > 0 %}
+  <div class="page" id="sec-activities">
+    <a class="back" href="#menu">Back to menu</a>
+    <h1 class="title">Things to Do</h1>
+    {{ pm.items_list(ctx.things_to_do) }}
+  </div>
+  {% endif %}
+
+  {% if 'food' in ctx.included_tabs and ctx.places_to_eat and ctx.places_to_eat|length > 0 %}
+  <div class="page" id="sec-food">
+    <a class="back" href="#menu">Back to menu</a>
+    <h1 class="title">Places to Eat</h1>
+    {{ pm.items_list(ctx.places_to_eat) }}
+  </div>
+  {% endif %}
+
+  {% set has_safety = ctx.safety_info and (ctx.safety_info.get('emergency_contact') or ctx.safety_info.get('fire_extinguisher_location')) %}
+  {% if has_safety %}
+  <div class="page" id="sec-safety">
+    <a class="back" href="#menu">Back to menu</a>
+    <h1 class="title">Safety</h1>
+    {% if ctx.safety_info.get('emergency_contact') %}
+    <p class="kv"><span class="label">Emergency Contact:</span> {{ ctx.safety_info.get('emergency_contact') }}</p>
+    {% endif %}
+    {% if ctx.safety_info.get('fire_extinguisher_location') %}
+    <p class="kv"><span class="label">Fire Extinguisher Location:</span> {{ ctx.safety_info.get('fire_extinguisher_location') }}</p>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if ctx.host.name or ctx.host.contact %}
+  <div class="page" id="sec-host">
+    <a class="back" href="#menu">Back to menu</a>
+    <h1 class="title">Meet the Host</h1>
+    {% if ctx.host.name %}<p class="kv"><span class="label">Name:</span> {{ ctx.host.name }}</p>{% endif %}
+    {% if ctx.host.contact %}<p class="kv"><span class="label">Contact:</span> {{ ctx.host.contact }}</p>{% endif %}
+  </div>
+  {% endif %}
+
+  {% for tab in ctx.included_tabs %}
+    {% if tab.startswith('custom_') and ctx.custom_sections.get(tab) %}
+      {% set blocks = ctx.custom_sections.get(tab) %}
+      {% if blocks and blocks|length > 0 %}
+      {% set meta = (ctx.custom_tabs_meta.get(tab) if ctx.custom_tabs_meta else None) %}
+      <div class="page" id="sec-{{ tab }}">
+        <a class="back" href="#menu">Back to menu</a>
+        <h1 class="title">{{ (meta.label if meta and meta.label) or (tab | replace('custom_', '') | replace('_', ' ') | title) }}</h1>
+        {% for text in blocks %}
+          {% if text %}<p style="margin: 6px 0;">{{ text }}</p>{% endif %}
+        {% endfor %}
+      </div>
+      {% endif %}
+    {% endif %}
+  {% endfor %}
+
+  {% if ctx.checkout_info and ctx.checkout_info|length > 0 %}
+  <div class="page" id="sec-checkout">
+    <a class="back" href="#menu">Back to menu</a>
+    <h1 class="title">Checkout</h1>
+    <ul>
+      {% for item in ctx.checkout_info %}
+        {% if item is string %}
+          <li>{{ item }}</li>
+        {% elif item.text %}
+          <li>{{ item.text }}</li>
+        {% elif item.name or item.description %}
+          <li>{% if item.name %}<span class="label">{{ item.name }}:</span>{% endif %}{% if item.description %} <span>{{ item.description }}</span>{% endif %}</li>
+        {% else %}
+          <li>{{ item|string }}</li>
+        {% endif %}
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+{% endblock %}

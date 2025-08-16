@@ -11,7 +11,7 @@ const PdfViewer = dynamic(() => import("@/components/custom/PdfViewer"), { ssr: 
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
-type TemplateKey = "template_pdf_original" | "template_pdf_basic";
+type TemplateKey = "template_pdf_original" | "template_pdf_basic" | "template_pdf_mobile";
 
 export default function GuidebookPdfPage() {
   const params = useParams();
@@ -28,6 +28,7 @@ export default function GuidebookPdfPage() {
 
   const getPdfPlaceholder = (templateKey?: TemplateKey) => {
     if (templateKey === "template_pdf_basic") return "/images/PDF_Basic.png";
+    if (templateKey === "template_pdf_mobile") return "/images/PDF_Mobile.png";
     return "/images/PDF_Standard.png";
   };
 
@@ -132,6 +133,30 @@ export default function GuidebookPdfPage() {
                     Preview
                   </Button>
                   <Button size="sm" onClick={() => handleDownload("template_pdf_basic")} disabled={!guidebookId}>Download</Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Mobile PDF */}
+            <div className="group relative border rounded-xl p-4 bg-white shadow hover:shadow-lg transition">
+              <div className="aspect-[8.5/11] w-full overflow-hidden rounded-lg bg-gray-100 flex items-center justify-center">
+                <img src={getPdfPlaceholder("template_pdf_mobile")} alt="Mobile PDF placeholder" className="object-contain w-full h-full" />
+              </div>
+              <div className="mt-3 flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold">Mobile PDF</h3>
+                  <p className="text-sm text-gray-500">Interactive menu, sized for phones</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="bg-white text-pink-600 border border-pink-500 hover:bg-pink-50"
+                    onClick={async () => { await buildPdfUrl("template_pdf_mobile"); setPdfModalOpen(true); }}
+                  >
+                    Preview
+                  </Button>
+                  <Button size="sm" onClick={() => handleDownload("template_pdf_mobile")} disabled={!guidebookId}>Download</Button>
                 </div>
               </div>
             </div>
