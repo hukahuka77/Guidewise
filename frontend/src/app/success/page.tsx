@@ -18,7 +18,7 @@ export default function SuccessPage() {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [liveGuidebookUrl, setLiveGuidebookUrl] = useState<string | null>(null);
   const [guidebookId, setGuidebookId] = useState<string | null>(null);
-  const [selectedTemplateKey, setSelectedTemplateKey] = useState<'template_1' | 'template_2' | null>('template_1');
+  const [selectedTemplateKey, setSelectedTemplateKey] = useState<'template_original' | 'template_generic' | null>('template_original');
   const [isPdfModalOpen, setPdfModalOpen] = useState(false);
   const [isUpdatingTemplate, setIsUpdatingTemplate] = useState(false);
   const [templateMessage, setTemplateMessage] = useState<string | null>(null);
@@ -48,21 +48,21 @@ export default function SuccessPage() {
     }
   }, [claimTokenFromUrl]);
 
-  const getTemplateFromPdfUrl = (): 'template_1' | 'template_2' | undefined => {
+  const getTemplateFromPdfUrl = (): 'template_pdf_original' | 'template_pdf_basic' | undefined => {
     if (!pdfUrl) return undefined;
-    if (pdfUrl.includes('template=template_2')) return 'template_2';
-    if (pdfUrl.includes('template=template_1')) return 'template_1';
+    if (pdfUrl.includes('template=template_pdf_basic')) return 'template_pdf_basic';
+    if (pdfUrl.includes('template=template_pdf_original')) return 'template_pdf_original';
     return undefined;
   };
 
-  const getPdfPlaceholder = (templateKey?: 'template_1' | 'template_2') => {
+  const getPdfPlaceholder = (templateKey?: 'template_pdf_original' | 'template_pdf_basic') => {
     // Default to Standard placeholder
-    if (templateKey === 'template_2') return '/images/PDF_Basic.png';
+    if (templateKey === 'template_pdf_basic') return '/images/PDF_Basic.png';
     return '/images/PDF_Standard.png';
   };
 
-  const getUrlPlaceholder = (templateKey: 'template_1' | 'template_2') => {
-    return templateKey === 'template_1' ? '/images/URL_Generic1.png' : '/images/URL_Generic2.png';
+  const getUrlPlaceholder = (templateKey: 'template_original' | 'template_generic') => {
+    return templateKey === 'template_original' ? '/images/URL_Generic1.png' : '/images/URL_Generic2.png';
   };
 
   // Build a QR image URL for the live guidebook link (no extra deps)
@@ -128,7 +128,7 @@ export default function SuccessPage() {
         const res = await fetch(`${apiBase}/api/guidebook/${guidebookId}`);
         if (!res.ok) return;
         const data = await res.json();
-        if (data && (data.template_key === 'template_1' || data.template_key === 'template_2')) {
+        if (data && (data.template_key === 'template_original' || data.template_key === 'template_generic')) {
           setSelectedTemplateKey(data.template_key);
         }
       } catch {}
@@ -143,7 +143,7 @@ export default function SuccessPage() {
     return null;
   };
 
-  const handleDownload = (templateKey?: 'template_1' | 'template_2') => {
+  const handleDownload = (templateKey?: 'template_pdf_original' | 'template_pdf_basic') => {
     // Build a URL that forces download on the server via ?download=1
     if (!guidebookId) return;
     const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || '';
@@ -159,7 +159,7 @@ export default function SuccessPage() {
     document.body.removeChild(link);
   };
 
-  const buildPdfUrl = async (templateKey?: 'template_1' | 'template_2') => {
+  const buildPdfUrl = async (templateKey?: 'template_pdf_original' | 'template_pdf_basic') => {
     if (!guidebookId) return null;
     const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || '';
     const hasTemplate = Boolean(templateKey);
@@ -210,7 +210,7 @@ export default function SuccessPage() {
     doClaim();
   }, [guidebookId, isPreviewLink, claimTokenFromUrl, accessToken]);
 
-  const PdfCard = ({ label, templateKey }: { label: string; templateKey?: 'template_1' | 'template_2' }) => (
+  const PdfCard = ({ label, templateKey }: { label: string; templateKey?: 'template_pdf_original' | 'template_pdf_basic' }) => (
     <div className="group relative border rounded-xl p-4 bg-white shadow hover:shadow-lg transition">
       <div className="aspect-[8.5/11] w-full overflow-hidden rounded-lg bg-gray-100 flex items-center justify-center">
         <img
@@ -242,7 +242,7 @@ export default function SuccessPage() {
     </div>
   );
 
-  const TemplateCard = ({ label, templateKey }: { label: string; templateKey: 'template_1' | 'template_2' }) => {
+  const TemplateCard = ({ label, templateKey }: { label: string; templateKey: 'template_original' | 'template_generic' }) => {
     const isSelected = selectedTemplateKey === templateKey;
     return (
     <div className={`relative rounded-xl p-4 bg-white shadow hover:shadow-lg transition border ${isSelected ? 'border-emerald-300 ring-2 ring-emerald-200' : 'border-gray-200'}`}>
@@ -307,8 +307,8 @@ export default function SuccessPage() {
             <div className="mb-4 rounded border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">{templateMessage}</div>
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <TemplateCard label="Template 1" templateKey="template_1" />
-            <TemplateCard label="Template 2" templateKey="template_2" />
+            <TemplateCard label="Template 1" templateKey="template_original" />
+            <TemplateCard label="Template 2" templateKey="template_generic" />
           </div>
         </section>
 
@@ -414,8 +414,8 @@ export default function SuccessPage() {
           </div>
           <p className="text-sm text-gray-500 mb-4">Preview a compact PDF. Click to open a larger preview.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            <PdfCard label="Standard PDF" templateKey="template_1" />
-            <PdfCard label="Basic PDF" templateKey="template_2" />
+            <PdfCard label="Standard PDF" templateKey="template_pdf_original" />
+            <PdfCard label="Basic PDF" templateKey="template_pdf_basic" />
           </div>
         </section>
 

@@ -28,6 +28,15 @@ from utils.google_places import (
     google_places_photo_url,
 )
 
+# --- Unicode utilities ---
+def _strip_surrogates(s: str) -> str:
+    """Remove UTF-16 surrogate code points to avoid encode errors.
+    Surrogate range: U+D800–U+DFFF.
+    """
+    if not isinstance(s, str):
+        return s
+    return ''.join(ch for ch in s if not (0xD800 <= ord(ch) <= 0xDFFF))
+
 load_dotenv() # Load environment variables from .env file
 
 app = Flask(__name__)
@@ -141,31 +150,45 @@ def require_auth(fn):
         return fn(*args, **kwargs)
     return wrapper
 
-# Template registry mapping keys to template files
+# Template registry mapping keys to template files (URL renderer)
 TEMPLATE_REGISTRY = {
-    "template_1": "templates_url/template_1.html",
-    "template_2": "templates_url/template_2.html",
+    "template_original": "templates_url/template_original.html",
+    # Canonical generic template
+    "template_generic": "templates_url/template_generic.html",
 }
 ALLOWED_TEMPLATE_KEYS = set(TEMPLATE_REGISTRY.keys())
+# Allowed PDF template keys (canonical)
+ALLOWED_PDF_TEMPLATE_KEYS = {"template_pdf_original", "template_pdf_basic"}
 
 RENDER_CACHE = {}
 
-def _render_cache_key(gb: Guidebook, template_key: str) -> str:
+def _render_cache_key(gb: Guidebook, template_key: str, template_file: str) -> str:
+    import os
     ts = getattr(gb, 'last_modified_time', None)
     ts_val = str(ts.timestamp()) if hasattr(ts, 'timestamp') else str(ts)
-    return f"{gb.id}:{template_key}:{ts_val}"
+    # Also include template file mtime so edits to templates invalidate cache
+    try:
+        base_dir = os.path.dirname(__file__)
+        tmpl_path = os.path.join(base_dir, 'templates', template_file)
+        mtime = str(os.path.getmtime(tmpl_path)) if os.path.exists(tmpl_path) else '0'
+    except Exception:
+        mtime = '0'
+    return f"{gb.id}:{template_key}:{template_file}:{ts_val}:{mtime}"
 
 def _render_guidebook(gb: Guidebook):
     """Render a guidebook to HTML using its selected template with caching."""
-    template_key = getattr(gb, 'template_key', None) or 'template_1'
-    template_file = TEMPLATE_REGISTRY.get(template_key, TEMPLATE_REGISTRY['template_1'])
+    template_key = getattr(gb, 'template_key', None) or 'template_original'
+    if template_key not in ALLOWED_TEMPLATE_KEYS:
+        template_key = 'template_original'
+    template_file = TEMPLATE_REGISTRY.get(template_key, TEMPLATE_REGISTRY['template_original'])
     # Compute included_tabs default (all) if missing; keep any custom_* keys
-    base_tabs = ['checkin','property','hostinfo','wifi','food','activities','rules','checkout']
+    # Updated tab keys to match frontend: 'welcome' combines welcome, location, host & safety; wifi lives under check-in
+    base_tabs = ['welcome','checkin','property','food','activities','rules','checkout']
     included_tabs = getattr(gb, 'included_tabs', None) or base_tabs
     included_tabs = [t for t in included_tabs if (t in base_tabs) or (isinstance(t, str) and t.startswith('custom_'))]
 
     # Caching: reuse rendered HTML if guidebook/template unchanged
-    cache_key = _render_cache_key(gb, template_key)
+    cache_key = _render_cache_key(gb, template_key, template_file)
     etag = hashlib.sha256(cache_key.encode('utf-8')).hexdigest()
     if request.headers.get('If-None-Match') == etag:
         resp = make_response('', 304)
@@ -178,10 +201,74 @@ def _render_guidebook(gb: Guidebook):
         resp.headers['Content-Type'] = 'text/html; charset=utf-8'
         resp.headers['ETag'] = etag
         resp.headers['Cache-Control'] = 'public, max-age=300'
+        try:
+            resp.headers['X-Template-Key'] = template_key
+        except Exception:
+            pass
         return resp
 
+    # Sanitize custom tabs meta before rendering to avoid surrogate issues from emojis
+    safe_custom_tabs_meta = None
+    try:
+        meta = getattr(gb, 'custom_tabs_meta', None)
+        if isinstance(meta, dict):
+            safe_custom_tabs_meta = {}
+            for k, v in meta.items():
+                if isinstance(v, dict):
+                    lbl = _strip_surrogates(str(v.get('label'))) if v.get('label') is not None else ''
+                    ico = _strip_surrogates(str(v.get('icon'))) if v.get('icon') is not None else ''
+                    safe_custom_tabs_meta[k] = {'label': lbl, 'icon': ico}
+    except Exception:
+        safe_custom_tabs_meta = getattr(gb, 'custom_tabs_meta', None)
+
+    # Build unified rendering context
+    # Fallback public placeholder cover image if none provided
+    PLACEHOLDER_COVER_URL = (
+        "https://hojncqasasvvrhdmwwhv.supabase.co/storage/v1/object/public/my_images/home_placeholder.jpg"
+    )
+
+    def _build_ctx(g: Guidebook) -> dict:
+        return {
+            "schema_version": 1,
+            "id": g.id,
+            "property_name": (getattr(g.property, 'name', None) or 'My Guidebook'),
+            "host": {
+                "name": getattr(g.host, 'name', None),
+                "bio": getattr(g.host, 'bio', None),
+                "contact": getattr(g.host, 'contact', None),
+                "photo_url": getattr(g.host, 'host_image_base64', None),
+            },
+            "welcome_message": getattr(g, 'welcome_info', None),
+            "safety_info": getattr(g, 'safety_info', {}) or {},
+            "address": {
+                "street": getattr(g.property, 'address_street', None),
+                "city_state": getattr(g.property, 'address_city_state', None),
+                "zip": getattr(g.property, 'address_zip', None),
+            },
+            "wifi": {
+                "network": getattr(g.wifi, 'network', None) if g.wifi else None,
+                "password": getattr(g.wifi, 'password', None) if g.wifi else None,
+            },
+            "check_in_time": g.check_in_time,
+            "check_out_time": g.check_out_time,
+            "access_info": g.access_info,
+            "parking_info": g.parking_info,
+            "rules": [r.text for r in g.rules],
+            "things_to_do": g.things_to_do or [],
+            "places_to_eat": g.places_to_eat or [],
+            "checkout_info": getattr(g, 'checkout_info', None) or [],
+            "house_manual": getattr(g, 'house_manual', None) or [],
+            "included_tabs": included_tabs,
+            "custom_sections": getattr(g, 'custom_sections', None) or {},
+            "custom_tabs_meta": safe_custom_tabs_meta or (getattr(g, 'custom_tabs_meta', None) or {}),
+            "cover_image_url": (g.cover_image_url or PLACEHOLDER_COVER_URL),
+        }
+
+    ctx = _build_ctx(gb)
+
     html = render_template(
-        TEMPLATE_REGISTRY.get(template_key, TEMPLATE_REGISTRY['template_1']),
+        TEMPLATE_REGISTRY.get(template_key, TEMPLATE_REGISTRY['template_original']),
+        ctx=ctx,
         id=gb.id,
         host_name=getattr(gb.host, 'name', None),
         host_bio=getattr(gb.host, 'bio', None),
@@ -202,9 +289,10 @@ def _render_guidebook(gb: Guidebook):
         things_to_do=gb.things_to_do,
         places_to_eat=gb.places_to_eat,
         checkout_info=getattr(gb, 'checkout_info', None),
+        house_manual=getattr(gb, 'house_manual', None),
         included_tabs=included_tabs,
         custom_sections=getattr(gb, 'custom_sections', None),
-        custom_tabs_meta=getattr(gb, 'custom_tabs_meta', None),
+        custom_tabs_meta=safe_custom_tabs_meta,
         cover_image_url=gb.cover_image_url,
     )
     RENDER_CACHE[cache_key] = html
@@ -212,6 +300,10 @@ def _render_guidebook(gb: Guidebook):
     resp.headers['Content-Type'] = 'text/html; charset=utf-8'
     resp.headers['ETag'] = etag
     resp.headers['Cache-Control'] = 'public, max-age=300'
+    try:
+        resp.headers['X-Template-Key'] = template_key
+    except Exception:
+        pass
     return resp
 
 
@@ -284,7 +376,8 @@ def generate_guidebook_route():
     incoming_host_bio = data.get('host_bio')
     incoming_host_contact = data.get('host_contact')
     incoming_host_photo = data.get('host_photo_url')
-    if incoming_host_name or incoming_host_bio or incoming_host_photo:
+    # Create a Host record if any host field is provided
+    if incoming_host_name or incoming_host_bio or incoming_host_contact or incoming_host_photo:
         if incoming_host_name:
             if user_id:
                 host = Host.query.filter_by(name=incoming_host_name, user_id=user_id).first()
@@ -342,9 +435,12 @@ def generate_guidebook_route():
     db.session.flush()
 
     # Create Guidebook
-    selected_template_key = data.get('template_key') if data.get('template_key') in ALLOWED_TEMPLATE_KEYS else 'template_1'
+    # Validate template key against canonical keys
+    incoming_key = data.get('template_key')
+    selected_template_key = incoming_key if incoming_key in ALLOWED_TEMPLATE_KEYS else 'template_original'
     # Validate included_tabs: allow base tabs + any keys starting with custom_
-    base_tabs = {'checkin','property','hostinfo','wifi','food','activities','rules','checkout'}
+    # Updated to match new tabs used by the frontend
+    base_tabs = {'welcome','checkin','property','food','activities','rules','checkout'}
     incoming_tabs = data.get('included_tabs')
     if not isinstance(incoming_tabs, list):
         incoming_tabs = list(base_tabs)
@@ -367,8 +463,8 @@ def generate_guidebook_route():
     if isinstance(data.get('custom_tabs_meta'), dict):
         for k, v in data.get('custom_tabs_meta', {}).items():
             if isinstance(k, str) and k.startswith('custom_') and isinstance(v, dict):
-                label = v.get('label')
-                icon = v.get('icon')
+                label = _strip_surrogates(v.get('label')) if v.get('label') is not None else ''
+                icon = _strip_surrogates(v.get('icon')) if v.get('icon') is not None else ''
                 custom_tabs_meta[k] = {
                     'label': str(label) if label is not None else '',
                     'icon': str(icon) if icon is not None else ''
@@ -381,9 +477,11 @@ def generate_guidebook_route():
         welcome_info=data.get('welcome_message'),
         parking_info=data.get('parking_info'),
         cover_image_url=data.get('cover_image_url'),
+        safety_info=data.get('safety_info'),
         things_to_do=data.get('things_to_do'),
         places_to_eat=data.get('places_to_eat'),
         checkout_info=data.get('checkout_info'),
+        house_manual=data.get('house_manual'),
         included_tabs=included_tabs,
         custom_sections=custom_sections,
         custom_tabs_meta=custom_tabs_meta if custom_tabs_meta else None,
@@ -475,10 +573,13 @@ def get_guidebook(guidebook_id):
             "name": getattr(gb.host, 'name', None),
             "bio": getattr(gb.host, 'bio', None),
             "contact": getattr(gb.host, 'contact', None),
+            "photo_url": getattr(gb.host, 'host_image_base64', None),
         },
         "wifi": {
             "id": gb.wifi_id,
             "network": getattr(gb.wifi, 'network', None),
+            # include password so Edit form can show/modify it; send None if absent
+            "password": getattr(gb.wifi, 'password', None) if hasattr(gb.wifi, 'password') else None,
         },
         "included_tabs": gb.included_tabs,
         "custom_sections": gb.custom_sections,
@@ -486,6 +587,16 @@ def get_guidebook(guidebook_id):
         "things_to_do": gb.things_to_do,
         "places_to_eat": gb.places_to_eat,
         "rules": [r.text for r in gb.rules],
+        "house_manual": getattr(gb, 'house_manual', None),
+        "safety_info": getattr(gb, 'safety_info', None),
+        # Additional fields used by Edit page
+        "welcome_message": getattr(gb, 'welcome_info', None),
+        "access_info": getattr(gb, 'access_info', None),
+        "parking_info": getattr(gb, 'parking_info', None),
+        "check_in_time": getattr(gb, 'check_in_time', None),
+        "check_out_time": getattr(gb, 'check_out_time', None),
+        "cover_image_url": getattr(gb, 'cover_image_url', None),
+        "checkout_info": getattr(gb, 'checkout_info', None),
         "created_time": gb.created_time.isoformat() if gb.created_time else None,
         "last_modified_time": gb.last_modified_time.isoformat() if gb.last_modified_time else None,
     }
@@ -511,6 +622,7 @@ def update_guidebook(guidebook_id):
         'things_to_do': 'things_to_do',
         'places_to_eat': 'places_to_eat',
         'checkout_info': 'checkout_info',
+        'house_manual': 'house_manual',
         'included_tabs': 'included_tabs',
         'custom_sections': 'custom_sections',
         'custom_tabs_meta': 'custom_tabs_meta',
@@ -617,7 +729,9 @@ def run_startup_migrations():
         "ALTER TABLE host ADD COLUMN IF NOT EXISTS host_image_base64 TEXT;",
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS welcome_info TEXT;",
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS parking_info TEXT;",
+        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS safety_info JSON;",
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS checkout_info JSON;",
+        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS house_manual JSON;",
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS included_tabs JSON;",
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS custom_sections JSON;",
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS custom_tabs_meta JSON;",
@@ -730,7 +844,21 @@ def update_template_key(guidebook_id):
     if new_key not in ALLOWED_TEMPLATE_KEYS:
         return jsonify({"error": "Invalid template_key", "allowed": list(ALLOWED_TEMPLATE_KEYS)}), 400
     gb.template_key = new_key
+    # Bump last_modified_time to invalidate ETags and caches
+    try:
+        from datetime import datetime, timezone
+        gb.last_modified_time = datetime.now(timezone.utc)
+    except Exception:
+        pass
     db.session.commit()
+    # Clear any cached renders for this guidebook (any template)
+    try:
+        gid_prefix = f"{gb.id}:"
+        keys_to_delete = [k for k in list(RENDER_CACHE.keys()) if k.startswith(gid_prefix)]
+        for k in keys_to_delete:
+            RENDER_CACHE.pop(k, None)
+    except Exception:
+        pass
     return jsonify({"ok": True, "template_key": gb.template_key})
 
 @app.route('/api/places/search', methods=['POST'])
@@ -814,14 +942,12 @@ def get_pdf_on_demand(guidebook_id):
     want_download = str(request.args.get('download', '0')).lower() in ('1', 'true', 'yes')
     include_qr = str(request.args.get('include_qr', '0')).lower() in ('1', 'true', 'yes')
     qr_url_param = request.args.get('qr_url') if include_qr else None
-    # Choose a valid template: request > guidebook > default
-    chosen_template = None
-    if requested_template in ALLOWED_TEMPLATE_KEYS:
+    # Choose a valid PDF template: prefer explicit request; otherwise default to PDF original
+    # Note: URL template keys are distinct and not used for PDFs.
+    if requested_template in ALLOWED_PDF_TEMPLATE_KEYS:
         chosen_template = requested_template
-    elif getattr(gb, 'template_key', None) in ALLOWED_TEMPLATE_KEYS:
-        chosen_template = gb.template_key
     else:
-        chosen_template = 'template_1'
+        chosen_template = 'template_pdf_original'
 
     # Incorporate QR params into cache key so variants don't collide
     cache_key = _pdf_cache_key(gb, chosen_template)
@@ -847,6 +973,10 @@ def get_pdf_on_demand(guidebook_id):
         )
         resp.headers['ETag'] = etag
         resp.headers['Cache-Control'] = 'public, max-age=3600'
+        try:
+            resp.headers['X-PDF-Template-Key'] = chosen_template
+        except Exception:
+            pass
         return resp
 
     # Generate PDF lazily. If the generator reads gb.template_key, temporarily override.
@@ -866,6 +996,10 @@ def get_pdf_on_demand(guidebook_id):
     )
     resp.headers['ETag'] = etag
     resp.headers['Cache-Control'] = 'public, max-age=3600'
+    try:
+        resp.headers['X-PDF-Template-Key'] = chosen_template
+    except Exception:
+        pass
     return resp
 
 if __name__ == '__main__':

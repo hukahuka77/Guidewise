@@ -44,9 +44,13 @@ class Guidebook(db.Model):
     welcome_info = db.Column(db.Text, nullable=True)
     parking_info = db.Column(db.Text, nullable=True)
     cover_image_url = db.Column(db.Text, nullable=True)
+    # Safety info stored as JSON: { emergency_contact: str, fire_extinguisher_location: str }
+    safety_info = db.Column(db.JSON)
     things_to_do = db.Column(db.JSON)
     places_to_eat = db.Column(db.JSON)
     checkout_info = db.Column(db.JSON)
+    # List of objects: [{ name: string, description: string }]
+    house_manual = db.Column(db.JSON)
     included_tabs = db.Column(db.JSON)
     # Map of custom tab key -> list of strings (content blocks)
     custom_sections = db.Column(db.JSON)
@@ -56,8 +60,8 @@ class Guidebook(db.Model):
     created_time = db.Column(db.DateTime(timezone=True), server_default=db.func.now(), nullable=False)
     last_modified_time = db.Column(db.DateTime(timezone=True), server_default=db.func.now(), onupdate=db.func.now(), nullable=False)
 
-    # Selected template (e.g., 'template_1' or 'template_2')
-    template_key = db.Column(db.String(50), nullable=False, default='template_1')
+    # Selected template (canonical keys: 'template_original', 'template_generic')
+    template_key = db.Column(db.String(50), nullable=False, default='template_original')
 
     # Ownership: Supabase user ID (UUID as string)
     user_id = db.Column(db.String(36), index=True, nullable=True)

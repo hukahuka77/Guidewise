@@ -11,7 +11,7 @@ const PdfViewer = dynamic(() => import("@/components/custom/PdfViewer"), { ssr: 
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
-type TemplateKey = "template_1" | "template_2";
+type TemplateKey = "template_pdf_original" | "template_pdf_basic";
 
 export default function GuidebookPdfPage() {
   const params = useParams();
@@ -27,7 +27,7 @@ export default function GuidebookPdfPage() {
   }, [guidebookId]);
 
   const getPdfPlaceholder = (templateKey?: TemplateKey) => {
-    if (templateKey === "template_2") return "/images/PDF_Basic.png";
+    if (templateKey === "template_pdf_basic") return "/images/PDF_Basic.png";
     return "/images/PDF_Standard.png";
   };
 
@@ -91,7 +91,7 @@ export default function GuidebookPdfPage() {
             {/* Standard PDF */}
             <div className="group relative border rounded-xl p-4 bg-white shadow hover:shadow-lg transition">
               <div className="aspect-[8.5/11] w-full overflow-hidden rounded-lg bg-gray-100 flex items-center justify-center">
-                <img src={getPdfPlaceholder("template_1")} alt="Standard PDF placeholder" className="object-contain w-full h-full" />
+                <img src={getPdfPlaceholder("template_pdf_original")} alt="Standard PDF placeholder" className="object-contain w-full h-full" />
               </div>
               <div className="mt-3 flex items-center justify-between">
                 <div>
@@ -103,11 +103,11 @@ export default function GuidebookPdfPage() {
                     size="sm"
                     variant="outline"
                     className="bg-white text-pink-600 border border-pink-500 hover:bg-pink-50"
-                    onClick={async () => { await buildPdfUrl("template_1"); setPdfModalOpen(true); }}
+                    onClick={async () => { await buildPdfUrl("template_pdf_original"); setPdfModalOpen(true); }}
                   >
                     Preview
                   </Button>
-                  <Button size="sm" onClick={() => handleDownload("template_1")} disabled={!guidebookId}>Download</Button>
+                  <Button size="sm" onClick={() => handleDownload("template_pdf_original")} disabled={!guidebookId}>Download</Button>
                 </div>
               </div>
             </div>
@@ -115,7 +115,7 @@ export default function GuidebookPdfPage() {
             {/* Basic PDF */}
             <div className="group relative border rounded-xl p-4 bg-white shadow hover:shadow-lg transition">
               <div className="aspect-[8.5/11] w-full overflow-hidden rounded-lg bg-gray-100 flex items-center justify-center">
-                <img src={getPdfPlaceholder("template_2")} alt="Basic PDF placeholder" className="object-contain w-full h-full" />
+                <img src={getPdfPlaceholder("template_pdf_basic")} alt="Basic PDF placeholder" className="object-contain w-full h-full" />
               </div>
               <div className="mt-3 flex items-center justify-between">
                 <div>
@@ -127,11 +127,11 @@ export default function GuidebookPdfPage() {
                     size="sm"
                     variant="outline"
                     className="bg-white text-pink-600 border border-pink-500 hover:bg-pink-50"
-                    onClick={async () => { await buildPdfUrl("template_2"); setPdfModalOpen(true); }}
+                    onClick={async () => { await buildPdfUrl("template_pdf_basic"); setPdfModalOpen(true); }}
                   >
                     Preview
                   </Button>
-                  <Button size="sm" onClick={() => handleDownload("template_2")} disabled={!guidebookId}>Download</Button>
+                  <Button size="sm" onClick={() => handleDownload("template_pdf_basic")} disabled={!guidebookId}>Download</Button>
                 </div>
               </div>
             </div>

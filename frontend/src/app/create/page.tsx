@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
+import Spinner from "@/components/ui/spinner";
 import { LIMITS } from "@/constants/limits";
 import { supabase } from "@/lib/supabaseClient";
 import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
@@ -12,8 +13,9 @@ import CreateGuidebookLayout from "./CreateGuidebookLayout";
 import ArrivalSection from "./ArrivalSection";
 import WifiSection from "./WifiSection";
 import CheckinSection from "./CheckinSection";
-import HostInfoSection from "./HostInfoSection";
+import WelcomeSection from "./WelcomeSection";
 import PropertySection from "./PropertySection";
+import HouseManualList from "./HouseManualList";
 import DynamicItemList, { DynamicItem } from "./DynamicItemList";
 import PlacePickerModal from "@/components/places/PlacePickerModal";
 import AddItemChoiceModal from "@/components/places/AddItemChoiceModal";
@@ -28,10 +30,9 @@ export default function CreateGuidebookPage() {
   const router = useRouter();
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const sectionsOrder = [
+    "welcome",
     "checkin",
     "property",
-    "hostinfo",
-    "wifi",
     "food",
     "activities",
     "rules",
@@ -59,14 +60,25 @@ export default function CreateGuidebookPage() {
     wifiNotes: 'WiFi works best in the living room and kitchen. Please let us know if you have any issues.',
     checkInTime: '15:00',
     checkOutTime: '11:00',
+    // Safety info for Welcome
+    emergencyContact: '',
+    fireExtinguisherLocation: '',
   });
   const [foodItems, setFoodItems] = useState<DynamicItem[]>([]);
   const [activityItems, setActivityItems] = useState<DynamicItem[]>([]);
+  const [houseManualItems, setHouseManualItems] = useState<{ name: string; description: string }[]>([
+    { name: "Trash Location", description: "Outdoor bins are on the left side of the house behind the wooden gate. Trash day is Tuesday evening." },
+    { name: "Back Gate Code", description: "Use keypad on the back gate. Code: 1234 (press ✓ to unlock)." },
+  ]);
   const [foodPickerOpen, setFoodPickerOpen] = useState(false);
   const [activityPickerOpen, setActivityPickerOpen] = useState(false);
   const [foodAddChoiceOpen, setFoodAddChoiceOpen] = useState(false);
   const [activityAddChoiceOpen, setActivityAddChoiceOpen] = useState(false);
-  const [checkoutItems, setCheckoutItems] = useState<{ name: string; description: string; checked: boolean }[]>([]);
+  const [checkoutItems, setCheckoutItems] = useState<{ name: string; description: string; checked: boolean }[]>([
+    { name: 'Take out trash', description: 'Please bag all trash and place it in the outside bin.', checked: true },
+    { name: 'Dishes', description: 'Load and run the dishwasher (or hand wash any used dishes).', checked: true },
+    { name: 'Lights & doors', description: 'Turn off lights, set thermostat to eco, and lock all doors/windows.', checked: true },
+  ]);
   // Sidebar state: included order and excluded list
   const [included, setIncluded] = useState<string[]>([...sectionsOrder]);
   const [excluded, setExcluded] = useState<string[]>([]);
@@ -164,12 +176,17 @@ export default function CreateGuidebookPage() {
         wifi_password: formData.wifiPassword,
         check_in_time: formData.checkInTime,
         check_out_time: formData.checkOutTime,
+        safety_info: {
+          emergency_contact: formData.emergencyContact,
+          fire_extinguisher_location: formData.fireExtinguisherLocation,
+        },
         rules: compiledRules,
         cover_image_url: coverImageUrl,
         // lists
         things_to_do: activityItems.map(i => ({ name: i.name, description: i.description, image_url: i.image_url || "", address: i.address || "" })),
         places_to_eat: foodItems.map(i => ({ name: i.name, description: i.description, image_url: i.image_url || "", address: i.address || "" })),
         checkout_info: checkoutItems.filter(i => i.checked).map(i => ({ name: i.name, description: i.description })),
+        house_manual: houseManualItems.map(i => ({ name: i.name, description: i.description })),
         included_tabs: included,
         custom_sections: customSections,
         custom_tabs_meta: customTabsMeta,
@@ -213,13 +230,13 @@ export default function CreateGuidebookPage() {
   };
 
   // Navigation state for sidebar (free navigation among included)
-  const [currentSection, setCurrentSection] = useState<string>("checkin");
+  const [currentSection, setCurrentSection] = useState<string>("welcome");
   const goToSection = (section: string) => setCurrentSection(section);
 
   // Ensure current section is always one of the included; if it becomes excluded or removed, jump to first included
   useEffect(() => {
     if (!included.includes(currentSection)) {
-      setCurrentSection(included[0] || "checkin");
+      setCurrentSection(included[0] || "welcome");
     }
   }, [included, currentSection]);
 
@@ -257,7 +274,14 @@ export default function CreateGuidebookPage() {
             onClick={(e) => handleSubmit(e as unknown as React.FormEvent)}
             disabled={isLoading}
           >
-            {isLoading ? "Processing…" : "Publish"}
+            {isLoading ? (
+              <span className="inline-flex items-center gap-2">
+                <Spinner size={18} />
+                Processing…
+              </span>
+            ) : (
+              "Publish"
+            )}
           </Button>
         </div>
       </div>
@@ -284,36 +308,56 @@ export default function CreateGuidebookPage() {
         </div>
       )}
       {/* Section rendering based on sidebar navigation */}
-      {currentSection === "checkin" && (
-        <CheckinSection
+      {currentSection === "welcome" && (
+        <WelcomeSection
           welcomeMessage={formData.welcomeMessage}
           location={formData.location}
-          accessInfo={formData.access_info}
-          parkingInfo={formData.parkingInfo}
-          checkInTime={formData.checkInTime}
           onChange={(id, value) => setFormData(f => ({ ...f, [id]: value }))}
-        />
-      )}
-      {currentSection === "hostinfo" && (
-        <HostInfoSection
-          name={formData.hostName}
-          bio={formData.hostBio}
-          contact={formData.hostContact}
-          onChange={(id, value) => setFormData(f => ({ ...f, [id]: value }))}
+          emergencyContact={formData.emergencyContact}
+          fireExtinguisherLocation={formData.fireExtinguisherLocation}
+          hostName={formData.hostName}
+          hostBio={formData.hostBio}
+          hostContact={formData.hostContact}
           onHostPhotoChange={handleHostPhotoSelect}
           hostPhotoPreviewUrl={hostPhotoPreviewUrl}
         />
       )}
-      {currentSection === "property" && (
-        <PropertySection
-          propertyName={formData.propertyName}
-          onChange={(id, value) => setFormData(f => ({ ...f, [id]: value }))}
-          onCoverImageChange={handleCoverImageSelect}
-          coverPreviewUrl={previewUrl}
-        />
+      {currentSection === "checkin" && (
+        <>
+          <CheckinSection
+            accessInfo={formData.access_info}
+            parkingInfo={formData.parkingInfo}
+            checkInTime={formData.checkInTime}
+            onChange={(id, value) => setFormData(f => ({ ...f, [id]: value }))}
+          />
+          <div className="mt-6">
+            <WifiSection
+              wifiNetwork={formData.wifiNetwork}
+              wifiPassword={formData.wifiPassword}
+              onChange={(id, value) => setFormData(f => ({ ...f, [id]: value }))}
+            />
+          </div>
+        </>
       )}
-      {currentSection === "wifi" && (
-        <WifiSection wifiNetwork={formData.wifiNetwork} wifiPassword={formData.wifiPassword} onChange={(id, value) => setFormData(f => ({ ...f, [id]: value }))} />
+      {currentSection === "property" && (
+        <>
+          <PropertySection
+            propertyName={formData.propertyName}
+            onChange={(id, value) => setFormData(f => ({ ...f, [id]: value }))}
+            onCoverImageChange={handleCoverImageSelect}
+            coverPreviewUrl={previewUrl}
+          />
+          <div className="mt-6">
+            <HouseManualList
+              items={houseManualItems}
+              onChange={(idx, field, value) => {
+                setHouseManualItems(items => items.map((it, i) => (i === idx ? { ...it, [field]: value } : it)));
+              }}
+              onAdd={() => setHouseManualItems(items => [...items, { name: "", description: "" }])}
+              onDelete={(idx) => setHouseManualItems(items => items.filter((_, i) => i !== idx))}
+            />
+          </div>
+        </>
       )}
       {currentSection === "food" && (
         <div>
@@ -498,7 +542,6 @@ export default function CreateGuidebookPage() {
               return next;
             })
           }
-          onDelete={idx => setRules(rules => rules.filter((_, i) => i !== idx))}
           autoEditIndex={ruleAutoEditIndex}
           onAutoEditHandled={() => setRuleAutoEditIndex(null)}
         />
@@ -565,7 +608,6 @@ export default function CreateGuidebookPage() {
             ));
           }}
           onAdd={() => setCheckoutItems(items => [...items, { name: '', description: '', checked: false }])}
-          onDelete={(idx) => setCheckoutItems(items => items.filter((_, i) => i !== idx))}
         />
       )}
       {currentSection === "arrival" && (
@@ -581,7 +623,14 @@ export default function CreateGuidebookPage() {
           onClick={(e) => handleSubmit(e as unknown as React.FormEvent)}
           disabled={isLoading}
         >
-          {isLoading ? "Processing…" : "Publish"}
+          {isLoading ? (
+            <span className="inline-flex items-center gap-2">
+              <Spinner size={18} />
+              Processing…
+            </span>
+          ) : (
+            "Publish"
+          )}
         </Button>
       </div>
     </div>

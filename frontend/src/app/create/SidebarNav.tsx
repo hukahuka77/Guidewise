@@ -2,13 +2,12 @@ import React from "react";
 import { LIMITS } from "../../constants/limits";
 
 const NAV_META: Record<string, { label: string; icon: string }> = {
+  welcome: { label: "Welcome", icon: "👋" },
   checkin: { label: "Check-in Info", icon: "🏠" },
   property: { label: "Property Details", icon: "🏡" },
-  hostinfo: { label: "Host Info", icon: "👤" },
-  wifi: { label: "Wifi", icon: "📶" },
   food: { label: "Food", icon: "🍽️" },
   activities: { label: "Activities", icon: "🎡" },
-  rules: { label: "Rules", icon: "📋" },
+  rules: { label: "House Rules", icon: "📋" },
   checkout: { label: "Checkout Info", icon: "🧳" },
 };
 

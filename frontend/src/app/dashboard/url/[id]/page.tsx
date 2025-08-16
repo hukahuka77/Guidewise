@@ -5,11 +5,12 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import Spinner from "@/components/ui/spinner";
 import { supabase } from "@/lib/supabaseClient";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
-type TemplateKey = "template_1" | "template_2";
+type TemplateKey = "template_original" | "template_generic";
 
 type GuidebookMeta = {
   id: string;
@@ -104,7 +105,12 @@ export default function GuidebookUrlTemplatesPage() {
               onClick={() => selectTemplate(template)}
               disabled={saving !== null}
             >
-              {saving === template ? "Saving..." : isSelected ? "Re-select" : "Select"}
+              {saving === template ? (
+                <span className="inline-flex items-center gap-2">
+                  <Spinner size={16} colorClass="text-[oklch(0.6923_0.22_21.05)]" />
+                  Saving…
+                </span>
+              ) : isSelected ? "Re-select" : "Select"}
             </Button>
           </div>
         </div>
@@ -129,7 +135,10 @@ export default function GuidebookUrlTemplatesPage() {
         </div>
 
         {loading && (
-          <div className="bg-white rounded-xl border p-6 text-gray-600">Loading…</div>
+          <div className="bg-white rounded-xl border p-6 text-gray-700 flex items-center gap-3">
+            <Spinner size={20} colorClass="text-[oklch(0.6923_0.22_21.05)]" />
+            <span>Loading…</span>
+          </div>
         )}
         {!loading && error && (
           <div className="bg-white rounded-xl border p-6 text-red-600">{error}</div>
@@ -141,8 +150,8 @@ export default function GuidebookUrlTemplatesPage() {
               <h2 className="text-2xl font-semibold">URL Templates</h2>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              <Card template="template_1" title="Lifestyle (Standard)" img="/images/URL_Generic1.png" />
-              <Card template="template_2" title="Minimal (Basic)" img="/images/URL_Generic2.png" />
+              <Card template="template_original" title="Lifestyle (Standard)" img="/images/URL_Generic1.png" />
+              <Card template="template_generic" title="Minimal (Basic)" img="/images/URL_Generic2.png" />
             </div>
           </section>
         )}

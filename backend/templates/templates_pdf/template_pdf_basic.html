@@ -1,0 +1,103 @@
+{% extends "base_pdf.html" %}
+{% import "_pdf_macros.html" as pm %}
+
+{% block head_extra %}
+  <style>
+    /* Ensure plain white background for printable basic template */
+    body { background: #ffffff !important; }
+    .page { background: #ffffff !important; }
+  </style>
+{% endblock %}
+
+{% block body %}
+  <div class="page">
+    <h1 class="title">{{ ctx.property_name or 'Guidebook' }}</h1>
+    {% if ctx.qr_img_src %}
+    <div class="qr">
+      <img src="{{ ctx.qr_img_src }}" alt="Scan to view guidebook" />
+      <div class="cap">Scan to view online</div>
+    </div>
+    {% endif %}
+
+    <div>
+      <h2>Address & Times</h2>
+      <div class="grid-2">
+        <div>
+          {% if ctx.address.street or ctx.address.city_state or ctx.address.zip %}
+          <p class="kv"><span class="label">Address:</span>
+            {% if ctx.address.street %}{{ ctx.address.street }}{% endif %}
+            {% if ctx.address.city_state %}{% if ctx.address.street %}, {% endif %}{{ ctx.address.city_state }}{% endif %}
+            {% if ctx.address.zip %}{% if ctx.address.street or ctx.address.city_state %}, {% endif %}{{ ctx.address.zip }}{% endif %}
+          </p>
+          {% endif %}
+          {% if ctx.access_info %}
+          <p class="kv"><span class="label">Access Info:</span> {{ ctx.access_info }}</p>
+          {% endif %}
+        </div>
+        <div>
+          {% if ctx.check_in_time %}
+          <p class="kv"><span class="label">Check-in:</span> {{ ctx.check_in_time }}</p>
+          {% endif %}
+          {% if ctx.check_out_time %}
+          <p class="kv"><span class="label">Check-out:</span> {{ ctx.check_out_time }}</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {% if ctx.wifi.network or ctx.wifi.password %}
+    <div class="section" style="margin-top: 14px;">
+      <h2>Wi‑Fi</h2>
+      {% if ctx.wifi.network %}<p class="kv"><span class="label">Network:</span> {{ ctx.wifi.network }}</p>{% endif %}
+      {% if ctx.wifi.password %}<p class="kv"><span class="label">Password:</span> {{ ctx.wifi.password }}</p>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if ctx.rules and ctx.rules|length > 0 %}
+    <div class="section" style="margin-top: 14px;">
+      <h2>House Rules</h2>
+      <ul>
+        {% for r in ctx.rules %}
+          {% if r %}<li>{{ r }}</li>{% endif %}
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    {% if ctx.house_manual and ctx.house_manual|length > 0 %}
+    <div class="section" style="margin-top: 14px;">
+      <h2>House Manual</h2>
+      {% for item in ctx.house_manual %}
+        <div style="margin: 6px 0;">
+          {% if item.name %}<div style="font-weight:600;">{{ item.name }}</div>{% endif %}
+          {% if item.description %}<div style="white-space: pre-line;">{{ item.description }}</div>{% endif %}
+        </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if ctx.places_to_eat and ctx.places_to_eat|length > 0 %}
+    <div class="section" style="margin-top: 14px;">
+      <h2>Places to Eat</h2>
+      {{ pm.items_list(ctx.places_to_eat) }}
+    </div>
+    {% endif %}
+
+    {% if ctx.things_to_do and ctx.things_to_do|length > 0 %}
+    <div class="section" style="margin-top: 14px;">
+      <h2>Things to Do</h2>
+      {{ pm.items_list(ctx.things_to_do) }}
+    </div>
+    {% endif %}
+
+    {% if ctx.host.name or ctx.host.contact %}
+    <div class="section" style="margin-top: 14px;">
+      <h2>Host</h2>
+      {% if ctx.host.name %}<p class="kv"><span class="label">Name:</span> {{ ctx.host.name }}</p>{% endif %}
+      {% if ctx.host.contact %}<p class="kv"><span class="label">Contact:</span> {{ ctx.host.contact }}</p>{% endif %}
+    </div>
+    {% endif %}
+
+    {# Deliberately minimal: no footer caption #}
+  </div>
+{% endblock %}

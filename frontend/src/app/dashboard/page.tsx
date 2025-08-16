@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
+import Spinner from "@/components/ui/spinner";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
@@ -96,7 +97,10 @@ export default function DashboardPage() {
         {/* removed global PDF options per new UX */}
 
         {loading && (
-          <div className="bg-white rounded-xl border p-6 text-gray-600">Loading…</div>
+          <div className="bg-white rounded-xl border p-6 text-gray-700 flex items-center gap-3">
+            <Spinner size={20} colorClass="text-[oklch(0.6923_0.22_21.05)]" />
+            <span>Loading…</span>
+          </div>
         )}
         {!loading && error && (
           <div className="bg-white rounded-xl border p-6 text-red-600">{error}</div>
@@ -129,7 +133,7 @@ export default function DashboardPage() {
                            gb.created_time ? `Created ${new Date(gb.created_time).toLocaleString()}` : ''}
                         </div>
                       </div>
-                      <span className="text-[10px] px-2 py-1 bg-gray-100 rounded border text-gray-600">{gb.template_key || "template_1"}</span>
+                      <span className="text-[10px] px-2 py-1 bg-gray-100 rounded border text-gray-600">{gb.template_key || "template_original"}</span>
                     </div>
 
                     <div className="mt-4 grid grid-cols-2 gap-2">

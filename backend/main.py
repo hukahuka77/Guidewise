@@ -11,11 +11,13 @@ import urllib.parse
 load_dotenv()
 
 # Map template keys to HTML template files for PDF rendering (PDF-only)
-# For now, both keys use the same PDF template until additional variants are added.
-TEMPLATE_REGISTRY = {
-    "template_1": "templates/templates_pdf/template_pdf1.html",
-    "template_2": "templates/templates_pdf/template_pdf2_basic.html",
+# Canonical PDF keys
+PDF_TEMPLATE_REGISTRY = {
+    "template_pdf_original": "templates/templates_pdf/template_pdf_original.html",
+    "template_pdf_basic": "templates/templates_pdf/template_pdf_basic.html",
 }
+
+# No legacy mapping: expect canonical PDF keys only. Fallback to template_pdf_original.
 
 def _normalize_recommendations(items):
     """Normalize list items that may be dicts or stringified dicts.
@@ -92,7 +94,7 @@ def create_guidebook_pdf(guidebook, qr_url: str | None = None):
         'things_to_do': _normalize_recommendations(getattr(guidebook, 'things_to_do', []) or []),
         'places_to_eat': _normalize_recommendations(getattr(guidebook, 'places_to_eat', []) or []),
         'cover_image_url': getattr(guidebook, 'cover_image_url', None),
-        'welcome_message': getattr(guidebook, 'welcome_message', None),
+        'welcome_message': getattr(guidebook, 'welcome_info', None),
         'included_tabs': getattr(guidebook, 'included_tabs', []) or [],
         'custom_sections': getattr(guidebook, 'custom_sections', {}) or {},
         'custom_tabs_meta': getattr(guidebook, 'custom_tabs_meta', {}) or {},
@@ -100,14 +102,56 @@ def create_guidebook_pdf(guidebook, qr_url: str | None = None):
         'qr_img_src': qr_img_src,
     }
 
+    # Build unified context (ctx) similar to URL renderer
+    base_tabs = ['welcome','checkin','property','food','activities','rules','checkout']
+    included_tabs = [t for t in (data['included_tabs'] or base_tabs) if (t in base_tabs) or (isinstance(t, str) and t.startswith('custom_'))]
+    ctx = {
+        'schema_version': 1,
+        'id': data['id'],
+        'property_name': data['property_name'] if data['property_name'] != 'N/A' else None,
+        'host': {
+            'name': data['host_name'] if data['host_name'] != 'N/A' else None,
+            'bio': getattr(guidebook.host, 'bio', None) if getattr(guidebook, 'host', None) else None,
+            'contact': getattr(guidebook.host, 'contact', None) if getattr(guidebook, 'host', None) else None,
+            'photo_url': getattr(guidebook.host, 'host_image_base64', None) if getattr(guidebook, 'host', None) else None,
+        },
+        'welcome_message': data['welcome_message'],
+        'safety_info': getattr(guidebook, 'safety_info', {}) or {},
+        'address': {
+            'street': data['address_street'],
+            'city_state': data['address_city_state'],
+            'zip': data['address_zip'],
+        },
+        'wifi': {
+            'network': data['wifi_network'] if data['wifi_network'] != 'N/A' else None,
+            'password': data['wifi_password'] if data['wifi_password'] != 'N/A' else None,
+        },
+        'check_in_time': data['check_in_time'],
+        'check_out_time': data['check_out_time'],
+        'access_info': data['access_info'],
+        'parking_info': getattr(guidebook, 'parking_info', None),
+        'rules': data['rules'],
+        'things_to_do': data['things_to_do'],
+        'places_to_eat': data['places_to_eat'],
+        'checkout_info': getattr(guidebook, 'checkout_info', None) or [],
+        'included_tabs': included_tabs,
+        'custom_sections': data['custom_sections'],
+        'custom_tabs_meta': data['custom_tabs_meta'],
+        'cover_image_url': data['cover_image_url'],
+        'qr_img_src': data['qr_img_src'],
+    }
+
     # Setup Jinja2 environment
-    env = Environment(loader=FileSystemLoader('.'))
-    selected_key = getattr(guidebook, 'template_key', None) or 'template_1'
-    template_path = TEMPLATE_REGISTRY.get(selected_key, TEMPLATE_REGISTRY['template_1'])
+    # Search for templates at project root and inside templates/
+    env = Environment(loader=FileSystemLoader(['.', 'templates']))
+    # Expect canonical PDF keys (template_pdf_original, template_pdf_basic). Fallback to original.
+    raw_key = getattr(guidebook, 'template_key', None)
+    selected_key = raw_key if raw_key in PDF_TEMPLATE_REGISTRY else 'template_pdf_original'
+    template_path = PDF_TEMPLATE_REGISTRY.get(selected_key, PDF_TEMPLATE_REGISTRY['template_pdf_original'])
     template = env.get_template(template_path)
 
     # Render the HTML template with data
-    html_out = template.render(data)
+    html_out = template.render(data, ctx=ctx)
 
     # Generate PDF from HTML
     pdf = HTML(string=html_out, base_url='.').write_pdf()

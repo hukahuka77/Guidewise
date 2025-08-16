@@ -1,0 +1,110 @@
+{% extends "base_pdf.html" %}
+{% import "_pdf_macros.html" as pm %}
+
+{% block body %}
+  <!-- Cover -->
+  <div class="page cover">
+    <div class="cover-overlay">
+      <h1 class="cover-title">{{ ctx.property_name or 'Your Stay' }}</h1>
+    </div>
+  </div>
+
+  <!-- Welcome & Info -->
+  <div class="page">
+    {% if ctx.qr_img_src %}
+    <div class="qr">
+      <img src="{{ ctx.qr_img_src }}" alt="Scan to view guidebook" />
+      <div class="cap">Scan to view online</div>
+    </div>
+    {% endif %}
+
+    <h1 class="title">Welcome</h1>
+    {% if ctx.welcome_message %}<p>{{ ctx.welcome_message }}</p>{% endif %}
+
+    <div class="grid-2" style="margin-top: 18px;">
+      <div>
+        <h2 style="margin:0 0 6px 0;">Location & Access</h2>
+        {% if ctx.address.street or ctx.address.city_state or ctx.address.zip %}
+        <p class="kv"><span class="label">Address:</span><br/>
+          {{ ctx.address.street }}{% if ctx.address.city_state %}<br/>{{ ctx.address.city_state }}{% endif %}{% if ctx.address.zip %}{% if ctx.address.city_state %}, {% endif %}{{ ctx.address.zip }}{% endif %}
+        </p>
+        {% endif %}
+        {% if ctx.access_info %}
+        <p class="kv"><span class="label">Access:</span><br/>{{ ctx.access_info }}</p>
+        {% endif %}
+      </div>
+      <div>
+        {% if ctx.wifi.network or ctx.wifi.password %}
+        <h2 style="margin:0 0 6px 0;">Wi‑Fi</h2>
+        {% if ctx.wifi.network %}<p class="kv"><span class="label">Network:</span> {{ ctx.wifi.network }}</p>{% endif %}
+        {% if ctx.wifi.password %}<p class="kv"><span class="label">Password:</span> {{ ctx.wifi.password }}</p>{% endif %}
+        {% endif %}
+        <h2 style="margin:12px 0 6px 0;">Timings</h2>
+        {% if ctx.check_in_time %}<p class="kv"><span class="label">Check-in:</span> {{ ctx.check_in_time }}</p>{% endif %}
+        {% if ctx.check_out_time %}<p class="kv"><span class="label">Check-out:</span> {{ ctx.check_out_time }}</p>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  {% if 'activities' in ctx.included_tabs %}
+  <div class="page">
+    <h1 class="title">Things to Do Nearby</h1>
+    {{ pm.items_list(ctx.things_to_do) }}
+  </div>
+  {% endif %}
+
+  {% if 'property' in ctx.included_tabs and ctx.house_manual and ctx.house_manual|length > 0 %}
+  <div class="page">
+    <h1 class="title">House Manual</h1>
+    <div>
+      {% for item in ctx.house_manual %}
+        <div style="margin: 8px 0;">
+          {% if item.name %}<div style="font-weight: 600;">{{ item.name }}</div>{% endif %}
+          {% if item.description %}<div style="white-space: pre-line;">{{ item.description }}</div>{% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if 'food' in ctx.included_tabs %}
+  <div class="page">
+    <h1 class="title">Places to Eat Nearby</h1>
+    {{ pm.items_list(ctx.places_to_eat) }}
+  </div>
+  {% endif %}
+
+  {% if 'rules' in ctx.included_tabs %}
+  <div class="page">
+    <h1 class="title">House Rules & Notes</h1>
+    {% if ctx.rules and ctx.rules|length > 0 %}
+    <ul class="rules">
+      {% for rule in ctx.rules %}
+        {% if rule %}<li>{{ rule }}</li>{% endif %}
+      {% endfor %}
+    </ul>
+    {% else %}
+      <p class="muted small">No rules provided.</p>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% for tab in ctx.included_tabs %}
+    {% if tab.startswith('custom_') and ctx.custom_sections.get(tab) %}
+    {% set meta = (ctx.custom_tabs_meta.get(tab) if ctx.custom_tabs_meta else None) %}
+    <div class="page">
+      <h1 class="title">{{ (meta.label if meta and meta.label) or (tab | replace('custom_', '') | replace('_', ' ') | title) }}</h1>
+      {% set blocks = ctx.custom_sections.get(tab) %}
+      {% if blocks and blocks|length > 0 %}
+      <div>
+        {% for text in blocks %}
+          {% if text %}<p style="margin: 8px 0;">{{ text }}</p>{% endif %}
+        {% endfor %}
+      </div>
+      {% else %}
+        <p class="muted small">No content provided.</p>
+      {% endif %}
+    </div>
+    {% endif %}
+  {% endfor %}
+{% endblock %}

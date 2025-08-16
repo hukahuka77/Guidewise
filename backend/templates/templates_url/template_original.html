@@ -1,0 +1,227 @@
+{% extends "base_guidebook.html" %}
+{% import "_macros.html" as m %}
+
+{% block sidebar %}
+<nav class="h-full w-14 md:w-56 text-white flex flex-col py-6 md:py-8 px-2 md:px-4">
+  <div class="hidden md:block">
+    {% if ctx.cover_image_url %}
+      <img src="{{ ctx.cover_image_url }}" alt="Cover" class="w-full h-28 object-cover rounded-xl border border-white/10 shadow mb-4" />
+    {% endif %}
+    {% if ctx.property_name %}
+      <div class="mb-8 text-2xl font-bold tracking-tight whitespace-normal break-words break-all" style="white-space: normal; overflow: visible; text-overflow: clip; word-break: break-word;">{{ ctx.property_name }}</div>
+    {% endif %}
+  </div>
+  <ul class="flex flex-col gap-4">
+    {% for tab in ctx.included_tabs %}
+      {% set data_tab = tab %}
+      {% if tab == 'welcome' %}
+        <li class="flex items-center justify-center md:justify-start gap-0 md:gap-3 px-2 md:px-3 py-2 rounded-lg {{ 'bg-white/20' if loop.index0 == 0 else 'hover:bg-white/10' }} cursor-pointer" data-tab-link data-tab="{{ data_tab }}"><span class="w-6 h-6">👋</span><span class="font-medium hidden md:inline">Welcome</span></li>
+      {% elif tab == 'checkin' %}
+        <li class="flex items-center justify-center md:justify-start gap-0 md:gap-3 px-2 md:px-3 py-2 rounded-lg hover:bg-white/10 cursor-pointer" data-tab-link data-tab="{{ data_tab }}"><span class="w-6 h-6">🏠</span><span class="font-medium hidden md:inline">Check-in</span></li>
+      {% elif tab == 'property' %}
+        <li class="flex items-center justify-center md:justify-start gap-0 md:gap-3 px-2 md:px-3 py-2 rounded-lg hover:bg-white/10 cursor-pointer" data-tab-link data-tab="{{ data_tab }}"><span class="w-6 h-6">🏡</span><span class="font-medium hidden md:inline">Property</span></li>
+      {% elif tab == 'food' %}
+        <li class="flex items-center justify-center md:justify-start gap-0 md:gap-3 px-2 md:px-3 py-2 rounded-lg hover:bg-white/10 cursor-pointer" data-tab-link data-tab="{{ data_tab }}"><span class="w-6 h-6">🍽️</span><span class="font-medium hidden md:inline">Food</span></li>
+      {% elif tab == 'activities' %}
+        <li class="flex items-center justify-center md:justify-start gap-0 md:gap-3 px-2 md:px-3 py-2 rounded-lg hover:bg-white/10 cursor-pointer" data-tab-link data-tab="{{ data_tab }}"><span class="w-6 h-6">🎡</span><span class="font-medium hidden md:inline">Activities</span></li>
+      {% elif tab == 'rules' %}
+        <li class="flex items-center justify-center md:justify-start gap-0 md:gap-3 px-2 md:px-3 py-2 rounded-lg hover:bg-white/10 cursor-pointer" data-tab-link data-tab="{{ data_tab }}"><span class="w-6 h-6">📋</span><span class="font-medium hidden md:inline">House Rules</span></li>
+      {% elif tab == 'checkout' %}
+        <li class="flex items-center justify-center md:justify-start gap-0 md:gap-3 px-2 md:px-3 py-2 rounded-lg hover:bg-white/10 cursor-pointer" data-tab-link data-tab="{{ data_tab }}"><span class="w-6 h-6">🧳</span><span class="font-medium hidden md:inline">Checkout</span></li>
+      {% elif tab.startswith('custom_') %}
+        {% set meta = ctx.custom_tabs_meta.get(tab) if ctx.custom_tabs_meta else None %}
+        <li class="flex items-center justify-center md:justify-start gap-0 md:gap-3 px-2 md:px-3 py-2 rounded-lg hover:bg-white/10 cursor-pointer" data-tab-link data-tab="{{ data_tab }}">
+          <span class="w-6 h-6">{{ (meta.icon if meta and meta.icon) or '🧩' }}</span>
+          <span class="font-medium hidden md:inline">{{ (meta.label if meta and meta.label) or (tab | replace('custom_', '') | replace('_', ' ') | title) }}</span>
+        </li>
+      {% endif %}
+    {% endfor %}
+  </ul>
+</nav>
+{% endblock %}
+
+{% block content %}
+  {# Mobile top header #}
+  <div class="md:hidden mb-6">
+    {% if ctx.cover_image_url %}
+      <img src="{{ ctx.cover_image_url }}" alt="Cover" class="w-full h-40 object-cover rounded-xl border border-white/50 shadow mb-3" />
+    {% endif %}
+    {% if ctx.property_name %}
+      <h1 class="text-2xl font-bold text-gray-900 whitespace-normal break-words break-all" style="white-space: normal; overflow: visible; text-overflow: clip; word-break: break-word;">{{ ctx.property_name }}</h1>
+    {% endif %}
+  </div>
+
+  {% for tab in ctx.included_tabs %}
+    {% if tab == 'welcome' %}
+      <section class="mb-8" data-tab-section="welcome">
+        <div class="flex items-center gap-2 mb-2">
+          <h2 class="text-xl font-semibold">Welcome</h2>
+        </div>
+        {% if ctx.welcome_message %}
+        <p class="mb-3 mt-1 text-gray-900 font-medium whitespace-pre-line">{{ ctx.welcome_message }}</p>
+        {% endif %}
+        {% if ctx.address.street or ctx.address.city_state or ctx.address.zip %}
+        <label class="block text-xs uppercase tracking-wide text-gray-500">Location</label>
+        <p class="mb-3 mt-1 text-gray-900 font-medium">{{ ctx.address.street }}{% if ctx.address.city_state %}, {{ ctx.address.city_state }}{% endif %}{% if ctx.address.zip %}, {{ ctx.address.zip }}{% endif %}</p>
+        {% endif %}
+        {{ m.host_info(ctx.host) }}
+        {{ m.safety_info(ctx.safety_info) }}
+      </section>
+    {% elif tab == 'checkin' %}
+      <section class="mb-8 hidden" data-tab-section="checkin">
+        <div class="flex items-center gap-2 mb-2">
+          <h2 class="text-xl font-semibold">Check-in</h2>
+        </div>
+        {% if ctx.check_in_time %}
+        <label class="block text-xs uppercase tracking-wide text-gray-500">Check-in Time</label>
+        <p class="mb-3 mt-1 text-gray-900 font-medium">{{ ctx.check_in_time }}</p>
+        {% endif %}
+        {% if ctx.access_info %}
+        <label class="block text-xs uppercase tracking-wide text-gray-500">Access Info</label>
+        <p class="mb-3 mt-1 text-gray-900 font-medium whitespace-pre-line">{{ ctx.access_info }}</p>
+        {% endif %}
+        {% if ctx.parking_info %}
+        <label class="block text-xs uppercase tracking-wide text-gray-500">Parking Info</label>
+        <p class="mt-1 text-gray-900 font-medium whitespace-pre-line">{{ ctx.parking_info }}</p>
+        {% endif %}
+        {% if ctx.wifi.network or ctx.wifi.password %}
+        <div class="mt-4">
+          <h3 class="text-lg font-semibold">WiFi</h3>
+          {% if ctx.wifi.network %}
+          <div><span class="text-xs uppercase tracking-wide text-gray-500">Network</span> <span class="font-medium">{{ ctx.wifi.network }}</span></div>
+          {% endif %}
+          {% if ctx.wifi.password %}
+          <div><span class="text-xs uppercase tracking-wide text-gray-500">Password</span> <span class="font-medium">{{ ctx.wifi.password }}</span></div>
+          {% endif %}
+        </div>
+        {% endif %}
+      </section>
+    {% elif tab == 'property' %}
+      <section class="mb-8 hidden" data-tab-section="property">
+        <div class="flex items-center gap-2 mb-2">
+          <h2 class="text-xl font-semibold">Property</h2>
+        </div>
+        {% if ctx.property_name %}
+        <label class="block text-xs uppercase tracking-wide text-gray-500">Property Name</label>
+        <p class="mb-4 mt-1 text-gray-900 font-medium">{{ ctx.property_name }}</p>
+        {% endif %}
+        {% if ctx.house_manual and ctx.house_manual|length > 0 %}
+        <div class="mt-4">
+          <h3 class="text-lg font-semibold">House Manual</h3>
+          <div class="mt-2 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {% for item in ctx.house_manual %}
+            <div class="p-4 rounded-lg bg-white/80 border border-gray-200 shadow-sm">
+              {% if item.name %}
+              <div class="font-semibold text-gray-900">{{ item.name }}</div>
+              {% endif %}
+              {% if item.description %}
+              <p class="mt-1 text-gray-800 whitespace-pre-line">{{ item.description }}</p>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      </section>
+    {% elif tab == 'food' %}
+      <section class="mb-8 hidden" data-tab-section="food">
+        <div class="flex items-center gap-2 mb-2">
+          <h2 class="text-xl font-semibold">Nearby Food</h2>
+        </div>
+        {{ m.items_grid(ctx.places_to_eat) }}
+      </section>
+    {% elif tab == 'activities' %}
+      <section class="mb-8 hidden" data-tab-section="activities">
+        <div class="flex items-center gap-2 mb-2">
+          <h2 class="text-xl font-semibold">Nearby Activities</h2>
+        </div>
+        {{ m.items_grid(ctx.things_to_do) }}
+      </section>
+    {% elif tab == 'rules' %}
+      <section class="mb-8 hidden" data-tab-section="rules">
+        <div class="flex items-center gap-2 mb-2">
+          <h2 class="text-xl font-semibold">House Rules</h2>
+        </div>
+        {% if ctx.rules and ctx.rules|length > 0 %}
+          <ul class="list-disc pl-6 text-gray-800 space-y-2">
+            {% for rule in ctx.rules %}
+            <li>{{ rule }}</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="text-gray-600">No rules provided.</p>
+        {% endif %}
+      </section>
+    {% elif tab == 'checkout' %}
+      <section class="mb-8 hidden" data-tab-section="checkout">
+        <div class="flex items-center gap-2 mb-2">
+          <h2 class="text-xl font-semibold">Checkout</h2>
+        </div>
+        {% if ctx.check_out_time %}
+        <label class="block text-xs uppercase tracking-wide text-gray-500">Checkout Time</label>
+        <p class="mb-2 mt-1 text-gray-900 font-medium">{{ ctx.check_out_time }}</p>
+        {% endif %}
+        {% if ctx.checkout_info and ctx.checkout_info|length > 0 %}
+        <label class="block text-xs uppercase tracking-wide text-gray-500">Info</label>
+        <ul class="list-disc pl-6 text-gray-800 space-y-1">
+          {% for info in ctx.checkout_info %}
+            <li><span class="font-medium">{{ info.name }}</span>{% if info.description %}: {{ info.description }}{% endif %}</li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+      </section>
+    {% elif tab.startswith('custom_') %}
+      <section class="mb-8 hidden" data-tab-section="{{ tab }}">
+        <div class="flex items-center gap-2 mb-2">
+          {% set meta = ctx.custom_tabs_meta.get(tab) if ctx.custom_tabs_meta else None %}
+          <h2 class="text-xl font-semibold">{{ (meta.label if meta and meta.label) or (tab | replace('custom_', '') | replace('_', ' ') | title) }}</h2>
+        </div>
+        {% set blocks = ctx.custom_sections.get(tab) if ctx.custom_sections else [] %}
+        {% if blocks and blocks|length > 0 %}
+          <div class="space-y-3">
+            {% for text in blocks %}
+              {% if text %}
+              <p class="text-gray-900 font-medium whitespace-pre-line">{{ text }}</p>
+              {% endif %}
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="text-gray-600">No content provided.</p>
+        {% endif %}
+      </section>
+    {% endif %}
+  {% endfor %}
+{% endblock %}
+
+{% block body_scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const DEFAULT_TAB = '{{ ctx.included_tabs[0] if ctx.included_tabs and ctx.included_tabs|length > 0 else "checkin" }}';
+    const links = Array.from(document.querySelectorAll('[data-tab-link]'));
+    const sections = Array.from(document.querySelectorAll('[data-tab-section]'));
+
+    function showTab(tab) {
+      sections.forEach(sec => {
+        if (sec.getAttribute('data-tab-section') === tab) {
+          sec.classList.remove('hidden');
+        } else {
+          sec.classList.add('hidden');
+        }
+      });
+      links.forEach(link => {
+        const isActive = link.getAttribute('data-tab') === tab;
+        link.classList.toggle('bg-white/20', isActive);
+      });
+    }
+
+    links.forEach(link => {
+      link.addEventListener('click', () => {
+        const tab = link.getAttribute('data-tab');
+        showTab(tab);
+      });
+    });
+
+    showTab(DEFAULT_TAB);
+  });
+</script>
+{% endblock %}

@@ -2,20 +2,17 @@ import React from "react";
 import { DoorOpen } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import PlacesAutocomplete from "@/components/PlacesAutocomplete";
 import { Textarea } from "@/components/ui/textarea";
 import { LIMITS } from "@/constants/limits";
 
 interface CheckinSectionProps {
-  welcomeMessage: string;
-  location: string;
   accessInfo: string;
   parkingInfo: string;
   checkInTime: string;
   onChange: (id: string, value: string) => void;
 }
 
-export default function CheckinSection({ welcomeMessage, location, accessInfo, parkingInfo, checkInTime, onChange }: CheckinSectionProps) {
+export default function CheckinSection({ accessInfo, parkingInfo, checkInTime, onChange }: CheckinSectionProps) {
   return (
     <section className="mb-8">
       <div className="flex items-center gap-2 mb-2">
@@ -29,15 +26,6 @@ export default function CheckinSection({ welcomeMessage, location, accessInfo, p
         value={checkInTime}
         onChange={e => onChange("checkInTime", e.target.value)}
         className="w-40 mb-2 mt-1"
-      />
-      <Label htmlFor="welcomeMessage">Welcome Message</Label>
-      <Textarea id="welcomeMessage" maxLength={LIMITS.welcomeMessage} value={welcomeMessage} onChange={e => onChange("welcomeMessage", e.target.value)} className="mb-2 mt-1" placeholder="Write a friendly greeting and what guests can expect during their stay." />
-      <Label htmlFor="location">Location <span className="text-red-500" title="Required">*</span></Label>
-      <PlacesAutocomplete
-        value={location}
-        onChange={val => onChange("location", val)}
-        placeholder="Start typing an address or place..."
-        className="mb-2 mt-1"
       />
       <Label htmlFor="accessInfo">Access Info</Label>
       <Textarea id="accessInfo" maxLength={LIMITS.accessInfo} value={accessInfo} onChange={e => onChange("access_info", e.target.value)} className="mb-2 mt-1" placeholder="Door code, lockbox location, entry instructions, or concierge details." />

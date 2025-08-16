@@ -12,9 +12,12 @@ import CreateGuidebookLayout from "@/app/create/CreateGuidebookLayout";
 // import ArrivalSection from "@/app/create/ArrivalSection"; // not used on edit page
 import WifiSection from "@/app/create/WifiSection";
 import CheckinSection from "@/app/create/CheckinSection";
+import WelcomeSection from "@/app/create/WelcomeSection";
+import Spinner from "@/components/ui/spinner";
 import HostInfoSection from "@/app/create/HostInfoSection";
 import PropertySection from "@/app/create/PropertySection";
 import DynamicItemList, { DynamicItem } from "@/app/create/DynamicItemList";
+import HouseManualList from "@/app/create/HouseManualList";
 import RulesSection from "@/app/create/RulesSection";
 import CheckoutSection from "@/app/create/CheckoutSection";
 
@@ -35,10 +38,12 @@ type GuidebookDetail = {
     name?: string | null;
     bio?: string | null;
     contact?: string | null;
+    photo_url?: string | null;
   };
   wifi?: {
     id?: number | string | null;
     network?: string | null;
+    password?: string | null;
   };
   included_tabs?: string[] | null;
   custom_sections?: Record<string, string[]> | null;
@@ -55,6 +60,7 @@ type GuidebookDetail = {
   parking_info?: string | null;
   cover_image_url?: string | null;
   checkout_info?: { name: string; description: string }[] | null;
+  house_manual?: { name: string; description: string }[] | null;
 };
 
 export default function EditGuidebookPage() {
@@ -65,6 +71,7 @@ export default function EditGuidebookPage() {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const sectionsOrder = useMemo(() => (
     [
+      "welcome",
       "checkin",
       "property",
       "hostinfo",
@@ -93,6 +100,8 @@ export default function EditGuidebookPage() {
     welcomeMessage: "",
     location: "",
     parkingInfo: "",
+    emergencyContact: "",
+    fireExtinguisherLocation: "",
     wifiNetwork: "",
     wifiPassword: "",
     wifiNotes: "WiFi works best in the living room and kitchen. Please let us know if you have any issues.",
@@ -102,6 +111,7 @@ export default function EditGuidebookPage() {
   const [foodItems, setFoodItems] = useState<DynamicItem[]>([]);
   const [activityItems, setActivityItems] = useState<DynamicItem[]>([]);
   const [checkoutItems, setCheckoutItems] = useState<{ name: string; description: string; checked: boolean }[]>([]);
+  const [houseManualItems, setHouseManualItems] = useState<{ name: string; description: string }[]>([]);
   const [included, setIncluded] = useState<string[]>([...sectionsOrder]);
   const [excluded, setExcluded] = useState<string[]>([]);
   const [customSections, setCustomSections] = useState<Record<string, string[]>>({});
@@ -109,6 +119,7 @@ export default function EditGuidebookPage() {
   const [rules, setRules] = useState<{ name: string; description: string; checked: boolean }[]>([]);
 
   const [isLoading, setIsLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [authReady, setAuthReady] = useState(false);
 
@@ -143,6 +154,7 @@ export default function EditGuidebookPage() {
     (async () => {
       try {
         setIsLoading(true);
+        setInitialLoading(true);
         const res = await fetch(`${API_BASE}/api/guidebooks/${guidebookId}`, {
           headers: {
             "Content-Type": "application/json",
@@ -168,8 +180,12 @@ export default function EditGuidebookPage() {
           welcomeMessage: data.welcome_message || "",
           parkingInfo: data.parking_info || "",
           location: data.property?.address_street || "",
+          emergencyContact: (data as any)?.safety_info?.emergency_contact || "",
+          fireExtinguisherLocation: (data as any)?.safety_info?.fire_extinguisher_location || "",
           wifiNetwork: data.wifi?.network || "",
-          // keep wifiPassword empty unless user sets it
+          wifiPassword: data.wifi?.password || "",
+          checkInTime: data.check_in_time || prev.checkInTime,
+          checkOutTime: data.check_out_time || prev.checkOutTime,
         }));
 
         setIncluded(Array.isArray(data.included_tabs) && data.included_tabs.length ? data.included_tabs : [...sectionsOrder]);
@@ -188,14 +204,17 @@ export default function EditGuidebookPage() {
           image_url: i.image_url || "",
         })));
         setCheckoutItems((data.checkout_info || []).map(i => ({ ...i, checked: true })));
+        setHouseManualItems((data.house_manual || []).map(i => ({ name: i.name, description: i.description })));
         setRules((data.rules || []).map((text: string) => ({ name: text.split(":")[0] || text, description: text.includes(":") ? text.split(":").slice(1).join(":").trim() : "", checked: true })));
         if (data.cover_image_url) setPreviewUrl(data.cover_image_url);
+        if (data.host?.photo_url) setHostPhotoPreviewUrl(data.host.photo_url);
       } catch (e: unknown) {
         console.error(e);
         const msg = e instanceof Error ? e.message : "Failed to load guidebook";
         setError(msg);
       } finally {
         setIsLoading(false);
+        setInitialLoading(false);
       }
     })();
   }, [guidebookId, accessToken, authReady, router, sectionsOrder]);
@@ -250,10 +269,15 @@ export default function EditGuidebookPage() {
         wifi_password: formData.wifiPassword || undefined,
         check_in_time: formData.checkInTime,
         check_out_time: formData.checkOutTime,
+        safety_info: {
+          emergency_contact: formData.emergencyContact,
+          fire_extinguisher_location: formData.fireExtinguisherLocation,
+        },
         rules: compiledRules,
         things_to_do: activityItems.map(i => ({ name: i.name, description: i.description, image_url: i.image_url || "", address: i.address || "" })),
         places_to_eat: foodItems.map(i => ({ name: i.name, description: i.description, image_url: i.image_url || "", address: i.address || "" })),
         checkout_info: checkoutItems.filter(i => i.checked).map(i => ({ name: i.name, description: i.description })),
+        house_manual: houseManualItems.map(i => ({ name: i.name, description: i.description })),
         included_tabs: included,
         custom_sections: customSections,
         custom_tabs_meta: customTabsMeta,
@@ -287,7 +311,7 @@ export default function EditGuidebookPage() {
     }
   };
 
-  const [currentSection, setCurrentSection] = useState<string>("checkin");
+  const [currentSection, setCurrentSection] = useState<string>("welcome");
   const goToSection = (section: string) => setCurrentSection(section);
 
   useEffect(() => {
@@ -318,6 +342,17 @@ export default function EditGuidebookPage() {
     });
   }, [formData.location]);
 
+  if (initialLoading) {
+    return (
+      <div className="w-full min-h-[60vh] flex items-center justify-center">
+        <div className="flex items-center gap-3 text-gray-700">
+          <Spinner size={22} colorClass="text-[oklch(0.6923_0.22_21.05)]" />
+          <span>Loading…</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full">
       <div className="w-full sticky top-0 z-20 bg-transparent">
@@ -328,7 +363,14 @@ export default function EditGuidebookPage() {
             onClick={(e) => handleSubmit(e as unknown as React.FormEvent)}
             disabled={isLoading}
           >
-            {isLoading ? "Updating…" : "Publish Changes"}
+            {isLoading ? (
+              <span className="inline-flex items-center gap-2">
+                <Spinner size={18} />
+                Updating…
+              </span>
+            ) : (
+              "Publish Changes"
+            )}
           </Button>
         </div>
       </div>
@@ -354,14 +396,26 @@ export default function EditGuidebookPage() {
             <span className="block sm:inline"> {error}</span>
           </div>
         )}
-        {currentSection === "checkin" && (
-          <CheckinSection
+        {currentSection === "welcome" && (
+          <WelcomeSection
             welcomeMessage={formData.welcomeMessage}
             location={formData.location}
+            onChange={(id: string, value: string) => setFormData(f => ({ ...f, [id]: value }))}
+            emergencyContact={formData.emergencyContact}
+            fireExtinguisherLocation={formData.fireExtinguisherLocation}
+            hostName={formData.hostName}
+            hostBio={formData.hostBio}
+            hostContact={formData.hostContact}
+            onHostPhotoChange={handleHostPhotoSelect}
+            hostPhotoPreviewUrl={hostPhotoPreviewUrl}
+          />
+        )}
+        {currentSection === "checkin" && (
+          <CheckinSection
             accessInfo={formData.access_info}
             parkingInfo={formData.parkingInfo}
             checkInTime={formData.checkInTime}
-            onChange={(id, value) => setFormData(f => ({ ...f, [id]: value }))}
+            onChange={(id: string, value: string) => setFormData(f => ({ ...f, [id]: value }))}
           />
         )}
         {currentSection === "hostinfo" && (
@@ -375,12 +429,24 @@ export default function EditGuidebookPage() {
           />
         )}
         {currentSection === "property" && (
-          <PropertySection
-            propertyName={formData.propertyName}
-            onChange={(id, value) => setFormData(f => ({ ...f, [id]: value }))}
-            onCoverImageChange={handleCoverImageSelect}
-            coverPreviewUrl={previewUrl}
-          />
+          <>
+            <PropertySection
+              propertyName={formData.propertyName}
+              onChange={(id, value) => setFormData(f => ({ ...f, [id]: value }))}
+              onCoverImageChange={handleCoverImageSelect}
+              coverPreviewUrl={previewUrl}
+            />
+            <div className="mt-6">
+              <HouseManualList
+                items={houseManualItems}
+                onChange={(idx, field, value) => {
+                  setHouseManualItems(items => items.map((it, i) => (i === idx ? { ...it, [field]: value } : it)));
+                }}
+                onAdd={() => setHouseManualItems(items => [...items, { name: "", description: "" }])}
+                onDelete={(idx) => setHouseManualItems(items => items.filter((_, i) => i !== idx))}
+              />
+            </div>
+          </>
         )}
         {currentSection === "wifi" && (
           <WifiSection
@@ -508,7 +574,7 @@ export default function EditGuidebookPage() {
         {currentSection === "rules" && (
           <RulesSection
             rules={rules}
-            onChange={(idx, field, value) => {
+            onChange={(idx: number, field, value) => {
               setRules(rules =>
                 rules.map((rule, i) =>
                   i === idx ? { ...rule, [field]: field === 'checked' ? Boolean(value) : String(value) } : rule
@@ -516,7 +582,6 @@ export default function EditGuidebookPage() {
               );
             }}
             onAdd={() => setRules([...rules, { name: '', description: '', checked: false }])}
-            onDelete={(idx) => setRules(rules => rules.filter((_, i) => i !== idx))}
           />
         )}
         {currentSection === "checkout" && (
@@ -524,13 +589,12 @@ export default function EditGuidebookPage() {
             checkoutTime={formData.checkOutTime}
             items={checkoutItems}
             onTimeChange={(value: string) => setFormData(f => ({ ...f, checkOutTime: value }))}
-            onChange={(idx, field, value) => {
+            onChange={(idx: number, field, value) => {
               setCheckoutItems(items => items.map((item, i) =>
                 i === idx ? { ...item, [field]: field === 'checked' ? Boolean(value) : String(value) } : item
               ));
             }}
             onAdd={() => setCheckoutItems(items => [...items, { name: '', description: '', checked: false }])}
-            onDelete={(idx) => setCheckoutItems(items => items.filter((_, i) => i !== idx))}
           />
         )}
       </CreateGuidebookLayout>

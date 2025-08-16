@@ -24,7 +24,8 @@ export default function SignupPage() {
       setLoading(true);
       let emailRedirectTo: string | undefined = undefined;
       if (typeof window !== 'undefined') {
-        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+        // Prefer runtime origin in the browser to avoid using a prod URL during local dev
+        const baseUrl = window.location.origin || process.env.NEXT_PUBLIC_SITE_URL;
         const gb = (sessionStorage.getItem('guidebookId') || localStorage.getItem('guidebookId')) || '';
         const token = (sessionStorage.getItem('claimToken') || localStorage.getItem('claimToken')) || '';
         const hasPending = gb && token;
@@ -35,15 +36,45 @@ export default function SignupPage() {
           emailRedirectTo = `${baseUrl}/dashboard`;
         }
       }
-      const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo } });
-      if (error) throw error;
+      const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo } });
+      if (error) {
+        const msg = (error?.message || '').toLowerCase();
+        const isDuplicate = /already|registered|exists/.test(msg);
+        setError(isDuplicate ? 'Email already in use. Please log in' : error.message);
+        return;
+      }
+      // Detect duplicates even when signUp does not throw:
+      // 1) Some tenants return an existing user with empty identities
+      // 2) Others return a user that already has email_confirmed_at populated
+      // 3) Fallback: identity list contains an email provider that isn't new
+      const user: any = data?.user ?? null;
+      const identities = (user?.identities ?? []) as any[];
+      const isEmptyIdentities = Array.isArray(identities) && identities.length === 0;
+      const isAlreadyConfirmed = !!user?.email_confirmed_at || !!user?.confirmed_at;
+      const hasEmailProvider = Array.isArray(identities) && identities.some(i => (i?.provider || i?.identity_data?.provider) === 'email');
+      if (isEmptyIdentities || isAlreadyConfirmed || hasEmailProvider) {
+        if (process.env.NODE_ENV !== 'production') {
+          // Helpful debugging in dev only
+          // eslint-disable-next-line no-console
+          console.log('Duplicate signup detected', { user, identities });
+        }
+        setError('Email already in use. Please log in');
+        return;
+      }
       // Depending on Supabase email confirmation settings, user may need to confirm via email
       setMessage("Check your email to confirm your account. Once confirmed, you can log in.");
       // Optionally redirect to login immediately
       // router.push("/login");
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Signup failed";
-      setError(msg);
+      // Network or unexpected errors
+      const msg = err instanceof Error ? err.message : 'Signup failed';
+      // Normalize common duplicate email messages if thrown through this path
+      const lower = msg.toLowerCase();
+      if (/already|registered|exists/.test(lower)) {
+        setError('Email already in use. Please log in');
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -132,7 +163,7 @@ export default function SignupPage() {
                   await supabase.auth.signInWithOAuth({
                     provider: 'google',
                     options: {
-                      redirectTo: `${(process.env.NEXT_PUBLIC_SITE_URL || window.location.origin)}${hasPendingPreview ? `/success#gb=${encodeURIComponent(gb as string)}&token=${encodeURIComponent(token as string)}` : '/dashboard'}`,
+                      redirectTo: `${(typeof window !== 'undefined' ? window.location.origin : process.env.NEXT_PUBLIC_SITE_URL)}${hasPendingPreview ? `/success#gb=${encodeURIComponent(gb as string)}&token=${encodeURIComponent(token as string)}` : '/dashboard'}`,
                       queryParams: { prompt: 'select_account' },
                     },
                   });
