@@ -276,7 +276,7 @@ export default function CreateGuidebookPage() {
     if (!visitedSections.includes(currentSection)) {
       setVisitedSections((prev) => [...prev, currentSection]);
     }
-  }, [currentSection]);
+  }, [currentSection, visitedSections]);
 
   // Guided rules
   const currentIdx = included.indexOf(currentSection);
