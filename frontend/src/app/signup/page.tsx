@@ -47,15 +47,24 @@ export default function SignupPage() {
       // 1) Some tenants return an existing user with empty identities
       // 2) Others return a user that already has email_confirmed_at populated
       // 3) Fallback: identity list contains an email provider that isn't new
-      const user: any = data?.user ?? null;
-      const identities = (user?.identities ?? []) as any[];
-      const isEmptyIdentities = Array.isArray(identities) && identities.length === 0;
-      const isAlreadyConfirmed = !!user?.email_confirmed_at || !!user?.confirmed_at;
-      const hasEmailProvider = Array.isArray(identities) && identities.some(i => (i?.provider || i?.identity_data?.provider) === 'email');
+      const user = (data?.user ?? null) as unknown as { identities?: unknown[]; email_confirmed_at?: string | null; confirmed_at?: string | null } | null;
+      const identities: unknown[] = Array.isArray(user?.identities) ? (user!.identities as unknown[]) : [];
+      const isEmptyIdentities = identities.length === 0;
+      const isAlreadyConfirmed = !!(user && (user.email_confirmed_at || user.confirmed_at));
+      const hasEmailProvider = (() => {
+        return identities.some((i) => {
+          if (i && typeof i === 'object') {
+            const rec = i as Record<string, unknown>;
+            if (typeof rec.provider === 'string' && rec.provider === 'email') return true;
+            const idData = rec.identity_data as Record<string, unknown> | undefined;
+            if (idData && typeof idData.provider === 'string' && idData.provider === 'email') return true;
+          }
+          return false;
+        });
+      })();
       if (isEmptyIdentities || isAlreadyConfirmed || hasEmailProvider) {
         if (process.env.NODE_ENV !== 'production') {
           // Helpful debugging in dev only
-          // eslint-disable-next-line no-console
           console.log('Duplicate signup detected', { user, identities });
         }
         setError('Email already in use. Please log in');

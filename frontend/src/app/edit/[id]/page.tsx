@@ -61,6 +61,7 @@ type GuidebookDetail = {
   cover_image_url?: string | null;
   checkout_info?: { name: string; description: string }[] | null;
   house_manual?: { name: string; description: string }[] | null;
+  safety_info?: { emergency_contact?: string | null; fire_extinguisher_location?: string | null } | null;
 };
 
 export default function EditGuidebookPage() {
@@ -180,8 +181,8 @@ export default function EditGuidebookPage() {
           welcomeMessage: data.welcome_message || "",
           parkingInfo: data.parking_info || "",
           location: data.property?.address_street || "",
-          emergencyContact: (data as any)?.safety_info?.emergency_contact || "",
-          fireExtinguisherLocation: (data as any)?.safety_info?.fire_extinguisher_location || "",
+          emergencyContact: data.safety_info?.emergency_contact || "",
+          fireExtinguisherLocation: data.safety_info?.fire_extinguisher_location || "",
           wifiNetwork: data.wifi?.network || "",
           wifiPassword: data.wifi?.password || "",
           checkInTime: data.check_in_time || prev.checkInTime,

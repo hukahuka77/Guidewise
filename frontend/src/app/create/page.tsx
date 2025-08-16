@@ -459,7 +459,7 @@ export default function CreateGuidebookPage() {
                 });
                 if (!res.ok) throw new Error("Failed to fetch activities recommendations");
                 const data = await res.json();
-                let items = [] as any[];
+                let items: Partial<DynamicItem>[] = [];
                 if (Array.isArray(data)) {
                   items = data;
                 } else if (Array.isArray(data.activities)) {
