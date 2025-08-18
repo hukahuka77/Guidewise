@@ -19,6 +19,9 @@ import DynamicItemList, { DynamicItem } from "@/app/create/DynamicItemList";
 import HouseManualList from "@/app/create/HouseManualList";
 import RulesSection from "@/app/create/RulesSection";
 import CheckoutSection from "@/app/create/CheckoutSection";
+import AddItemChoiceModal from "@/components/places/AddItemChoiceModal";
+import PlacePickerModal from "@/components/places/PlacePickerModal";
+import { LIMITS } from "@/constants/limits";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 const BUCKET_NAME = process.env.NEXT_PUBLIC_SUPABASE_FOOD_ACTIVITIES_BUCKET || "food-activities-photos";
@@ -123,6 +126,12 @@ export default function EditGuidebookPage() {
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [authReady, setAuthReady] = useState(false);
+  const [isFetchingFood, setIsFetchingFood] = useState(false);
+  const [isFetchingActivities, setIsFetchingActivities] = useState(false);
+  const [foodPickerOpen, setFoodPickerOpen] = useState(false);
+  const [activityPickerOpen, setActivityPickerOpen] = useState(false);
+  const [foodAddChoiceOpen, setFoodAddChoiceOpen] = useState(false);
+  const [activityAddChoiceOpen, setActivityAddChoiceOpen] = useState(false);
 
   // Load token
   useEffect(() => {
@@ -482,9 +491,9 @@ export default function EditGuidebookPage() {
             <button
               type="button"
               className="mb-4 px-4 py-2 rounded bg-[oklch(0.6923_0.22_21.05)] text-white font-semibold shadow hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={isLoading || !formData.location}
+              disabled={isFetchingFood || !formData.location}
               onClick={async () => {
-                setIsLoading(true);
+                setIsFetchingFood(true);
                 setError(null);
                 try {
                   const res = await fetch(`${API_BASE}/api/ai-food`, {
@@ -518,11 +527,15 @@ export default function EditGuidebookPage() {
                   const msg = e instanceof Error ? e.message : "Failed to fetch recommendations";
                   setError(msg);
                 } finally {
-                  setIsLoading(false);
+                  setIsFetchingFood(false);
                 }
               }}
             >
-              {isLoading ? "Loading..." : "Prepopulate with AI"}
+              {isFetchingFood ? (
+                <span className="inline-flex items-center gap-2"><Spinner size={16} /> Prepopulate with AI…</span>
+              ) : (
+                "Prepopulate with AI"
+              )}
             </button>
             <DynamicItemList
               items={foodItems}
@@ -530,8 +543,33 @@ export default function EditGuidebookPage() {
               onChange={(idx, field, value) => {
                 setFoodItems(items => items.map((item, i) => i === idx ? { ...item, [field]: value } : item));
               }}
-              onAdd={() => setFoodItems(items => [...items, { name: '', address: '', description: '' }])}
+              onAdd={() => setFoodAddChoiceOpen(true)}
               onDelete={idx => setFoodItems(items => items.filter((_, i) => i !== idx))}
+            />
+            <AddItemChoiceModal
+              open={foodAddChoiceOpen}
+              onClose={() => setFoodAddChoiceOpen(false)}
+              title="Add Food"
+              onGoogle={() => setFoodPickerOpen(true)}
+              onManual={() =>
+                setFoodItems(items =>
+                  items.length >= LIMITS.maxFoodActivityItems ? items : [...items, { name: '', address: '', description: '' }]
+                )
+              }
+            />
+            <PlacePickerModal
+              open={foodPickerOpen}
+              onClose={() => setFoodPickerOpen(false)}
+              apiBase={API_BASE}
+              near={formData.location}
+              title="Add Food"
+              onSelect={(item) => {
+                setFoodItems(items =>
+                  items.length >= LIMITS.maxFoodActivityItems
+                    ? items
+                    : [...items, { name: item.name, address: item.address, description: item.description || '', image_url: item.image_url || '' }]
+                );
+              }}
             />
           </div>
         )}
@@ -540,9 +578,9 @@ export default function EditGuidebookPage() {
             <button
               type="button"
               className="mb-4 px-4 py-2 rounded bg-[oklch(0.6923_0.22_21.05)] text-white font-semibold shadow hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={isLoading || !formData.location}
+              disabled={isFetchingActivities || !formData.location}
               onClick={async () => {
-                setIsLoading(true);
+                setIsFetchingActivities(true);
                 setError(null);
                 try {
                   const res = await fetch(`${API_BASE}/api/ai-activities`, {
@@ -576,20 +614,49 @@ export default function EditGuidebookPage() {
                   const msg = e instanceof Error ? e.message : "Failed to fetch recommendations";
                   setError(msg);
                 } finally {
-                  setIsLoading(false);
+                  setIsFetchingActivities(false);
                 }
               }}
             >
-              {isLoading ? "Loading..." : "Prepopulate with AI"}
+              {isFetchingActivities ? (
+                <span className="inline-flex items-center gap-2"><Spinner size={16} /> Prepopulate with AI…</span>
+              ) : (
+                "Prepopulate with AI"
+              )}
             </button>
             <DynamicItemList
               items={activityItems}
-              label="Things To Do"
+              label="Nearby Activities"
               onChange={(idx, field, value) => {
                 setActivityItems(items => items.map((item, i) => i === idx ? { ...item, [field]: value } : item));
               }}
-              onAdd={() => setActivityItems(items => [...items, { name: '', address: '', description: '' }])}
+              onAdd={() => setActivityAddChoiceOpen(true)}
               onDelete={idx => setActivityItems(items => items.filter((_, i) => i !== idx))}
+            />
+            <AddItemChoiceModal
+              open={activityAddChoiceOpen}
+              onClose={() => setActivityAddChoiceOpen(false)}
+              title="Add Activity"
+              onGoogle={() => setActivityPickerOpen(true)}
+              onManual={() =>
+                setActivityItems(items =>
+                  items.length >= LIMITS.maxFoodActivityItems ? items : [...items, { name: '', address: '', description: '' }]
+                )
+              }
+            />
+            <PlacePickerModal
+              open={activityPickerOpen}
+              onClose={() => setActivityPickerOpen(false)}
+              apiBase={API_BASE}
+              near={formData.location}
+              title="Add Activity"
+              onSelect={(item) => {
+                setActivityItems(items =>
+                  items.length >= LIMITS.maxFoodActivityItems
+                    ? items
+                    : [...items, { name: item.name, address: item.address, description: item.description || '', image_url: item.image_url || '' }]
+                );
+              }}
             />
           </div>
         )}

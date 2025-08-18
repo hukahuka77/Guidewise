@@ -816,6 +816,26 @@ def update_guidebook(guidebook_id):
         if incoming in data:
             setattr(gb, model_attr, data.get(incoming))
 
+    # safety_info: validate and persist explicitly (dict with optional keys)
+    if 'safety_info' in data:
+        si = data.get('safety_info') or {}
+        if si is None:
+            gb.safety_info = None
+        elif isinstance(si, dict):
+            try:
+                emer = si.get('emergency_contact', None)
+                fire = si.get('fire_extinguisher_location', None)
+                # Normalize to strings or None
+                emer_norm = (str(emer).strip() if emer is not None and str(emer).strip() != '' else None)
+                fire_norm = (str(fire).strip() if fire is not None and str(fire).strip() != '' else None)
+                gb.safety_info = {
+                    'emergency_contact': emer_norm,
+                    'fire_extinguisher_location': fire_norm,
+                }
+            except Exception:
+                # Fallback: ignore malformed safety_info
+                pass
+
     # Update or create related Host
     incoming_host_name = (data.get('host_name') or '').strip()
     incoming_host_bio = data.get('host_bio')
