@@ -21,6 +21,7 @@ import RulesSection from "@/app/create/RulesSection";
 import CheckoutSection from "@/app/create/CheckoutSection";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+const BUCKET_NAME = process.env.NEXT_PUBLIC_SUPABASE_FOOD_ACTIVITIES_BUCKET || "food-activities-photos";
 
 type GuidebookDetail = {
   id: number | string;
@@ -234,18 +235,29 @@ export default function EditGuidebookPage() {
     setIsLoading(true);
     setError(null);
 
-    const toBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = (error) => reject(error);
-    });
+    // Helper: upload to Supabase Storage and return public URL
+    const uploadToStorage = async (prefix: string, file: File): Promise<string | undefined> => {
+      try {
+        if (!supabase) return undefined;
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const path = `${prefix}/${Date.now()}-${safeName}`;
+        const { error } = await supabase.storage
+          .from(BUCKET_NAME)
+          .upload(path, file, { contentType: file.type || 'application/octet-stream', upsert: false });
+        if (error) throw error;
+        const { data } = supabase.storage.from(BUCKET_NAME).getPublicUrl(path);
+        return data?.publicUrl || undefined;
+      } catch (err) {
+        console.error('Upload failed:', err);
+        return undefined;
+      }
+    };
 
     try {
       let coverImageUrl: string | undefined = undefined;
       let hostPhotoUrl: string | undefined = undefined;
-      if (coverImage) coverImageUrl = await toBase64(coverImage);
-      if (hostPhoto) hostPhotoUrl = await toBase64(hostPhoto);
+      if (coverImage) coverImageUrl = await uploadToStorage('covers', coverImage);
+      if (hostPhoto) hostPhotoUrl = await uploadToStorage('hosts', hostPhoto);
 
       const compiledRules = rules
         .filter(r => r.checked)

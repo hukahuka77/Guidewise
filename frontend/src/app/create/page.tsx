@@ -24,6 +24,7 @@ import CheckoutSection from "./CheckoutSection";
 // Base URL for backend API, configured via environment. Example in .env.local:
 // NEXT_PUBLIC_API_BASE_URL=http://localhost:5001
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+const BUCKET_NAME = process.env.NEXT_PUBLIC_SUPABASE_FOOD_ACTIVITIES_BUCKET || "food-activities-photos";
 
 export default function CreateGuidebookPage() {
   const router = useRouter();
@@ -131,23 +132,32 @@ export default function CreateGuidebookPage() {
     setIsLoading(true);
     setError(null);
 
-    // Helper function to convert file to Base64
-    const toBase64 = (file: File): Promise<string> =>
-      new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = (error) => reject(error);
-      });
+    // Helper: upload to Supabase Storage and return public URL
+    const uploadToStorage = async (prefix: string, file: File): Promise<string | undefined> => {
+      try {
+        if (!supabase) return undefined;
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const path = `${prefix}/${Date.now()}-${safeName}`;
+        const { error } = await supabase.storage
+          .from(BUCKET_NAME)
+          .upload(path, file, { contentType: file.type || 'application/octet-stream', upsert: true });
+        if (error) throw error;
+        const { data } = supabase.storage.from(BUCKET_NAME).getPublicUrl(path);
+        return data?.publicUrl || undefined;
+      } catch (err) {
+        console.error('Upload failed:', err);
+        return undefined;
+      }
+    };
 
     try {
       let coverImageUrl: string | undefined = undefined;
       let hostPhotoUrl: string | undefined = undefined;
       if (coverImage) {
-        coverImageUrl = await toBase64(coverImage);
+        coverImageUrl = await uploadToStorage('covers', coverImage);
       }
       if (hostPhoto) {
-        hostPhotoUrl = await toBase64(hostPhoto);
+        hostPhotoUrl = await uploadToStorage('hosts', hostPhoto);
       }
 
       // Compile rules from state (send only checked rules as strings)

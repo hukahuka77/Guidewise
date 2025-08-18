@@ -250,7 +250,7 @@ def _render_guidebook(gb: Guidebook):
                 "name": getattr(g.host, 'name', None),
                 "bio": getattr(g.host, 'bio', None),
                 "contact": getattr(g.host, 'contact', None),
-                "photo_url": getattr(g.host, 'host_image_base64', None),
+                "photo_url": getattr(g.host, 'host_image_url', None),
             },
             "welcome_message": getattr(g, 'welcome_info', None),
             "safety_info": getattr(g, 'safety_info', {}) or {},
@@ -287,7 +287,7 @@ def _render_guidebook(gb: Guidebook):
         host_name=getattr(gb.host, 'name', None),
         host_bio=getattr(gb.host, 'bio', None),
         host_contact=getattr(gb.host, 'contact', None),
-        host_photo_url=getattr(gb.host, 'host_image_base64', None),
+        host_photo_url=getattr(gb.host, 'host_image_url', None),
         property_name=gb.property.name,
         wifi_network=gb.wifi.network if gb.wifi and gb.wifi.network else None,
         wifi_password=gb.wifi.password if gb.wifi and gb.wifi.password else None,
@@ -441,7 +441,17 @@ def generate_guidebook_route():
         if incoming_host_contact:
             host.contact = incoming_host_contact
         if incoming_host_photo:
-            host.host_image_base64 = incoming_host_photo
+            # Reject inline data URLs for memory safety; expect external URL (Supabase Storage)
+            if isinstance(incoming_host_photo, str) and incoming_host_photo.strip().startswith('data:'):
+                pass  # ignore base64 for URL rendering; frontend should upload to storage and send URL
+            else:
+                host.host_image_url = incoming_host_photo
+
+    # Guard: reject data URLs for cover_image_url
+    cov = data.get('cover_image_url')
+    if isinstance(cov, str) and cov.strip().startswith('data:'):
+        # Ignore base64 in create to avoid memory spikes; rely on placeholder or uploaded URL
+        data['cover_image_url'] = None
 
     # Find or create Property (update fields if it already exists)
     if user_id:
@@ -645,7 +655,7 @@ def publish_guidebook(guidebook_id):
                 "name": getattr(gb.host, 'name', None),
                 "bio": getattr(gb.host, 'bio', None),
                 "contact": getattr(gb.host, 'contact', None),
-                "photo_url": getattr(gb.host, 'host_image_base64', None),
+                "photo_url": getattr(gb.host, 'host_image_url', None),
             },
             "welcome_message": getattr(gb, 'welcome_info', None),
             "safety_info": getattr(gb, 'safety_info', {}) or {},
@@ -680,7 +690,7 @@ def publish_guidebook(guidebook_id):
             host_name=getattr(gb.host, 'name', None),
             host_bio=getattr(gb.host, 'bio', None),
             host_contact=getattr(gb.host, 'contact', None),
-            host_photo_url=getattr(gb.host, 'host_image_base64', None),
+            host_photo_url=getattr(gb.host, 'host_image_url', None),
             property_name=gb.property.name,
             wifi_network=gb.wifi.network if gb.wifi and gb.wifi.network else None,
             wifi_password=gb.wifi.password if gb.wifi and gb.wifi.password else None,
@@ -742,7 +752,7 @@ def get_guidebook(guidebook_id):
             "name": getattr(gb.host, 'name', None),
             "bio": getattr(gb.host, 'bio', None),
             "contact": getattr(gb.host, 'contact', None),
-            "photo_url": getattr(gb.host, 'host_image_base64', None),
+            "photo_url": getattr(gb.host, 'host_image_url', None),
         },
         "wifi": {
             "id": gb.wifi_id,
@@ -797,6 +807,11 @@ def update_guidebook(guidebook_id):
         'custom_tabs_meta': 'custom_tabs_meta',
         'template_key': 'template_key',
     }
+    # Guard: reject data URLs for cover_image_url
+    cov = data.get('cover_image_url')
+    if isinstance(cov, str) and cov.strip().startswith('data:'):
+        data['cover_image_url'] = None
+
     for incoming, model_attr in field_map.items():
         if incoming in data:
             setattr(gb, model_attr, data.get(incoming))
@@ -824,7 +839,10 @@ def update_guidebook(guidebook_id):
         if incoming_host_contact is not None:
             host.contact = incoming_host_contact
         if incoming_host_photo is not None:
-            host.host_image_base64 = incoming_host_photo
+            if isinstance(incoming_host_photo, str) and incoming_host_photo.strip().startswith('data:'):
+                pass
+            else:
+                host.host_image_url = incoming_host_photo
 
     # Update or create related Property
     prop_name = data.get('property_name')
@@ -895,7 +913,8 @@ def run_startup_migrations():
     stmts = [
         "ALTER TABLE host ADD COLUMN IF NOT EXISTS bio TEXT;",
         "ALTER TABLE host ADD COLUMN IF NOT EXISTS contact TEXT;",
-        "ALTER TABLE host ADD COLUMN IF NOT EXISTS host_image_base64 TEXT;",
+        "ALTER TABLE host DROP COLUMN IF EXISTS host_image_base64;",
+        "ALTER TABLE host ADD COLUMN IF NOT EXISTS host_image_url TEXT;",
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS welcome_info TEXT;",
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS parking_info TEXT;",
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS safety_info JSON;",

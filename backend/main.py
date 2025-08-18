@@ -114,7 +114,7 @@ def create_guidebook_pdf(guidebook, qr_url: str | None = None):
             'name': data['host_name'] if data['host_name'] != 'N/A' else None,
             'bio': getattr(guidebook.host, 'bio', None) if getattr(guidebook, 'host', None) else None,
             'contact': getattr(guidebook.host, 'contact', None) if getattr(guidebook, 'host', None) else None,
-            'photo_url': getattr(guidebook.host, 'host_image_base64', None) if getattr(guidebook, 'host', None) else None,
+            'photo_url': getattr(guidebook.host, 'host_image_url', None) if getattr(guidebook, 'host', None) else None,
         },
         'welcome_message': data['welcome_message'],
         'safety_info': getattr(guidebook, 'safety_info', {}) or {},
