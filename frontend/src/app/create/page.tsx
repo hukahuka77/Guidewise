@@ -141,7 +141,7 @@ export default function CreateGuidebookPage() {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [router]);
 
   // Redirect unauthenticated users to signup
   useEffect(() => {

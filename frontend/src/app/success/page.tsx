@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { startStripeCheckout } from '@/lib/billing';
 import Link from 'next/link';
@@ -27,12 +27,11 @@ export default function SuccessPage() {
   const [templateMessage, setTemplateMessage] = useState<string | null>(null);
   const [includeQrInPdf, setIncludeQrInPdf] = useState<boolean>(false);
   const [isActive, setIsActive] = useState<boolean>(false);
-  const [editUrl, setEditUrl] = useState<string | null>(null);
+  // removed unused editUrl state
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [plan, setPlan] = useState<'free'|'pro'|''>('');
 
-  // Derived flags
-  const isEditPath = useMemo(() => !!liveGuidebookUrl && liveGuidebookUrl.startsWith('/edit/'), [liveGuidebookUrl]);
+  // removed unused derived flag isEditPath
 
   // no-op: claim tokens removed
 
@@ -115,7 +114,8 @@ export default function SuccessPage() {
         }
         // Load plan for Upgrade CTA
         try {
-          const { data: userData } = await (supabase?.auth.getUser() || Promise.resolve({ data: { user: null as any } } as any));
+          if (!supabase) throw new Error('Supabase client not initialized');
+          const { data: userData } = await supabase.auth.getUser();
           const user = userData?.user;
           if (user) {
             const { data: prof } = await (supabase

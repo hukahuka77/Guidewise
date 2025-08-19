@@ -36,7 +36,7 @@ export default function SignupPage() {
           emailRedirectTo = `${baseUrl}/dashboard`;
         }
       }
-      const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo } });
+      const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo } });
       if (error) {
         const msg = (error?.message || '').toLowerCase();
         const isDuplicate = /already|registered|exists/.test(msg);
