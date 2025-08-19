@@ -29,6 +29,7 @@ const BUCKET_NAME = process.env.NEXT_PUBLIC_SUPABASE_FOOD_ACTIVITIES_BUCKET || "
 export default function CreateGuidebookPage() {
   const router = useRouter();
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [authChecked, setAuthChecked] = useState<boolean>(false);
   const sectionsOrder = [
     "welcome",
     "checkin",
@@ -112,20 +113,41 @@ export default function CreateGuidebookPage() {
 
   // Load Supabase session Access Token for authenticated backend calls
   useEffect(() => {
-    if (!supabase) return; // auth disabled; allow anonymous creation
     let mounted = true;
     (async () => {
+      if (!supabase) {
+        if (mounted) {
+          setAccessToken(null);
+          setAuthChecked(true);
+          router.replace('/signup?next=/create');
+        }
+        return;
+      }
       const { data } = await supabase.auth.getSession();
-      if (mounted) setAccessToken(data.session?.access_token || null);
+      if (mounted) {
+        setAccessToken(data.session?.access_token || null);
+        setAuthChecked(true);
+      }
     })();
-    const { data: sub } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
-      setAccessToken(session?.access_token || null);
-    });
+    const { data: sub } = supabase
+      ? supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
+          setAccessToken(session?.access_token || null);
+          setAuthChecked(true);
+        })
+      : { subscription: { unsubscribe: () => {} } } as any;
     return () => {
       mounted = false;
       sub.subscription?.unsubscribe();
     };
   }, []);
+
+  // Redirect unauthenticated users to signup
+  useEffect(() => {
+    if (!authChecked) return;
+    if (!accessToken) {
+      router.replace('/signup?next=/create');
+    }
+  }, [authChecked, accessToken, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -214,11 +236,16 @@ export default function CreateGuidebookPage() {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      // Get the live URL from the custom header
+      // Get the edit URL and preview URL from custom headers
       const liveUrlPath = response.headers.get('X-Guidebook-Url');
+      const previewUrlPath = response.headers.get('X-Guidebook-Preview');
       if (liveUrlPath) {
         const fullLiveUrl = `${API_BASE}${liveUrlPath}`;
         sessionStorage.setItem('liveGuidebookUrl', fullLiveUrl);
+      }
+      if (previewUrlPath) {
+        const fullPreviewUrl = `${API_BASE}${previewUrlPath}`;
+        sessionStorage.setItem('previewGuidebookUrl', fullPreviewUrl);
       }
 
       // Read JSON with identifiers; do not create a blob now
@@ -340,6 +367,15 @@ export default function CreateGuidebookPage() {
       return { ...prev, address_street: prev.location };
     });
   }, [formData.location]);
+
+  // While checking auth (or redirecting), show a centered spinner
+  if (!authChecked || !accessToken) {
+    return (
+      <div className="w-full h-[60vh] flex items-center justify-center">
+        <Spinner size={40} />
+      </div>
+    );
+  }
 
   return (
     <div className="w-full">

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
+import { startStripeCheckout } from "@/lib/billing";
 import Spinner from "@/components/ui/spinner";
 import { cacheGet, cacheSet } from "@/lib/cache";
 
@@ -24,6 +25,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const [plan, setPlan] = useState<'free'|'pro'|''>('');
 
   // UI state
   const [qrModalFor, setQrModalFor] = useState<string | null>(null); // guidebook id
@@ -49,6 +51,21 @@ export default function DashboardPage() {
         return;
       }
       try {
+        // fetch plan for upgrade CTAs
+        try {
+          const { data: userData } = await supabase.auth.getUser();
+          const user = userData.user;
+          if (user) {
+            const { data: prof } = await supabase
+              .from('profiles')
+              .select('plan')
+              .eq('user_id', user.id)
+              .single();
+            const p = (prof?.plan as 'free'|'pro'|undefined) || 'free';
+            if (!cancelled) setPlan(p);
+          }
+        } catch {}
+
         const res = await fetch(`${API_BASE}/api/guidebooks`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -96,6 +113,9 @@ export default function DashboardPage() {
             <Link href="/create">
               <Button className="bg-[oklch(0.6923_0.22_21.05)] hover:opacity-90">Create New</Button>
             </Link>
+            {plan !== 'pro' && (
+              <Button variant="secondary" onClick={() => { void startStripeCheckout(); }}>Upgrade</Button>
+            )}
             <Button
               variant="outline"
               onClick={async () => {
@@ -154,6 +174,11 @@ export default function DashboardPage() {
                       <Link href={`/edit/${gb.id}`}>
                         <Button className="w-full whitespace-nowrap text-sm">Edit</Button>
                       </Link>
+                      {plan !== 'pro' && (
+                        <Button className="w-full whitespace-nowrap text-sm col-span-2" onClick={() => { void startStripeCheckout(); }}>
+                          Upgrade to Pro to Activate
+                        </Button>
+                      )}
                       <Button
                         variant="outline"
                         className="w-full whitespace-nowrap text-sm"

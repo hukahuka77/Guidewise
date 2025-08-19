@@ -43,33 +43,6 @@ export default function SignupPage() {
         setError(isDuplicate ? 'Email already in use. Please log in' : error.message);
         return;
       }
-      // Detect duplicates even when signUp does not throw:
-      // 1) Some tenants return an existing user with empty identities
-      // 2) Others return a user that already has email_confirmed_at populated
-      // 3) Fallback: identity list contains an email provider that isn't new
-      const user = (data?.user ?? null) as unknown as { identities?: unknown[]; email_confirmed_at?: string | null; confirmed_at?: string | null } | null;
-      const identities: unknown[] = Array.isArray(user?.identities) ? (user!.identities as unknown[]) : [];
-      const isEmptyIdentities = identities.length === 0;
-      const isAlreadyConfirmed = !!(user && (user.email_confirmed_at || user.confirmed_at));
-      const hasEmailProvider = (() => {
-        return identities.some((i) => {
-          if (i && typeof i === 'object') {
-            const rec = i as Record<string, unknown>;
-            if (typeof rec.provider === 'string' && rec.provider === 'email') return true;
-            const idData = rec.identity_data as Record<string, unknown> | undefined;
-            if (idData && typeof idData.provider === 'string' && idData.provider === 'email') return true;
-          }
-          return false;
-        });
-      })();
-      if (isEmptyIdentities || isAlreadyConfirmed || hasEmailProvider) {
-        if (process.env.NODE_ENV !== 'production') {
-          // Helpful debugging in dev only
-          console.log('Duplicate signup detected', { user, identities });
-        }
-        setError('Email already in use. Please log in');
-        return;
-      }
       // Depending on Supabase email confirmation settings, user may need to confirm via email
       setMessage("Check your email to confirm your account. Once confirmed, you can log in.");
       // Optionally redirect to login immediately
@@ -95,42 +68,42 @@ export default function SignupPage() {
     <div className="min-h-[calc(100vh-56px)] w-full grid grid-cols-1 md:grid-cols-2">
       {/* Left: full-height form area */}
       <div className="w-full h-full flex items-center justify-center px-6 md:px-10 lg:px-16 py-10 md:py-0 bg-white">
-        <div className="w-full max-w-md">
+        <div className="w-full max-w-md text-center">
           <h1 className="text-3xl font-semibold tracking-tight">Welcome to Guidewise</h1>
-          <p className="mt-2 text-sm text-gray-600">Start crafting beautiful, always-up-to-date guidebooks.</p>
+          <p className="mt-2 text-sm text-gray-600">Get started - it's free! No credit card required.</p>
 
           {error && (
-            <div className="mt-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+            <div className="mt-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-center">
               <strong className="font-semibold">Error: </strong>
               <span>{error}</span>
             </div>
           )}
           {message && (
-            <div className="mt-6 bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded">
+            <div className="mt-6 bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded text-center">
               <span>{message}</span>
             </div>
           )}
             <form onSubmit={onSubmit} className="mt-8 space-y-4">
               <div>
-                <label htmlFor="email" className="block text-sm font-medium">Email</label>
+                <label htmlFor="email" className="block text-sm font-medium text-center">Email</label>
                 <input
                   id="email"
                   type="email"
                   required
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => { setEmail(e.target.value); if (error) setError(null); if (message) setMessage(null); }}
                   className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-200 focus:border-pink-300"
                   placeholder="you@example.com"
                 />
               </div>
               <div>
-                <label htmlFor="password" className="block text-sm font-medium">Password</label>
+                <label htmlFor="password" className="block text-sm font-medium text-center">Password</label>
                 <input
                   id="password"
                   type="password"
                   required
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => { setPassword(e.target.value); if (error) setError(null); }}
                   className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-200 focus:border-pink-300"
                   placeholder="••••••••"
                 />
@@ -197,7 +170,7 @@ export default function SignupPage() {
               {oauthLoading ? 'Redirecting…' : 'Continue with Google'}
             </button>
 
-            <div className="mt-6 text-sm text-gray-600">
+            <div className="mt-6 text-sm text-gray-600 text-center">
               Already have an account? {" "}
               <Link href="/login" className="text-pink-700 hover:text-pink-800 underline-offset-2 hover:underline">Log in</Link>
             </div>

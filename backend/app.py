@@ -13,10 +13,12 @@ from dotenv import load_dotenv
 import os
 import functools
 import logging
+import json
 
 # JWT/JWKS for Supabase auth verification
 import jwt
 from jwt import PyJWKClient
+import stripe
 
 # Import db and models from models.py
 from models import db, Guidebook, Host, Property, Wifi, Rule
@@ -36,6 +38,16 @@ def _strip_surrogates(s: str) -> str:
     if not isinstance(s, str):
         return s
     return ''.join(ch for ch in s if not (0xD800 <= ord(ch) <= 0xDFFF))
+
+# Simple slugifier for property names -> public slugs
+def _slugify(s: str) -> str:
+    if not s:
+        return 'guidebook'
+    s = s.strip().lower()
+    # Replace non-alphanumeric with hyphens
+    s = re.sub(r'[^a-z0-9]+', '-', s)
+    s = re.sub(r'-{2,}', '-', s).strip('-')
+    return s or 'guidebook'
 
 load_dotenv() # Load environment variables from .env file
 
@@ -77,6 +89,161 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
         'keepalives_count': 5,
     },
 }
+
+# Stripe configuration
+stripe.api_key = os.environ.get('STRIPE_SECRET_KEY')
+STRIPE_PRICE_ID = os.environ.get('STRIPE_PRICE_ID')  # recurring price for Pro plan
+STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET')
+FRONTEND_ORIGIN = os.environ.get('FRONTEND_ORIGIN', 'http://localhost:3000')
+
+def require_auth(fn):
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        authz = request.headers.get('Authorization')
+        claims = _verify_bearer_jwt(authz)
+        if not claims:
+            log.warning("Unauthorized request to %s %s", request.method, request.path)
+            return jsonify({"error": "Unauthorized"}), 401
+        # Supabase user id lives in sub
+        g.user_id = claims.get('sub')
+        g.user_email = claims.get('email') or (claims.get('user_metadata', {}).get('email') if isinstance(claims.get('user_metadata'), dict) else None)
+        if not g.user_id:
+            log.warning("JWT missing sub claim")
+            return jsonify({"error": "Unauthorized"}), 401
+        # Propagate claims to Postgres session so RLS policies using auth.uid() work
+        try:
+            session_claims = {
+                "sub": g.user_id,
+                "email": g.user_email,
+            }
+            from sqlalchemy import text as _text
+            db.session.execute(
+                _text("select set_config('request.jwt.claims', :claims, true)"),
+                {"claims": json.dumps(session_claims)}
+            )
+            db.session.execute(
+                _text("select set_config('jwt.claims', :claims, true)"),
+                {"claims": json.dumps(session_claims)}
+            )
+            db.session.execute(_text("select set_config('role', 'authenticated', true)"))
+        except Exception as e:
+            log.warning("Failed to set request.jwt.claims for RLS: %s: %s", type(e).__name__, e)
+        return fn(*args, **kwargs)
+    return wrapper
+
+def _profiles_upsert_plan(user_id: str, plan: str):
+    try:
+        db.session.execute(
+            text(
+                """
+                insert into public.profiles (user_id, plan)
+                values (:uid, :plan)
+                on conflict (user_id) do update set plan = EXCLUDED.plan
+                """
+            ),
+            {"uid": user_id, "plan": plan},
+        )
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
+
+# --- Billing: Stripe Checkout and Portal ---
+@app.route('/api/billing/create-checkout-session', methods=['POST'])
+@require_auth
+def create_checkout_session():
+    if not stripe.api_key or not STRIPE_PRICE_ID:
+        return jsonify({"error": "Stripe not configured"}), 500
+    # Identify the user via Supabase auth
+    user_id = g.user_id
+    email = getattr(g, 'user_email', None) or (request.json.get('email') if isinstance(request.json, dict) else None)
+    try:
+        session = stripe.checkout.Session.create(
+            mode='subscription',
+            customer_email=email,
+            line_items=[{"price": STRIPE_PRICE_ID, "quantity": 1}],
+            success_url=f"{FRONTEND_ORIGIN}/upgrade?success=1",
+            cancel_url=f"{FRONTEND_ORIGIN}/upgrade?canceled=1",
+            allow_promotion_codes=True,
+            metadata={"user_id": user_id},
+        )
+        return jsonify({"url": session.url})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/billing/create-portal-session', methods=['POST'])
+@require_auth
+def create_portal_session():
+    if not stripe.api_key:
+        return jsonify({"error": "Stripe not configured"}), 500
+    # Try to find customer by email
+    email = getattr(g, 'user_email', None) or (request.json.get('email') if isinstance(request.json, dict) else None)
+    try:
+        customers = stripe.Customer.list(email=email, limit=1)
+        if not customers.data:
+            return jsonify({"error": "No Stripe customer found"}), 404
+        customer_id = customers.data[0].id
+        portal = stripe.billing_portal.Session.create(
+            customer=customer_id,
+            return_url=f"{FRONTEND_ORIGIN}/dashboard/profile"
+        )
+        return jsonify({"url": portal.url})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/webhooks/stripe', methods=['POST'])
+def stripe_webhook():
+    payload = request.data
+    sig_header = request.headers.get('Stripe-Signature')
+    event = None
+    try:
+        if STRIPE_WEBHOOK_SECRET:
+            event = stripe.Webhook.construct_event(payload=payload, sig_header=sig_header, secret=STRIPE_WEBHOOK_SECRET)
+        else:
+            event = stripe.Event.construct_from(json.loads(payload), stripe.api_key)
+    except Exception as e:
+        return jsonify({"error": f"Webhook error: {e}"}), 400
+
+    # Handle events that imply subscription state changes
+    try:
+        type_ = event['type']
+        obj = event['data']['object']
+        if type_ == 'checkout.session.completed':
+            # Mark user pro and activate
+            user_id = (obj.get('metadata') or {}).get('user_id')
+            if user_id:
+                _profiles_upsert_plan(user_id, 'pro')
+                _activate_all_user_guidebooks(user_id)
+        elif type_ in ('customer.subscription.created', 'customer.subscription.updated'):
+            status = obj.get('status')
+            # subscription object may have metadata.user_id if set by you; fallback unknown
+            user_id = (obj.get('metadata') or {}).get('user_id')
+            # If we cannot map user_id, we skip; future enhancement: store mapping
+            if user_id:
+                if status in ('active', 'trialing'):
+                    _profiles_upsert_plan(user_id, 'pro')
+                    _activate_all_user_guidebooks(user_id)
+                elif status in ('canceled', 'unpaid', 'incomplete_expired'):
+                    _profiles_upsert_plan(user_id, 'free')
+        elif type_ == 'customer.subscription.deleted':
+            user_id = (obj.get('metadata') or {}).get('user_id')
+            if user_id:
+                _profiles_upsert_plan(user_id, 'free')
+    except Exception:
+        # Do not fail webhook processing for partial issues
+        pass
+    return jsonify({"ok": True})
+
+def _activate_all_user_guidebooks(user_id: str):
+    try:
+        db.session.execute(
+            text("update guidebook set active = true where user_id = :uid and active = false"),
+            {"uid": user_id},
+        )
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
 
 # Initialize the database with the app
 db.init_app(app)
@@ -161,6 +328,28 @@ def require_auth(fn):
         if not g.user_id:
             log.warning("JWT missing sub claim")
             return jsonify({"error": "Unauthorized"}), 401
+        # IMPORTANT: Propagate claims to Postgres session so RLS policies using auth.uid() work
+        try:
+            session_claims = {
+                "sub": g.user_id,
+                # Include email if available; harmless if missing
+                "email": g.user_email,
+            }
+            from sqlalchemy import text as _text
+            # Primary setting used by Supabase's auth.uid()
+            db.session.execute(
+                _text("select set_config('request.jwt.claims', :claims, true)") ,
+                {"claims": json.dumps(session_claims)}
+            )
+            # Back-compat: some helpers read jwt.claims
+            db.session.execute(
+                _text("select set_config('jwt.claims', :claims, true)") ,
+                {"claims": json.dumps(session_claims)}
+            )
+            # Ensure role is authenticated for policies that check current_role
+            db.session.execute(_text("select set_config('role', 'authenticated', true)"))
+        except Exception as e:
+            log.warning("Failed to set request.jwt.claims for RLS: %s: %s", type(e).__name__, e)
         return fn(*args, **kwargs)
     return wrapper
 
@@ -383,9 +572,14 @@ def view_guidebook(guidebook_id):
             joinedload(Guidebook.rules),
         ).get_or_404(guidebook_id)
     )
-    # Legacy direct-by-id path. Only allow if active; otherwise require preview token path.
+    # Legacy direct-by-id path. Only allow if active; otherwise redirect to upgrade page on frontend.
     if not getattr(guidebook, 'active', False):
-        return jsonify({"error": "This guidebook is not active. Use preview link to view."}), 403
+        try:
+            fe = os.environ.get('FRONTEND_ORIGIN') or 'http://localhost:3000'
+            from flask import redirect
+            return redirect(f"{fe}/upgrade?gb={guidebook.id}", code=302)
+        except Exception:
+            return jsonify({"error": "This guidebook is not active. Use preview link to view."}), 403
     # Serve snapshot if fresh; otherwise render on demand
     if getattr(guidebook, 'published_html', None) and getattr(guidebook, 'published_at', None):
         try:
@@ -406,11 +600,11 @@ def view_guidebook(guidebook_id):
     return _render_guidebook(guidebook)
 
 @app.route('/api/generate', methods=['POST'])
+@require_auth
 def generate_guidebook_route():
     data = request.json
-    # Optional auth: if a valid Supabase JWT is provided, associate created records to that user
-    claims = _verify_bearer_jwt(request.headers.get('Authorization'))
-    user_id = claims.get('sub') if claims else None
+    # Auth REQUIRED: all guidebooks must be owned by an account
+    user_id = g.user_id
 
     # Do not auto-generate recommendations here; leave blank if none provided
     if not isinstance(data.get('things_to_do'), list):
@@ -428,10 +622,7 @@ def generate_guidebook_route():
     # Create a Host record if any host field is provided
     if incoming_host_name or incoming_host_bio or incoming_host_contact or incoming_host_photo:
         if incoming_host_name:
-            if user_id:
-                host = Host.query.filter_by(name=incoming_host_name, user_id=user_id).first()
-            else:
-                host = Host.query.filter_by(name=incoming_host_name).first()
+            host = Host.query.filter_by(name=incoming_host_name, user_id=user_id).first()
         if not host:
             host = Host(name=incoming_host_name or None, user_id=user_id)
             db.session.add(host)
@@ -454,10 +645,7 @@ def generate_guidebook_route():
         data['cover_image_url'] = None
 
     # Find or create Property (update fields if it already exists)
-    if user_id:
-        prop = Property.query.filter_by(name=data['property_name'], user_id=user_id).first()
-    else:
-        prop = Property.query.filter_by(name=data['property_name']).first()
+    prop = Property.query.filter_by(name=data['property_name'], user_id=user_id).first()
     if not prop:
         prop = Property(
             name=data['property_name'],
@@ -479,10 +667,7 @@ def generate_guidebook_route():
     # Find or create Wifi (update password if it already exists)
     wifi = None
     if data.get('wifi_network'):
-        if user_id:
-            wifi = Wifi.query.filter_by(network=data['wifi_network'], user_id=user_id).first()
-        else:
-            wifi = Wifi.query.filter_by(network=data['wifi_network']).first()
+        wifi = Wifi.query.filter_by(network=data['wifi_network'], user_id=user_id).first()
         if not wifi:
             wifi = Wifi(network=data['wifi_network'], password=data.get('wifi_password'), user_id=user_id)
             db.session.add(wifi)
@@ -559,22 +744,36 @@ def generate_guidebook_route():
                 new_rule = Rule(text=rule_text, guidebook=new_guidebook)
                 db.session.add(new_rule)
 
-    # Set lifecycle fields depending on auth
-    if user_id:
-        # Active immediately; assign slug
-        base = _slugify(getattr(prop, 'name', '') or 'guidewise')
-        suffix = secrets.token_hex(4)
-        new_guidebook.public_slug = f"{base}-{suffix}"
-        new_guidebook.active = True
-        new_guidebook.claimed_at = datetime.now(timezone.utc)
-        new_guidebook.expires_at = None
+    # Set lifecycle fields: Pro users get active + slug immediately
+    new_guidebook.public_slug = None
+    new_guidebook.active = False
+    try:
+        plan_row = db.session.execute(text("SELECT plan FROM public.profiles WHERE user_id = :uid"), {"uid": user_id}).fetchone()
+        is_pro = bool(plan_row) and (plan_row[0] or 'free') == 'pro'
+        if is_pro:
+            # Activate and assign a unique public slug
+            new_guidebook.active = True
+            base = _slugify(getattr(prop, 'name', None) or 'guidebook')
+            slug = base
+            # Ensure uniqueness
+            attempt = 0
+            while db.session.execute(text("SELECT 1 FROM guidebook WHERE public_slug = :s LIMIT 1"), {"s": slug}).fetchone():
+                attempt += 1
+                suffix = secrets.token_hex(2)
+                slug = f"{base}-{suffix}"
+                if attempt > 8:
+                    break
+            new_guidebook.public_slug = slug
+    except Exception:
+        # fallback to draft
+        pass
+    new_guidebook.claimed_at = datetime.now(timezone.utc)
+    new_guidebook.expires_at = None
+    # Generate a preview token so the user can view a draft via /preview/<id>?token=...
+    try:
+        new_guidebook.claim_token = secrets.token_urlsafe(24)
+    except Exception:
         new_guidebook.claim_token = None
-    else:
-        new_guidebook.active = False
-        new_guidebook.claimed_at = None
-        new_guidebook.expires_at = datetime.now(timezone.utc) + timedelta(days=7)
-        new_guidebook.claim_token = secrets.token_hex(24)
-        new_guidebook.public_slug = None
 
     db.session.commit()
 
@@ -585,17 +784,26 @@ def generate_guidebook_route():
         "template_key": selected_template_key,
     }
     resp = jsonify(payload)
-    if new_guidebook.active and new_guidebook.public_slug:
-        resp.headers['X-Guidebook-Url'] = f"/g/{new_guidebook.public_slug}"
+    # For Pro (active) users, return live URL immediately; otherwise return Edit + Preview
+    if new_guidebook.active:
+        live_path = f"/guidebook/{new_guidebook.id}"
+        if new_guidebook.public_slug:
+            live_path = f"/g/{new_guidebook.public_slug}"
+        resp.headers['X-Guidebook-Url'] = live_path
+        # No preview header when live
+        resp.headers['Access-Control-Expose-Headers'] = 'X-Guidebook-Url'
     else:
-        resp.headers['X-Guidebook-Url'] = f"/preview/{new_guidebook.id}?token={new_guidebook.claim_token}"
-    resp.headers['Access-Control-Expose-Headers'] = 'X-Guidebook-Url'
+        resp.headers['X-Guidebook-Url'] = f"/edit/{new_guidebook.id}"
+        if new_guidebook.claim_token:
+            resp.headers['X-Guidebook-Preview'] = f"/preview/{new_guidebook.id}?token={new_guidebook.claim_token}"
+        resp.headers['Access-Control-Expose-Headers'] = 'X-Guidebook-Url, X-Guidebook-Preview'
     return resp, 201
 
 # --- User-scoped Guidebooks API ---
 @app.route('/api/guidebooks', methods=['GET'])
 @require_auth
 def list_guidebooks():
+    # ... (rest of the function remains the same)
     q = Guidebook.query.filter_by(user_id=g.user_id).order_by(Guidebook.created_time.desc())
     items = [
         {
@@ -976,30 +1184,7 @@ with app.app_context():
     run_startup_migrations()
 
 
-@app.route('/api/guidebook/<guidebook_id>/claim', methods=['POST'])
-@require_auth
-def claim_guidebook(guidebook_id):
-    body = request.json or {}
-    token = body.get('claim_token')
-    if not token:
-        return jsonify({"error": "claim_token required"}), 400
-    gb = Guidebook.query.get_or_404(guidebook_id)
-    if gb.active:
-        return jsonify({"ok": True, "already_active": True, "live_url": f"/g/{gb.public_slug}" if gb.public_slug else None})
-    if gb.claim_token != token:
-        return jsonify({"error": "invalid token"}), 403
-    if gb.expires_at and datetime.now(timezone.utc) > gb.expires_at:
-        return jsonify({"error": "expired"}), 410
-    # Assign ownership and activate
-    gb.user_id = g.user_id
-    gb.active = True
-    gb.claimed_at = datetime.now(timezone.utc)
-    gb.expires_at = None
-    gb.claim_token = None
-    base = _slugify(getattr(gb.property, 'name', '') or 'guidewise')
-    gb.public_slug = f"{base}-{secrets.token_hex(4)}"
-    db.session.commit()
-    return jsonify({"ok": True, "live_url": f"/g/{gb.public_slug}"})
+# (Removed) Claim endpoint deprecated: anonymous creation is no longer supported.
 
 
 @app.route('/api/maintenance/cleanup-expired', methods=['POST'])
@@ -1213,6 +1398,28 @@ def get_pdf_on_demand(guidebook_id):
     except Exception:
         pass
     return resp
+
+@app.route('/api/guidebooks/activate_for_user', methods=['POST'])
+@require_auth
+def activate_guidebooks_for_user():
+    """Activate all inactive guidebooks for the authenticated user if their plan is pro.
+
+    Returns: { ok: true, updated: <int> } or 400 if not pro.
+    """
+    uid = g.user_id
+    # Check plan from public.profiles
+    try:
+        row = db.session.execute(text("SELECT plan FROM public.profiles WHERE user_id = :uid"), {"uid": uid}).fetchone()
+        if not row or (row[0] or 'free') != 'pro':
+            return jsonify({"error": "Account is not Pro"}), 400
+        # Activate all inactive guidebooks for this user
+        res = db.session.execute(text("UPDATE guidebook SET active = TRUE WHERE user_id = :uid AND (active IS FALSE OR active IS NULL)"), {"uid": uid})
+        db.session.commit()
+        updated = res.rowcount or 0
+        return jsonify({"ok": True, "updated": int(updated)})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Activation failed: {type(e).__name__}: {e}"}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)

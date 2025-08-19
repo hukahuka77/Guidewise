@@ -59,12 +59,12 @@ export default function LoginPage() {
 
       {/* Right: form */}
       <div className="w-full h-full flex items-center justify-center px-6 md:px-10 lg:px-16 py-10 md:py-0 bg-white">
-        <div className="w-full max-w-md">
+        <div className="w-full max-w-md text-center">
           <h1 className="text-3xl font-semibold tracking-tight">Welcome back</h1>
           <p className="mt-2 text-sm text-gray-600">Log in to continue creating guidebooks.</p>
 
           {error && (
-            <div className="mt-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded" role="alert">
+            <div className="mt-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-center" role="alert">
               <strong className="font-semibold">Error: </strong>
               <span>{error}</span>
             </div>
@@ -72,7 +72,7 @@ export default function LoginPage() {
 
           <form onSubmit={onSubmit} className="mt-8 space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium">Email</label>
+              <label htmlFor="email" className="block text-sm font-medium text-center">Email</label>
               <input
                 id="email"
                 type="email"
@@ -84,7 +84,7 @@ export default function LoginPage() {
               />
             </div>
             <div>
-              <label htmlFor="password" className="block text-sm font-medium">Password</label>
+              <label htmlFor="password" className="block text-sm font-medium text-center">Password</label>
               <input
                 id="password"
                 type="password"
@@ -157,7 +157,7 @@ export default function LoginPage() {
             {oauthLoading ? 'Redirecting…' : 'Continue with Google'}
           </button>
 
-          <div className="mt-6 text-sm text-gray-600">
+          <div className="mt-6 text-sm text-gray-600 text-center">
             Don&#39;t have an account? <Link href="/signup" className="text-pink-700 hover:text-pink-800 underline-offset-2 hover:underline">Sign up</Link>
           </div>
         </div>

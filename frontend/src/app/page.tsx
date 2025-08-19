@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import GetStartedButton from "@/components/custom/GetStartedButton";
 import Contact from "@/components/custom/Contact";
 
 export default function Home() {
@@ -33,12 +34,8 @@ export default function Home() {
                       <img src="/images/arrow.png" alt="arrow" className="w-[7.5rem] h-[7.5rem] md:w-[10.5rem] md:h-[10.5rem] object-contain drop-shadow -rotate-6 scale-x-[-1]" />
                     </div>
                   </div>
-                  {/* CTA Button */}
-                  <Link href="/create" className="z-10">
-                    <Button className="text-xl md:text-2xl px-10 md:px-14 py-6 md:py-8 rounded-2xl font-semibold shadow-lg bg-primary hover:bg-primary/90 text-primary-foreground">
-                      Get Started for Free
-                    </Button>
-                  </Link>
+                  {/* CTA Button (auth-aware) */}
+                  <GetStartedButton />
                 </div>
               </div>
               {/* Hero image removed for now */}
