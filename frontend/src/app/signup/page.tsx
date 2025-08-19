@@ -70,7 +70,7 @@ export default function SignupPage() {
       <div className="w-full h-full flex items-center justify-center px-6 md:px-10 lg:px-16 py-10 md:py-0 bg-white">
         <div className="w-full max-w-md text-center">
           <h1 className="text-3xl font-semibold tracking-tight">Welcome to Guidewise</h1>
-          <p className="mt-2 text-sm text-gray-600">Get started - it's free! No credit card required.</p>
+          <p className="mt-2 text-sm text-gray-600">Get started - it&apos;s free! No credit card required.</p>
 
           {error && (
             <div className="mt-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-center">

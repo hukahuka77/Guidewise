@@ -129,15 +129,17 @@ export default function CreateGuidebookPage() {
         setAuthChecked(true);
       }
     })();
-    const { data: sub } = supabase
-      ? supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
-          setAccessToken(session?.access_token || null);
-          setAuthChecked(true);
-        })
-      : { subscription: { unsubscribe: () => {} } } as any;
+    const subscription = supabase
+      ? supabase.auth
+          .onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
+            setAccessToken(session?.access_token || null);
+            setAuthChecked(true);
+          })
+          .data.subscription
+      : { unsubscribe: () => {} };
     return () => {
       mounted = false;
-      sub.subscription?.unsubscribe();
+      subscription.unsubscribe();
     };
   }, []);
 

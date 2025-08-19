@@ -20,14 +20,14 @@ export default function GetStartedButton() {
         setHref(data.session ? "/create" : "/signup");
       }
     })();
-    const { data: sub } = supabase
+    const subscription = supabase
       ? supabase.auth.onAuthStateChange((_event, session) => {
           setHref(session ? "/create" : "/signup");
-        })
-      : { subscription: { unsubscribe: () => {} } } as any;
+        }).data.subscription
+      : { unsubscribe: () => {} };
     return () => {
       mounted = false;
-      sub.subscription?.unsubscribe();
+      subscription.unsubscribe();
     };
   }, []);
 

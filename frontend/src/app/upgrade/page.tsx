@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import Spinner from "@/components/ui/spinner";
@@ -23,6 +24,13 @@ export default function UpgradePage() {
     let cancelled = false;
     (async () => {
       try {
+        if (!supabase) {
+          if (!cancelled) {
+            setLoading(false);
+            setError("Supabase client not initialized");
+          }
+          return;
+        }
         const sess = await supabase.auth.getSession();
         const token = sess.data.session?.access_token || null;
         setAccessToken(token);
@@ -56,6 +64,7 @@ export default function UpgradePage() {
     setBillingLoading(true);
     setError(null);
     try {
+      if (!supabase) throw new Error('Supabase client not initialized');
       const { data } = await supabase.auth.getUser();
       const email = data.user?.email || undefined;
       const sess = await supabase.auth.getSession();
@@ -86,6 +95,7 @@ export default function UpgradePage() {
     setBillingLoading(true);
     setError(null);
     try {
+      if (!supabase) throw new Error('Supabase client not initialized');
       const { data } = await supabase.auth.getUser();
       const email = data.user?.email || undefined;
       const sess = await supabase.auth.getSession();
@@ -192,7 +202,7 @@ export default function UpgradePage() {
             )}
 
             <div className="mt-6 text-xs text-gray-500 text-center">
-              Powered by <a className="font-semibold hover:underline" href="/">GUIDEWISE</a>
+              Powered by <Link className="font-semibold hover:underline" href="/">GUIDEWISE</Link>
             </div>
           </div>
         )}

@@ -4,10 +4,11 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
 export async function startStripeCheckout(): Promise<void> {
   if (!API_BASE) throw new Error("API base not configured");
-  const sess = await supabase?.auth.getSession();
-  const token = sess?.data.session?.access_token || null;
-  const { data } = await (supabase?.auth.getUser() || Promise.resolve({ data: { user: null as any } } as any));
-  const email = data?.user?.email || undefined;
+  if (!supabase) throw new Error("Supabase client not initialized");
+  const sess = await supabase.auth.getSession();
+  const token = sess.data.session?.access_token || null;
+  const { data: userData } = await supabase.auth.getUser();
+  const email = userData.user?.email || undefined;
   const res = await fetch(`${API_BASE}/api/billing/create-checkout-session`, {
     method: "POST",
     headers: {
@@ -16,12 +17,17 @@ export async function startStripeCheckout(): Promise<void> {
     },
     body: JSON.stringify({ email }),
   });
-  const json = await res.json().catch(() => ({}));
+  const json: unknown = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(json?.error || `Failed to start checkout (${res.status})`);
+    const msg = typeof json === "object" && json && "error" in json ? (json as { error?: string }).error : undefined;
+    throw new Error(msg || `Failed to start checkout (${res.status})`);
   }
-  if (json?.url) {
-    window.location.href = json.url as string;
+  if (typeof json === "object" && json && "url" in json) {
+    const { url } = json as { url?: string };
+    if (url) {
+      window.location.href = url;
+      return;
+    }
     return;
   }
   throw new Error("No checkout URL returned");
