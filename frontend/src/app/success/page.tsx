@@ -48,7 +48,7 @@ export default function SuccessPage() {
     // Default to Standard placeholder
     if (templateKey === 'template_pdf_basic') return '/images/PDF_Basic.png';
     if (templateKey === 'template_pdf_mobile') return '/images/PDF_Mobile.png';
-    if (templateKey === 'template_pdf_qr') return '/images/PDF_Standard.png';
+    if (templateKey === 'template_pdf_qr') return '/images/PDF_QR.png';
     return '/images/PDF_Standard.png';
   };
 

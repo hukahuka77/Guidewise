@@ -29,7 +29,7 @@ export default function GuidebookPdfPage() {
   const getPdfPlaceholder = (templateKey?: TemplateKey) => {
     if (templateKey === "template_pdf_basic") return "/images/PDF_Basic.png";
     if (templateKey === "template_pdf_mobile") return "/images/PDF_Mobile.png";
-    if (templateKey === "template_pdf_qr") return "/images/PDF_Standard.png";
+    if (templateKey === "template_pdf_qr") return "/images/PDF_QR.png";
     return "/images/PDF_Standard.png";
   };
 
@@ -78,7 +78,7 @@ export default function GuidebookPdfPage() {
           </div>
         </div>
 
-        <section className="bg-white rounded-2xl shadow p-6">
+        <section className="bg-gray-50 rounded-2xl p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-semibold">PDF Templates</h2>
             <label className="flex items-center gap-2 text-sm text-gray-700">

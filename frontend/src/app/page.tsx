@@ -54,7 +54,7 @@ export default function Home() {
                 </p>
                 <div className="mt-6 flex items-center gap-5">
                   <Link
-                    href="/create"
+                    href="https://guidewise.onrender.com/guidebook/c0bc448b-2c20-4f85-83d7-5687c12b7651"
                     className="inline-flex items-center px-3 py-2 rounded-xl text-pink-600 font-medium whitespace-nowrap no-underline hover:no-underline border border-transparent hover:border-pink-200 hover:bg-pink-50 hover:text-pink-700 transition-colors duration-200"
                   >
                     See an example guidebook →
