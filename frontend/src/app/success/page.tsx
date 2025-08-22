@@ -35,18 +35,20 @@ export default function SuccessPage() {
 
   // no-op: claim tokens removed
 
-  const getTemplateFromPdfUrl = (): 'template_pdf_original' | 'template_pdf_basic' | 'template_pdf_mobile' | undefined => {
+  const getTemplateFromPdfUrl = (): 'template_pdf_original' | 'template_pdf_basic' | 'template_pdf_mobile' | 'template_pdf_qr' | undefined => {
     if (!pdfUrl) return undefined;
     if (pdfUrl.includes('template=template_pdf_basic')) return 'template_pdf_basic';
     if (pdfUrl.includes('template=template_pdf_original')) return 'template_pdf_original';
     if (pdfUrl.includes('template=template_pdf_mobile')) return 'template_pdf_mobile';
+    if (pdfUrl.includes('template=template_pdf_qr')) return 'template_pdf_qr';
     return undefined;
   };
 
-  const getPdfPlaceholder = (templateKey?: 'template_pdf_original' | 'template_pdf_basic' | 'template_pdf_mobile') => {
+  const getPdfPlaceholder = (templateKey?: 'template_pdf_original' | 'template_pdf_basic' | 'template_pdf_mobile' | 'template_pdf_qr') => {
     // Default to Standard placeholder
     if (templateKey === 'template_pdf_basic') return '/images/PDF_Basic.png';
     if (templateKey === 'template_pdf_mobile') return '/images/PDF_Mobile.png';
+    if (templateKey === 'template_pdf_qr') return '/images/PDF_Standard.png';
     return '/images/PDF_Standard.png';
   };
 
@@ -158,12 +160,13 @@ export default function SuccessPage() {
     return null;
   };
 
-  const handleDownload = (templateKey?: 'template_pdf_original' | 'template_pdf_basic' | 'template_pdf_mobile') => {
+  const handleDownload = (templateKey?: 'template_pdf_original' | 'template_pdf_basic' | 'template_pdf_mobile' | 'template_pdf_qr') => {
     // Build a URL that forces download on the server via ?download=1
     if (!guidebookId) return;
     const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || '';
     const tplParam = templateKey ? `&template=${templateKey}` : '';
-    const qr = includeQrInPdf ? getQrTargetUrl() : null;
+    const forceQr = templateKey === 'template_pdf_qr';
+    const qr = (forceQr || includeQrInPdf) ? getQrTargetUrl() : null;
     const qrParams = qr ? `&include_qr=1&qr_url=${encodeURIComponent(qr)}` : '';
     const url = `${apiBase}/api/guidebook/${guidebookId}/pdf?download=1${tplParam}${qrParams}`;
     const link = document.createElement('a');
@@ -174,12 +177,13 @@ export default function SuccessPage() {
     document.body.removeChild(link);
   };
 
-  const buildPdfUrl = async (templateKey?: 'template_pdf_original' | 'template_pdf_basic' | 'template_pdf_mobile') => {
+  const buildPdfUrl = async (templateKey?: 'template_pdf_original' | 'template_pdf_basic' | 'template_pdf_mobile' | 'template_pdf_qr') => {
     if (!guidebookId) return null;
     const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || '';
     const hasTemplate = Boolean(templateKey);
     const tplParam = templateKey ? `?template=${templateKey}` : '';
-    const qr = includeQrInPdf ? getQrTargetUrl() : null;
+    const forceQr = templateKey === 'template_pdf_qr';
+    const qr = (forceQr || includeQrInPdf) ? getQrTargetUrl() : null;
     const qrParams = qr ? `${hasTemplate ? '&' : '?'}include_qr=1&qr_url=${encodeURIComponent(qr)}` : '';
     const url = `${apiBase}/api/guidebook/${guidebookId}/pdf${tplParam}${qrParams}`;
     setPdfUrl(url);
@@ -188,7 +192,7 @@ export default function SuccessPage() {
 
   // remove: claim flow
 
-  const PdfCard = ({ label, templateKey }: { label: string; templateKey?: 'template_pdf_original' | 'template_pdf_basic' | 'template_pdf_mobile' }) => (
+  const PdfCard = ({ label, templateKey }: { label: string; templateKey?: 'template_pdf_original' | 'template_pdf_basic' | 'template_pdf_mobile' | 'template_pdf_qr' }) => (
     <div className="group relative border rounded-xl p-4 bg-white shadow hover:shadow-lg transition">
       <div className="aspect-[8.5/11] w-full overflow-hidden rounded-lg bg-gray-100 flex items-center justify-center">
         <img
@@ -399,6 +403,7 @@ export default function SuccessPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             <PdfCard label="Basic PDF" templateKey="template_pdf_basic" />
             <PdfCard label="Standard PDF" templateKey="template_pdf_original" />
+            <PdfCard label="QR Poster" templateKey="template_pdf_qr" />
             <PdfCard label="Mobile PDF" templateKey="template_pdf_mobile" />
           </div>
         </section>

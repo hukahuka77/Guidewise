@@ -361,7 +361,7 @@ TEMPLATE_REGISTRY = {
 }
 ALLOWED_TEMPLATE_KEYS = set(TEMPLATE_REGISTRY.keys())
 # Allowed PDF template keys (canonical)
-ALLOWED_PDF_TEMPLATE_KEYS = {"template_pdf_original", "template_pdf_basic", "template_pdf_mobile"}
+ALLOWED_PDF_TEMPLATE_KEYS = {"template_pdf_original", "template_pdf_basic", "template_pdf_mobile", "template_pdf_qr"}
 
 RENDER_CACHE = {}
 

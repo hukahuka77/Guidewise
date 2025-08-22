@@ -16,6 +16,8 @@ PDF_TEMPLATE_REGISTRY = {
     "template_pdf_original": "templates/templates_pdf/template_pdf_original.html",
     "template_pdf_basic": "templates/templates_pdf/template_pdf_basic.html",
     "template_pdf_mobile": "templates/templates_pdf/template_pdf_mobile.html",
+    # New: QR-focused poster template
+    "template_pdf_qr": "templates/templates_pdf/template_pdf_qr.html",
 }
 
 # No legacy mapping: expect canonical PDF keys only. Fallback to template_pdf_original.

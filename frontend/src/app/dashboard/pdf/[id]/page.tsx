@@ -11,7 +11,7 @@ const PdfViewer = dynamic(() => import("@/components/custom/PdfViewer"), { ssr: 
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
-type TemplateKey = "template_pdf_original" | "template_pdf_basic" | "template_pdf_mobile";
+type TemplateKey = "template_pdf_original" | "template_pdf_basic" | "template_pdf_mobile" | "template_pdf_qr";
 
 export default function GuidebookPdfPage() {
   const params = useParams();
@@ -29,6 +29,7 @@ export default function GuidebookPdfPage() {
   const getPdfPlaceholder = (templateKey?: TemplateKey) => {
     if (templateKey === "template_pdf_basic") return "/images/PDF_Basic.png";
     if (templateKey === "template_pdf_mobile") return "/images/PDF_Mobile.png";
+    if (templateKey === "template_pdf_qr") return "/images/PDF_Standard.png";
     return "/images/PDF_Standard.png";
   };
 
@@ -37,7 +38,8 @@ export default function GuidebookPdfPage() {
   const handleDownload = (templateKey?: TemplateKey) => {
     if (!guidebookId) return;
     const tplParam = templateKey ? `&template=${templateKey}` : "";
-    const qr = includeQrInPdf && getQrTargetUrl() ? getQrTargetUrl() : null;
+    const forceQr = templateKey === "template_pdf_qr";
+    const qr = (forceQr || includeQrInPdf) && getQrTargetUrl() ? getQrTargetUrl() : null;
     const qrParams = qr ? `&include_qr=1&qr_url=${encodeURIComponent(qr)}` : "";
     const url = `${API_BASE}/api/guidebook/${guidebookId}/pdf?download=1${tplParam}${qrParams}`;
     const link = document.createElement("a");
@@ -52,7 +54,8 @@ export default function GuidebookPdfPage() {
     if (!guidebookId) return null;
     const hasTemplate = Boolean(templateKey);
     const tplParam = templateKey ? `?template=${templateKey}` : "";
-    const qr = includeQrInPdf && getQrTargetUrl() ? getQrTargetUrl() : null;
+    const forceQr = templateKey === "template_pdf_qr";
+    const qr = (forceQr || includeQrInPdf) && getQrTargetUrl() ? getQrTargetUrl() : null;
     const qrParams = qr ? `${hasTemplate ? "&" : "?"}include_qr=1&qr_url=${encodeURIComponent(qr)}` : "";
     const url = `${API_BASE}/api/guidebook/${guidebookId}/pdf${tplParam}${qrParams}`;
     setPdfUrl(url);
@@ -157,6 +160,30 @@ export default function GuidebookPdfPage() {
                     Preview
                   </Button>
                   <Button size="sm" onClick={() => handleDownload("template_pdf_mobile")} disabled={!guidebookId}>Download</Button>
+                </div>
+              </div>
+            </div>
+
+            {/* QR Poster */}
+            <div className="group relative border rounded-xl p-4 bg-white shadow hover:shadow-lg transition">
+              <div className="aspect-[8.5/11] w-full overflow-hidden rounded-lg bg-gray-100 flex items-center justify-center">
+                <img src={getPdfPlaceholder("template_pdf_qr")} alt="QR Poster placeholder" className="object-contain w-full h-full" />
+              </div>
+              <div className="mt-3 flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold">QR Poster</h3>
+                  <p className="text-sm text-gray-500">Large QR with property title</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="bg-white text-pink-600 border border-pink-500 hover:bg-pink-50"
+                    onClick={async () => { await buildPdfUrl("template_pdf_qr"); setPdfModalOpen(true); }}
+                  >
+                    Preview
+                  </Button>
+                  <Button size="sm" onClick={() => handleDownload("template_pdf_qr")} disabled={!guidebookId}>Download</Button>
                 </div>
               </div>
             </div>

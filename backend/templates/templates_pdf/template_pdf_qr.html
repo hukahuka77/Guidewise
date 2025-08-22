@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>{{ ctx.property_name or 'Guidewise Guidebook' }} — QR Poster</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    @page { size: letter; margin: 0.5in; }
+    html, body { height: 100%; }
+    body {
+      /* Classier serif stack for print */
+      font-family: Georgia, 'Times New Roman', Times, serif;
+      color: #1f2937;
+      background: #ffffff;
+    }
+    .page-frame {
+      height: 100%;
+      box-sizing: border-box;
+      border: 2pt solid #e5e7eb; /* subtle light gray border */
+      border-radius: 10pt;
+      padding: 0.4in;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      height: 100%;
+      text-align: center;
+    }
+    .title {
+      font-size: 30pt;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      margin: 0.2in 0 0.05in 0;
+      color: #111827;
+    }
+    .subtitle {
+      font-size: 12pt;
+      color: #6b7280;
+      margin-bottom: 0.25in;
+    }
+    .qr-wrap {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0.1in 0 0.2in 0;
+    }
+    /* The QR should take roughly 2/3 of the page height. With margins and text, target ~6.5in square. */
+    .qr {
+      width: 6.5in;
+      height: 6.5in;
+      max-width: 90vw;
+      max-height: 90vh;
+      object-fit: contain;
+      border: 12px solid #ffffff;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      border-radius: 16px;
+      background: #ffffff;
+    }
+    .footer {
+      margin-top: auto;
+      font-size: 10pt;
+      color: #9ca3af;
+    }
+    .brand {
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      font-weight: 800;
+      color: #111827;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="page-frame">
+      {% if ctx.property_name %}
+        <h1 class="title">{{ ctx.property_name | e }} Digital Guidebook</h1>
+      {% else %}
+        <h1 class="title">Digital Guidebook</h1>
+      {% endif %}
+    {% if ctx.host and ctx.host.name %}
+      <div class="subtitle">Hosted by {{ ctx.host.name | e }}</div>
+    {% endif %}
+
+    <div class="qr-wrap">
+      {% if ctx.qr_img_src %}
+        <img class="qr" src="{{ ctx.qr_img_src }}" alt="QR code to open the guidebook" />
+      {% else %}
+        <div style="width:6.5in;height:6.5in;border-radius:16px;border:2px dashed #e5e7eb;display:flex;align-items:center;justify-content:center;color:#9ca3af;">
+          <div>
+            <div style="font-size:14pt;font-weight:700;">QR unavailable</div>
+            <div style="font-size:10pt;">Open this PDF via the app with a QR URL to render.</div>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="footer">Scan to view the live guidebook • <span class="brand">Guidewise</span></div>
+    </div>
+  </div>
+</body>
+</html>
