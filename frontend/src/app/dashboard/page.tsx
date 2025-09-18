@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
-import { startStripeCheckout } from "@/lib/billing";
+import { startStripeCheckout, startAddonCheckout } from "@/lib/billing";
 import Spinner from "@/components/ui/spinner";
 import { cacheGet, cacheSet } from "@/lib/cache";
 
@@ -26,6 +26,7 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const [plan, setPlan] = useState<'free'|'pro'|''>('');
+  const [extraSlots, setExtraSlots] = useState<number>(0);
 
   // UI state
   const [qrModalFor, setQrModalFor] = useState<string | null>(null); // guidebook id
@@ -63,6 +64,18 @@ export default function DashboardPage() {
               .single();
             const p = (prof?.plan as 'free'|'pro'|undefined) || 'free';
             if (!cancelled) setPlan(p);
+            // Also fetch billing summary to learn extra_slots
+            try {
+              const token2 = (await supabase.auth.getSession()).data.session?.access_token || null;
+              if (API_BASE && token2) {
+                const r = await fetch(`${API_BASE}/api/billing/summary`, { headers: { Authorization: `Bearer ${token2}` } });
+                if (r.ok) {
+                  const j = await r.json();
+                  const n = typeof j?.extra_slots === 'number' ? j.extra_slots : 0;
+                  if (!cancelled) setExtraSlots(n);
+                }
+              }
+            } catch {}
           }
         } catch {}
 
@@ -109,19 +122,19 @@ export default function DashboardPage() {
             <h1 className="text-3xl font-bold text-gray-800">Your Guidebooks</h1>
             <p className="text-gray-600 mt-1">Manage, share, and download your property guidebooks</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <Link href="/create">
               <Button className="bg-[oklch(0.6923_0.22_21.05)] hover:opacity-90">Create New</Button>
             </Link>
             {plan !== 'pro' && (
               <Button variant="secondary" onClick={() => { void startStripeCheckout(); }}>Upgrade</Button>
             )}
-            <Button
-              variant="outline"
-              onClick={async () => {
-                try { await supabase?.auth.signOut(); } finally { router.push("/"); }
-              }}
-            >Logout</Button>
+            {plan === 'pro' && (
+              <>
+                <span className="hidden sm:inline text-xs text-gray-600 mr-1">Slots: <span className="font-semibold">{1 + (extraSlots || 0)}</span></span>
+                <Button variant="outline" onClick={() => { void startAddonCheckout(); }}>+ Add guidebook slot</Button>
+              </>
+            )}
           </div>
         </div>
 

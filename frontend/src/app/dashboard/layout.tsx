@@ -33,6 +33,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               <nav className="space-y-1">
                 <NavLink href="/dashboard" label="Guidebooks" />
                 <NavLink href="/dashboard/profile" label="Profile" />
+                <NavLink href="/dashboard/billing" label="Billing" />
               </nav>
             </div>
           </aside>

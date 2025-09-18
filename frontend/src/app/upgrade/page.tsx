@@ -13,6 +13,7 @@ export default function UpgradePage() {
   const router = useRouter();
   const params = useSearchParams();
   const guidebookId = useMemo(() => params.get("gb") || "", [params]);
+  const success = useMemo(() => params.get("success") || "", [params]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [plan, setPlan] = useState<"free" | "pro" | "">("");
@@ -58,6 +59,58 @@ export default function UpgradePage() {
       cancelled = true;
     };
   }, [router, guidebookId]);
+
+  // When Stripe returns with success=1, proactively refresh plan from backend and auto-activate
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!API_BASE || success !== '1') return;
+        if (!supabase) return;
+        // Ensure we have a token
+        const sess = await supabase.auth.getSession();
+        const token = sess.data.session?.access_token || null;
+        if (!token) return;
+        setAccessToken((prev) => prev || token);
+        // Ask backend to sync plan from Stripe and activate if Pro
+        const res = await fetch(`${API_BASE}/api/billing/refresh-plan`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({}),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (res.ok && (json?.plan === 'pro' || json?.plan === 'free')) {
+          setPlan(json.plan);
+          if (json.plan === 'pro') {
+            // Trigger activation flow automatically for a smoother UX
+            try {
+              const act = await fetch(`${API_BASE}/api/guidebooks/activate_for_user`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({}),
+              });
+              if (act.ok) {
+                if (guidebookId) {
+                  router.replace(`/guidebook/${guidebookId}`);
+                } else {
+                  router.replace('/dashboard');
+                }
+                return;
+              }
+            } catch {}
+          }
+        }
+      } catch (e) {
+        // Non-fatal; user can still click Activate Now
+        console.warn('refresh-plan failed', e);
+      }
+    })();
+  }, [success, guidebookId, router]);
 
   const startCheckout = async () => {
     if (!API_BASE) return;
