@@ -32,4 +32,4 @@ def google_places_details(place_id):
     return resp.json()
 
 def google_places_photo_url(photo_reference, maxwidth=800):
-    return f"{PLACES_PHOTO_URL}?maxwidth={maxwidth}&photoreference={photo_reference}&key={GOOGLE_API_KEY}"
+    return f"{PLACES_PHOTO_URL}?maxwidth={maxwidth}&photo_reference={photo_reference}&key={GOOGLE_API_KEY}"
