@@ -60,15 +60,15 @@ def get_ai_food_recommendations(address, num_places_to_eat=5):
                 real_address = details_result.get("formatted_address") or place.get("formatted_address")
                 
                 photos = details_result.get("photos") or place.get("photos")
-                image_url = None
+                photo_reference = None
                 if photos and len(photos) > 0:
-                    image_url = google_places_photo_url(photos[0]["photo_reference"])
+                    photo_reference = photos[0]["photo_reference"]
                 
                 enhanced.append({
                     "name": name,
                     "address": real_address,
                     "description": description,
-                    "image_url": image_url
+                    "photo_reference": photo_reference
                 })
 
         print("--- Enhanced Food Response ---")

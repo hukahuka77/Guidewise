@@ -58,15 +58,15 @@ def get_ai_activity_recommendations(address, num_things_to_do=5):
 
                 # Try to get a photo
                 photos = details_result.get("photos") or place.get("photos")
-                image_url = None
+                photo_reference = None
                 if photos and len(photos) > 0:
-                    image_url = google_places_photo_url(photos[0]["photo_reference"])
+                    photo_reference = photos[0]["photo_reference"]
 
                 enhanced.append({
                     "name": name,
                     "address": real_address,
                     "description": description,
-                    "image_url": image_url
+                    "photo_reference": photo_reference
                 })
             # If no results from Google, we simply skip this item.
 

@@ -36,13 +36,20 @@ export default function SignupPage() {
           emailRedirectTo = `${baseUrl}/dashboard`;
         }
       }
-      const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo } });
+      const { error, data } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo } });
       if (error) {
         const msg = (error?.message || '').toLowerCase();
         const isDuplicate = /already|registered|exists/.test(msg);
         setError(isDuplicate ? 'Email already in use. Please log in' : error.message);
         return;
       }
+      
+      // If no error but no user was created, it's likely a duplicate email (unique constraint)
+      if (!data?.user?.id) {
+        setError('Email already in use. Please log in');
+        return;
+      }
+      
       // Depending on Supabase email confirmation settings, user may need to confirm via email
       setMessage("Check your email to confirm your account. Once confirmed, you can log in.");
       // Optionally redirect to login immediately

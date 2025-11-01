@@ -1526,6 +1526,29 @@ def ai_activities_route():
     recs = get_ai_activity_recommendations(address, num_things_to_do)
     return jsonify(recs or {"error": "Could not get recommendations"})
 
+@app.route('/api/place-photo', methods=['GET'])
+def get_place_photo():
+    """Proxy endpoint to serve Google Places photos and bypass CORS restrictions."""
+    photo_reference = request.args.get('photo_reference')
+    maxwidth = request.args.get('maxwidth', 800)
+    
+    if not photo_reference:
+        return jsonify({"error": "photo_reference required"}), 400
+    
+    try:
+        photo_url = google_places_photo_url(photo_reference, maxwidth=int(maxwidth))
+        resp = requests.get(photo_url, timeout=10)
+        resp.raise_for_status()
+        
+        # Return image with proper CORS headers
+        image_resp = make_response(resp.content)
+        image_resp.headers['Content-Type'] = resp.headers.get('Content-Type', 'image/jpeg')
+        image_resp.headers['Cache-Control'] = 'public, max-age=86400'  # Cache for 24 hours
+        image_resp.headers['Access-Control-Allow-Origin'] = '*'
+        return image_resp
+    except Exception as e:
+        return jsonify({"error": f"Failed to fetch photo: {str(e)}"}), 500
+
 @app.route('/api/guidebook/<guidebook_id>/template', methods=['POST'])
 def update_template_key(guidebook_id):
     gb = Guidebook.query.get_or_404(guidebook_id)
