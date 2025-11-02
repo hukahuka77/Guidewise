@@ -486,8 +486,8 @@ export default function CreateGuidebookPage() {
                 if (items.length > 0) {
                   console.log('RAW FOOD API RESPONSE:', items);
                   const mapped = items.map((item: Partial<DynamicItem>) => {
-                    const photoRef = (item as any).photo_reference || item.image_url || "";
-                    console.log('Food Item:', item.name, 'photo_reference:', (item as any).photo_reference, 'image_url:', item.image_url, 'Final:', photoRef);
+                    const photoRef = (item as { photo_reference?: string }).photo_reference || item.image_url || "";
+                    console.log('Food Item:', item.name, 'photo_reference:', (item as { photo_reference?: string }).photo_reference, 'image_url:', item.image_url, 'Final:', photoRef);
                     return {
                       name: item.name || "",
                       address: item.address || "",
@@ -586,8 +586,8 @@ export default function CreateGuidebookPage() {
                 if (items.length > 0) {
                   console.log('RAW API RESPONSE:', items);
                   const mapped = items.map((item: Partial<DynamicItem>) => {
-                    const photoRef = (item as any).photo_reference || item.image_url || "";
-                    console.log('Item:', item.name, 'photo_reference:', (item as any).photo_reference, 'image_url:', item.image_url, 'Final:', photoRef);
+                    const photoRef = (item as { photo_reference?: string }).photo_reference || item.image_url || "";
+                    console.log('Item:', item.name, 'photo_reference:', (item as { photo_reference?: string }).photo_reference, 'image_url:', item.image_url, 'Final:', photoRef);
                     return {
                       name: item.name || "",
                       address: item.address || "",
