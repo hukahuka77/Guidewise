@@ -23,8 +23,8 @@ import CheckoutSection from "./CheckoutSection";
 
 // Base URL for backend API, configured via environment. Example in .env.local:
 // NEXT_PUBLIC_API_BASE_URL=http://localhost:5001
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || '';
-const BUCKET_NAME = process.env.NEXT_PUBLIC_SUPABASE_FOOD_ACTIVITIES_BUCKET || "food-activities-photos";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
+const BUCKET_NAME = process.env.NEXT_PUBLIC_SUPABASE_FOOD_ACTIVITIES_BUCKET;
 
 export default function CreateGuidebookPage() {
   const router = useRouter();

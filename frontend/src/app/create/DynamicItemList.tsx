@@ -29,7 +29,7 @@ interface DynamicItemListProps {
   label: string;
 }
 
-const BUCKET_NAME = process.env.NEXT_PUBLIC_SUPABASE_FOOD_ACTIVITIES_BUCKET || "food-activities-photos";
+const BUCKET_NAME = process.env.NEXT_PUBLIC_SUPABASE_FOOD_ACTIVITIES_BUCKET;
 
 export default function DynamicItemList({ items, onChange, onAdd, onDelete, label }: DynamicItemListProps) {
   const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
