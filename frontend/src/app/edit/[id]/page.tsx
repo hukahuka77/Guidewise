@@ -23,7 +23,7 @@ import AddItemChoiceModal from "@/components/places/AddItemChoiceModal";
 import PlacePickerModal from "@/components/places/PlacePickerModal";
 import { LIMITS } from "@/constants/limits";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL as string;
 const BUCKET_NAME = process.env.NEXT_PUBLIC_SUPABASE_FOOD_ACTIVITIES_BUCKET as string;
 
 type GuidebookDetail = {
