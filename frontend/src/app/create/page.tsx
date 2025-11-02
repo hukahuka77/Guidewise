@@ -23,8 +23,8 @@ import CheckoutSection from "./CheckoutSection";
 
 // Base URL for backend API, configured via environment. Example in .env.local:
 // NEXT_PUBLIC_API_BASE_URL=http://localhost:5001
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
-const BUCKET_NAME = process.env.NEXT_PUBLIC_SUPABASE_FOOD_ACTIVITIES_BUCKET;
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+const BUCKET_NAME = process.env.NEXT_PUBLIC_SUPABASE_FOOD_ACTIVITIES_BUCKET as string;
 
 export default function CreateGuidebookPage() {
   const router = useRouter();
@@ -160,6 +160,7 @@ export default function CreateGuidebookPage() {
     const uploadToStorage = async (prefix: string, file: File): Promise<string | undefined> => {
       try {
         if (!supabase) return undefined;
+        if (!BUCKET_NAME) return undefined;
         const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
         const path = `${prefix}/${Date.now()}-${safeName}`;
         const { error } = await supabase.storage
