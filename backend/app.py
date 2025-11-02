@@ -23,8 +23,11 @@ import stripe
 
 # Import db and models from models.py
 from models import db, Guidebook, Host, Property, Wifi, Rule
-from utils.ai_food import get_ai_food_recommendations
-from utils.ai_activities import get_ai_activity_recommendations
+from utils.ai_recommendations import (
+    get_ai_recommendations,
+    get_ai_food_recommendations,  # backward compatibility
+    get_ai_activity_recommendations  # backward compatibility
+)
 from utils.google_places import (
     google_places_text_search,
     google_places_details,
@@ -1507,8 +1510,41 @@ def cleanup_expired():
     db.session.commit()
     return jsonify({"ok": True, "deleted": count})
 
+@app.route('/api/ai-recommendations', methods=['POST'])
+def ai_recommendations_route():
+    """
+    Generic AI recommendations endpoint.
+    Supports multiple recommendation types: food, activities, nightlife, etc.
+
+    POST body:
+    {
+        "type": "food" | "activities" | "nightlife",
+        "location": "address string",
+        "num_items": 5  # optional, defaults to 5
+    }
+    """
+    data = request.json
+    recommendation_type = data.get('type')
+    address = data.get('location') or data.get('address')
+    num_items = data.get('num_items', 5)
+
+    if not recommendation_type:
+        return jsonify({"error": "Please provide a recommendation type (food, activities, nightlife, etc.)"}), 400
+
+    if not address or not str(address).strip():
+        return jsonify({"error": "Please provide a valid location to generate recommendations."}), 400
+
+    try:
+        recs = get_ai_recommendations(recommendation_type, address, num_items)
+        return jsonify(recs or [])
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": "Could not get recommendations"}), 500
+
 @app.route('/api/ai-food', methods=['POST'])
 def ai_food_route():
+    """Legacy endpoint for food recommendations. Use /api/ai-recommendations instead."""
     data = request.json
     address = data.get('location') or data.get('address')
     num_places_to_eat = data.get('num_places_to_eat', 5)
@@ -1519,6 +1555,7 @@ def ai_food_route():
 
 @app.route('/api/ai-activities', methods=['POST'])
 def ai_activities_route():
+    """Legacy endpoint for activity recommendations. Use /api/ai-recommendations instead."""
     data = request.json
     address = data.get('location') or data.get('address')
     num_things_to_do = data.get('num_things_to_do', 5)
