@@ -92,7 +92,15 @@ export default function DynamicItemList({ items, onChange, onAdd, onDelete, labe
                 {item.image_url ? (
                   <div className="relative mb-2">
                     <img
-                      src={item.image_url}
+                      src={
+                        item.image_url.startsWith('http')
+                          ? (
+                              item.image_url.includes('/maps.googleapis.com/maps/api/place/photo') && /[?&]photo_reference=([^&]+)/.test(item.image_url)
+                                ? `${process.env.NEXT_PUBLIC_API_BASE_URL || ''}/api/place-photo?photo_reference=${encodeURIComponent((item.image_url.match(/[?&]photo_reference=([^&]+)/) || [,''])[1])}&maxwidth=800`
+                                : item.image_url
+                            )
+                          : `${process.env.NEXT_PUBLIC_API_BASE_URL || ''}/api/place-photo?photo_reference=${encodeURIComponent(item.image_url)}&maxwidth=800`
+                      }
                       alt={item.name + " image"}
                       className="w-full h-32 object-cover rounded border shadow"
                     />

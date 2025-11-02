@@ -460,10 +460,13 @@ export default function CreateGuidebookPage() {
             className="mb-4 px-4 py-2 rounded bg-[oklch(0.6923_0.22_21.05)] text-white font-semibold shadow hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={isLoading || !formData.location}
             onClick={async () => {
+              console.log('CLICKED PREPOPULATE FOOD, API_BASE:', API_BASE);
               setIsLoading(true);
               setError(null);
               try {
-                const res = await fetch(`${API_BASE}/api/ai-food`, {
+                const url = `${API_BASE}/api/ai-food`;
+                console.log('FETCHING FROM:', url);
+                const res = await fetch(url, {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ address: formData.location, num_places_to_eat: 5 })
@@ -481,12 +484,19 @@ export default function CreateGuidebookPage() {
                   items = data.food;
                 }
                 if (items.length > 0) {
-                  setFoodItems(items.map((item: Partial<DynamicItem>) => ({
-                    name: item.name || "",
-                    address: item.address || "",
-                    description: item.description || "",
-                    image_url: item.image_url || ""
-                  })));
+                  console.log('RAW FOOD API RESPONSE:', items);
+                  const mapped = items.map((item: Partial<DynamicItem>) => {
+                    const photoRef = (item as any).photo_reference || item.image_url || "";
+                    console.log('Food Item:', item.name, 'photo_reference:', (item as any).photo_reference, 'image_url:', item.image_url, 'Final:', photoRef);
+                    return {
+                      name: item.name || "",
+                      address: item.address || "",
+                      description: item.description || "",
+                      image_url: photoRef
+                    };
+                  });
+                  console.log('MAPPED FOOD ITEMS:', mapped);
+                  setFoodItems(mapped);
                 } else {
                   setError("No recommendations found.");
                 }
@@ -550,10 +560,13 @@ export default function CreateGuidebookPage() {
             className="mb-4 px-4 py-2 rounded bg-[oklch(0.6923_0.22_21.05)] text-white font-semibold shadow hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={isLoading || !formData.location}
             onClick={async () => {
+              console.log('CLICKED PREPOPULATE ACTIVITIES, API_BASE:', API_BASE);
               setIsLoading(true);
               setError(null);
               try {
-                const res = await fetch(`${API_BASE}/api/ai-activities`, {
+                const url = `${API_BASE}/api/ai-activities`;
+                console.log('FETCHING FROM:', url);
+                const res = await fetch(url, {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ address: formData.location, num_things_to_do: 5 })
@@ -571,12 +584,19 @@ export default function CreateGuidebookPage() {
                   items = data.activityItems;
                 }
                 if (items.length > 0) {
-                  setActivityItems(items.map((item: Partial<DynamicItem>) => ({
-                    name: item.name || "",
-                    address: item.address || "",
-                    description: item.description || "",
-                    image_url: item.image_url || ""
-                  })));
+                  console.log('RAW API RESPONSE:', items);
+                  const mapped = items.map((item: Partial<DynamicItem>) => {
+                    const photoRef = (item as any).photo_reference || item.image_url || "";
+                    console.log('Item:', item.name, 'photo_reference:', (item as any).photo_reference, 'image_url:', item.image_url, 'Final:', photoRef);
+                    return {
+                      name: item.name || "",
+                      address: item.address || "",
+                      description: item.description || "",
+                      image_url: photoRef
+                    };
+                  });
+                  console.log('MAPPED ITEMS:', mapped);
+                  setActivityItems(mapped);
                 } else {
                   setError("No recommendations found.");
                 }

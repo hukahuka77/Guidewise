@@ -518,7 +518,7 @@ export default function EditGuidebookPage() {
                       name: item.name || "",
                       address: item.address || "",
                       description: item.description || "",
-                      image_url: item.image_url || ""
+                      image_url: (item as any).photo_reference || item.image_url || ""
                     })));
                   } else {
                     setError("No recommendations found.");
@@ -605,7 +605,7 @@ export default function EditGuidebookPage() {
                       name: item.name || "",
                       address: item.address || "",
                       description: item.description || "",
-                      image_url: item.image_url || ""
+                      image_url: (item as any).photo_reference || item.image_url || ""
                     })));
                   } else {
                     setError("No recommendations found.");

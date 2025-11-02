@@ -14,6 +14,7 @@ import os
 import functools
 import logging
 import json
+import requests
 
 # JWT/JWKS for Supabase auth verification
 import jwt
@@ -1628,7 +1629,10 @@ def places_enrich():
         if photos:
             ref = (photos[0] or {}).get('photo_reference')
             if ref:
-                image_url = google_places_photo_url(ref, maxwidth=800)
+                # Return the raw photo_reference so the frontend can call our
+                # /api/place-photo proxy endpoint to bypass browser CORS.
+                # The frontend expects a non-http string here and will proxy it.
+                image_url = ref
         return jsonify({
             'name': name,
             'address': address,
