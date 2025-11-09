@@ -16,6 +16,15 @@ export default function PricingPage() {
     })();
   }, []);
 
+  const handlePlanSelect = (plan: 'starter' | 'growth' | 'pro') => {
+    if (!isAuthed) {
+      // Redirect to signup with plan in query param
+      window.location.href = `/signup?plan=${plan}`;
+      return;
+    }
+    void startStripeCheckout(plan);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#F8F5F1] to-white">
       <section className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-10 md:py-16">
@@ -65,7 +74,9 @@ export default function PricingPage() {
               </li>
             </ul>
             <div className="mt-6">
-              <Button className="w-full" onClick={() => { void startStripeCheckout('starter'); }}>Get Starter</Button>
+              <Button className="w-full" onClick={() => handlePlanSelect('starter')}>
+                {isAuthed ? 'Get Starter' : 'Sign Up for Starter'}
+              </Button>
             </div>
           </div>
 
@@ -118,7 +129,9 @@ export default function PricingPage() {
               </li>
             </ul>
             <div className="mt-6">
-              <Button className="w-full bg-[#CC7A52] hover:bg-[#B86B45]" onClick={() => { void startStripeCheckout('growth'); }}>Get Growth</Button>
+              <Button className="w-full bg-[#CC7A52] hover:bg-[#B86B45]" onClick={() => handlePlanSelect('growth')}>
+                {isAuthed ? 'Get Growth' : 'Sign Up for Growth'}
+              </Button>
             </div>
           </div>
 
@@ -174,7 +187,9 @@ export default function PricingPage() {
               </li>
             </ul>
             <div className="mt-6">
-              <Button className="w-full" onClick={() => { void startStripeCheckout('pro'); }}>Get Pro</Button>
+              <Button className="w-full" onClick={() => handlePlanSelect('pro')}>
+                {isAuthed ? 'Get Pro' : 'Sign Up for Pro'}
+              </Button>
             </div>
           </div>
 
