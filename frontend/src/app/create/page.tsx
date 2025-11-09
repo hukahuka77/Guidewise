@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import Spinner from "@/components/ui/spinner";
 import { LIMITS } from "@/constants/limits";
@@ -25,11 +25,12 @@ type PlaceApiItem = Partial<DynamicItem> & { photo_reference?: string };
 
 // Base URL for backend API, configured via environment. Example in .env.local:
 // NEXT_PUBLIC_API_BASE_URL=http://localhost:5001
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL as string;
 const BUCKET_NAME = process.env.NEXT_PUBLIC_SUPABASE_FOOD_ACTIVITIES_BUCKET as string;
 
 export default function CreateGuidebookPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState<boolean>(false);
   const sectionsOrder = [
@@ -112,6 +113,7 @@ export default function CreateGuidebookPage() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [signupSuccess, setSignupSuccess] = useState<boolean>(false);
 
   // Load Supabase session Access Token for authenticated backend calls
   useEffect(() => {
@@ -144,6 +146,16 @@ export default function CreateGuidebookPage() {
       subscription.unsubscribe();
     };
   }, [router]);
+
+  useEffect(() => {
+    const created = searchParams?.get('created');
+    if (created === '1' && typeof window !== 'undefined') {
+      setSignupSuccess(true);
+      const url = new URL(window.location.href);
+      url.searchParams.delete('created');
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, [searchParams]);
 
   // Redirect unauthenticated users to signup
   useEffect(() => {
@@ -384,6 +396,14 @@ export default function CreateGuidebookPage() {
 
   return (
     <div className="w-full">
+      {signupSuccess && (
+        <div className="w-full bg-emerald-100 border-b border-emerald-300 text-emerald-800" role="alert">
+          <div className="px-4 py-3 text-center">
+            <strong className="font-bold">Success:</strong>
+            <span className="block sm:inline"> Your account was created. Start creating your guidebook below.</span>
+          </div>
+        </div>
+      )}
 
       <CreateGuidebookLayout
         sidebar={

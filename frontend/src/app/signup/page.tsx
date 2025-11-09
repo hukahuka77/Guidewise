@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 
 export default function SignupPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -33,7 +35,7 @@ export default function SignupPage() {
           const hash = `#gb=${encodeURIComponent(gb)}&token=${encodeURIComponent(token)}`;
           emailRedirectTo = `${baseUrl}/success${hash}`;
         } else {
-          emailRedirectTo = `${baseUrl}/dashboard`;
+          emailRedirectTo = `${baseUrl}/create?created=1`;
         }
       }
       const { error, data } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo } });
@@ -51,9 +53,11 @@ export default function SignupPage() {
       }
       
       // Depending on Supabase email confirmation settings, user may need to confirm via email
+      if (data.session) {
+        router.push("/create?created=1");
+        return;
+      }
       setMessage("Check your email to confirm your account. Once confirmed, you can log in.");
-      // Optionally redirect to login immediately
-      // router.push("/login");
     } catch (err: unknown) {
       // Network or unexpected errors
       const msg = err instanceof Error ? err.message : 'Signup failed';
@@ -152,7 +156,7 @@ export default function SignupPage() {
                   await supabase.auth.signInWithOAuth({
                     provider: 'google',
                     options: {
-                      redirectTo: `${(typeof window !== 'undefined' ? window.location.origin : process.env.NEXT_PUBLIC_SITE_URL)}${hasPendingPreview ? `/success#gb=${encodeURIComponent(gb as string)}&token=${encodeURIComponent(token as string)}` : '/dashboard'}`,
+                      redirectTo: `${(typeof window !== 'undefined' ? window.location.origin : process.env.NEXT_PUBLIC_SITE_URL)}${hasPendingPreview ? `/success#gb=${encodeURIComponent(gb as string)}&token=${encodeURIComponent(token as string)}` : '/create?created=1'}`,
                       queryParams: { prompt: 'select_account' },
                     },
                   });
