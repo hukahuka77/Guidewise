@@ -22,10 +22,29 @@ export async function startStripeCheckout(plan: 'starter' | 'growth' | 'pro' = '
     body: JSON.stringify({ email, plan }),
   });
   const json: unknown = await res.json().catch(() => ({}));
+
+  // Handle case where user already has a subscription
+  if (!res.ok && res.status === 409) {
+    // Check if there's a redirect URL
+    if (typeof json === "object" && json && "redirect" in json) {
+      const { redirect } = json as { redirect?: string };
+      if (redirect) {
+        window.location.href = redirect;
+        return;
+      }
+    }
+    // Fallback to billing page
+    window.location.href = "/dashboard/billing";
+    return;
+  }
+
+  // Handle other errors
   if (!res.ok) {
     const msg = typeof json === "object" && json && "error" in json ? (json as { error?: string }).error : undefined;
     throw new Error(msg || `Failed to start checkout (${res.status})`);
   }
+
+  // Success - redirect to Stripe checkout
   if (typeof json === "object" && json && "url" in json) {
     const { url } = json as { url?: string };
     if (url) {
