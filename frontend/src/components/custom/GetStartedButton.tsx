@@ -13,21 +13,20 @@ export default function GetStartedButton() {
     let mounted = true;
     (async () => {
       if (!supabase) {
-        if (mounted) setHref("/signup");
+        if (mounted) {
+          setHref("/signup");
+          setLabel("Get Started for Free");
+        }
         return;
       }
       const { data } = await supabase.auth.getSession();
       if (mounted) {
-        const isLoggedIn = Boolean(data.session);
-        setHref(isLoggedIn ? "/create" : "/signup");
-        setLabel(isLoggedIn ? "Create New Guidebook" : "Get Started for Free");
+        setHref(data.session ? "/create" : "/signup");
       }
     })();
     const subscription = supabase
       ? supabase.auth.onAuthStateChange((_event, session) => {
-          const isLoggedIn = Boolean(session);
-          setHref(isLoggedIn ? "/create" : "/signup");
-          setLabel(isLoggedIn ? "Create New Guidebook" : "Get Started for Free");
+          setHref(session ? "/create" : "/signup");
         }).data.subscription
       : { unsubscribe: () => {} };
     return () => {
