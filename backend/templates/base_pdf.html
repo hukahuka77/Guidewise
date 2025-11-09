@@ -26,10 +26,31 @@
     .items .item img { width:96px; height:96px; object-fit:cover; border-radius:8px; margin-right: 14px; display:block; }
     .rules { list-style:none; padding:0; column-count:2; column-gap: 24px; }
     .rules li { margin-bottom: 10px; }
+
+    /* Preview Mode Watermark - for PDF */
+    .preview-watermark {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-45deg);
+      font-size: 10rem;
+      font-weight: 900;
+      color: rgba(0, 0, 0, 0.12);
+      pointer-events: none;
+      z-index: 9998;
+      user-select: none;
+      white-space: nowrap;
+      letter-spacing: 0.1em;
+    }
   </style>
   {% block head_extra %}{% endblock %}
 </head>
 <body>
+  {% if show_watermark %}
+  <!-- Watermark Overlay -->
+  <div class="preview-watermark" aria-hidden="true">PREVIEW</div>
+  {% endif %}
+
   {% block body %}{% endblock %}
 </body>
 </html>
