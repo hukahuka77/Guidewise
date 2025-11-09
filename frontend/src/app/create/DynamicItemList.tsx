@@ -29,7 +29,7 @@ interface DynamicItemListProps {
   label: string;
 }
 
-const BUCKET_NAME = process.env.NEXT_PUBLIC_SUPABASE_FOOD_ACTIVITIES_BUCKET || "food-activities-photos";
+const BUCKET_NAME = process.env.NEXT_PUBLIC_SUPABASE_FOOD_ACTIVITIES_BUCKET as string;
 
 export default function DynamicItemList({ items, onChange, onAdd, onDelete, label }: DynamicItemListProps) {
   const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
@@ -38,6 +38,7 @@ export default function DynamicItemList({ items, onChange, onAdd, onDelete, labe
     try {
       setUploadingIdx(idx);
       if (!supabase) throw new Error("Supabase not configured");
+      if (!BUCKET_NAME) throw new Error("Supabase bucket not configured (NEXT_PUBLIC_SUPABASE_FOOD_ACTIVITIES_BUCKET)");
       const ext = file.name.split('.').pop() || 'jpg';
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
       const path = `guidebook/${Date.now()}-${idx}-${safeName}`;

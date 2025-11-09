@@ -26,7 +26,7 @@ type PlaceApiItem = Partial<DynamicItem> & { photo_reference?: string };
 // Base URL for backend API, configured via environment. Example in .env.local:
 // NEXT_PUBLIC_API_BASE_URL=http://localhost:5001
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || '';
-const BUCKET_NAME = process.env.NEXT_PUBLIC_SUPABASE_FOOD_ACTIVITIES_BUCKET || "food-activities-photos";
+const BUCKET_NAME = process.env.NEXT_PUBLIC_SUPABASE_FOOD_ACTIVITIES_BUCKET as string;
 
 export default function CreateGuidebookPage() {
   const router = useRouter();
@@ -162,6 +162,7 @@ export default function CreateGuidebookPage() {
     const uploadToStorage = async (prefix: string, file: File): Promise<string | undefined> => {
       try {
         if (!supabase) return undefined;
+        if (!BUCKET_NAME) return undefined;
         const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
         const path = `${prefix}/${Date.now()}-${safeName}`;
         const { error } = await supabase.storage
@@ -487,9 +488,9 @@ export default function CreateGuidebookPage() {
                 }
                 if (items.length > 0) {
                   console.log('RAW FOOD API RESPONSE:', items);
-                  const mapped = items.map((item: PlaceApiItem) => {
-                    const photoRef = item.photo_reference || item.image_url || "";
-                    console.log('Food Item:', item.name, 'photo_reference:', item.photo_reference, 'image_url:', item.image_url, 'Final:', photoRef);
+                  const mapped = items.map((item: Partial<DynamicItem>) => {
+                    const photoRef = (item as { photo_reference?: string }).photo_reference || item.image_url || "";
+                    console.log('Food Item:', item.name, 'photo_reference:', (item as { photo_reference?: string }).photo_reference, 'image_url:', item.image_url, 'Final:', photoRef);
                     return {
                       name: item.name || "",
                       address: item.address || "",
@@ -587,9 +588,9 @@ export default function CreateGuidebookPage() {
                 }
                 if (items.length > 0) {
                   console.log('RAW API RESPONSE:', items);
-                  const mapped = items.map((item: PlaceApiItem) => {
-                    const photoRef = item.photo_reference || item.image_url || "";
-                    console.log('Item:', item.name, 'photo_reference:', item.photo_reference, 'image_url:', item.image_url, 'Final:', photoRef);
+                  const mapped = items.map((item: Partial<DynamicItem>) => {
+                    const photoRef = (item as { photo_reference?: string }).photo_reference || item.image_url || "";
+                    console.log('Item:', item.name, 'photo_reference:', (item as { photo_reference?: string }).photo_reference, 'image_url:', item.image_url, 'Final:', photoRef);
                     return {
                       name: item.name || "",
                       address: item.address || "",
