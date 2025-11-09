@@ -21,6 +21,8 @@ import AddItemChoiceModal from "@/components/places/AddItemChoiceModal";
 import RulesSection from "./RulesSection";
 import CheckoutSection from "./CheckoutSection";
 
+type PlaceApiItem = Partial<DynamicItem> & { photo_reference?: string };
+
 // Base URL for backend API, configured via environment. Example in .env.local:
 // NEXT_PUBLIC_API_BASE_URL=http://localhost:5001
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || '';
@@ -474,15 +476,15 @@ export default function CreateGuidebookPage() {
                 });
                 if (!res.ok) throw new Error("Failed to fetch food recommendations");
                 const data = await res.json();
-                let items = [];
+                let items: PlaceApiItem[] = [];
                 if (Array.isArray(data)) {
-                  items = data;
+                  items = data as PlaceApiItem[];
                 } else if (Array.isArray(data.restaurants)) {
-                  items = data.restaurants;
+                  items = data.restaurants as PlaceApiItem[];
                 } else if (Array.isArray(data.places_to_eat)) {
-                  items = data.places_to_eat;
+                  items = data.places_to_eat as PlaceApiItem[];
                 } else if (Array.isArray(data.food)) {
-                  items = data.food;
+                  items = data.food as PlaceApiItem[];
                 }
                 if (items.length > 0) {
                   console.log('RAW FOOD API RESPONSE:', items);
@@ -574,15 +576,15 @@ export default function CreateGuidebookPage() {
                 });
                 if (!res.ok) throw new Error("Failed to fetch activities recommendations");
                 const data = await res.json();
-                let items: Partial<DynamicItem>[] = [];
+                let items: PlaceApiItem[] = [];
                 if (Array.isArray(data)) {
-                  items = data;
+                  items = data as PlaceApiItem[];
                 } else if (Array.isArray(data.activities)) {
-                  items = data.activities;
+                  items = data.activities as PlaceApiItem[];
                 } else if (Array.isArray(data.things_to_do)) {
-                  items = data.things_to_do;
+                  items = data.things_to_do as PlaceApiItem[];
                 } else if (Array.isArray(data.activityItems)) {
-                  items = data.activityItems;
+                  items = data.activityItems as PlaceApiItem[];
                 }
                 if (items.length > 0) {
                   console.log('RAW API RESPONSE:', items);

@@ -504,22 +504,22 @@ export default function EditGuidebookPage() {
                   });
                   if (!res.ok) throw new Error("Failed to fetch food recommendations");
                   const data = await res.json();
-                  let items: Partial<DynamicItem>[] = [];
+                  let items: PlaceApiItem[] = [];
                   if (Array.isArray(data)) {
-                    items = data;
+                    items = data as PlaceApiItem[];
                   } else if (Array.isArray(data.restaurants)) {
-                    items = data.restaurants;
+                    items = data.restaurants as PlaceApiItem[];
                   } else if (Array.isArray(data.places_to_eat)) {
-                    items = data.places_to_eat;
+                    items = data.places_to_eat as PlaceApiItem[];
                   } else if (Array.isArray(data.food)) {
-                    items = data.food;
+                    items = data.food as PlaceApiItem[];
                   }
                   if (items.length > 0) {
-                    setFoodItems(items.map((item: Partial<DynamicItem>) => ({
+                    setFoodItems(items.map((item: PlaceApiItem) => ({
                       name: item.name || "",
                       address: item.address || "",
                       description: item.description || "",
-                      image_url: (item as { photo_reference?: string }).photo_reference || item.image_url || ""
+                      image_url: item.photo_reference || item.image_url || ""
                     })));
                   } else {
                     setError("No recommendations found.");
@@ -591,22 +591,22 @@ export default function EditGuidebookPage() {
                   });
                   if (!res.ok) throw new Error("Failed to fetch activities recommendations");
                   const data = await res.json();
-                  let items: Partial<DynamicItem>[] = [];
+                  let items: PlaceApiItem[] = [];
                   if (Array.isArray(data)) {
-                    items = data;
+                    items = data as PlaceApiItem[];
                   } else if (Array.isArray(data.activities)) {
-                    items = data.activities;
+                    items = data.activities as PlaceApiItem[];
                   } else if (Array.isArray(data.things_to_do)) {
-                    items = data.things_to_do;
+                    items = data.things_to_do as PlaceApiItem[];
                   } else if (Array.isArray(data.activityItems)) {
-                    items = data.activityItems;
+                    items = data.activityItems as PlaceApiItem[];
                   }
                   if (items.length > 0) {
-                    setActivityItems(items.map((item: Partial<DynamicItem>) => ({
+                    setActivityItems(items.map((item: PlaceApiItem) => ({
                       name: item.name || "",
                       address: item.address || "",
                       description: item.description || "",
-                      image_url: (item as { photo_reference?: string }).photo_reference || item.image_url || ""
+                      image_url: item.photo_reference || item.image_url || ""
                     })));
                   } else {
                     setError("No recommendations found.");

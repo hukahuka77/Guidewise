@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
-import { startStripeCheckout, startAddonCheckout } from "@/lib/billing";
 import Spinner from "@/components/ui/spinner";
 import { cacheGet, cacheSet } from "@/lib/cache";
 
@@ -18,6 +17,8 @@ type GuidebookItem = {
   created_time?: string | null;
   last_modified_time?: string | null;
   cover_image_url?: string | null;
+  active?: boolean;
+  public_slug?: string | null;
 };
 
 export default function DashboardPage() {
@@ -25,8 +26,10 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-  const [plan, setPlan] = useState<'free'|'pro'|''>('');
-  const [extraSlots, setExtraSlots] = useState<number>(0);
+  const [plan, setPlan] = useState<'starter'|'growth'|'pro'|'enterprise'|'trial'|''>('');
+  const [guidebookLimit, setGuidebookLimit] = useState<number | null>(0);
+  const [activeCount, setActiveCount] = useState<number>(0);
+  const [toggling, setToggling] = useState<string | null>(null); // guidebook id being toggled
 
   // UI state
   const [qrModalFor, setQrModalFor] = useState<string | null>(null); // guidebook id
@@ -52,30 +55,22 @@ export default function DashboardPage() {
         return;
       }
       try {
-        // fetch plan for upgrade CTAs
+        // Fetch plan and limits from billing summary
         try {
-          const { data: userData } = await supabase.auth.getUser();
-          const user = userData.user;
-          if (user) {
-            const { data: prof } = await supabase
-              .from('profiles')
-              .select('plan')
-              .eq('user_id', user.id)
-              .single();
-            const p = (prof?.plan as 'free'|'pro'|undefined) || 'free';
-            if (!cancelled) setPlan(p);
-            // Also fetch billing summary to learn extra_slots
-            try {
-              const token2 = (await supabase.auth.getSession()).data.session?.access_token || null;
-              if (API_BASE && token2) {
-                const r = await fetch(`${API_BASE}/api/billing/summary`, { headers: { Authorization: `Bearer ${token2}` } });
-                if (r.ok) {
-                  const j = await r.json();
-                  const n = typeof j?.extra_slots === 'number' ? j.extra_slots : 0;
-                  if (!cancelled) setExtraSlots(n);
-                }
+          const token2 = (await supabase.auth.getSession()).data.session?.access_token || null;
+          if (API_BASE && token2) {
+            const r = await fetch(`${API_BASE}/api/billing/summary`, { headers: { Authorization: `Bearer ${token2}` } });
+            if (r.ok) {
+              const j = await r.json();
+              const userPlan = j?.plan || 'trial';
+              const limit = j?.guidebook_limit;
+              const active = j?.active_guidebooks || 0;
+              if (!cancelled) {
+                setPlan(userPlan);
+                setGuidebookLimit(limit);
+                setActiveCount(active);
               }
-            } catch {}
+            }
           }
         } catch {}
 
@@ -112,6 +107,53 @@ export default function DashboardPage() {
   const getQrImageUrl = (url: string, size = 300) =>
     `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(url)}`;
 
+  // Toggle guidebook active state
+  const toggleGuidebook = async (id: string) => {
+    setToggling(id);
+    try {
+      const token = (await supabase?.auth.getSession())?.data.session?.access_token || null;
+      if (!token) {
+        alert('Please log in to continue');
+        return;
+      }
+
+      const res = await fetch(`${API_BASE}/api/guidebooks/${id}/toggle`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        alert(error.error || 'Failed to toggle guidebook');
+        return;
+      }
+
+      const result = await res.json();
+
+      // Update local state
+      setItems(prev => prev.map(item =>
+        item.id === id
+          ? { ...item, active: result.active, public_slug: result.public_slug }
+          : item
+      ));
+
+      // Update active count
+      if (result.active) {
+        setActiveCount(prev => prev + 1);
+      } else {
+        setActiveCount(prev => Math.max(0, prev - 1));
+      }
+
+      // Clear cache
+      cacheSet("dashboard:guidebooks", null, 0);
+    } catch (e) {
+      alert('Failed to toggle guidebook. Please try again.');
+      console.error(e);
+    } finally {
+      setToggling(null);
+    }
+  };
+
   // No direct PDF building here; navigate to per-guidebook PDF page
 
   return (
@@ -121,19 +163,29 @@ export default function DashboardPage() {
           <div>
             <h1 className="text-3xl font-bold text-gray-800">Your Guidebooks</h1>
             <p className="text-gray-600 mt-1">Manage, share, and download your property guidebooks</p>
+            {plan && guidebookLimit !== null && (
+              <p className="text-sm text-gray-500 mt-1">
+                {plan === 'trial' ? (
+                  <span>Free preview mode - <Link href="/pricing" className="underline text-[#CC7A52]">Upgrade to publish</Link></span>
+                ) : guidebookLimit === null ? (
+                  <span className="font-semibold text-green-700">Unlimited guidebooks ({plan})</span>
+                ) : (
+                  <span>
+                    <span className="font-semibold">{activeCount} / {guidebookLimit}</span> guidebooks active ({plan})
+                    {activeCount >= guidebookLimit && <span className="text-[#CC7A52] ml-1">- <Link href="/pricing" className="underline">Upgrade for more</Link></span>}
+                  </span>
+                )}
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <Link href="/create">
               <Button className="bg-[oklch(0.6923_0.22_21.05)] hover:opacity-90">Create New</Button>
             </Link>
-            {plan !== 'pro' && (
-              <Button variant="secondary" onClick={() => { void startStripeCheckout(); }}>Upgrade</Button>
-            )}
-            {plan === 'pro' && (
-              <>
-                <span className="hidden sm:inline text-xs text-gray-600 mr-1">Slots: <span className="font-semibold">{1 + (extraSlots || 0)}</span></span>
-                <Button variant="outline" onClick={() => { void startAddonCheckout(); }}>+ Add guidebook slot</Button>
-              </>
+            {plan && !['pro', 'enterprise'].includes(plan) && (
+              <Link href="/pricing">
+                <Button variant="secondary">Upgrade</Button>
+              </Link>
             )}
           </div>
         </div>
@@ -157,9 +209,28 @@ export default function DashboardPage() {
         {!loading && !error && items.length > 0 && (
           <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {items.map((gb) => {
-              const liveUrl = `${API_BASE}/guidebook/${gb.id}`;
+              const isActive = gb.active || false;
+              const viewUrl = isActive && gb.public_slug
+                ? `${API_BASE}/g/${gb.public_slug}`
+                : `${API_BASE}/preview/${gb.id}`;
+              const canActivate = guidebookLimit === null || (activeCount < (guidebookLimit || 0));
+              const isToggling = toggling === gb.id;
+
               return (
-                <li key={gb.id} className="group bg-white rounded-2xl border shadow-sm hover:shadow-md transition min-h-[360px]">
+                <li key={gb.id} className="group bg-white rounded-2xl border shadow-sm hover:shadow-md transition min-h-[360px] relative">
+                  {/* Status Badge */}
+                  <div className="absolute top-3 right-3 z-10">
+                    {isActive ? (
+                      <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full border border-green-200">
+                        ● Live
+                      </span>
+                    ) : (
+                      <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-semibold rounded-full border border-gray-200">
+                        Preview
+                      </span>
+                    )}
+                  </div>
+
                   <div className="aspect-[16/9] w-full overflow-hidden rounded-t-2xl bg-gray-100">
                     {gb.cover_image_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -170,7 +241,7 @@ export default function DashboardPage() {
                   </div>
                   <div className="p-5 pb-6">
                     <div className="flex items-start justify-between gap-3">
-                      <div>
+                      <div className="flex-1">
                         <h3 className="font-semibold text-gray-800 truncate">{gb.property_name || "Untitled Property"}</h3>
                         <div className="text-xs text-gray-500">
                           {gb.last_modified_time ? `Updated ${new Date(gb.last_modified_time).toLocaleString()}` :
@@ -181,17 +252,33 @@ export default function DashboardPage() {
                     </div>
 
                     <div className="mt-4 grid grid-cols-2 gap-2">
-                      <Link href={liveUrl} target="_blank">
-                        <Button variant="outline" className="w-full whitespace-nowrap text-sm">View Live</Button>
+                      {/* Toggle Button */}
+                      <Button
+                        className={`col-span-2 ${isActive ? 'bg-gray-600 hover:bg-gray-700' : 'bg-green-600 hover:bg-green-700'}`}
+                        onClick={() => toggleGuidebook(gb.id)}
+                        disabled={isToggling || (!isActive && !canActivate)}
+                      >
+                        {isToggling ? (
+                          <span className="flex items-center gap-2">
+                            <Spinner size={14} colorClass="text-white" /> Updating...
+                          </span>
+                        ) : isActive ? (
+                          '🔓 Deactivate (Make Preview)'
+                        ) : !canActivate ? (
+                          '🔒 Upgrade to Activate'
+                        ) : (
+                          '✓ Activate (Publish)'
+                        )}
+                      </Button>
+
+                      <Link href={viewUrl} target="_blank">
+                        <Button variant="outline" className="w-full whitespace-nowrap text-sm">
+                          {isActive ? 'View Live' : 'Preview'}
+                        </Button>
                       </Link>
                       <Link href={`/edit/${gb.id}`}>
                         <Button className="w-full whitespace-nowrap text-sm">Edit</Button>
                       </Link>
-                      {plan !== 'pro' && (
-                        <Button className="w-full whitespace-nowrap text-sm col-span-2" onClick={() => { void startStripeCheckout(); }}>
-                          Upgrade to Pro to Activate
-                        </Button>
-                      )}
                       <Button
                         variant="outline"
                         className="w-full whitespace-nowrap text-sm"
