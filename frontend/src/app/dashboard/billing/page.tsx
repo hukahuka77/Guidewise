@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
-import { startAddonCheckout } from "@/lib/billing";
 import Spinner from "@/components/ui/spinner";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
@@ -21,14 +20,17 @@ type InvoiceItem = {
 };
 
 type BillingSummary = {
-  plan: "free" | "pro" | string;
+  plan: "trial" | "starter" | "growth" | "pro" | "enterprise" | string;
+  guidebook_limit: number | null;
+  active_guidebooks: number;
+  can_activate_more: boolean;
+  plan_display: string;
   stripe: {
     customer_id: string | null;
     subscription: { id: string; status?: string | null; current_period_end?: number | null } | null;
     upcoming_invoice: { amount_due?: number | null; next_payment_attempt?: number | null; currency?: string | null } | null;
     invoices: InvoiceItem[];
   };
-  extra_slots: number;
   error?: string;
 };
 
@@ -114,27 +116,51 @@ export default function BillingPage() {
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">{error}</div>
         ) : summary ? (
           <div className="space-y-6">
-            <div className="bg-white rounded-xl border p-6 flex items-center justify-between">
-              <div>
-                <div className="text-sm text-gray-600">Subscription</div>
-                <div className="mt-1 font-semibold text-gray-800">
-                  {summary.plan === 'pro' ? 'Pro' : 'Free'}
-                  {summary.stripe.subscription?.current_period_end ? (
-                    <span className="ml-2 text-sm text-gray-500">
-                      (renews {new Date((summary.stripe.subscription.current_period_end as number) * 1000).toLocaleDateString()})
-                    </span>
-                  ) : null}
+            {/* Current Plan */}
+            <div className="bg-white rounded-xl border p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="text-sm text-gray-600">Current Plan</div>
+                  <div className="mt-1 font-semibold text-2xl text-gray-800">
+                    {summary.plan_display}
+                  </div>
+                  <div className="mt-2 space-y-1">
+                    <div className="text-sm text-gray-600">
+                      {summary.guidebook_limit === null ? (
+                        <span className="font-semibold text-green-700">Unlimited active guidebooks</span>
+                      ) : (
+                        <span>
+                          <span className="font-semibold">{summary.active_guidebooks} / {summary.guidebook_limit}</span> guidebooks active
+                        </span>
+                      )}
+                    </div>
+                    {summary.stripe.subscription?.current_period_end && (
+                      <div className="text-xs text-gray-500">
+                        Renews {new Date((summary.stripe.subscription.current_period_end as number) * 1000).toLocaleDateString()}
+                      </div>
+                    )}
+                    <div className="text-xs text-gray-500">
+                      Stripe status: {summary.stripe.subscription?.status || 'No active subscription'}
+                    </div>
+                  </div>
                 </div>
-                <div className="text-xs text-gray-500">Stripe status: {summary.stripe.subscription?.status || '—'}</div>
-                {summary.plan === 'pro' ? (
-                  <div className="text-xs text-gray-600 mt-1">Guidebook slots: <span className="font-semibold">{1 + (summary.extra_slots || 0)}</span></div>
-                ) : null}
-              </div>
-              <div className="flex items-center gap-3">
-                <Button onClick={openPortal} disabled={portalLoading}>{portalLoading ? 'Opening…' : 'Manage Billing'}</Button>
-                {summary.plan === 'pro' && (
-                  <Button variant="outline" onClick={() => { void startAddonCheckout(); }}>+ Add guidebook slot</Button>
-                )}
+                <div className="flex flex-col gap-2">
+                  {summary.plan !== 'trial' && (
+                    <Button onClick={openPortal} disabled={portalLoading}>
+                      {portalLoading ? 'Opening…' : 'Manage Subscription'}
+                    </Button>
+                  )}
+                  {summary.plan === 'trial' && (
+                    <Link href="/pricing">
+                      <Button>Upgrade Plan</Button>
+                    </Link>
+                  )}
+                  {!summary.can_activate_more && summary.plan !== 'enterprise' && (
+                    <Link href="/pricing">
+                      <Button variant="outline">Upgrade for More</Button>
+                    </Link>
+                  )}
+                </div>
               </div>
             </div>
 
