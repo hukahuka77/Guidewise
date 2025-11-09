@@ -108,12 +108,10 @@ export default function SuccessPage() {
     const fetchTemplate = async () => {
       if (!guidebookId) return;
       try {
-        // Load access token once (guard supabase)
-        if (!accessToken) {
-          const sess = await supabase?.auth.getSession();
-          const tok = sess?.data.session?.access_token || null;
-          setAccessToken(tok);
-        }
+        // Always load a fresh access token for this request
+        const sess = await supabase?.auth.getSession();
+        const tok = sess?.data.session?.access_token || null;
+        if (tok !== accessToken) setAccessToken(tok || null);
         // Load plan for Upgrade CTA
         try {
           if (!supabase) throw new Error('Supabase client not initialized');
@@ -131,7 +129,7 @@ export default function SuccessPage() {
         } catch {}
         const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || '';
         const res = await fetch(`${apiBase}/api/guidebooks/${guidebookId}`, {
-          headers: accessToken ? { 'Authorization': `Bearer ${accessToken}` } : undefined,
+          headers: tok ? { 'Authorization': `Bearer ${tok}` } : undefined,
         });
         if (!res.ok) return;
         const data = await res.json();
@@ -151,7 +149,7 @@ export default function SuccessPage() {
       } catch {}
     };
     fetchTemplate();
-  }, [guidebookId, accessToken]);
+  }, [guidebookId]);
 
   const getQrTargetUrl = () => {
     const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || '';
@@ -253,9 +251,11 @@ export default function SuccessPage() {
           try {
             const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || '';
             const url = `${apiBase}/api/guidebook/${guidebookId}/template`;
+            const sess = await supabase?.auth.getSession();
+            const tok = sess?.data.session?.access_token || null;
             const res = await fetch(url, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 'Content-Type': 'application/json', ...(tok ? { 'Authorization': `Bearer ${tok}` } : {}) },
               body: JSON.stringify({ template_key: templateKey })
             });
             if (!res.ok) throw new Error('Failed to set template');
