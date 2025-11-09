@@ -26,6 +26,15 @@ import { LIMITS } from "@/constants/limits";
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL as string;
 const BUCKET_NAME = process.env.NEXT_PUBLIC_SUPABASE_FOOD_ACTIVITIES_BUCKET as string;
 
+// Type for API response items from places/recommendations
+type PlaceApiItem = {
+  name?: string;
+  address?: string;
+  description?: string;
+  image_url?: string;
+  photo_reference?: string;
+};
+
 type GuidebookDetail = {
   id: number | string;
   template_key?: string | null;
