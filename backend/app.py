@@ -96,11 +96,42 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
 
 # Stripe configuration
 stripe.api_key = os.environ.get('STRIPE_SECRET_KEY')
-STRIPE_PRICE_ID = os.environ.get('STRIPE_PRICE_ID')  # recurring price for Pro plan
-STRIPE_ADDON_PRICE_ID = os.environ.get('STRIPE_ADDON_PRICE_ID')  # $3/mo add-on per extra guidebook slot
 STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET')
 FRONTEND_ORIGIN = os.environ.get('FRONTEND_ORIGIN', 'http://localhost:3000')
 STRIPE_PORTAL_CONFIGURATION_ID = os.environ.get('STRIPE_PORTAL_CONFIGURATION_ID')  # optional pc_... id
+
+# Plan configuration for tiered pricing
+PLAN_CONFIGS = {
+    'starter': {
+        'name': 'Starter',
+        'price_id': os.environ.get('STRIPE_STARTER_PRICE_ID'),
+        'guidebook_limit': 1,
+        'price': 9.99,
+        'price_display': '$9.99/month'
+    },
+    'growth': {
+        'name': 'Growth',
+        'price_id': os.environ.get('STRIPE_GROWTH_PRICE_ID'),
+        'guidebook_limit': 3,
+        'price': 19.99,
+        'price_display': '$19.99/month'
+    },
+    'pro': {
+        'name': 'Pro',
+        'price_id': os.environ.get('STRIPE_PRO_PRICE_ID'),
+        'guidebook_limit': 10,
+        'price': 29.99,
+        'price_display': '$29.99/month'
+    },
+    'enterprise': {
+        'name': 'Enterprise',
+        'price_id': None,  # Custom pricing, contact sales
+        'guidebook_limit': None,  # Unlimited
+        'price': None,
+        'price_display': 'Custom Quote',
+        'contact_sales': True
+    }
+}
 
 def require_auth(fn):
     @functools.wraps(fn)
@@ -154,53 +185,48 @@ def _profiles_upsert_plan(user_id: str, plan: str):
         db.session.rollback()
         raise
 
-def _apply_activation_policy(user_id: str) -> dict:
-    """Ensure only the allowed number of guidebooks are active for the user.
-    Allowed = 0 if free, else 1 + extra_slots for pro.
-    Returns a dict with counts { allowed, active_set, deactivated }.
-    """
+def get_user_guidebook_limit(user_id: str) -> int | None:
+    """Get how many guidebooks user can have active. None = unlimited."""
     try:
         row = db.session.execute(
-            text("SELECT COALESCE(plan, 'free') AS plan, COALESCE(extra_slots, 0) AS extra FROM public.profiles WHERE user_id = :uid"),
-            {"uid": user_id},
+            text("SELECT plan, guidebook_limit FROM public.profiles WHERE user_id = :uid"),
+            {"uid": user_id}
         ).fetchone()
-        plan = (row[0] if row else 'free')
-        extra = int(row[1] if row else 0)
-        allowed = 0 if plan != 'pro' else (1 + max(0, extra))
 
-        # Order guidebooks by most recently modified/created first
-        ids = [r[0] for r in db.session.execute(
-            text(
-                """
-                SELECT id
-                FROM guidebook
-                WHERE user_id = :uid
-                ORDER BY COALESCE(last_modified_time, created_time) DESC NULLS LAST
-                """
-            ),
-            {"uid": user_id},
-        ).fetchall()]
+        if not row:
+            return 0  # No plan = trial only (preview mode)
 
-        to_activate = set(ids[:allowed]) if allowed > 0 else set()
-        to_deactivate = set(ids[allowed:]) if ids else set()
+        plan = row[0] or 'trial'
 
-        # Deactivate those beyond capacity
-        if to_deactivate:
-            db.session.execute(
-                text("UPDATE guidebook SET active = FALSE WHERE user_id = :uid AND id = ANY(:ids)"),
-                {"uid": user_id, "ids": list(to_deactivate)},
-            )
-        # Activate up to capacity
-        if to_activate:
-            db.session.execute(
-                text("UPDATE guidebook SET active = TRUE WHERE user_id = :uid AND id = ANY(:ids)"),
-                {"uid": user_id, "ids": list(to_activate)},
-            )
-        db.session.commit()
-        return {"allowed": allowed, "active_set": len(to_activate), "deactivated": len(to_deactivate)}
+        # Check config first
+        if plan in PLAN_CONFIGS:
+            return PLAN_CONFIGS[plan]['guidebook_limit']
+
+        # Fall back to DB column for custom/grandfathered limits
+        return row[1] if row[1] is not None else 0
     except Exception:
-        db.session.rollback()
-        raise
+        return 0
+
+def can_activate_guidebook(user_id: str) -> tuple[bool, str]:
+    """Check if user can activate another guidebook."""
+    limit = get_user_guidebook_limit(user_id)
+
+    if limit is None:
+        return (True, "Unlimited guidebooks")
+
+    if limit == 0:
+        return (False, "Please upgrade to a paid plan to publish guidebooks")
+
+    # Count currently active guidebooks
+    active_count = db.session.execute(
+        text("SELECT COUNT(*) FROM guidebook WHERE user_id = :uid AND active = true"),
+        {"uid": user_id}
+    ).scalar() or 0
+
+    if active_count < limit:
+        return (True, f"{limit - active_count} slots remaining")
+    else:
+        return (False, f"You've reached your limit of {limit} guidebooks. Upgrade or deactivate an existing guidebook.")
 
 def _deactivate_all_user_guidebooks(user_id: str):
     try:
@@ -217,68 +243,68 @@ def _deactivate_all_user_guidebooks(user_id: str):
 @app.route('/api/billing/create-checkout-session', methods=['POST'])
 @require_auth
 def create_checkout_session():
-    if not stripe.api_key or not STRIPE_PRICE_ID:
+    """Create Stripe checkout for any paid plan (starter, growth, or pro)."""
+    if not stripe.api_key:
         return jsonify({"error": "Stripe not configured"}), 500
-    # Identify the user via Supabase auth
+
+    data = request.json or {}
+    plan = data.get('plan', 'starter')  # Default to starter
+
+    # Validate plan
+    if plan not in PLAN_CONFIGS or not PLAN_CONFIGS[plan]['price_id']:
+        return jsonify({"error": f"Invalid plan: {plan}"}), 400
+
+    if plan == 'enterprise':
+        return jsonify({"error": "Please contact sales for Enterprise pricing"}), 400
+
     user_id = g.user_id
-    email = getattr(g, 'user_email', None) or (request.json.get('email') if isinstance(request.json, dict) else None)
+    email = getattr(g, 'user_email', None)
+
     try:
-        # Guard: if already Pro in our DB, don't allow creating another Pro subscription
+        # Check if user already has an active subscription
         try:
-            row = db.session.execute(text("SELECT plan FROM public.profiles WHERE user_id = :uid"), {"uid": user_id}).fetchone()
-            if row and (row[0] or 'free') == 'pro':
-                return jsonify({"error": "Account already Pro", "redirect": "billing"}), 409
+            row = db.session.execute(
+                text("SELECT plan FROM public.profiles WHERE user_id = :uid"),
+                {"uid": user_id}
+            ).fetchone()
+            current_plan = row[0] if row else None
+            if current_plan and current_plan in PLAN_CONFIGS:
+                return jsonify({
+                    "error": "You already have a subscription. Use the billing portal to change plans.",
+                    "redirect": "/dashboard/billing"
+                }), 409
         except Exception:
             pass
 
-        # Optional extra guard: if Stripe shows an active/trialing sub for this email, block duplicate
+        # Optional: Check Stripe for active subscriptions
         try:
             if email:
                 customers = stripe.Customer.list(email=email, limit=1)
                 if customers.data:
-                    subs = stripe.Subscription.list(customer=customers.data[0].id, status='all', limit=10)
-                    for s in subs.auto_paging_iter():
-                        if getattr(s, 'status', None) in ('active', 'trialing'):
-                            return jsonify({"error": "An active subscription already exists", "redirect": "billing"}), 409
+                    subs = stripe.Subscription.list(customer=customers.data[0].id, status='active', limit=1)
+                    if subs.data:
+                        return jsonify({
+                            "error": "An active subscription already exists",
+                            "redirect": "/dashboard/billing"
+                        }), 409
         except Exception:
             pass
 
+        # Create Stripe checkout session
         session = stripe.checkout.Session.create(
             mode='subscription',
             customer_email=email,
-            line_items=[{"price": STRIPE_PRICE_ID, "quantity": 1}],
-            success_url=f"{FRONTEND_ORIGIN}/upgrade?success=1",
-            cancel_url=f"{FRONTEND_ORIGIN}/upgrade?canceled=1",
+            line_items=[{
+                "price": PLAN_CONFIGS[plan]['price_id'],
+                "quantity": 1
+            }],
+            success_url=f"{FRONTEND_ORIGIN}/dashboard?upgraded=1",
+            cancel_url=f"{FRONTEND_ORIGIN}/pricing?canceled=1",
             allow_promotion_codes=True,
-            metadata={"user_id": user_id},
-        )
-        return jsonify({"url": session.url})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/api/billing/create-addon-session', methods=['POST'])
-@require_auth
-def create_addon_session():
-    """Create a Stripe Checkout session for an additional guidebook slot.
-    Requires STRIPE_ADDON_PRICE_ID to be configured.
-    """
-    if not stripe.api_key or not STRIPE_ADDON_PRICE_ID:
-        return jsonify({"error": "Stripe add-on not configured"}), 500
-    user_id = g.user_id
-    email = getattr(g, 'user_email', None) or (request.json.get('email') if isinstance(request.json, dict) else None)
-    try:
-        # Require Pro plan to buy add-ons
-        row = db.session.execute(text("SELECT plan FROM public.profiles WHERE user_id = :uid"), {"uid": user_id}).fetchone()
-        if not row or (row[0] or 'free') != 'pro':
-            return jsonify({"error": "Add-ons require an active Pro plan"}), 400
-        session = stripe.checkout.Session.create(
-            mode='subscription',
-            customer_email=email,
-            line_items=[{"price": STRIPE_ADDON_PRICE_ID, "quantity": 1}],
-            success_url=f"{FRONTEND_ORIGIN}/dashboard?success_addon=1",
-            cancel_url=f"{FRONTEND_ORIGIN}/dashboard?canceled_addon=1",
-            allow_promotion_codes=True,
-            metadata={"user_id": user_id, "kind": "addon"},
+            metadata={
+                "user_id": user_id,
+                "plan": plan
+            },
         )
         return jsonify({"url": session.url})
     except Exception as e:
@@ -287,122 +313,86 @@ def create_addon_session():
 @app.route('/api/billing/summary', methods=['GET'])
 @require_auth
 def billing_summary():
-    """Return a summary of the user's billing state from Stripe and the database.
+    """Return user's billing state and guidebook limits.
 
     Response shape:
       {
-        plan: 'free'|'pro',
+        plan: 'starter'|'growth'|'pro'|'enterprise'|'trial',
+        guidebook_limit: int|null,
+        active_guidebooks: int,
+        can_activate_more: bool,
+        plan_display: str,
         stripe: {
           customer_id: str|null,
           subscription: { id, status, current_period_end }|null,
-          upcoming_invoice: { amount_due, next_payment_attempt, lines }|null,
           invoices: [ { id, status, paid, amount_paid, created, hosted_invoice_url } ]
         }
       }
     """
-    # Read plan from DB first (cheap & fast)
+    user_id = g.user_id
+    email = getattr(g, 'user_email', None)
+
+    # Get plan and limit from DB
     try:
-        row = db.session.execute(text("SELECT plan FROM public.profiles WHERE user_id = :uid"), {"uid": g.user_id}).fetchone()
-        plan_val = (row[0] if row and row[0] else 'free')
+        row = db.session.execute(
+            text("SELECT plan, guidebook_limit FROM public.profiles WHERE user_id = :uid"),
+            {"uid": user_id}
+        ).fetchone()
+        plan = (row[0] if row else None) or 'trial'
+        limit = row[1] if row else 0
     except Exception:
-        plan_val = 'free'
+        plan = 'trial'
+        limit = 0
+
+    # Get active guidebook count
+    active_count = db.session.execute(
+        text("SELECT COUNT(*) FROM guidebook WHERE user_id = :uid AND active = true"),
+        {"uid": user_id}
+    ).scalar() or 0
 
     out = {
-        'plan': plan_val,
+        'plan': plan,
+        'guidebook_limit': limit,
+        'active_guidebooks': active_count,
+        'can_activate_more': (limit is None) or (active_count < limit),
+        'plan_display': PLAN_CONFIGS.get(plan, {}).get('name', 'Trial'),
         'stripe': {
             'customer_id': None,
             'subscription': None,
-            'upcoming_invoice': None,
-            'invoices': [],
-        },
-        'extra_slots': 0,
+            'invoices': []
+        }
     }
 
-    if not stripe.api_key:
-        return jsonify(out)
-
-    email = getattr(g, 'user_email', None)
-    if not email:
-        return jsonify(out)
-
-    try:
-        customers = stripe.Customer.list(email=email, limit=1)
-        if not customers.data:
-            return jsonify(out)
-        customer = customers.data[0]
-        out['stripe']['customer_id'] = customer.id
-
-        # Find the most relevant subscription (prefer active/trialing)
-        sub_obj = None
-        subs = stripe.Subscription.list(customer=customer.id, status='all', limit=10)
-        for s in subs.auto_paging_iter():
-            if getattr(s, 'status', None) in ('active', 'trialing'):
-                sub_obj = s
-                break
-        if not sub_obj:
-            # fallback to most recent by created
-            subs_all = list(subs.data)
-            if subs_all:
-                sub_obj = sorted(subs_all, key=lambda x: getattr(x, 'created', 0), reverse=True)[0]
-        if sub_obj:
-            out['stripe']['subscription'] = {
-                'id': sub_obj.id,
-                'status': getattr(sub_obj, 'status', None),
-                'current_period_end': getattr(sub_obj, 'current_period_end', None),
-            }
-            # Compute extra_slots from subscription items matching STRIPE_ADDON_PRICE_ID
-            try:
-                if STRIPE_ADDON_PRICE_ID:
-                    total_addons = 0
-                    for it in getattr(sub_obj, 'items', {}).get('data', []) or []:
-                        price = getattr(it, 'price', None)
-                        if price and getattr(price, 'id', None) == STRIPE_ADDON_PRICE_ID:
-                            q = getattr(it, 'quantity', 0) or 0
-                            total_addons += int(q)
-                    out['extra_slots'] = total_addons
-            except Exception:
-                pass
-
-        # Recent invoices (also used for upcoming fallback)
-        invs = stripe.Invoice.list(customer=customer.id, limit=12)
-        items = []
-        for inv in invs.auto_paging_iter():
-            items.append({
-                'id': inv.id,
-                'status': getattr(inv, 'status', None),
-                'paid': getattr(inv, 'paid', None),
-                'amount_paid': getattr(inv, 'amount_paid', None),
-                'amount_due': getattr(inv, 'amount_due', None),
-                'created': getattr(inv, 'created', None),
-                'currency': getattr(inv, 'currency', None),
-                'hosted_invoice_url': getattr(inv, 'hosted_invoice_url', None),
-            })
-        out['stripe']['invoices'] = items
-
-        # Upcoming invoice (safe to try; may not exist if no active subscription or right after creation)
+    # Get Stripe details if API key configured
+    if stripe.api_key and email:
         try:
-            up = None
-            if sub_obj:
-                up = stripe.Invoice.upcoming(customer=customer.id, subscription=sub_obj.id)
-            else:
-                up = stripe.Invoice.upcoming(customer=customer.id)
-            if up:
-                out['stripe']['upcoming_invoice'] = {
-                    'amount_due': getattr(up, 'amount_due', None),
-                    'next_payment_attempt': getattr(up, 'next_payment_attempt', None),
-                    'currency': getattr(up, 'currency', None),
-                }
+            customers = stripe.Customer.list(email=email, limit=1)
+            if customers.data:
+                customer = customers.data[0]
+                out['stripe']['customer_id'] = customer.id
+
+                # Get active subscription
+                subs = stripe.Subscription.list(customer=customer.id, status='active', limit=1)
+                if subs.data:
+                    sub = subs.data[0]
+                    out['stripe']['subscription'] = {
+                        'id': sub.id,
+                        'status': sub.status,
+                        'current_period_end': sub.current_period_end
+                    }
+
+                # Get recent invoices
+                invoices = stripe.Invoice.list(customer=customer.id, limit=10)
+                out['stripe']['invoices'] = [{
+                    'id': inv.id,
+                    'status': inv.status,
+                    'amount_paid': inv.amount_paid,
+                    'created': inv.created,
+                    'hosted_invoice_url': inv.hosted_invoice_url
+                } for inv in invoices.data]
         except Exception:
             pass
 
-        # Note: If Stripe hasn't generated an upcoming invoice yet (e.g., just after signup
-        # or when the current invoice was immediately created/paid), this section may remain null.
-    except Exception as e:
-        # Non-fatal; return what we have
-        try:
-            out['error'] = str(e)
-        except Exception:
-            pass
     return jsonify(out)
 
 @app.route('/api/billing/refresh-plan', methods=['POST'])
@@ -481,52 +471,59 @@ def stripe_webhook():
     except Exception as e:
         return jsonify({"error": f"Webhook error: {e}"}), 400
 
-    # Handle events that imply subscription state changes
+    # Handle subscription events
     try:
-        type_ = event['type']
+        event_type = event['type']
         obj = event['data']['object']
-        if type_ == 'checkout.session.completed':
-            # Mark user pro and activate
+
+        if event_type == 'checkout.session.completed':
+            # New subscription completed
             user_id = (obj.get('metadata') or {}).get('user_id')
-            if user_id:
-                _profiles_upsert_plan(user_id, 'pro')
-                _apply_activation_policy(user_id)
-        elif type_ in ('customer.subscription.created', 'customer.subscription.updated'):
+            plan = (obj.get('metadata') or {}).get('plan', 'starter')
+
+            if user_id and plan in PLAN_CONFIGS:
+                # Update user's plan and guidebook_limit
+                limit = PLAN_CONFIGS[plan]['guidebook_limit']
+                db.session.execute(
+                    text("""
+                        INSERT INTO public.profiles (user_id, plan, guidebook_limit)
+                        VALUES (:uid, :plan, :limit)
+                        ON CONFLICT (user_id)
+                        DO UPDATE SET plan = EXCLUDED.plan, guidebook_limit = EXCLUDED.guidebook_limit
+                    """),
+                    {"uid": user_id, "plan": plan, "limit": limit}
+                )
+                db.session.commit()
+
+        elif event_type in ('customer.subscription.updated', 'customer.subscription.deleted'):
+            # Subscription changed or cancelled
+            subscription_id = obj.get('id')
             status = obj.get('status')
-            # subscription object may have metadata.user_id if set by you; fallback unknown
-            user_id = (obj.get('metadata') or {}).get('user_id')
-            # If we cannot map user_id, we skip; future enhancement: store mapping
-            if user_id:
-                if status in ('active', 'trialing'):
-                    _profiles_upsert_plan(user_id, 'pro')
-                    # Update extra_slots based on items matching STRIPE_ADDON_PRICE_ID
-                    try:
-                        if STRIPE_ADDON_PRICE_ID:
-                            total_addons = 0
-                            for it in (obj.get('items') or {}).get('data', []) or []:
-                                price = (it.get('price') or {})
-                                if price.get('id') == STRIPE_ADDON_PRICE_ID:
-                                    q = int(it.get('quantity') or 0)
-                                    total_addons += q
-                            db.session.execute(
-                                text("insert into public.profiles (user_id, plan, extra_slots) values (:uid, 'pro', :n) on conflict (user_id) do update set extra_slots = EXCLUDED.extra_slots"),
-                                {"uid": user_id, "n": int(total_addons)}
-                            )
-                            db.session.commit()
-                    except Exception:
-                        pass
-                    _apply_activation_policy(user_id)
-                elif status in ('canceled', 'unpaid', 'incomplete_expired'):
-                    _profiles_upsert_plan(user_id, 'free')
-                    _deactivate_all_user_guidebooks(user_id)
-        elif type_ == 'customer.subscription.deleted':
-            user_id = (obj.get('metadata') or {}).get('user_id')
-            if user_id:
-                _profiles_upsert_plan(user_id, 'free')
-                _deactivate_all_user_guidebooks(user_id)
-    except Exception:
-        # Do not fail webhook processing for partial issues
-        pass
+
+            if event_type == 'customer.subscription.deleted' or status in ('canceled', 'unpaid', 'past_due'):
+                # Downgrade to trial
+                user_row = db.session.execute(
+                    text("SELECT user_id FROM public.profiles WHERE stripe_subscription_id = :sid"),
+                    {"sid": subscription_id}
+                ).fetchone()
+
+                if user_row:
+                    user_id = user_row[0]
+                    db.session.execute(
+                        text("UPDATE public.profiles SET plan = 'trial', guidebook_limit = 0 WHERE user_id = :uid"),
+                        {"uid": user_id}
+                    )
+                    # Deactivate all guidebooks
+                    db.session.execute(
+                        text("UPDATE guidebook SET active = false WHERE user_id = :uid"),
+                        {"uid": user_id}
+                    )
+                    db.session.commit()
+
+    except Exception as e:
+        # Log but don't fail webhook
+        log.warning(f"Webhook processing error: {e}")
+
     return jsonify({"ok": True})
 
 def _activate_all_user_guidebooks(user_id: str):
@@ -673,7 +670,7 @@ def _render_cache_key(gb: Guidebook, template_key: str, template_file: str) -> s
         mtime = '0'
     return f"{gb.id}:{template_key}:{template_file}:{ts_val}:{mtime}"
 
-def _render_guidebook(gb: Guidebook):
+def _render_guidebook(gb: Guidebook, show_watermark: bool = False):
     """Render a guidebook to HTML using its selected template with caching."""
     template_key = getattr(gb, 'template_key', None) or 'template_original'
     if template_key not in ALLOWED_TEMPLATE_KEYS:
@@ -792,6 +789,9 @@ def _render_guidebook(gb: Guidebook):
         custom_sections=getattr(gb, 'custom_sections', None),
         custom_tabs_meta=safe_custom_tabs_meta,
         cover_image_url=gb.cover_image_url,
+        show_watermark=show_watermark,
+        is_active=gb.active,
+        upgrade_url=f"{FRONTEND_ORIGIN}/pricing"
     )
     RENDER_CACHE[cache_key] = html
     resp = make_response(html)
@@ -837,17 +837,14 @@ def view_live_by_slug(public_slug):
 
 @app.route('/preview/<guidebook_id>')
 def preview_guidebook(guidebook_id):
-    token = request.args.get('token')
-    if not token:
-        return jsonify({"error": "token required"}), 400
+    """Show guidebook in preview mode (with watermark if not active)."""
     gb = Guidebook.query.get_or_404(guidebook_id)
-    if gb.claim_token != token:
-        return jsonify({"error": "invalid token"}), 403
-    # Check expiry if set
-    if gb.expires_at and datetime.now(timezone.utc) > gb.expires_at:
-        return jsonify({"error": "preview expired"}), 410
-    resp = _render_guidebook(gb)
-    # discourage indexing
+
+    # Anyone can view preview (no authentication required)
+    # Render with watermark indicator
+    resp = _render_guidebook(gb, show_watermark=not gb.active)
+
+    # Discourage indexing for previews
     try:
         resp.headers['X-Robots-Tag'] = 'noindex, nofollow'
         resp.headers['Cache-Control'] = 'private, no-store'
@@ -1060,15 +1057,8 @@ def generate_guidebook_route():
                     break
             new_guidebook.public_slug = slug
     except Exception:
-        # fallback to draft
+        # fallback to preview mode
         pass
-    new_guidebook.claimed_at = datetime.now(timezone.utc)
-    new_guidebook.expires_at = None
-    # Generate a preview token so the user can view a draft via /preview/<id>?token=...
-    try:
-        new_guidebook.claim_token = secrets.token_urlsafe(24)
-    except Exception:
-        new_guidebook.claim_token = None
 
     db.session.commit()
 
@@ -1079,19 +1069,19 @@ def generate_guidebook_route():
         "template_key": selected_template_key,
     }
     resp = jsonify(payload)
-    # For Pro (active) users, return live URL immediately; otherwise return Edit + Preview
-    if new_guidebook.active:
-        live_path = f"/guidebook/{new_guidebook.id}"
-        if new_guidebook.public_slug:
-            live_path = f"/g/{new_guidebook.public_slug}"
+
+    # Return appropriate URLs based on active status
+    if new_guidebook.active and new_guidebook.public_slug:
+        # Active guidebook with public URL
+        live_path = f"/g/{new_guidebook.public_slug}"
         resp.headers['X-Guidebook-Url'] = live_path
-        # No preview header when live
         resp.headers['Access-Control-Expose-Headers'] = 'X-Guidebook-Url'
     else:
+        # Inactive guidebook - preview mode
         resp.headers['X-Guidebook-Url'] = f"/edit/{new_guidebook.id}"
-        if new_guidebook.claim_token:
-            resp.headers['X-Guidebook-Preview'] = f"/preview/{new_guidebook.id}?token={new_guidebook.claim_token}"
+        resp.headers['X-Guidebook-Preview'] = f"/preview/{new_guidebook.id}"
         resp.headers['Access-Control-Expose-Headers'] = 'X-Guidebook-Url, X-Guidebook-Preview'
+
     return resp, 201
 
 # --- User-scoped Guidebooks API ---
@@ -1108,6 +1098,8 @@ def list_guidebooks():
             "created_time": gb.created_time.isoformat() if gb.created_time else None,
             "last_modified_time": gb.last_modified_time.isoformat() if gb.last_modified_time else None,
             "cover_image_url": gb.cover_image_url,
+            "active": gb.active,
+            "public_slug": gb.public_slug if gb.active else None,
         }
         for gb in q.all()
     ]
@@ -1446,14 +1438,16 @@ def run_startup_migrations():
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS included_tabs JSON;",
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS custom_sections JSON;",
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS custom_tabs_meta JSON;",
-        # Lifecycle fields
+        # Lifecycle fields (simplified for preview mode)
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS active BOOLEAN DEFAULT FALSE;",
-        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS claimed_at TIMESTAMPTZ;",
-        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;",
-        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS claim_token TEXT;",
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS public_slug TEXT;",
-        # Uniques (Postgres): create unique indexes if not exist
-        "CREATE UNIQUE INDEX IF NOT EXISTS ux_guidebook_claim_token ON guidebook (claim_token);",
+        # Remove old trial/claim fields
+        "ALTER TABLE guidebook DROP COLUMN IF EXISTS claim_token;",
+        "ALTER TABLE guidebook DROP COLUMN IF EXISTS claimed_at;",
+        "ALTER TABLE guidebook DROP COLUMN IF EXISTS expires_at;",
+        # Drop old index if exists
+        "DROP INDEX IF EXISTS ux_guidebook_claim_token;",
+        # Unique index for public_slug
         "CREATE UNIQUE INDEX IF NOT EXISTS ux_guidebook_public_slug ON guidebook (public_slug);",
         # Timestamps
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS created_time TIMESTAMPTZ DEFAULT NOW();",
@@ -1462,8 +1456,9 @@ def run_startup_migrations():
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS published_html TEXT;",
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS published_etag TEXT;",
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS published_at TIMESTAMPTZ;",
-        # Profiles add-on slot count
-        "ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS extra_slots INTEGER DEFAULT 0;",
+        # Profiles - add guidebook_limit, remove old extra_slots
+        "ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS guidebook_limit INTEGER;",
+        "ALTER TABLE public.profiles DROP COLUMN IF EXISTS extra_slots;",
         # Make host name and guidebook.host_id optional
         "ALTER TABLE host ALTER COLUMN name DROP NOT NULL;",
         "ALTER TABLE guidebook ALTER COLUMN host_id DROP NOT NULL;",
@@ -1611,6 +1606,49 @@ def update_template_key(guidebook_id):
     except Exception:
         pass
     return jsonify({"ok": True, "template_key": gb.template_key})
+
+@app.route('/api/guidebooks/<guidebook_id>/toggle', methods=['POST'])
+@require_auth
+def toggle_guidebook(guidebook_id):
+    """Toggle guidebook active state (publish/unpublish)."""
+    user_id = g.user_id
+
+    # Get guidebook
+    gb = Guidebook.query.filter_by(id=guidebook_id, user_id=user_id).first()
+    if not gb:
+        return jsonify({"error": "Guidebook not found"}), 404
+
+    # If activating, check limit
+    if not gb.active:
+        can_activate, message = can_activate_guidebook(user_id)
+        if not can_activate:
+            return jsonify({"error": message}), 403
+
+        # Generate public slug if doesn't exist
+        if not gb.public_slug:
+            property_name = getattr(gb.property, 'name', None) if gb.property else None
+            slug_base = _slugify(property_name or 'guidebook')
+            unique_slug = slug_base
+            for i in range(100):
+                exists = Guidebook.query.filter_by(public_slug=unique_slug).first()
+                if not exists:
+                    break
+                unique_slug = f"{slug_base}-{secrets.token_hex(3)}"
+            gb.public_slug = unique_slug
+
+        gb.active = True
+    else:
+        # Deactivating
+        gb.active = False
+
+    db.session.commit()
+
+    return jsonify({
+        "ok": True,
+        "active": gb.active,
+        "public_slug": gb.public_slug if gb.active else None,
+        "preview_url": f"/preview/{gb.id}" if not gb.active else None
+    })
 
 @app.route('/api/places/search', methods=['POST'])
 def places_search():

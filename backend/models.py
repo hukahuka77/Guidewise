@@ -67,11 +67,8 @@ class Guidebook(db.Model):
     # Ownership: Supabase user ID (UUID as string)
     user_id = db.Column(db.String(36), index=True, nullable=True)
 
-    # Lifecycle fields for anonymous creation and claiming
+    # Lifecycle fields: active (published) vs preview mode
     active = db.Column(db.Boolean, nullable=False, default=False)
-    claimed_at = db.Column(db.DateTime(timezone=True), nullable=True)
-    expires_at = db.Column(db.DateTime(timezone=True), nullable=True)
-    claim_token = db.Column(db.String(64), unique=True, nullable=True)
     public_slug = db.Column(db.String(120), unique=True, nullable=True)
 
     # Foreign Keys
