@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
-import { startStripeCheckout } from "@/lib/billing";
 import Spinner from "@/components/ui/spinner";
 import { cacheGet, cacheSet } from "@/lib/cache";
 
