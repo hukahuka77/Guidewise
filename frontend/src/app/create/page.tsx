@@ -108,7 +108,7 @@ export default function CreateGuidebookPage() {
     bucketName: BUCKET_NAME,
   });
 
-  // Use section navigation hook
+  // Use section navigation hook - pass dynamic included sections
   const {
     currentSection,
     setCurrentSection,
@@ -119,7 +119,7 @@ export default function CreateGuidebookPage() {
     canAdvance,
     hasReachedEnd,
   } = useSectionNavigation({
-    sections: CREATE_SECTIONS_ORDER,
+    sections: included,
     mode: 'guided',
     requireLocation: true,
   });
@@ -229,67 +229,8 @@ export default function CreateGuidebookPage() {
     }
   };
 
-  // Navigation state for sidebar (guided flow)
-  const [currentSection, setCurrentSection] = useState<string>("welcome");
-  const [visitedSections, setVisitedSections] = useState<string[]>(["welcome"]);
-  const goToSection = (section: string) => {
-    // Only allow navigating to allowed sections (visited or next when eligible)
-    // allowedSections is computed below but we can conservatively allow
-    // - already visited, or
-    // - immediate next if current can advance
-    const idx = included.indexOf(currentSection);
-    const next = idx >= 0 ? included[idx + 1] : undefined;
-    const isAllowed = visitedSections.includes(section) || (section === next && (currentSection === "welcome" ? Boolean(formData.location && formData.location.trim()) : true));
-    if (!isAllowed) return;
-    if (!visitedSections.includes(section)) {
-      setVisitedSections((prev) => [...prev, section]);
-    }
-    setCurrentSection(section);
-  };
-
-  // Ensure current section is always one of the included; if it becomes excluded or removed, jump to first included
-  useEffect(() => {
-    if (!included.includes(currentSection)) {
-      setCurrentSection(included[0] || "welcome");
-    }
-  }, [included, currentSection]);
-
-  // Ensure current is tracked as visited when it appears in included
-  useEffect(() => {
-    if (!visitedSections.includes(currentSection)) {
-      setVisitedSections((prev) => [...prev, currentSection]);
-    }
-  }, [currentSection, visitedSections]);
-
-  // Guided rules
-  const currentIdx = included.indexOf(currentSection);
-  const nextSection = currentIdx >= 0 ? included[currentIdx + 1] : undefined;
-  const isWelcome = currentSection === "welcome";
-  const canAdvanceFromCurrent = isWelcome ? Boolean(formData.location && formData.location.trim()) : true;
+  // Check if all required sections have been visited
   const allRequiredVisited = included.every((s) => visitedSections.includes(s));
-
-  // Allowed sections in sidebar:
-  // - any previously visited
-  // - current section
-  // - next section if current can advance
-  const allowedSections = Array.from(new Set([
-    ...visitedSections.filter((s) => included.includes(s)),
-    currentSection,
-    ...(canAdvanceFromCurrent && nextSection ? [nextSection] : []),
-  ]));
-
-  const goNext = () => {
-    if (!nextSection) return;
-    if (!canAdvanceFromCurrent) return;
-    setVisitedSections((prev) => (prev.includes(nextSection) ? prev : [...prev, nextSection]));
-    setCurrentSection(nextSection);
-  };
-
-  // Once user has reached the end at least once, keep showing Publish everywhere
-  const [hasReachedEnd, setHasReachedEnd] = useState<boolean>(false);
-  useEffect(() => {
-    if (allRequiredVisited && !hasReachedEnd) setHasReachedEnd(true);
-  }, [allRequiredVisited, hasReachedEnd]);
 
   // Initialize newly added custom tabs with a default single textbox
   useEffect(() => {
@@ -623,12 +564,12 @@ export default function CreateGuidebookPage() {
                 "Publish"
               )}
             </Button>
-          ) : nextSection ? (
+          ) : !hasReachedEnd ? (
             <Button
               type="button"
               className="px-6 py-3 bg-[oklch(0.6923_0.22_21.05)] text-white rounded-lg shadow hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={goNext}
-              disabled={!canAdvanceFromCurrent}
+              disabled={!canAdvance(formData.location)}
             >
               Next
             </Button>
