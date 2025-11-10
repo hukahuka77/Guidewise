@@ -31,9 +31,7 @@ export default function SuccessPage() {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [plan, setPlan] = useState<'free'|'pro'|''>('');
 
-  // Carousel refs and state
-  const urlCarouselRef = useState<HTMLDivElement | null>(null)[0];
-  const pdfCarouselRef = useState<HTMLDivElement | null>(null)[0];
+  // Carousel state
   const [urlCarouselEl, setUrlCarouselEl] = useState<HTMLDivElement | null>(null);
   const [pdfCarouselEl, setPdfCarouselEl] = useState<HTMLDivElement | null>(null);
 
@@ -167,6 +165,7 @@ export default function SuccessPage() {
       } catch {}
     };
     fetchTemplate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [guidebookId]);
 
   const getQrTargetUrl = () => {

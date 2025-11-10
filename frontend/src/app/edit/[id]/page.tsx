@@ -210,7 +210,7 @@ export default function EditGuidebookPage() {
           checkOutTime: data.check_out_time || prev.checkOutTime,
         }));
 
-        setIncluded(Array.isArray(data.included_tabs) && data.included_tabs.length ? data.included_tabs : [...sectionsOrder]);
+        setIncluded(Array.isArray(data.included_tabs) && data.included_tabs.length ? data.included_tabs : [...EDIT_SECTIONS_ORDER]);
         setCustomSections(data.custom_sections || {});
         setCustomTabsMeta(data.custom_tabs_meta || {});
         setFoodItems((data.places_to_eat || []).map((i: Partial<DynamicItem>) => ({
@@ -326,7 +326,7 @@ export default function EditGuidebookPage() {
       }
       return changed ? next : prev;
     });
-  }, [included]);
+  }, [included, setCustomSections]);
 
   // Keep address_street synced with location text input
   useEffect(() => {
@@ -334,7 +334,7 @@ export default function EditGuidebookPage() {
       if (prev.address_street === prev.location) return prev;
       return { ...prev, address_street: prev.location };
     });
-  }, [formData.location]);
+  }, [formData.location, setFormData]);
 
   if (initialLoading) {
     return (
