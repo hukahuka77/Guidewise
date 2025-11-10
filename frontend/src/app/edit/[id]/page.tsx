@@ -6,25 +6,28 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabaseClient";
 import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 
-// Reuse create flow components
-import SidebarNav from "@/app/create/SidebarNav";
-import CreateGuidebookLayout from "@/app/create/CreateGuidebookLayout";
-// import ArrivalSection from "@/app/create/ArrivalSection"; // not used on edit page
-import WifiSection from "@/app/create/WifiSection";
-import CheckinSection from "@/app/create/CheckinSection";
-import WelcomeSection from "@/app/create/WelcomeSection";
+// Shared components
+import SidebarNav from "@/components/sections/SidebarNav";
+import CreateGuidebookLayout from "@/components/sections/CreateGuidebookLayout";
+import WifiSection from "@/components/sections/WifiSection";
+import CheckinSection from "@/components/sections/CheckinSection";
+import WelcomeSection from "@/components/sections/WelcomeSection";
 import Spinner from "@/components/ui/spinner";
-import HostInfoSection from "@/app/create/HostInfoSection";
-import DynamicItemList, { DynamicItem } from "@/app/create/DynamicItemList";
-import HouseManualList from "@/app/create/HouseManualList";
-import RulesSection from "@/app/create/RulesSection";
-import CheckoutSection from "@/app/create/CheckoutSection";
+import HostInfoSection from "@/components/sections/HostInfoSection";
+import DynamicItemList, { DynamicItem } from "@/components/sections/DynamicItemList";
+import HouseManualList from "@/components/sections/HouseManualList";
+import RulesSection from "@/components/sections/RulesSection";
+import CheckoutSection from "@/components/sections/CheckoutSection";
 import AddItemChoiceModal from "@/components/places/AddItemChoiceModal";
 import PlacePickerModal from "@/components/places/PlacePickerModal";
 import { LIMITS } from "@/constants/limits";
 import { useGuidebookForm } from "@/hooks/useGuidebookForm";
 import { useAIRecommendations } from "@/hooks/useAIRecommendations";
+import { useImageUpload } from "@/hooks/useImageUpload";
+import { useAuth } from "@/hooks/useAuth";
+import { useSectionNavigation } from "@/hooks/useSectionNavigation";
 import { buildGuidebookPayload } from "@/utils/guidebookPayload";
+import { EDIT_SECTIONS_ORDER } from "@/config/sections";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL as string;
 const BUCKET_NAME = process.env.NEXT_PUBLIC_SUPABASE_FOOD_ACTIVITIES_BUCKET as string;
@@ -84,20 +87,10 @@ export default function EditGuidebookPage() {
   const params = useParams<{ id: string }>();
   const guidebookId = params?.id as string;
 
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-  const sectionsOrder = useMemo(() => (
-    [
-      "welcome",
-      "checkin",
-      "property",
-      "hostinfo",
-      "wifi",
-      "food",
-      "activities",
-      "rules",
-      "checkout",
-    ] as const
-  ), []);
+  // Use consolidated auth hook
+  const { accessToken, authChecked: authReady } = useAuth({
+    requireAuth: false, // Edit doesn't redirect immediately, loads data first
+  });
 
   // Use consolidated form hook
   const {
@@ -140,7 +133,7 @@ export default function EditGuidebookPage() {
     handleCoverImageSelect,
     handleHostPhotoSelect,
   } = useGuidebookForm({
-    initialIncluded: [...sectionsOrder],
+    initialIncluded: [...EDIT_SECTIONS_ORDER],
     useDefaults: false, // Edit mode loads data, doesn't use defaults
   });
 
@@ -155,31 +148,23 @@ export default function EditGuidebookPage() {
     onError: (msg) => setError(msg),
   });
 
+  // Use image upload hook
+  const { uploadToStorage } = useImageUpload({
+    bucketName: BUCKET_NAME,
+  });
+
+  // Use section navigation hook
+  const {
+    currentSection,
+    setCurrentSection: goToSection,
+  } = useSectionNavigation({
+    sections: EDIT_SECTIONS_ORDER,
+    mode: 'open', // Edit mode allows all sections
+  });
+
   const [isLoading, setIsLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [authReady, setAuthReady] = useState(false);
-
-  // Load token
-  useEffect(() => {
-    if (!supabase) return;
-    let mounted = true;
-    (async () => {
-      const { data } = await supabase.auth.getSession();
-      if (mounted) {
-        setAccessToken(data.session?.access_token || null);
-        setAuthReady(true);
-      }
-    })();
-    const { data: sub } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
-      setAccessToken(session?.access_token || null);
-      setAuthReady(true);
-    });
-    return () => {
-      mounted = false;
-      sub.subscription?.unsubscribe();
-    };
-  }, []);
 
   // Fetch existing guidebook details
   useEffect(() => {
@@ -254,7 +239,7 @@ export default function EditGuidebookPage() {
         setInitialLoading(false);
       }
     })();
-  }, [guidebookId, accessToken, authReady, router, sectionsOrder]);
+  }, [guidebookId, accessToken, authReady, router]);
 
   // Image handlers are now provided by useGuidebookForm hook
 
@@ -262,25 +247,6 @@ export default function EditGuidebookPage() {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
-
-    // Helper: upload to Supabase Storage and return public URL
-    const uploadToStorage = async (prefix: string, file: File): Promise<string | undefined> => {
-      try {
-        if (!supabase) return undefined;
-        if (!BUCKET_NAME) return undefined;
-        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-        const path = `${prefix}/${Date.now()}-${safeName}`;
-        const { error } = await supabase.storage
-          .from(BUCKET_NAME)
-          .upload(path, file, { contentType: file.type || 'application/octet-stream', upsert: false });
-        if (error) throw error;
-        const { data } = supabase.storage.from(BUCKET_NAME).getPublicUrl(path);
-        return data?.publicUrl || undefined;
-      } catch (err) {
-        console.error('Upload failed:', err);
-        return undefined;
-      }
-    };
 
     try {
       let coverImageUrl: string | undefined = undefined;

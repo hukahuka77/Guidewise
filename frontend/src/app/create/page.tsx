@@ -8,21 +8,25 @@ import { LIMITS } from "@/constants/limits";
 import { supabase } from "@/lib/supabaseClient";
 import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 
-import SidebarNav from "./SidebarNav";
-import CreateGuidebookLayout from "./CreateGuidebookLayout";
-import ArrivalSection from "./ArrivalSection";
-import WifiSection from "./WifiSection";
-import CheckinSection from "./CheckinSection";
-import WelcomeSection from "./WelcomeSection";
-import HouseManualList from "./HouseManualList";
-import DynamicItemList, { DynamicItem } from "./DynamicItemList";
+import SidebarNav from "@/components/sections/SidebarNav";
+import CreateGuidebookLayout from "@/components/sections/CreateGuidebookLayout";
+import ArrivalSection from "@/components/sections/ArrivalSection";
+import WifiSection from "@/components/sections/WifiSection";
+import CheckinSection from "@/components/sections/CheckinSection";
+import WelcomeSection from "@/components/sections/WelcomeSection";
+import HouseManualList from "@/components/sections/HouseManualList";
+import DynamicItemList, { DynamicItem } from "@/components/sections/DynamicItemList";
 import PlacePickerModal from "@/components/places/PlacePickerModal";
 import AddItemChoiceModal from "@/components/places/AddItemChoiceModal";
-import RulesSection from "./RulesSection";
-import CheckoutSection from "./CheckoutSection";
+import RulesSection from "@/components/sections/RulesSection";
+import CheckoutSection from "@/components/sections/CheckoutSection";
 import { useGuidebookForm } from "@/hooks/useGuidebookForm";
 import { useAIRecommendations } from "@/hooks/useAIRecommendations";
+import { useImageUpload } from "@/hooks/useImageUpload";
+import { useAuth } from "@/hooks/useAuth";
+import { useSectionNavigation } from "@/hooks/useSectionNavigation";
 import { buildGuidebookPayload } from "@/utils/guidebookPayload";
+import { CREATE_SECTIONS_ORDER } from "@/config/sections";
 
 type PlaceApiItem = Partial<DynamicItem> & { photo_reference?: string };
 
@@ -34,17 +38,12 @@ const BUCKET_NAME = process.env.NEXT_PUBLIC_SUPABASE_FOOD_ACTIVITIES_BUCKET as s
 export default function CreateGuidebookPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [authChecked, setAuthChecked] = useState<boolean>(false);
-  const sectionsOrder = [
-    "welcome",
-    "checkin",
-    "property",
-    "food",
-    "activities",
-    "rules",
-    "checkout",
-  ] as const;
+
+  // Use consolidated auth hook
+  const { accessToken, authChecked } = useAuth({
+    redirectTo: '/signup?next=/create',
+    requireAuth: true,
+  });
 
   // Use consolidated form hook
   const {
@@ -89,7 +88,7 @@ export default function CreateGuidebookPage() {
     handleCoverImageSelect,
     handleHostPhotoSelect,
   } = useGuidebookForm({
-    initialIncluded: [...sectionsOrder],
+    initialIncluded: [...CREATE_SECTIONS_ORDER],
     useDefaults: true,
   });
 
@@ -104,42 +103,32 @@ export default function CreateGuidebookPage() {
     onError: (msg) => setError(msg),
   });
 
+  // Use image upload hook
+  const { uploadToStorage } = useImageUpload({
+    bucketName: BUCKET_NAME,
+  });
+
+  // Use section navigation hook
+  const {
+    currentSection,
+    setCurrentSection,
+    visitedSections,
+    allowedSections,
+    goToSection,
+    goNext,
+    canAdvance,
+    hasReachedEnd,
+  } = useSectionNavigation({
+    sections: CREATE_SECTIONS_ORDER,
+    mode: 'guided',
+    requireLocation: true,
+  });
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [signupSuccess, setSignupSuccess] = useState<boolean>(false);
 
-  // Load Supabase session Access Token for authenticated backend calls
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      if (!supabase) {
-        if (mounted) {
-          setAccessToken(null);
-          setAuthChecked(true);
-          router.replace('/signup?next=/create');
-        }
-        return;
-      }
-      const { data } = await supabase.auth.getSession();
-      if (mounted) {
-        setAccessToken(data.session?.access_token || null);
-        setAuthChecked(true);
-      }
-    })();
-    const subscription = supabase
-      ? supabase.auth
-          .onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
-            setAccessToken(session?.access_token || null);
-            setAuthChecked(true);
-          })
-          .data.subscription
-      : { unsubscribe: () => {} };
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, [router]);
-
+  // Handle signup success banner
   useEffect(() => {
     const created = searchParams?.get('created');
     if (created === '1' && typeof window !== 'undefined') {
@@ -150,37 +139,10 @@ export default function CreateGuidebookPage() {
     }
   }, [searchParams]);
 
-  // Redirect unauthenticated users to signup
-  useEffect(() => {
-    if (!authChecked) return;
-    if (!accessToken) {
-      router.replace('/signup?next=/create');
-    }
-  }, [authChecked, accessToken, router]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
-
-    // Helper: upload to Supabase Storage and return public URL
-    const uploadToStorage = async (prefix: string, file: File): Promise<string | undefined> => {
-      try {
-        if (!supabase) return undefined;
-        if (!BUCKET_NAME) return undefined;
-        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-        const path = `${prefix}/${Date.now()}-${safeName}`;
-        const { error } = await supabase.storage
-          .from(BUCKET_NAME)
-          .upload(path, file, { contentType: file.type || 'application/octet-stream', upsert: true });
-        if (error) throw error;
-        const { data } = supabase.storage.from(BUCKET_NAME).getPublicUrl(path);
-        return data?.publicUrl || undefined;
-      } catch (err) {
-        console.error('Upload failed:', err);
-        return undefined;
-      }
-    };
 
     try {
       let coverImageUrl: string | undefined = undefined;
