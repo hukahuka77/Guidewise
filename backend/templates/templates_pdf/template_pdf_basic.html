@@ -42,19 +42,7 @@
       <h2>Address & Times</h2>
       <div class="grid-2">
         <div>
-          {% if ctx.address.street or ctx.address.city_state or ctx.address.zip %}
-          <p class="kv"><span class="label">Address:</span>
-            {% if ctx.address.street %}{{ ctx.address.street }}{% endif %}
-            {% if ctx.address.city_state %}{% if ctx.address.street %}, {% endif %}{{ ctx.address.city_state }}{% endif %}
-            {% if ctx.address.zip %}{% if ctx.address.street or ctx.address.city_state %}, {% endif %}{{ ctx.address.zip }}{% endif %}
-          </p>
-          {% endif %}
-          {% if ctx.access_info %}
-          <p class="kv"><span class="label">Access Info:</span> {{ ctx.access_info }}</p>
-          {% endif %}
-          {% if ctx.parking_info %}
-          <p class="kv"><span class="label">Parking Info:</span> {{ ctx.parking_info }}</p>
-          {% endif %}
+          {{ pm.address_block(ctx.address, ctx.access_info, ctx.parking_info) }}
         </div>
         <div>
           {% if ctx.check_in_time %}
@@ -69,41 +57,16 @@
 
     <div class="divider"></div>
 
-    {% if ctx.wifi.network or ctx.wifi.password %}
-    <div class="section">
-      <h2>Wi‑Fi</h2>
-      {% if ctx.wifi.network %}<p class="kv"><span class="label">Network:</span> {{ ctx.wifi.network }}</p>{% endif %}
-      {% if ctx.wifi.password %}<p class="kv"><span class="label">Password:</span> {{ ctx.wifi.password }}</p>{% endif %}
-    </div>
-    <div class="divider"></div>
-    {% endif %}
+    {{ pm.wifi_block(ctx.wifi, style_class='section') }}
+    {% if ctx.wifi.network or ctx.wifi.password %}<div class="divider"></div>{% endif %}
 
     {# Safety Info #}
+    {{ pm.safety_block(ctx.safety_info, style_class='section') }}
     {% set has_safety = ctx.safety_info and (ctx.safety_info.get('emergency_contact') or ctx.safety_info.get('fire_extinguisher_location')) %}
-    {% if has_safety %}
-    <div class="section">
-      <h2>Safety Info</h2>
-      {% if ctx.safety_info.get('emergency_contact') %}
-      <p class="kv"><span class="label">Emergency Contact:</span> {{ ctx.safety_info.get('emergency_contact') }}</p>
-      {% endif %}
-      {% if ctx.safety_info.get('fire_extinguisher_location') %}
-      <p class="kv"><span class="label">Fire Extinguisher Location:</span> {{ ctx.safety_info.get('fire_extinguisher_location') }}</p>
-      {% endif %}
-    </div>
-    <div class="divider"></div>
-    {% endif %}
+    {% if has_safety %}<div class="divider"></div>{% endif %}
 
-    {% if ctx.rules and ctx.rules|length > 0 %}
-    <div class="section">
-      <h2>House Rules</h2>
-      <ul>
-        {% for r in ctx.rules %}
-          {% if r %}<li>{{ r }}</li>{% endif %}
-        {% endfor %}
-      </ul>
-    </div>
-    <div class="divider"></div>
-    {% endif %}
+    {{ pm.rules_list(ctx.rules, style_class='section') }}
+    {% if ctx.rules and ctx.rules|length > 0 %}<div class="divider"></div>{% endif %}
 
     {% if ctx.house_manual and ctx.house_manual|length > 0 %}
     <div class="section">
