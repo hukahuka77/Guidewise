@@ -1,4 +1,4 @@
-import type { DynamicItem } from '@/app/create/DynamicItemList';
+import type { DynamicItem } from '@/components/sections/DynamicItemList';
 import type { FormData, RuleItem, CheckoutItem, HouseManualItem } from '@/hooks/useGuidebookForm';
 
 export interface BuildPayloadOptions {

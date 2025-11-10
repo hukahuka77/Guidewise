@@ -1,10 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/lib/supabaseClient";
-import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 
 // Shared components
 import SidebarNav from "@/components/sections/SidebarNav";
@@ -32,14 +30,6 @@ import { EDIT_SECTIONS_ORDER } from "@/config/sections";
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL as string;
 const BUCKET_NAME = process.env.NEXT_PUBLIC_SUPABASE_FOOD_ACTIVITIES_BUCKET as string;
 
-// Type for API response items from places/recommendations
-type PlaceApiItem = {
-  name?: string;
-  address?: string;
-  description?: string;
-  image_url?: string;
-  photo_reference?: string;
-};
 
 type GuidebookDetail = {
   id: number | string;
@@ -97,11 +87,9 @@ export default function EditGuidebookPage() {
     formData,
     setFormData,
     coverImage,
-    setCoverImage,
     previewUrl,
     setPreviewUrl,
     hostPhoto,
-    setHostPhoto,
     hostPhotoPreviewUrl,
     setHostPhotoPreviewUrl,
     foodItems,
@@ -239,7 +227,7 @@ export default function EditGuidebookPage() {
         setInitialLoading(false);
       }
     })();
-  }, [guidebookId, accessToken, authReady, router]);
+  }, [guidebookId, accessToken, authReady, router, setActivityItems, setCheckoutItems, setCustomSections, setCustomTabsMeta, setFoodItems, setFormData, setHostPhotoPreviewUrl, setHouseManualItems, setIncluded, setPreviewUrl, setRules]);
 
   // Image handlers are now provided by useGuidebookForm hook
 

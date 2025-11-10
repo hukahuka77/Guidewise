@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { DynamicItem } from '@/app/create/DynamicItemList';
+import type { DynamicItem } from '@/components/sections/DynamicItemList';
 
 export interface FormData {
   propertyName: string;

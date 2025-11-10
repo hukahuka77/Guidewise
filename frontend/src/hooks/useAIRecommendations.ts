@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { DynamicItem } from '@/app/create/DynamicItemList';
+import type { DynamicItem } from '@/components/sections/DynamicItemList';
 
 type PlaceApiItem = Partial<DynamicItem> & { photo_reference?: string };
 

@@ -5,8 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import Spinner from "@/components/ui/spinner";
 import { LIMITS } from "@/constants/limits";
-import { supabase } from "@/lib/supabaseClient";
-import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 
 import SidebarNav from "@/components/sections/SidebarNav";
 import CreateGuidebookLayout from "@/components/sections/CreateGuidebookLayout";
@@ -15,7 +13,7 @@ import WifiSection from "@/components/sections/WifiSection";
 import CheckinSection from "@/components/sections/CheckinSection";
 import WelcomeSection from "@/components/sections/WelcomeSection";
 import HouseManualList from "@/components/sections/HouseManualList";
-import DynamicItemList, { DynamicItem } from "@/components/sections/DynamicItemList";
+import DynamicItemList from "@/components/sections/DynamicItemList";
 import PlacePickerModal from "@/components/places/PlacePickerModal";
 import AddItemChoiceModal from "@/components/places/AddItemChoiceModal";
 import RulesSection from "@/components/sections/RulesSection";
@@ -28,7 +26,6 @@ import { useSectionNavigation } from "@/hooks/useSectionNavigation";
 import { buildGuidebookPayload } from "@/utils/guidebookPayload";
 import { CREATE_SECTIONS_ORDER } from "@/config/sections";
 
-type PlaceApiItem = Partial<DynamicItem> & { photo_reference?: string };
 
 // Base URL for backend API, configured via environment. Example in .env.local:
 // NEXT_PUBLIC_API_BASE_URL=http://localhost:5001
@@ -50,13 +47,9 @@ export default function CreateGuidebookPage() {
     formData,
     setFormData,
     coverImage,
-    setCoverImage,
     previewUrl,
-    setPreviewUrl,
     hostPhoto,
-    setHostPhoto,
     hostPhotoPreviewUrl,
-    setHostPhotoPreviewUrl,
     foodItems,
     setFoodItems,
     activityItems,
@@ -111,7 +104,6 @@ export default function CreateGuidebookPage() {
   // Use section navigation hook - pass dynamic included sections
   const {
     currentSection,
-    setCurrentSection,
     visitedSections,
     allowedSections,
     goToSection,
@@ -245,7 +237,7 @@ export default function CreateGuidebookPage() {
       }
       return changed ? next : prev;
     });
-  }, [included]);
+  }, [included, setCustomSections]);
 
   // Keep backend address fields in sync with the selected location so the live view shows the user's address
   useEffect(() => {
@@ -253,7 +245,7 @@ export default function CreateGuidebookPage() {
       if (prev.address_street === prev.location) return prev;
       return { ...prev, address_street: prev.location };
     });
-  }, [formData.location]);
+  }, [formData.location, setFormData]);
 
   // While checking auth (or redirecting), show a centered spinner
   if (!authChecked || !accessToken) {
