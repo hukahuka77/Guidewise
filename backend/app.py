@@ -650,10 +650,12 @@ TEMPLATE_REGISTRY = {
     "template_original": "templates_url/template_original.html",
     # Canonical generic template
     "template_generic": "templates_url/template_generic.html",
+    # Modern mobile-first template
+    "template_modern": "templates_url/template_modern.html",
 }
 ALLOWED_TEMPLATE_KEYS = set(TEMPLATE_REGISTRY.keys())
 # Allowed PDF template keys (canonical)
-ALLOWED_PDF_TEMPLATE_KEYS = {"template_pdf_original", "template_pdf_basic", "template_pdf_mobile", "template_pdf_qr"}
+ALLOWED_PDF_TEMPLATE_KEYS = {"template_pdf_original", "template_pdf_basic", "template_pdf_mobile", "template_pdf_qr", "template_pdf_modern"}
 
 RENDER_CACHE = {}
 

@@ -10,7 +10,7 @@ import { supabase } from "@/lib/supabaseClient";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
-type TemplateKey = "template_original" | "template_generic";
+type TemplateKey = "template_original" | "template_generic" | "template_modern";
 
 type GuidebookMeta = {
   id: string;
@@ -152,6 +152,7 @@ export default function GuidebookUrlTemplatesPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               <Card template="template_original" title="Lifestyle (Standard)" img="/images/URL_Generic1.png" />
               <Card template="template_generic" title="Minimal (Basic)" img="/images/URL_Generic2.png" />
+              <Card template="template_modern" title="Modern Cards" img="/images/URL_Modern.png" />
             </div>
           </section>
         )}

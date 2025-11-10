@@ -1,0 +1,451 @@
+{% extends "base_pdf.html" %}
+{% import "_pdf_macros.html" as pm %}
+
+{% block head_extra %}
+  <style>
+    /* Modern color palette */
+    :root {
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --secondary: #8b5cf6;
+      --accent: #ec4899;
+      --bg-gray: #f8f9fa;
+      --text-muted: #64748b;
+    }
+
+    body {
+      background: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica', sans-serif;
+    }
+
+    /* Cover page with gradient */
+    .cover-page {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      color: white;
+      text-align: center;
+    }
+
+    .cover-page h1 {
+      font-size: 48px;
+      font-weight: 700;
+      margin: 0;
+      color: white;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    /* Modern card styling */
+    .modern-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin: 16px 0;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      border: 1px solid #e5e7eb;
+    }
+
+    .modern-card h2 {
+      color: var(--primary);
+      font-size: 18px;
+      font-weight: 700;
+      margin: 0 0 12px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .modern-card h2::before {
+      content: '';
+      display: inline-block;
+      width: 4px;
+      height: 20px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      border-radius: 2px;
+    }
+
+    /* Info grid */
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin: 20px 0;
+    }
+
+    .info-box {
+      background: var(--bg-gray);
+      border-radius: 8px;
+      padding: 16px;
+      border-left: 3px solid var(--primary);
+    }
+
+    .info-box h3 {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin: 0 0 8px 0;
+      font-weight: 600;
+    }
+
+    .info-box p {
+      margin: 4px 0;
+      font-size: 14px;
+      color: #1e293b;
+    }
+
+    /* Item lists */
+    .modern-item {
+      background: white;
+      border-radius: 8px;
+      padding: 14px;
+      margin: 10px 0;
+      border: 1px solid #e5e7eb;
+    }
+
+    .modern-item .item-name {
+      font-weight: 700;
+      color: #1e293b;
+      font-size: 15px;
+      margin-bottom: 4px;
+    }
+
+    .modern-item .item-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin: 4px 0;
+    }
+
+    .modern-item .item-address {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    /* Rules list */
+    .modern-rules {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .modern-rules li {
+      padding: 10px 14px;
+      margin: 8px 0;
+      background: var(--bg-gray);
+      border-radius: 6px;
+      border-left: 3px solid var(--accent);
+      font-size: 14px;
+    }
+
+    /* Section headers */
+    .section-header {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--primary-dark);
+      margin: 32px 0 20px 0;
+      padding-bottom: 10px;
+      border-bottom: 3px solid var(--primary);
+    }
+
+    /* QR code styling */
+    .qr-modern {
+      position: absolute;
+      top: 2cm;
+      right: 2cm;
+      background: white;
+      padding: 12px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      text-align: center;
+      width: 4cm;
+    }
+
+    .qr-modern img {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 6px;
+    }
+
+    .qr-modern .caption {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 8px;
+      font-weight: 600;
+    }
+
+    /* Page styling */
+    .content-page {
+      background: white;
+      padding: 2cm;
+    }
+
+    .kv {
+      margin: 6px 0;
+      font-size: 14px;
+    }
+
+    .label {
+      font-weight: 700;
+      color: var(--primary-dark);
+    }
+
+    /* Checkout items */
+    .checkout-list {
+      list-style: none;
+      padding: 0;
+    }
+
+    .checkout-list li {
+      padding: 8px 12px;
+      margin: 6px 0;
+      background: var(--bg-gray);
+      border-radius: 6px;
+      font-size: 14px;
+    }
+  </style>
+{% endblock %}
+
+{% block body %}
+  <!-- Cover Page -->
+  <div class="cover-page">
+    <div>
+      <h1>{{ ctx.property_name or 'Welcome to Your Stay' }}</h1>
+      {% if ctx.welcome_message %}
+      <p style="font-size: 18px; margin-top: 20px; max-width: 600px; opacity: 0.95;">
+        {{ ctx.welcome_message[:150] }}{% if ctx.welcome_message|length > 150 %}...{% endif %}
+      </p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Main Content Page -->
+  <div class="page content-page">
+    {% if ctx.qr_img_src %}
+    <div class="qr-modern">
+      <img src="{{ ctx.qr_img_src }}" alt="QR Code" />
+      <div class="caption">Scan for live guidebook</div>
+    </div>
+    {% endif %}
+
+    <!-- Welcome Section -->
+    {% if ctx.welcome_message %}
+    <div class="modern-card">
+      <h2>Welcome Message</h2>
+      <p style="white-space: pre-line; line-height: 1.6;">{{ ctx.welcome_message }}</p>
+    </div>
+    {% endif %}
+
+    <!-- Quick Info Grid -->
+    <div class="info-grid">
+      <!-- Check-in/out times -->
+      {% if ctx.check_in_time or ctx.check_out_time %}
+      <div class="info-box">
+        <h3>Check Times</h3>
+        {% if ctx.check_in_time %}
+        <p class="kv"><span class="label">Check-in:</span> {{ ctx.check_in_time }}</p>
+        {% endif %}
+        {% if ctx.check_out_time %}
+        <p class="kv"><span class="label">Check-out:</span> {{ ctx.check_out_time }}</p>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      <!-- WiFi Info -->
+      {% if ctx.wifi.network or ctx.wifi.password %}
+      <div class="info-box" style="border-left-color: var(--secondary);">
+        <h3>Wi-Fi</h3>
+        {% if ctx.wifi.network %}
+        <p class="kv"><span class="label">Network:</span> {{ ctx.wifi.network }}</p>
+        {% endif %}
+        {% if ctx.wifi.password %}
+        <p class="kv"><span class="label">Password:</span> {{ ctx.wifi.password }}</p>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      <!-- Host Info -->
+      {% if ctx.host.name or ctx.host.contact %}
+      <div class="info-box" style="border-left-color: var(--accent);">
+        <h3>Your Host</h3>
+        {% if ctx.host.name %}
+        <p class="kv"><span class="label">Name:</span> {{ ctx.host.name }}</p>
+        {% endif %}
+        {% if ctx.host.contact %}
+        <p class="kv"><span class="label">Contact:</span> {{ ctx.host.contact }}</p>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      <!-- Address -->
+      {% if ctx.address.street or ctx.address.city_state %}
+      <div class="info-box">
+        <h3>Location</h3>
+        {% if ctx.address.street %}
+        <p>{{ ctx.address.street }}</p>
+        {% endif %}
+        {% if ctx.address.city_state %}
+        <p>{{ ctx.address.city_state }}{% if ctx.address.zip %}, {{ ctx.address.zip }}{% endif %}</p>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Access & Parking -->
+    {% if ctx.access_info or ctx.parking_info %}
+    <div class="modern-card">
+      <h2>Access Information</h2>
+      {% if ctx.access_info %}
+      <p class="kv"><span class="label">Access:</span> {{ ctx.access_info }}</p>
+      {% endif %}
+      {% if ctx.parking_info %}
+      <p class="kv"><span class="label">Parking:</span> {{ ctx.parking_info }}</p>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Safety Info -->
+    {% set has_safety = ctx.safety_info and (ctx.safety_info.get('emergency_contact') or ctx.safety_info.get('fire_extinguisher_location')) %}
+    {% if has_safety %}
+    <div class="modern-card" style="border-left: 4px solid var(--accent); background: #fef2f2;">
+      <h2>Safety Information</h2>
+      {% if ctx.safety_info.get('emergency_contact') %}
+      <p class="kv"><span class="label">Emergency Contact:</span> {{ ctx.safety_info.get('emergency_contact') }}</p>
+      {% endif %}
+      {% if ctx.safety_info.get('fire_extinguisher_location') %}
+      <p class="kv"><span class="label">Fire Extinguisher:</span> {{ ctx.safety_info.get('fire_extinguisher_location') }}</p>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- House Manual -->
+  {% if 'property' in ctx.included_tabs and ctx.house_manual and ctx.house_manual|length > 0 %}
+  <div class="page content-page">
+    <h1 class="section-header">House Manual</h1>
+    {% for item in ctx.house_manual %}
+    <div class="modern-item">
+      {% if item.name %}
+      <div class="item-name">{{ item.name }}</div>
+      {% endif %}
+      {% if item.description %}
+      <div class="item-desc" style="white-space: pre-line;">{{ item.description }}</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- House Rules -->
+  {% if 'rules' in ctx.included_tabs and ctx.rules and ctx.rules|length > 0 %}
+  <div class="page content-page">
+    <h1 class="section-header">House Rules</h1>
+    <ul class="modern-rules">
+      {% for rule in ctx.rules %}
+      {% if rule %}
+      <li>{{ rule }}</li>
+      {% endif %}
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <!-- Places to Eat -->
+  {% if 'food' in ctx.included_tabs and ctx.places_to_eat and ctx.places_to_eat|length > 0 %}
+  <div class="page content-page">
+    <h1 class="section-header">Places to Eat Nearby</h1>
+    {% for item in ctx.places_to_eat %}
+    <div class="modern-item">
+      {% if item.name %}
+      <div class="item-name">{{ item.name }}</div>
+      {% endif %}
+      {% if item.description %}
+      <div class="item-desc">{{ item.description }}</div>
+      {% endif %}
+      {% if item.address %}
+      <div class="item-address">📍 {{ item.address }}</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Things to Do -->
+  {% if 'activities' in ctx.included_tabs and ctx.things_to_do and ctx.things_to_do|length > 0 %}
+  <div class="page content-page">
+    <h1 class="section-header">Things to Do Nearby</h1>
+    {% for item in ctx.things_to_do %}
+    <div class="modern-item">
+      {% if item.name %}
+      <div class="item-name">{{ item.name }}</div>
+      {% endif %}
+      {% if item.description %}
+      <div class="item-desc">{{ item.description }}</div>
+      {% endif %}
+      {% if item.address %}
+      <div class="item-address">📍 {{ item.address }}</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Custom Sections -->
+  {% for tab in ctx.included_tabs %}
+    {% if tab.startswith('custom_') and ctx.custom_sections.get(tab) %}
+    {% set meta = (ctx.custom_tabs_meta.get(tab) if ctx.custom_tabs_meta else None) %}
+    {% set blocks = ctx.custom_sections.get(tab) %}
+    {% if blocks and blocks|length > 0 %}
+    <div class="page content-page">
+      <h1 class="section-header">{{ (meta.label if meta and meta.label) or (tab | replace('custom_', '') | replace('_', ' ') | title) }}</h1>
+      {% for text in blocks %}
+      {% if text %}
+      <div class="modern-item">
+        {% if text is string %}
+        <p style="white-space: pre-line; margin: 0;">{{ text }}</p>
+        {% else %}
+        {% if text.name %}
+        <div class="item-name">{{ text.name }}</div>
+        {% endif %}
+        {% if text.description %}
+        <div class="item-desc" style="white-space: pre-line;">{{ text.description }}</div>
+        {% endif %}
+        {% if text.text %}
+        <div style="white-space: pre-line;">{{ text.text }}</div>
+        {% endif %}
+        {% endif %}
+      </div>
+      {% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endif %}
+  {% endfor %}
+
+  <!-- Checkout -->
+  {% if ctx.checkout_info and ctx.checkout_info|length > 0 %}
+  <div class="page content-page">
+    <h1 class="section-header">Checkout Instructions</h1>
+    <ul class="checkout-list">
+      {% for item in ctx.checkout_info %}
+        {% if item is string %}
+          <li>{{ item }}</li>
+        {% elif item.text %}
+          <li>{{ item.text }}</li>
+        {% elif item.name or item.description %}
+          <li>
+            {% if item.name %}<span class="label">{{ item.name }}:</span>{% endif %}
+            {% if item.description %} {{ item.description }}{% endif %}
+          </li>
+        {% else %}
+          <li>{{ item|string }}</li>
+        {% endif %}
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+{% endblock %}

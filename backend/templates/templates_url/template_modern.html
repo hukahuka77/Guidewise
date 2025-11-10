@@ -1,0 +1,636 @@
+{% extends "base_guidebook.html" %}
+{% import "_macros.html" as m %}
+
+{% block head_extra %}
+<style>
+  :root {
+    --primary: #6366f1;
+    --primary-dark: #4f46e5;
+    --secondary: #8b5cf6;
+    --accent: #ec4899;
+    --bg-light: #f8fafc;
+    --bg-card: #ffffff;
+    --text-primary: #0f172a;
+    --text-secondary: #64748b;
+    --border: #e2e8f0;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+    --shadow-lg: 0 10px 30px rgba(0,0,0,0.12);
+    --radius: 16px;
+    --radius-sm: 12px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: var(--bg-light);
+    color: var(--text-primary);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  /* Hero Section */
+  .hero {
+    position: relative;
+    height: 40vh;
+    min-height: 300px;
+    max-height: 500px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .hero-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.3;
+  }
+
+  .hero-content {
+    position: relative;
+    text-align: center;
+    padding: 2rem;
+    z-index: 2;
+    max-width: 800px;
+  }
+
+  .hero-title {
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 800;
+    color: white;
+    margin-bottom: 0.5rem;
+    text-shadow: 0 2px 20px rgba(0,0,0,0.3);
+    letter-spacing: -0.02em;
+  }
+
+  .hero-subtitle {
+    font-size: clamp(1rem, 2vw, 1.25rem);
+    color: rgba(255,255,255,0.95);
+    font-weight: 500;
+  }
+
+  /* Sticky Navigation */
+  .nav-bar {
+    position: sticky;
+    top: 0;
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+    z-index: 100;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .nav-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0.75rem 1rem;
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .nav-container::-webkit-scrollbar { display: none; }
+
+  .nav-link {
+    padding: 0.5rem 1.25rem;
+    border-radius: 50px;
+    background: transparent;
+    border: 2px solid transparent;
+    color: var(--text-secondary);
+    text-decoration: none;
+    white-space: nowrap;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+    cursor: pointer;
+  }
+
+  .nav-link:hover {
+    background: var(--bg-light);
+    color: var(--primary);
+  }
+
+  .nav-link.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+  }
+
+  /* Container */
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+  }
+
+  /* Quick Info Cards */
+  .quick-info {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .info-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-sm);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+
+  .info-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .info-card-icon {
+    font-size: 2rem;
+    margin-bottom: 0.75rem;
+    display: block;
+  }
+
+  .info-card-title {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+  }
+
+  .info-card-value {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    word-break: break-word;
+  }
+
+  /* Section Cards */
+  .section-card {
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    padding: 2rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border);
+    scroll-margin-top: 100px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--bg-light);
+  }
+
+  .section-icon {
+    font-size: 2rem;
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .section-title {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+  }
+
+  /* Items List */
+  .items-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.25rem;
+  }
+
+  .item {
+    background: var(--bg-light);
+    border-radius: var(--radius-sm);
+    padding: 1.25rem;
+    border: 1px solid var(--border);
+    transition: all 0.2s;
+  }
+
+  .item:hover {
+    background: white;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+
+  .item-image {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+    border-radius: var(--radius-sm);
+    margin-bottom: 1rem;
+  }
+
+  .item-name {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+  }
+
+  .item-desc {
+    font-size: 0.9375rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: 0.5rem;
+  }
+
+  .item-address {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  /* Rules List */
+  .rules-list {
+    list-style: none;
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .rule-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: var(--bg-light);
+    border-radius: var(--radius-sm);
+    border-left: 4px solid var(--primary);
+  }
+
+  .rule-icon {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+    margin-top: 0.125rem;
+  }
+
+  .rule-text {
+    flex: 1;
+    font-size: 0.9375rem;
+    line-height: 1.6;
+  }
+
+  /* Text Styling */
+  p { margin-bottom: 1rem; line-height: 1.8; }
+
+  .text-muted { color: var(--text-secondary); }
+
+  .label {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: block;
+    margin-bottom: 0.25rem;
+  }
+
+  /* QR Code */
+  .qr-card {
+    text-align: center;
+    padding: 2rem;
+    background: linear-gradient(135deg, var(--bg-light) 0%, white 100%);
+    border-radius: var(--radius);
+    border: 2px dashed var(--border);
+  }
+
+  .qr-card img {
+    max-width: 200px;
+    width: 100%;
+    height: auto;
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-md);
+  }
+
+  .qr-text {
+    margin-top: 1rem;
+    font-size: 0.9375rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .hero { height: 35vh; min-height: 250px; }
+    .hero-title { font-size: 2rem; }
+    .container { padding: 1.5rem 1rem; }
+    .section-card { padding: 1.5rem; }
+    .quick-info { grid-template-columns: 1fr; }
+    .items-grid { grid-template-columns: 1fr; }
+  }
+
+  /* Animations */
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .section-card {
+    animation: fadeIn 0.5s ease-out;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="hero">
+  {% if ctx.cover_image_url %}
+  <img src="{{ ctx.cover_image_url }}" alt="{{ ctx.property_name }}" class="hero-bg">
+  {% endif %}
+  <div class="hero-content">
+    <h1 class="hero-title">{{ ctx.property_name or 'Welcome' }}</h1>
+    {% if ctx.welcome_message %}
+    <p class="hero-subtitle">Your home away from home</p>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Sticky Navigation -->
+<nav class="nav-bar">
+  <div class="nav-container">
+    <a href="#quick-info" class="nav-link">Info</a>
+    {% if 'checkin' in ctx.included_tabs %}<a href="#checkin" class="nav-link">Check-in</a>{% endif %}
+    {% if 'property' in ctx.included_tabs and ctx.house_manual %}<a href="#property" class="nav-link">Property</a>{% endif %}
+    {% if 'food' in ctx.included_tabs and ctx.places_to_eat %}<a href="#food" class="nav-link">Food</a>{% endif %}
+    {% if 'activities' in ctx.included_tabs and ctx.things_to_do %}<a href="#activities" class="nav-link">Activities</a>{% endif %}
+    {% if 'rules' in ctx.included_tabs and ctx.rules %}<a href="#rules" class="nav-link">Rules</a>{% endif %}
+    {% if ctx.checkout_info %}<a href="#checkout" class="nav-link">Checkout</a>{% endif %}
+  </div>
+</nav>
+
+<div class="container">
+  <!-- Quick Info Cards -->
+  <div class="quick-info" id="quick-info">
+    {% if ctx.check_in_time or ctx.check_out_time %}
+    <div class="info-card">
+      <span class="info-card-icon">🕐</span>
+      <div class="info-card-title">Check-in & Out</div>
+      <div class="info-card-value">
+        {% if ctx.check_in_time %}In: {{ ctx.check_in_time }}{% endif %}
+        {% if ctx.check_in_time and ctx.check_out_time %}<br>{% endif %}
+        {% if ctx.check_out_time %}Out: {{ ctx.check_out_time }}{% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if ctx.wifi.network %}
+    <div class="info-card">
+      <span class="info-card-icon">📶</span>
+      <div class="info-card-title">Wi-Fi Network</div>
+      <div class="info-card-value">{{ ctx.wifi.network }}</div>
+      {% if ctx.wifi.password %}
+      <div class="label" style="margin-top: 0.75rem;">Password</div>
+      <div class="info-card-value" style="font-size: 1rem;">{{ ctx.wifi.password }}</div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% if ctx.host.name or ctx.host.contact %}
+    <div class="info-card">
+      <span class="info-card-icon">👤</span>
+      <div class="info-card-title">Your Host</div>
+      <div class="info-card-value">{{ ctx.host.name or 'Host' }}</div>
+      {% if ctx.host.contact %}
+      <div class="info-card-value" style="font-size: 0.9rem; margin-top: 0.5rem; color: var(--text-secondary);">{{ ctx.host.contact }}</div>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Welcome Message -->
+  {% if ctx.welcome_message %}
+  <div class="section-card">
+    <div class="section-header">
+      <div class="section-icon">👋</div>
+      <h2 class="section-title">Welcome</h2>
+    </div>
+    <p style="font-size: 1.0625rem; line-height: 1.8; white-space: pre-line;">{{ ctx.welcome_message }}</p>
+  </div>
+  {% endif %}
+
+  <!-- QR Code -->
+  {% if ctx.qr_img_src %}
+  <div class="qr-card">
+    <img src="{{ ctx.qr_img_src }}" alt="QR Code">
+    <p class="qr-text">📱 Scan to view this guidebook on your phone</p>
+  </div>
+  <br>
+  {% endif %}
+
+  <!-- Check-in Section -->
+  {% if 'checkin' in ctx.included_tabs %}
+  <div class="section-card" id="checkin">
+    <div class="section-header">
+      <div class="section-icon">🔑</div>
+      <h2 class="section-title">Check-in Details</h2>
+    </div>
+
+    {% if ctx.address.street or ctx.address.city_state or ctx.address.zip %}
+    <div class="label">Address</div>
+    <p style="font-size: 1.125rem; font-weight: 600; margin-bottom: 1.5rem;">
+      {{ ctx.address.street }}{% if ctx.address.city_state %}<br>{{ ctx.address.city_state }}{% endif %}{% if ctx.address.zip %} {{ ctx.address.zip }}{% endif %}
+    </p>
+    {% endif %}
+
+    {% if ctx.access_info %}
+    <div class="label">Access Instructions</div>
+    <p>{{ ctx.access_info }}</p>
+    {% endif %}
+
+    {% if ctx.parking_info %}
+    <div class="label">Parking Information</div>
+    <p>{{ ctx.parking_info }}</p>
+    {% endif %}
+
+    {% if ctx.safety_info and (ctx.safety_info.get('emergency_contact') or ctx.safety_info.get('fire_extinguisher_location')) %}
+    <div style="background: #fef3c7; padding: 1.25rem; border-radius: var(--radius-sm); margin-top: 1.5rem; border-left: 4px solid #f59e0b;">
+      <div style="font-weight: 700; margin-bottom: 0.75rem; color: #92400e;">⚠️ Safety Information</div>
+      {% if ctx.safety_info.get('emergency_contact') %}
+      <div class="label">Emergency Contact</div>
+      <p>{{ ctx.safety_info.get('emergency_contact') }}</p>
+      {% endif %}
+      {% if ctx.safety_info.get('fire_extinguisher_location') %}
+      <div class="label">Fire Extinguisher</div>
+      <p>{{ ctx.safety_info.get('fire_extinguisher_location') }}</p>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- House Manual -->
+  {% if 'property' in ctx.included_tabs and ctx.house_manual and ctx.house_manual|length > 0 %}
+  <div class="section-card" id="property">
+    <div class="section-header">
+      <div class="section-icon">🏠</div>
+      <h2 class="section-title">House Manual</h2>
+    </div>
+    {% for item in ctx.house_manual %}
+    <div style="margin-bottom: 1.5rem;">
+      {% if item.name %}<div class="label">{{ item.name }}</div>{% endif %}
+      {% if item.description %}<p style="white-space: pre-line;">{{ item.description }}</p>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Places to Eat -->
+  {% if 'food' in ctx.included_tabs and ctx.places_to_eat and ctx.places_to_eat|length > 0 %}
+  <div class="section-card" id="food">
+    <div class="section-header">
+      <div class="section-icon">🍴</div>
+      <h2 class="section-title">Places to Eat</h2>
+    </div>
+    <div class="items-grid">
+      {% for item in ctx.places_to_eat %}
+      <div class="item">
+        {% if item.image_url %}<img src="{{ item.image_url }}" alt="{{ item.name }}" class="item-image">{% endif %}
+        <div class="item-name">{{ item.name }}</div>
+        {% if item.description %}<div class="item-desc">{{ item.description }}</div>{% endif %}
+        {% if item.address %}<div class="item-address">📍 {{ item.address }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Things to Do -->
+  {% if 'activities' in ctx.included_tabs and ctx.things_to_do and ctx.things_to_do|length > 0 %}
+  <div class="section-card" id="activities">
+    <div class="section-header">
+      <div class="section-icon">🎯</div>
+      <h2 class="section-title">Things to Do</h2>
+    </div>
+    <div class="items-grid">
+      {% for item in ctx.things_to_do %}
+      <div class="item">
+        {% if item.image_url %}<img src="{{ item.image_url }}" alt="{{ item.name }}" class="item-image">{% endif %}
+        <div class="item-name">{{ item.name }}</div>
+        {% if item.description %}<div class="item-desc">{{ item.description }}</div>{% endif %}
+        {% if item.address %}<div class="item-address">📍 {{ item.address }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- House Rules -->
+  {% if 'rules' in ctx.included_tabs and ctx.rules and ctx.rules|length > 0 %}
+  <div class="section-card" id="rules">
+    <div class="section-header">
+      <div class="section-icon">📋</div>
+      <h2 class="section-title">House Rules</h2>
+    </div>
+    <ul class="rules-list">
+      {% for rule in ctx.rules %}
+      <li class="rule-item">
+        <span class="rule-icon">✓</span>
+        <span class="rule-text">{{ rule }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <!-- Checkout -->
+  {% if ctx.checkout_info and ctx.checkout_info|length > 0 %}
+  <div class="section-card" id="checkout">
+    <div class="section-header">
+      <div class="section-icon">🚪</div>
+      <h2 class="section-title">Checkout Instructions</h2>
+    </div>
+    <ul class="rules-list">
+      {% for item in ctx.checkout_info %}
+      <li class="rule-item">
+        <span class="rule-icon">☐</span>
+        <div class="rule-text">
+          {% if item.name %}<strong>{{ item.name }}:</strong> {% endif %}
+          {% if item.description %}{{ item.description }}{% endif %}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <!-- Custom Sections -->
+  {% for tab in ctx.included_tabs %}
+    {% if tab.startswith('custom_') and ctx.custom_sections.get(tab) %}
+    {% set meta = (ctx.custom_tabs_meta.get(tab) if ctx.custom_tabs_meta else None) %}
+    {% set blocks = ctx.custom_sections.get(tab) %}
+    {% if blocks and blocks|length > 0 %}
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-icon">{{ (meta.icon if meta and meta.icon else '📝') }}</div>
+        <h2 class="section-title">{{ (meta.label if meta and meta.label else (tab | replace('custom_', '') | replace('_', ' ') | title)) }}</h2>
+      </div>
+      {% for text in blocks %}
+        {% if text %}<p style="white-space: pre-line;">{{ text }}</p>{% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endif %}
+  {% endfor %}
+</div>
+
+<!-- Smooth Scroll Script -->
+<script>
+  document.querySelectorAll('.nav-link').forEach(link => {
+    link.addEventListener('click', function(e) {
+      e.preventDefault();
+      const target = document.querySelector(this.getAttribute('href'));
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        // Update active state
+        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+        this.classList.add('active');
+      }
+    });
+  });
+
+  // Highlight active section on scroll
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.getAttribute('id');
+        document.querySelectorAll('.nav-link').forEach(link => {
+          link.classList.remove('active');
+          if (link.getAttribute('href') === `#${id}`) {
+            link.classList.add('active');
+          }
+        });
+      }
+    });
+  }, { threshold: 0.5, rootMargin: '-100px 0px -50% 0px' });
+
+  document.querySelectorAll('[id]').forEach(section => {
+    observer.observe(section);
+  });
+</script>
+{% endblock %}
