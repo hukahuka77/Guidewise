@@ -650,10 +650,12 @@ TEMPLATE_REGISTRY = {
     "template_original": "templates_url/template_original.html",
     # Canonical generic template
     "template_generic": "templates_url/template_generic.html",
+    # Modern mobile-first template
+    "template_modern": "templates_url/template_modern.html",
 }
 ALLOWED_TEMPLATE_KEYS = set(TEMPLATE_REGISTRY.keys())
 # Allowed PDF template keys (canonical)
-ALLOWED_PDF_TEMPLATE_KEYS = {"template_pdf_original", "template_pdf_basic", "template_pdf_mobile", "template_pdf_qr"}
+ALLOWED_PDF_TEMPLATE_KEYS = {"template_pdf_original", "template_pdf_basic", "template_pdf_mobile", "template_pdf_qr", "template_pdf_modern"}
 
 RENDER_CACHE = {}
 
@@ -763,35 +765,7 @@ def _render_guidebook(gb: Guidebook, show_watermark: bool = False):
 
     html = render_template(
         TEMPLATE_REGISTRY.get(template_key, TEMPLATE_REGISTRY['template_original']),
-        ctx=ctx,
-        id=gb.id,
-        host_name=getattr(gb.host, 'name', None),
-        host_bio=getattr(gb.host, 'bio', None),
-        host_contact=getattr(gb.host, 'contact', None),
-        host_photo_url=getattr(gb.host, 'host_image_url', None),
-        property_name=gb.property.name,
-        wifi_network=gb.wifi.network if gb.wifi and gb.wifi.network else None,
-        wifi_password=gb.wifi.password if gb.wifi and gb.wifi.password else None,
-        check_in_time=gb.check_in_time,
-        check_out_time=gb.check_out_time,
-        address_street=gb.property.address_street,
-        address_city_state=gb.property.address_city_state,
-        address_zip=gb.property.address_zip,
-        access_info=gb.access_info,
-        welcome_message=getattr(gb, 'welcome_info', None),
-        parking_info=getattr(gb, 'parking_info', None),
-        rules=[rule.text for rule in gb.rules],
-        things_to_do=gb.things_to_do,
-        places_to_eat=gb.places_to_eat,
-        checkout_info=getattr(gb, 'checkout_info', None),
-        house_manual=getattr(gb, 'house_manual', None),
-        included_tabs=included_tabs,
-        custom_sections=getattr(gb, 'custom_sections', None),
-        custom_tabs_meta=safe_custom_tabs_meta,
-        cover_image_url=gb.cover_image_url,
-        show_watermark=show_watermark,
-        is_active=gb.active,
-        upgrade_url=f"{FRONTEND_ORIGIN}/pricing"
+        ctx=ctx
     )
     RENDER_CACHE[cache_key] = html
     resp = make_response(html)

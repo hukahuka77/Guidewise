@@ -1,39 +1,35 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/lib/supabaseClient";
-import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 
-// Reuse create flow components
-import SidebarNav from "@/app/create/SidebarNav";
-import CreateGuidebookLayout from "@/app/create/CreateGuidebookLayout";
-// import ArrivalSection from "@/app/create/ArrivalSection"; // not used on edit page
-import WifiSection from "@/app/create/WifiSection";
-import CheckinSection from "@/app/create/CheckinSection";
-import WelcomeSection from "@/app/create/WelcomeSection";
+// Shared components
+import SidebarNav from "@/components/sections/SidebarNav";
+import CreateGuidebookLayout from "@/components/sections/CreateGuidebookLayout";
+import WifiSection from "@/components/sections/WifiSection";
+import CheckinSection from "@/components/sections/CheckinSection";
+import WelcomeSection from "@/components/sections/WelcomeSection";
 import Spinner from "@/components/ui/spinner";
-import HostInfoSection from "@/app/create/HostInfoSection";
-import DynamicItemList, { DynamicItem } from "@/app/create/DynamicItemList";
-import HouseManualList from "@/app/create/HouseManualList";
-import RulesSection from "@/app/create/RulesSection";
-import CheckoutSection from "@/app/create/CheckoutSection";
+import HostInfoSection from "@/components/sections/HostInfoSection";
+import DynamicItemList, { DynamicItem } from "@/components/sections/DynamicItemList";
+import HouseManualList from "@/components/sections/HouseManualList";
+import RulesSection from "@/components/sections/RulesSection";
+import CheckoutSection from "@/components/sections/CheckoutSection";
 import AddItemChoiceModal from "@/components/places/AddItemChoiceModal";
 import PlacePickerModal from "@/components/places/PlacePickerModal";
 import { LIMITS } from "@/constants/limits";
+import { useGuidebookForm } from "@/hooks/useGuidebookForm";
+import { useAIRecommendations } from "@/hooks/useAIRecommendations";
+import { useImageUpload } from "@/hooks/useImageUpload";
+import { useAuth } from "@/hooks/useAuth";
+import { useSectionNavigation } from "@/hooks/useSectionNavigation";
+import { buildGuidebookPayload } from "@/utils/guidebookPayload";
+import { EDIT_SECTIONS_ORDER } from "@/config/sections";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL as string;
 const BUCKET_NAME = process.env.NEXT_PUBLIC_SUPABASE_FOOD_ACTIVITIES_BUCKET as string;
 
-// Type for API response items from places/recommendations
-type PlaceApiItem = {
-  name?: string;
-  address?: string;
-  description?: string;
-  image_url?: string;
-  photo_reference?: string;
-};
 
 type GuidebookDetail = {
   id: number | string;
@@ -81,87 +77,82 @@ export default function EditGuidebookPage() {
   const params = useParams<{ id: string }>();
   const guidebookId = params?.id as string;
 
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-  const sectionsOrder = useMemo(() => (
-    [
-      "welcome",
-      "checkin",
-      "property",
-      "hostinfo",
-      "wifi",
-      "food",
-      "activities",
-      "rules",
-      "checkout",
-    ] as const
-  ), []);
-
-  const [coverImage, setCoverImage] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [hostPhoto, setHostPhoto] = useState<File | null>(null);
-  const [hostPhotoPreviewUrl, setHostPhotoPreviewUrl] = useState<string | null>(null);
-
-  const [formData, setFormData] = useState({
-    propertyName: "",
-    hostName: "",
-    hostBio: "",
-    hostContact: "",
-    address_street: "",
-    address_city_state: "",
-    address_zip: "",
-    access_info: "",
-    welcomeMessage: "",
-    location: "",
-    parkingInfo: "",
-    emergencyContact: "",
-    fireExtinguisherLocation: "",
-    wifiNetwork: "",
-    wifiPassword: "",
-    wifiNotes: "WiFi works best in the living room and kitchen. Please let us know if you have any issues.",
-    checkInTime: "15:00",
-    checkOutTime: "11:00",
+  // Use consolidated auth hook
+  const { accessToken, authChecked: authReady } = useAuth({
+    requireAuth: false, // Edit doesn't redirect immediately, loads data first
   });
-  const [foodItems, setFoodItems] = useState<DynamicItem[]>([]);
-  const [activityItems, setActivityItems] = useState<DynamicItem[]>([]);
-  const [checkoutItems, setCheckoutItems] = useState<{ name: string; description: string; checked: boolean }[]>([]);
-  const [houseManualItems, setHouseManualItems] = useState<{ name: string; description: string }[]>([]);
-  const [included, setIncluded] = useState<string[]>([...sectionsOrder]);
-  const [excluded, setExcluded] = useState<string[]>([]);
-  const [customSections, setCustomSections] = useState<Record<string, string[]>>({});
-  const [customTabsMeta, setCustomTabsMeta] = useState<Record<string, { icon: string; label: string }>>({});
-  const [rules, setRules] = useState<{ name: string; description: string; checked: boolean }[]>([]);
+
+  // Use consolidated form hook
+  const {
+    formData,
+    setFormData,
+    coverImage,
+    previewUrl,
+    setPreviewUrl,
+    hostPhoto,
+    hostPhotoPreviewUrl,
+    setHostPhotoPreviewUrl,
+    foodItems,
+    setFoodItems,
+    activityItems,
+    setActivityItems,
+    houseManualItems,
+    setHouseManualItems,
+    checkoutItems,
+    setCheckoutItems,
+    rules,
+    setRules,
+    included,
+    setIncluded,
+    excluded,
+    setExcluded,
+    customSections,
+    setCustomSections,
+    customTabsMeta,
+    setCustomTabsMeta,
+    foodPickerOpen,
+    setFoodPickerOpen,
+    activityPickerOpen,
+    setActivityPickerOpen,
+    foodAddChoiceOpen,
+    setFoodAddChoiceOpen,
+    activityAddChoiceOpen,
+    setActivityAddChoiceOpen,
+    handleCoverImageSelect,
+    handleHostPhotoSelect,
+  } = useGuidebookForm({
+    initialIncluded: [...EDIT_SECTIONS_ORDER],
+    useDefaults: false, // Edit mode loads data, doesn't use defaults
+  });
+
+  // Use AI recommendations hook
+  const {
+    isFetchingFood,
+    isFetchingActivities,
+    fetchFoodRecommendations,
+    fetchActivityRecommendations,
+  } = useAIRecommendations({
+    apiBase: API_BASE,
+    onError: (msg) => setError(msg),
+  });
+
+  // Use image upload hook
+  const { uploadToStorage } = useImageUpload({
+    bucketName: BUCKET_NAME,
+  });
+
+  // Use section navigation hook
+  const {
+    currentSection,
+    setCurrentSection: goToSection,
+  } = useSectionNavigation({
+    sections: EDIT_SECTIONS_ORDER,
+    mode: 'open', // Edit mode allows all sections
+  });
 
   const [isLoading, setIsLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [authReady, setAuthReady] = useState(false);
-  const [isFetchingFood, setIsFetchingFood] = useState(false);
-  const [isFetchingActivities, setIsFetchingActivities] = useState(false);
-  const [foodPickerOpen, setFoodPickerOpen] = useState(false);
-  const [activityPickerOpen, setActivityPickerOpen] = useState(false);
-  const [foodAddChoiceOpen, setFoodAddChoiceOpen] = useState(false);
-  const [activityAddChoiceOpen, setActivityAddChoiceOpen] = useState(false);
-
-  // Load token
-  useEffect(() => {
-    if (!supabase) return;
-    let mounted = true;
-    (async () => {
-      const { data } = await supabase.auth.getSession();
-      if (mounted) {
-        setAccessToken(data.session?.access_token || null);
-        setAuthReady(true);
-      }
-    })();
-    const { data: sub } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
-      setAccessToken(session?.access_token || null);
-      setAuthReady(true);
-    });
-    return () => {
-      mounted = false;
-      sub.subscription?.unsubscribe();
-    };
-  }, []);
 
   // Fetch existing guidebook details
   useEffect(() => {
@@ -207,7 +198,7 @@ export default function EditGuidebookPage() {
           checkOutTime: data.check_out_time || prev.checkOutTime,
         }));
 
-        setIncluded(Array.isArray(data.included_tabs) && data.included_tabs.length ? data.included_tabs : [...sectionsOrder]);
+        setIncluded(Array.isArray(data.included_tabs) && data.included_tabs.length ? data.included_tabs : [...EDIT_SECTIONS_ORDER]);
         setCustomSections(data.custom_sections || {});
         setCustomTabsMeta(data.custom_tabs_meta || {});
         setFoodItems((data.places_to_eat || []).map((i: Partial<DynamicItem>) => ({
@@ -236,41 +227,14 @@ export default function EditGuidebookPage() {
         setInitialLoading(false);
       }
     })();
-  }, [guidebookId, accessToken, authReady, router, sectionsOrder]);
+  }, [guidebookId, accessToken, authReady, router, setActivityItems, setCheckoutItems, setCustomSections, setCustomTabsMeta, setFoodItems, setFormData, setHostPhotoPreviewUrl, setHouseManualItems, setIncluded, setPreviewUrl, setRules]);
 
-  const handleCoverImageSelect = (file: File | null) => {
-    setCoverImage(file);
-    setPreviewUrl(file ? URL.createObjectURL(file) : previewUrl);
-  };
-
-  const handleHostPhotoSelect = (file: File | null) => {
-    setHostPhoto(file);
-    setHostPhotoPreviewUrl(file ? URL.createObjectURL(file) : hostPhotoPreviewUrl);
-  };
+  // Image handlers are now provided by useGuidebookForm hook
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
-
-    // Helper: upload to Supabase Storage and return public URL
-    const uploadToStorage = async (prefix: string, file: File): Promise<string | undefined> => {
-      try {
-        if (!supabase) return undefined;
-        if (!BUCKET_NAME) return undefined;
-        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-        const path = `${prefix}/${Date.now()}-${safeName}`;
-        const { error } = await supabase.storage
-          .from(BUCKET_NAME)
-          .upload(path, file, { contentType: file.type || 'application/octet-stream', upsert: false });
-        if (error) throw error;
-        const { data } = supabase.storage.from(BUCKET_NAME).getPublicUrl(path);
-        return data?.publicUrl || undefined;
-      } catch (err) {
-        console.error('Upload failed:', err);
-        return undefined;
-      }
-    };
 
     try {
       let coverImageUrl: string | undefined = undefined;
@@ -278,43 +242,20 @@ export default function EditGuidebookPage() {
       if (coverImage) coverImageUrl = await uploadToStorage('covers', coverImage);
       if (hostPhoto) hostPhotoUrl = await uploadToStorage('hosts', hostPhoto);
 
-      const compiledRules = rules
-        .filter(r => r.checked)
-        .map(r => (r.description ? `${r.name}: ${r.description}` : r.name))
-        .filter(Boolean);
-
-      // Build payload; only include optional images if user changed them
-      const payload: Record<string, unknown> = {
-        property_name: formData.propertyName,
-        location: formData.location,
-        welcome_message: formData.welcomeMessage,
-        parking_info: formData.parkingInfo,
-        host_name: formData.hostName,
-        host_bio: formData.hostBio,
-        host_contact: formData.hostContact,
-        address_street: formData.address_street,
-        address_city_state: formData.address_city_state,
-        address_zip: formData.address_zip,
-        access_info: formData.access_info,
-        wifi_network: formData.wifiNetwork,
-        wifi_password: formData.wifiPassword || undefined,
-        check_in_time: formData.checkInTime,
-        check_out_time: formData.checkOutTime,
-        safety_info: {
-          emergency_contact: formData.emergencyContact,
-          fire_extinguisher_location: formData.fireExtinguisherLocation,
-        },
-        rules: compiledRules,
-        things_to_do: activityItems.map(i => ({ name: i.name, description: i.description, image_url: i.image_url || "", address: i.address || "" })),
-        places_to_eat: foodItems.map(i => ({ name: i.name, description: i.description, image_url: i.image_url || "", address: i.address || "" })),
-        checkout_info: checkoutItems.filter(i => i.checked).map(i => ({ name: i.name, description: i.description })),
-        house_manual: houseManualItems.map(i => ({ name: i.name, description: i.description })),
-        included_tabs: included,
-        custom_sections: customSections,
-        custom_tabs_meta: customTabsMeta,
-      };
-      if (coverImageUrl) payload.cover_image_url = coverImageUrl;
-      if (hostPhotoUrl) payload.host_photo_url = hostPhotoUrl;
+      // Build payload using utility function
+      const payload = buildGuidebookPayload({
+        formData,
+        foodItems,
+        activityItems,
+        rules,
+        houseManualItems,
+        checkoutItems,
+        customSections,
+        customTabsMeta,
+        included,
+        coverImageUrl,
+        hostPhotoUrl,
+      });
 
       const res = await fetch(`${API_BASE}/api/guidebooks/${guidebookId}`, {
         method: "PUT",
@@ -355,14 +296,11 @@ export default function EditGuidebookPage() {
     }
   };
 
-  const [currentSection, setCurrentSection] = useState<string>("welcome");
-  const goToSection = (section: string) => setCurrentSection(section);
-
   useEffect(() => {
     if (!included.includes(currentSection)) {
-      setCurrentSection(included[0] || "checkin");
+      goToSection(included[0] || "checkin");
     }
-  }, [included, currentSection]);
+  }, [included, currentSection, goToSection]);
 
   useEffect(() => {
     setCustomSections(prev => {
@@ -376,7 +314,7 @@ export default function EditGuidebookPage() {
       }
       return changed ? next : prev;
     });
-  }, [included]);
+  }, [included, setCustomSections]);
 
   // Keep address_street synced with location text input
   useEffect(() => {
@@ -384,7 +322,7 @@ export default function EditGuidebookPage() {
       if (prev.address_street === prev.location) return prev;
       return { ...prev, address_street: prev.location };
     });
-  }, [formData.location]);
+  }, [formData.location, setFormData]);
 
   if (initialLoading) {
     return (
@@ -503,42 +441,8 @@ export default function EditGuidebookPage() {
               className="mb-4 px-4 py-2 rounded bg-[oklch(0.6923_0.22_21.05)] text-white font-semibold shadow hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={isFetchingFood || !formData.location}
               onClick={async () => {
-                setIsFetchingFood(true);
-                setError(null);
-                try {
-                  const res = await fetch(`${API_BASE}/api/ai-food`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ address: formData.location, num_places_to_eat: 5 })
-                  });
-                  if (!res.ok) throw new Error("Failed to fetch food recommendations");
-                  const data = await res.json();
-                  let items: PlaceApiItem[] = [];
-                  if (Array.isArray(data)) {
-                    items = data as PlaceApiItem[];
-                  } else if (Array.isArray(data.restaurants)) {
-                    items = data.restaurants as PlaceApiItem[];
-                  } else if (Array.isArray(data.places_to_eat)) {
-                    items = data.places_to_eat as PlaceApiItem[];
-                  } else if (Array.isArray(data.food)) {
-                    items = data.food as PlaceApiItem[];
-                  }
-                  if (items.length > 0) {
-                    setFoodItems(items.map((item: PlaceApiItem) => ({
-                      name: item.name || "",
-                      address: item.address || "",
-                      description: item.description || "",
-                      image_url: item.photo_reference || item.image_url || ""
-                    })));
-                  } else {
-                    setError("No recommendations found.");
-                  }
-                } catch (e: unknown) {
-                  const msg = e instanceof Error ? e.message : "Failed to fetch recommendations";
-                  setError(msg);
-                } finally {
-                  setIsFetchingFood(false);
-                }
+                const items = await fetchFoodRecommendations(formData.location, 5);
+                setFoodItems(items);
               }}
             >
               {isFetchingFood ? (
@@ -590,42 +494,8 @@ export default function EditGuidebookPage() {
               className="mb-4 px-4 py-2 rounded bg-[oklch(0.6923_0.22_21.05)] text-white font-semibold shadow hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={isFetchingActivities || !formData.location}
               onClick={async () => {
-                setIsFetchingActivities(true);
-                setError(null);
-                try {
-                  const res = await fetch(`${API_BASE}/api/ai-activities`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ address: formData.location, num_things_to_do: 5 })
-                  });
-                  if (!res.ok) throw new Error("Failed to fetch activities recommendations");
-                  const data = await res.json();
-                  let items: PlaceApiItem[] = [];
-                  if (Array.isArray(data)) {
-                    items = data as PlaceApiItem[];
-                  } else if (Array.isArray(data.activities)) {
-                    items = data.activities as PlaceApiItem[];
-                  } else if (Array.isArray(data.things_to_do)) {
-                    items = data.things_to_do as PlaceApiItem[];
-                  } else if (Array.isArray(data.activityItems)) {
-                    items = data.activityItems as PlaceApiItem[];
-                  }
-                  if (items.length > 0) {
-                    setActivityItems(items.map((item: PlaceApiItem) => ({
-                      name: item.name || "",
-                      address: item.address || "",
-                      description: item.description || "",
-                      image_url: item.photo_reference || item.image_url || ""
-                    })));
-                  } else {
-                    setError("No recommendations found.");
-                  }
-                } catch (e: unknown) {
-                  const msg = e instanceof Error ? e.message : "Failed to fetch recommendations";
-                  setError(msg);
-                } finally {
-                  setIsFetchingActivities(false);
-                }
+                const items = await fetchActivityRecommendations(formData.location, 5);
+                setActivityItems(items);
               }}
             >
               {isFetchingActivities ? (

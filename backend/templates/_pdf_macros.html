@@ -16,3 +16,73 @@
   {% endif %}
 </div>
 {% endmacro %}
+
+{# Address block - displays property address, access, and parking info #}
+{% macro address_block(address, access_info=None, parking_info=None, style_class='') %}
+{% if address.street or address.city_state or address.zip %}
+<div class="{{ style_class }}">
+  <h2 style="margin:0 0 6px 0;">Location & Access</h2>
+  <p class="kv"><span class="label">Address:</span><br/>
+    {{ address.street }}{% if address.city_state %}<br/>{{ address.city_state }}{% endif %}{% if address.zip %}{% if address.city_state %}, {% endif %}{{ address.zip }}{% endif %}
+  </p>
+  {% if access_info %}
+  <p class="kv"><span class="label">Access:</span><br/>{{ access_info }}</p>
+  {% endif %}
+  {% if parking_info %}
+  <p class="kv"><span class="label">Parking:</span><br/>{{ parking_info }}</p>
+  {% endif %}
+</div>
+{% endif %}
+{% endmacro %}
+
+{# WiFi block - displays network and password #}
+{% macro wifi_block(wifi, style_class='') %}
+{% if wifi.network or wifi.password %}
+<div class="{{ style_class }}">
+  <h2 style="margin:0 0 6px 0;">Wi‑Fi</h2>
+  {% if wifi.network %}<p class="kv"><span class="label">Network:</span> {{ wifi.network }}</p>{% endif %}
+  {% if wifi.password %}<p class="kv"><span class="label">Password:</span> {{ wifi.password }}</p>{% endif %}
+</div>
+{% endif %}
+{% endmacro %}
+
+{# Safety info block - displays emergency contact and fire extinguisher location #}
+{% macro safety_block(safety_info, style_class='') %}
+{% set has_safety = safety_info and (safety_info.get('emergency_contact') or safety_info.get('fire_extinguisher_location')) %}
+{% if has_safety %}
+<div class="{{ style_class }}">
+  <h2 style="margin:0 0 6px 0;">Safety Info</h2>
+  {% if safety_info.get('emergency_contact') %}
+  <p class="kv"><span class="label">Emergency Contact:</span> {{ safety_info.get('emergency_contact') }}</p>
+  {% endif %}
+  {% if safety_info.get('fire_extinguisher_location') %}
+  <p class="kv"><span class="label">Fire Extinguisher Location:</span> {{ safety_info.get('fire_extinguisher_location') }}</p>
+  {% endif %}
+</div>
+{% endif %}
+{% endmacro %}
+
+{# Host info block - displays host name and contact #}
+{% macro host_block(host, style_class='') %}
+{% if host.name or host.contact %}
+<div class="{{ style_class }}">
+  <h2 style="margin:0 0 6px 0;">Host</h2>
+  {% if host.name %}<p class="kv"><span class="label">Name:</span> {{ host.name }}</p>{% endif %}
+  {% if host.contact %}<p class="kv"><span class="label">Contact:</span> {{ host.contact }}</p>{% endif %}
+</div>
+{% endif %}
+{% endmacro %}
+
+{# Rules list - displays house rules #}
+{% macro rules_list(rules, style_class='') %}
+{% if rules and rules|length > 0 %}
+<div class="{{ style_class }}">
+  <h2>House Rules</h2>
+  <ul style="margin:0; padding-left:20px;">
+    {% for rule in rules %}
+    <li style="margin:4px 0;">{{ rule }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+{% endmacro %}

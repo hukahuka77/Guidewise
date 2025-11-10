@@ -21,7 +21,7 @@ export default function SuccessPage() {
   const [liveGuidebookUrl, setLiveGuidebookUrl] = useState<string | null>(null);
   const [guidebookId, setGuidebookId] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [selectedTemplateKey, setSelectedTemplateKey] = useState<'template_original' | 'template_generic' | null>('template_original');
+  const [selectedTemplateKey, setSelectedTemplateKey] = useState<'template_original' | 'template_generic' | 'template_modern' | null>('template_original');
   const [isPdfModalOpen, setPdfModalOpen] = useState(false);
   const [isUpdatingTemplate, setIsUpdatingTemplate] = useState(false);
   const [templateMessage, setTemplateMessage] = useState<string | null>(null);
@@ -31,28 +31,44 @@ export default function SuccessPage() {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [plan, setPlan] = useState<'free'|'pro'|''>('');
 
+  // Carousel state
+  const [urlCarouselEl, setUrlCarouselEl] = useState<HTMLDivElement | null>(null);
+  const [pdfCarouselEl, setPdfCarouselEl] = useState<HTMLDivElement | null>(null);
+
+  const scrollCarousel = (direction: 'left' | 'right', carouselEl: HTMLDivElement | null) => {
+    if (!carouselEl) return;
+    const scrollAmount = 320; // Approximate card width + gap
+    const newScrollLeft = direction === 'left'
+      ? carouselEl.scrollLeft - scrollAmount
+      : carouselEl.scrollLeft + scrollAmount;
+    carouselEl.scrollTo({ left: newScrollLeft, behavior: 'smooth' });
+  };
+
   // removed unused derived flag isEditPath
 
   // no-op: claim tokens removed
 
-  const getTemplateFromPdfUrl = (): 'template_pdf_original' | 'template_pdf_basic' | 'template_pdf_mobile' | 'template_pdf_qr' | undefined => {
+  const getTemplateFromPdfUrl = (): 'template_pdf_original' | 'template_pdf_basic' | 'template_pdf_mobile' | 'template_pdf_qr' | 'template_pdf_modern' | undefined => {
     if (!pdfUrl) return undefined;
     if (pdfUrl.includes('template=template_pdf_basic')) return 'template_pdf_basic';
     if (pdfUrl.includes('template=template_pdf_original')) return 'template_pdf_original';
     if (pdfUrl.includes('template=template_pdf_mobile')) return 'template_pdf_mobile';
     if (pdfUrl.includes('template=template_pdf_qr')) return 'template_pdf_qr';
+    if (pdfUrl.includes('template=template_pdf_modern')) return 'template_pdf_modern';
     return undefined;
   };
 
-  const getPdfPlaceholder = (templateKey?: 'template_pdf_original' | 'template_pdf_basic' | 'template_pdf_mobile' | 'template_pdf_qr') => {
+  const getPdfPlaceholder = (templateKey?: 'template_pdf_original' | 'template_pdf_basic' | 'template_pdf_mobile' | 'template_pdf_qr' | 'template_pdf_modern') => {
     // Default to Standard placeholder
     if (templateKey === 'template_pdf_basic') return '/images/PDF_Basic.png';
     if (templateKey === 'template_pdf_mobile') return '/images/PDF_Mobile.png';
     if (templateKey === 'template_pdf_qr') return '/images/PDF_QR.png';
+    if (templateKey === 'template_pdf_modern') return '/images/PDF_Modern.png';
     return '/images/PDF_Standard.png';
   };
 
-  const getUrlPlaceholder = (templateKey: 'template_original' | 'template_generic') => {
+  const getUrlPlaceholder = (templateKey: 'template_original' | 'template_generic' | 'template_modern') => {
+    if (templateKey === 'template_modern') return '/images/URL_Modern.png';
     return templateKey === 'template_original' ? '/images/URL_Generic1.png' : '/images/URL_Generic2.png';
   };
 
@@ -133,7 +149,7 @@ export default function SuccessPage() {
         });
         if (!res.ok) return;
         const data = await res.json();
-        if (data && (data.template_key === 'template_original' || data.template_key === 'template_generic')) {
+        if (data && (data.template_key === 'template_original' || data.template_key === 'template_generic' || data.template_key === 'template_modern')) {
           setSelectedTemplateKey(data.template_key);
         }
         if (typeof data?.active === 'boolean') {
@@ -149,6 +165,7 @@ export default function SuccessPage() {
       } catch {}
     };
     fetchTemplate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [guidebookId]);
 
   const getQrTargetUrl = () => {
@@ -158,7 +175,7 @@ export default function SuccessPage() {
     return null;
   };
 
-  const handleDownload = (templateKey?: 'template_pdf_original' | 'template_pdf_basic' | 'template_pdf_mobile' | 'template_pdf_qr') => {
+  const handleDownload = (templateKey?: 'template_pdf_original' | 'template_pdf_basic' | 'template_pdf_mobile' | 'template_pdf_qr' | 'template_pdf_modern') => {
     // Build a URL that forces download on the server via ?download=1
     if (!guidebookId) return;
     const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || '';
@@ -175,7 +192,7 @@ export default function SuccessPage() {
     document.body.removeChild(link);
   };
 
-  const buildPdfUrl = async (templateKey?: 'template_pdf_original' | 'template_pdf_basic' | 'template_pdf_mobile' | 'template_pdf_qr') => {
+  const buildPdfUrl = async (templateKey?: 'template_pdf_original' | 'template_pdf_basic' | 'template_pdf_mobile' | 'template_pdf_qr' | 'template_pdf_modern') => {
     if (!guidebookId) return null;
     const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || '';
     const hasTemplate = Boolean(templateKey);
@@ -190,7 +207,7 @@ export default function SuccessPage() {
 
   // remove: claim flow
 
-  const PdfCard = ({ label, templateKey }: { label: string; templateKey?: 'template_pdf_original' | 'template_pdf_basic' | 'template_pdf_mobile' | 'template_pdf_qr' }) => (
+  const PdfCard = ({ label, templateKey }: { label: string; templateKey?: 'template_pdf_original' | 'template_pdf_basic' | 'template_pdf_mobile' | 'template_pdf_qr' | 'template_pdf_modern' }) => (
     <div className="group relative border rounded-xl p-4 bg-white shadow hover:shadow-lg transition">
       <div className="aspect-[8.5/11] w-full overflow-hidden rounded-lg bg-gray-100 flex items-center justify-center">
         <img
@@ -222,9 +239,9 @@ export default function SuccessPage() {
     </div>
   );
 
-  const TemplateCard = ({ label, templateKey }: { label: string; templateKey: 'template_original' | 'template_generic' }) => {
+  const TemplateCard = ({ label, templateKey }: { label: string; templateKey: 'template_original' | 'template_generic' | 'template_modern' }) => {
     const isSelected = selectedTemplateKey === templateKey;
-    const displayName = templateKey === 'template_original' ? 'Original' : 'Generic';
+    const displayName = templateKey === 'template_original' ? 'Original' : templateKey === 'template_modern' ? 'Modern Cards' : 'Generic';
     return (
     <div className={`relative rounded-xl p-4 bg-white shadow hover:shadow-lg transition border ${isSelected ? 'border-emerald-300 ring-2 ring-emerald-200' : 'border-gray-200'}`}>
       {selectedTemplateKey === templateKey && (
@@ -298,9 +315,47 @@ export default function SuccessPage() {
           {templateMessage && (
             <div className="mb-4 rounded border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">{templateMessage}</div>
           )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <TemplateCard label="Template 1" templateKey="template_original" />
-            <TemplateCard label="Template 2" templateKey="template_generic" />
+
+          {/* Horizontal Carousel */}
+          <div className="relative">
+            {/* Left Arrow */}
+            <button
+              onClick={() => scrollCarousel('left', urlCarouselEl)}
+              className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white rounded-full p-2 shadow-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Scroll left"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+              </svg>
+            </button>
+
+            {/* Scrollable Container */}
+            <div
+              ref={setUrlCarouselEl}
+              className="flex gap-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory px-8"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              <div className="flex-shrink-0 w-[300px] snap-start">
+                <TemplateCard label="Lifestyle (Standard)" templateKey="template_original" />
+              </div>
+              <div className="flex-shrink-0 w-[300px] snap-start">
+                <TemplateCard label="Minimal (Basic)" templateKey="template_generic" />
+              </div>
+              <div className="flex-shrink-0 w-[300px] snap-start">
+                <TemplateCard label="Modern Cards" templateKey="template_modern" />
+              </div>
+            </div>
+
+            {/* Right Arrow */}
+            <button
+              onClick={() => scrollCarousel('right', urlCarouselEl)}
+              className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white rounded-full p-2 shadow-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Scroll right"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              </svg>
+            </button>
           </div>
         </section>
 
@@ -400,11 +455,53 @@ export default function SuccessPage() {
             </label>
           </div>
           <p className="text-sm text-gray-500 mb-4">Preview a compact PDF. Click to open a larger preview.</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            <PdfCard label="Basic PDF" templateKey="template_pdf_basic" />
-            <PdfCard label="Standard PDF" templateKey="template_pdf_original" />
-            <PdfCard label="QR Poster" templateKey="template_pdf_qr" />
-            <PdfCard label="Mobile PDF" templateKey="template_pdf_mobile" />
+
+          {/* Horizontal Carousel */}
+          <div className="relative">
+            {/* Left Arrow */}
+            <button
+              onClick={() => scrollCarousel('left', pdfCarouselEl)}
+              className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white rounded-full p-2 shadow-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Scroll left"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+              </svg>
+            </button>
+
+            {/* Scrollable Container */}
+            <div
+              ref={setPdfCarouselEl}
+              className="flex gap-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory px-8"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              <div className="flex-shrink-0 w-[300px] snap-start">
+                <PdfCard label="Basic PDF" templateKey="template_pdf_basic" />
+              </div>
+              <div className="flex-shrink-0 w-[300px] snap-start">
+                <PdfCard label="Standard PDF" templateKey="template_pdf_original" />
+              </div>
+              <div className="flex-shrink-0 w-[300px] snap-start">
+                <PdfCard label="Modern PDF" templateKey="template_pdf_modern" />
+              </div>
+              <div className="flex-shrink-0 w-[300px] snap-start">
+                <PdfCard label="QR Poster" templateKey="template_pdf_qr" />
+              </div>
+              <div className="flex-shrink-0 w-[300px] snap-start">
+                <PdfCard label="Mobile PDF" templateKey="template_pdf_mobile" />
+              </div>
+            </div>
+
+            {/* Right Arrow */}
+            <button
+              onClick={() => scrollCarousel('right', pdfCarouselEl)}
+              className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white rounded-full p-2 shadow-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Scroll right"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              </svg>
+            </button>
           </div>
         </section>
 

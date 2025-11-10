@@ -10,7 +10,7 @@ import { supabase } from "@/lib/supabaseClient";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
-type TemplateKey = "template_original" | "template_generic";
+type TemplateKey = "template_original" | "template_generic" | "template_modern";
 
 type GuidebookMeta = {
   id: string;
@@ -27,6 +27,18 @@ export default function GuidebookUrlTemplatesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState<TemplateKey | null>(null);
+
+  // Carousel state
+  const [carouselEl, setCarouselEl] = useState<HTMLDivElement | null>(null);
+
+  const scrollCarousel = (direction: 'left' | 'right') => {
+    if (!carouselEl) return;
+    const scrollAmount = 320; // Approximate card width + gap
+    const newScrollLeft = direction === 'left'
+      ? carouselEl.scrollLeft - scrollAmount
+      : carouselEl.scrollLeft + scrollAmount;
+    carouselEl.scrollTo({ left: newScrollLeft, behavior: 'smooth' });
+  };
 
   const liveGuidebookUrl = useMemo(() => {
     if (!guidebookId) return null;
@@ -149,9 +161,47 @@ export default function GuidebookUrlTemplatesPage() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-semibold">URL Templates</h2>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              <Card template="template_original" title="Lifestyle (Standard)" img="/images/URL_Generic1.png" />
-              <Card template="template_generic" title="Minimal (Basic)" img="/images/URL_Generic2.png" />
+
+            {/* Horizontal Carousel */}
+            <div className="relative">
+              {/* Left Arrow */}
+              <button
+                onClick={() => scrollCarousel('left')}
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white rounded-full p-2 shadow-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Scroll left"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                </svg>
+              </button>
+
+              {/* Scrollable Container */}
+              <div
+                ref={setCarouselEl}
+                className="flex gap-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory px-8"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                <div className="flex-shrink-0 w-[300px] snap-start">
+                  <Card template="template_original" title="Lifestyle (Standard)" img="/images/URL_Generic1.png" />
+                </div>
+                <div className="flex-shrink-0 w-[300px] snap-start">
+                  <Card template="template_generic" title="Minimal (Basic)" img="/images/URL_Generic2.png" />
+                </div>
+                <div className="flex-shrink-0 w-[300px] snap-start">
+                  <Card template="template_modern" title="Modern Cards" img="/images/URL_Modern.png" />
+                </div>
+              </div>
+
+              {/* Right Arrow */}
+              <button
+                onClick={() => scrollCarousel('right')}
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white rounded-full p-2 shadow-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Scroll right"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                </svg>
+              </button>
             </div>
           </section>
         )}
