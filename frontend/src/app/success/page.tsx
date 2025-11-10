@@ -31,6 +31,21 @@ export default function SuccessPage() {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [plan, setPlan] = useState<'free'|'pro'|''>('');
 
+  // Carousel refs and state
+  const urlCarouselRef = useState<HTMLDivElement | null>(null)[0];
+  const pdfCarouselRef = useState<HTMLDivElement | null>(null)[0];
+  const [urlCarouselEl, setUrlCarouselEl] = useState<HTMLDivElement | null>(null);
+  const [pdfCarouselEl, setPdfCarouselEl] = useState<HTMLDivElement | null>(null);
+
+  const scrollCarousel = (direction: 'left' | 'right', carouselEl: HTMLDivElement | null) => {
+    if (!carouselEl) return;
+    const scrollAmount = 320; // Approximate card width + gap
+    const newScrollLeft = direction === 'left'
+      ? carouselEl.scrollLeft - scrollAmount
+      : carouselEl.scrollLeft + scrollAmount;
+    carouselEl.scrollTo({ left: newScrollLeft, behavior: 'smooth' });
+  };
+
   // removed unused derived flag isEditPath
 
   // no-op: claim tokens removed
@@ -301,10 +316,47 @@ export default function SuccessPage() {
           {templateMessage && (
             <div className="mb-4 rounded border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">{templateMessage}</div>
           )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            <TemplateCard label="Lifestyle (Standard)" templateKey="template_original" />
-            <TemplateCard label="Minimal (Basic)" templateKey="template_generic" />
-            <TemplateCard label="Modern Cards" templateKey="template_modern" />
+
+          {/* Horizontal Carousel */}
+          <div className="relative">
+            {/* Left Arrow */}
+            <button
+              onClick={() => scrollCarousel('left', urlCarouselEl)}
+              className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white rounded-full p-2 shadow-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Scroll left"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+              </svg>
+            </button>
+
+            {/* Scrollable Container */}
+            <div
+              ref={setUrlCarouselEl}
+              className="flex gap-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory px-8"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              <div className="flex-shrink-0 w-[300px] snap-start">
+                <TemplateCard label="Lifestyle (Standard)" templateKey="template_original" />
+              </div>
+              <div className="flex-shrink-0 w-[300px] snap-start">
+                <TemplateCard label="Minimal (Basic)" templateKey="template_generic" />
+              </div>
+              <div className="flex-shrink-0 w-[300px] snap-start">
+                <TemplateCard label="Modern Cards" templateKey="template_modern" />
+              </div>
+            </div>
+
+            {/* Right Arrow */}
+            <button
+              onClick={() => scrollCarousel('right', urlCarouselEl)}
+              className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white rounded-full p-2 shadow-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Scroll right"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              </svg>
+            </button>
           </div>
         </section>
 
@@ -404,12 +456,53 @@ export default function SuccessPage() {
             </label>
           </div>
           <p className="text-sm text-gray-500 mb-4">Preview a compact PDF. Click to open a larger preview.</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            <PdfCard label="Basic PDF" templateKey="template_pdf_basic" />
-            <PdfCard label="Standard PDF" templateKey="template_pdf_original" />
-            <PdfCard label="Modern PDF" templateKey="template_pdf_modern" />
-            <PdfCard label="QR Poster" templateKey="template_pdf_qr" />
-            <PdfCard label="Mobile PDF" templateKey="template_pdf_mobile" />
+
+          {/* Horizontal Carousel */}
+          <div className="relative">
+            {/* Left Arrow */}
+            <button
+              onClick={() => scrollCarousel('left', pdfCarouselEl)}
+              className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white rounded-full p-2 shadow-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Scroll left"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+              </svg>
+            </button>
+
+            {/* Scrollable Container */}
+            <div
+              ref={setPdfCarouselEl}
+              className="flex gap-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory px-8"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              <div className="flex-shrink-0 w-[300px] snap-start">
+                <PdfCard label="Basic PDF" templateKey="template_pdf_basic" />
+              </div>
+              <div className="flex-shrink-0 w-[300px] snap-start">
+                <PdfCard label="Standard PDF" templateKey="template_pdf_original" />
+              </div>
+              <div className="flex-shrink-0 w-[300px] snap-start">
+                <PdfCard label="Modern PDF" templateKey="template_pdf_modern" />
+              </div>
+              <div className="flex-shrink-0 w-[300px] snap-start">
+                <PdfCard label="QR Poster" templateKey="template_pdf_qr" />
+              </div>
+              <div className="flex-shrink-0 w-[300px] snap-start">
+                <PdfCard label="Mobile PDF" templateKey="template_pdf_mobile" />
+              </div>
+            </div>
+
+            {/* Right Arrow */}
+            <button
+              onClick={() => scrollCarousel('right', pdfCarouselEl)}
+              className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white rounded-full p-2 shadow-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Scroll right"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              </svg>
+            </button>
           </div>
         </section>
 
