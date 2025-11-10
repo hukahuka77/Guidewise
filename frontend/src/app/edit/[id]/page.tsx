@@ -308,14 +308,11 @@ export default function EditGuidebookPage() {
     }
   };
 
-  const [currentSection, setCurrentSection] = useState<string>("welcome");
-  const goToSection = (section: string) => setCurrentSection(section);
-
   useEffect(() => {
     if (!included.includes(currentSection)) {
-      setCurrentSection(included[0] || "checkin");
+      goToSection(included[0] || "checkin");
     }
-  }, [included, currentSection]);
+  }, [included, currentSection, goToSection]);
 
   useEffect(() => {
     setCustomSections(prev => {
