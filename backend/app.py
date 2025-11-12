@@ -168,23 +168,6 @@ def require_auth(fn):
         return fn(*args, **kwargs)
     return wrapper
 
-def _profiles_upsert_plan(user_id: str, plan: str):
-    try:
-        db.session.execute(
-            text(
-                """
-                insert into public.profiles (user_id, plan)
-                values (:uid, :plan)
-                on conflict (user_id) do update set plan = EXCLUDED.plan
-                """
-            ),
-            {"uid": user_id, "plan": plan},
-        )
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
-        raise
-
 def get_user_guidebook_limit(user_id: str) -> int | None:
     """Get how many guidebooks user can have active. None = unlimited."""
     try:
@@ -395,46 +378,6 @@ def billing_summary():
 
     return jsonify(out)
 
-@app.route('/api/billing/refresh-plan', methods=['POST'])
-@require_auth
-def refresh_plan_from_stripe():
-    """Manually sync the authenticated user's plan from Stripe.
-
-    Used primarily in development when Stripe webhooks cannot reach the local server.
-    Logic:
-      - Find Stripe customer by the authenticated user's email
-      - Look up subscriptions and determine if any is active/trialing
-      - Upsert public.profiles(plan) accordingly and, if pro, activate guidebooks
-    Returns: { ok: true, plan: 'pro'|'free' }
-    """
-    if not stripe.api_key:
-        return jsonify({"error": "Stripe not configured"}), 500
-    email = getattr(g, 'user_email', None)
-    if not email:
-        return jsonify({"error": "User email unknown; cannot match Stripe customer"}), 400
-    try:
-        customers = stripe.Customer.list(email=email, limit=1)
-        if not customers.data:
-            return jsonify({"error": "No Stripe customer found for this email"}), 404
-        customer_id = customers.data[0].id
-        # Fetch subscriptions for this customer
-        subs = stripe.Subscription.list(customer=customer_id, status='all', limit=10)
-        plan = 'free'
-        for s in subs.auto_paging_iter():
-            status = getattr(s, 'status', None)
-            if status in ('active', 'trialing'):
-                plan = 'pro'
-                break
-        _profiles_upsert_plan(g.user_id, plan)
-        if plan == 'pro':
-            try:
-                _activate_all_user_guidebooks(g.user_id)
-            except Exception:
-                pass
-        return jsonify({"ok": True, "plan": plan})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
 @app.route('/api/billing/create-portal-session', methods=['POST'])
 @require_auth
 def create_portal_session():
@@ -462,6 +405,12 @@ def create_portal_session():
 def stripe_webhook():
     payload = request.data
     sig_header = request.headers.get('Stripe-Signature')
+
+    # Debug logging
+    log.info(f"Webhook received. Signature header present: {sig_header is not None}")
+    log.info(f"Webhook secret configured: {STRIPE_WEBHOOK_SECRET[:10]}... (first 10 chars)")
+    log.info(f"Payload size: {len(payload)} bytes")
+
     event = None
     try:
         if STRIPE_WEBHOOK_SECRET:
@@ -469,6 +418,7 @@ def stripe_webhook():
         else:
             event = stripe.Event.construct_from(json.loads(payload), stripe.api_key)
     except Exception as e:
+        log.error(f"Webhook signature verification failed: {e}")
         return jsonify({"error": f"Webhook error: {e}"}), 400
 
     # Handle subscription events
@@ -488,6 +438,7 @@ def stripe_webhook():
                 limit = PLAN_CONFIGS[plan]['guidebook_limit']
 
                 # Get subscription details to set pro_expires_at and pro_starts_at
+                # Note: Subscription might not be fully created yet, dates will be updated by invoice.payment_succeeded
                 expires_at = None
                 starts_at = None
                 if subscription_id:
@@ -501,6 +452,9 @@ def stripe_webhook():
                         if period_start:
                             from datetime import datetime
                             starts_at = datetime.fromtimestamp(period_start).isoformat()
+                    except stripe.error.InvalidRequestError as e:
+                        # Subscription not yet created - will be updated by customer.subscription.created or invoice.payment_succeeded
+                        log.info(f"Subscription {subscription_id} not yet available, will update dates from later webhook")
                     except Exception as e:
                         log.warning(f"Failed to fetch subscription details: {e}")
 
@@ -520,6 +474,31 @@ def stripe_webhook():
                     {"uid": user_id, "plan": plan, "limit": limit, "cust_id": customer_id, "sub_id": subscription_id, "starts_at": starts_at, "expires_at": expires_at}
                 )
                 db.session.commit()
+
+        elif event_type == 'customer.subscription.created':
+            # New subscription created - update dates if missing from checkout.session.completed
+            subscription_id = obj.get('id')
+            period_end = obj.get('current_period_end')
+            period_start = obj.get('current_period_start')
+
+            if subscription_id and period_end and period_start:
+                from datetime import datetime
+                expires_at = datetime.fromtimestamp(period_end).isoformat()
+                starts_at = datetime.fromtimestamp(period_start).isoformat()
+
+                # Update dates for this subscription
+                db.session.execute(
+                    text("""
+                        UPDATE public.profiles
+                        SET pro_expires_at = :expires_at,
+                            pro_starts_at = :starts_at
+                        WHERE stripe_subscription_id = :sub_id
+                          AND (pro_starts_at IS NULL OR pro_expires_at IS NULL)
+                    """),
+                    {"expires_at": expires_at, "starts_at": starts_at, "sub_id": subscription_id}
+                )
+                db.session.commit()
+                log.info(f"Updated subscription dates for subscription {subscription_id}")
 
         elif event_type == 'invoice.payment_succeeded':
             # Subscription renewed successfully - update pro_expires_at and pro_starts_at
@@ -635,17 +614,6 @@ def stripe_webhook():
         log.warning(f"Webhook processing error: {e}")
 
     return jsonify({"ok": True})
-
-def _activate_all_user_guidebooks(user_id: str):
-    try:
-        db.session.execute(
-            text("update guidebook set active = true where user_id = :uid and active = false"),
-            {"uid": user_id},
-        )
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
-        raise
 
 # Initialize the database with the app
 db.init_app(app)
@@ -1550,6 +1518,9 @@ def run_startup_migrations():
         # Add indexes for faster Stripe lookups
         "CREATE INDEX IF NOT EXISTS idx_profiles_stripe_customer ON public.profiles(stripe_customer_id);",
         "CREATE INDEX IF NOT EXISTS idx_profiles_stripe_subscription ON public.profiles(stripe_subscription_id);",
+        # Update plan check constraint to allow new plan tiers
+        "ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_plan_check;",
+        "ALTER TABLE public.profiles ADD CONSTRAINT profiles_plan_check CHECK (plan IN ('trial', 'free', 'starter', 'growth', 'pro', 'enterprise'));",
         # Make host name and guidebook.host_id optional
         "ALTER TABLE host ALTER COLUMN name DROP NOT NULL;",
         "ALTER TABLE guidebook ALTER COLUMN host_id DROP NOT NULL;",

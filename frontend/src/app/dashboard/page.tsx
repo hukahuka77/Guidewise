@@ -34,7 +34,6 @@ export default function DashboardPage() {
 
   // UI state
   const [qrModalFor, setQrModalFor] = useState<string | null>(null); // guidebook id
-  const [syncingPlan, setSyncingPlan] = useState(false);
   const [syncSuccess, setSyncSuccess] = useState(false);
 
   useEffect(() => {
@@ -106,62 +105,30 @@ export default function DashboardPage() {
     };
   }, [router]);
 
-  // Auto-sync plan after Stripe payment redirect
+  // Show success banner after Stripe payment redirect
   useEffect(() => {
     const upgraded = searchParams?.get('upgraded');
-    if (upgraded !== '1' || !API_BASE || !supabase) return;
+    if (upgraded !== '1') return;
 
-    let cancelled = false;
-    (async () => {
-      setSyncingPlan(true);
-      try {
-        const { data } = await supabase.auth.getSession();
-        const token = data.session?.access_token;
-        if (!token) return;
+    // Show success message
+    setSyncSuccess(true);
 
-        // Call the refresh endpoint to sync plan from Stripe
-        const res = await fetch(`${API_BASE}/api/billing/refresh-plan-from-stripe`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
+    // Clear profile cache to force refresh on next visit
+    cacheSet("profile:user", null, 0);
 
-        if (res.ok) {
-          const result = await res.json();
-          if (!cancelled) {
-            // Update local state with refreshed plan
-            setPlan(result.plan || 'trial');
-            setGuidebookLimit(result.guidebook_limit);
-            setSyncSuccess(true);
+    // Remove the ?upgraded=1 param from URL
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('upgraded');
+      window.history.replaceState({}, '', url.toString());
+    }
 
-            // Clear profile cache to force refresh
-            cacheSet("profile:user", null, 0);
+    // Hide success message after 8 seconds
+    const timer = setTimeout(() => {
+      setSyncSuccess(false);
+    }, 8000);
 
-            // Remove the ?upgraded=1 param from URL
-            if (typeof window !== 'undefined') {
-              const url = new URL(window.location.href);
-              url.searchParams.delete('upgraded');
-              window.history.replaceState({}, '', url.toString());
-            }
-
-            // Hide success message after 5 seconds
-            setTimeout(() => {
-              if (!cancelled) setSyncSuccess(false);
-            }, 5000);
-          }
-        } else {
-          console.warn('Failed to sync plan from Stripe:', await res.text());
-        }
-      } catch (err) {
-        console.error('Error syncing plan:', err);
-      } finally {
-        if (!cancelled) setSyncingPlan(false);
-      }
-    })();
-
-    return () => { cancelled = true; };
+    return () => clearTimeout(timer);
   }, [searchParams]);
 
   const getQrTargetUrl = (id: string) => `${API_BASE}/guidebook/${id}`;
@@ -219,22 +186,12 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#F8F5F1] to-white">
-      {/* Syncing banner */}
-      {syncingPlan && (
-        <div className="w-full bg-blue-100 border-b border-blue-300 text-blue-800" role="alert">
-          <div className="px-4 py-3 text-center flex items-center justify-center gap-2">
-            <Spinner size={18} colorClass="text-blue-600" />
-            <span>Syncing your subscription from Stripe...</span>
-          </div>
-        </div>
-      )}
-
-      {/* Success banner */}
+      {/* Success banner after payment */}
       {syncSuccess && (
         <div className="w-full bg-emerald-100 border-b border-emerald-300 text-emerald-800" role="alert">
           <div className="px-4 py-3 text-center">
-            <strong className="font-bold">Success!</strong>
-            <span className="block sm:inline"> Your subscription has been activated. You can now publish your guidebooks!</span>
+            <strong className="font-bold">Payment successful!</strong>
+            <span className="block sm:inline"> Your subscription is being activated. Please refresh the page in a moment to see your new plan.</span>
           </div>
         </div>
       )}
