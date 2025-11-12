@@ -392,7 +392,7 @@ def create_portal_session():
         customer_id = customers.data[0].id
         kwargs = {
             'customer': customer_id,
-            'return_url': f"{FRONTEND_ORIGIN}/dashboard/profile",
+            'return_url': f"{FRONTEND_ORIGIN}/dashboard/billing?updated=1",
         }
         if STRIPE_PORTAL_CONFIGURATION_ID:
             kwargs['configuration'] = STRIPE_PORTAL_CONFIGURATION_ID
@@ -425,6 +425,8 @@ def stripe_webhook():
     try:
         event_type = event['type']
         obj = event['data']['object']
+
+        log.info(f"Processing webhook event: {event_type}")
 
         if event_type == 'checkout.session.completed':
             # New subscription completed
@@ -545,6 +547,8 @@ def stripe_webhook():
             subscription_id = obj.get('id')
             status = obj.get('status')
 
+            log.info(f"Subscription event: {event_type}, ID: {subscription_id}, Status: {status}")
+
             if event_type == 'customer.subscription.deleted' or status in ('canceled', 'unpaid', 'past_due'):
                 # Downgrade to trial
                 user_row = db.session.execute(
@@ -570,6 +574,7 @@ def stripe_webhook():
                 items = obj.get('items', {}).get('data', [])
                 if items:
                     price_id = items[0].get('price', {}).get('id')
+                    log.info(f"Subscription {subscription_id} updated with price_id: {price_id}")
 
                     # Map price_id back to plan name
                     new_plan = None
@@ -580,6 +585,7 @@ def stripe_webhook():
 
                     if new_plan:
                         limit = PLAN_CONFIGS[new_plan]['guidebook_limit']
+                        log.info(f"Mapped to plan '{new_plan}' with guidebook limit: {limit}")
 
                         # Get subscription period dates
                         period_end = obj.get('current_period_end')
@@ -593,8 +599,8 @@ def stripe_webhook():
                             from datetime import datetime
                             starts_at = datetime.fromtimestamp(period_start).isoformat()
 
-                        # Update user's plan
-                        db.session.execute(
+                        # Update user's plan and guidebook limit
+                        result = db.session.execute(
                             text("""
                                 UPDATE public.profiles
                                 SET plan = :plan,
@@ -603,11 +609,21 @@ def stripe_webhook():
                                     pro_expires_at = :expires_at,
                                     stripe_subscription_id = :sub_id
                                 WHERE stripe_subscription_id = :sub_id
+                                RETURNING user_id
                             """),
                             {"plan": new_plan, "limit": limit, "starts_at": starts_at, "expires_at": expires_at, "sub_id": subscription_id}
                         )
+                        updated_user = result.fetchone()
                         db.session.commit()
-                        log.info(f"Updated subscription {subscription_id} to plan {new_plan}")
+
+                        if updated_user:
+                            log.info(f"✓ Successfully updated user {updated_user[0]} to plan '{new_plan}' with {limit} guidebook limit")
+                        else:
+                            log.warning(f"No user found with subscription_id {subscription_id}")
+                    else:
+                        log.warning(f"Could not map price_id {price_id} to any plan in PLAN_CONFIGS")
+                else:
+                    log.warning(f"No subscription items found for subscription {subscription_id}")
 
     except Exception as e:
         # Log but don't fail webhook

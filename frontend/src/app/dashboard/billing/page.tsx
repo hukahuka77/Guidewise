@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
@@ -35,10 +36,26 @@ type BillingSummary = {
 };
 
 export default function BillingPage() {
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<BillingSummary | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
+  const [showSuccessBanner, setShowSuccessBanner] = useState(false);
+
+  // Handle success banner from portal return
+  useEffect(() => {
+    const updated = searchParams?.get('updated');
+    if (updated === '1') {
+      setShowSuccessBanner(true);
+      // Clean up URL
+      if (typeof window !== 'undefined') {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('updated');
+        window.history.replaceState({}, '', url.toString());
+      }
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     let cancelled = false;
@@ -106,6 +123,28 @@ export default function BillingPage() {
             <p className="text-gray-600 mt-1">Manage your subscription and invoices</p>
           </div>
         </div>
+
+        {showSuccessBanner && (
+          <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 flex items-start justify-between">
+            <div className="flex items-start gap-3">
+              <svg className="w-5 h-5 text-green-600 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              <div>
+                <p className="font-semibold text-green-800">Subscription Updated Successfully</p>
+                <p className="text-sm text-green-700 mt-0.5">Your plan changes have been applied. Your new limits are now active.</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowSuccessBanner(false)}
+              className="text-green-600 hover:text-green-800"
+            >
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </div>
+        )}
 
         {loading ? (
           <div className="bg-white rounded-xl border p-6 text-gray-700 flex items-center gap-3">
