@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import Spinner from "@/components/ui/spinner";
@@ -26,6 +26,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [plan, setPlan] = useState<'starter'|'growth'|'pro'|'enterprise'|'trial'|''>('');
   const [guidebookLimit, setGuidebookLimit] = useState<number | null>(0);
   const [activeCount, setActiveCount] = useState<number>(0);
@@ -33,6 +34,8 @@ export default function DashboardPage() {
 
   // UI state
   const [qrModalFor, setQrModalFor] = useState<string | null>(null); // guidebook id
+  const [syncingPlan, setSyncingPlan] = useState(false);
+  const [syncSuccess, setSyncSuccess] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -103,6 +106,64 @@ export default function DashboardPage() {
     };
   }, [router]);
 
+  // Auto-sync plan after Stripe payment redirect
+  useEffect(() => {
+    const upgraded = searchParams?.get('upgraded');
+    if (upgraded !== '1' || !API_BASE || !supabase) return;
+
+    let cancelled = false;
+    (async () => {
+      setSyncingPlan(true);
+      try {
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+        if (!token) return;
+
+        // Call the refresh endpoint to sync plan from Stripe
+        const res = await fetch(`${API_BASE}/api/billing/refresh-plan-from-stripe`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (res.ok) {
+          const result = await res.json();
+          if (!cancelled) {
+            // Update local state with refreshed plan
+            setPlan(result.plan || 'trial');
+            setGuidebookLimit(result.guidebook_limit);
+            setSyncSuccess(true);
+
+            // Clear profile cache to force refresh
+            cacheSet("profile:user", null, 0);
+
+            // Remove the ?upgraded=1 param from URL
+            if (typeof window !== 'undefined') {
+              const url = new URL(window.location.href);
+              url.searchParams.delete('upgraded');
+              window.history.replaceState({}, '', url.toString());
+            }
+
+            // Hide success message after 5 seconds
+            setTimeout(() => {
+              if (!cancelled) setSyncSuccess(false);
+            }, 5000);
+          }
+        } else {
+          console.warn('Failed to sync plan from Stripe:', await res.text());
+        }
+      } catch (err) {
+        console.error('Error syncing plan:', err);
+      } finally {
+        if (!cancelled) setSyncingPlan(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [searchParams]);
+
   const getQrTargetUrl = (id: string) => `${API_BASE}/guidebook/${id}`;
   const getQrImageUrl = (url: string, size = 300) =>
     `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(url)}`;
@@ -158,6 +219,26 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#F8F5F1] to-white">
+      {/* Syncing banner */}
+      {syncingPlan && (
+        <div className="w-full bg-blue-100 border-b border-blue-300 text-blue-800" role="alert">
+          <div className="px-4 py-3 text-center flex items-center justify-center gap-2">
+            <Spinner size={18} colorClass="text-blue-600" />
+            <span>Syncing your subscription from Stripe...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Success banner */}
+      {syncSuccess && (
+        <div className="w-full bg-emerald-100 border-b border-emerald-300 text-emerald-800" role="alert">
+          <div className="px-4 py-3 text-center">
+            <strong className="font-bold">Success!</strong>
+            <span className="block sm:inline"> Your subscription has been activated. You can now publish your guidebooks!</span>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-6xl mx-auto p-6 md:p-10">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>

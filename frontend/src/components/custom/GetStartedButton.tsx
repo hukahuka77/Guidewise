@@ -22,11 +22,13 @@ export default function GetStartedButton() {
       const { data } = await supabase.auth.getSession();
       if (mounted) {
         setHref(data.session ? "/create" : "/signup");
+        setLabel(data.session ? "Create new guidebook" : "Get Started for Free");
       }
     })();
     const subscription = supabase
       ? supabase.auth.onAuthStateChange((_event, session) => {
           setHref(session ? "/create" : "/signup");
+          setLabel(session ? "Create new guidebook" : "Get Started for Free");
         }).data.subscription
       : { unsubscribe: () => {} };
     return () => {

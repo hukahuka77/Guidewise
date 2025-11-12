@@ -480,20 +480,86 @@ def stripe_webhook():
             # New subscription completed
             user_id = (obj.get('metadata') or {}).get('user_id')
             plan = (obj.get('metadata') or {}).get('plan', 'starter')
+            subscription_id = obj.get('subscription')
+            customer_id = obj.get('customer')
 
             if user_id and plan in PLAN_CONFIGS:
                 # Update user's plan and guidebook_limit
                 limit = PLAN_CONFIGS[plan]['guidebook_limit']
+
+                # Get subscription details to set pro_expires_at and pro_starts_at
+                expires_at = None
+                starts_at = None
+                if subscription_id:
+                    try:
+                        subscription = stripe.Subscription.retrieve(subscription_id)
+                        period_end = subscription.get('current_period_end')
+                        period_start = subscription.get('current_period_start')
+                        if period_end:
+                            from datetime import datetime
+                            expires_at = datetime.fromtimestamp(period_end).isoformat()
+                        if period_start:
+                            from datetime import datetime
+                            starts_at = datetime.fromtimestamp(period_start).isoformat()
+                    except Exception as e:
+                        log.warning(f"Failed to fetch subscription details: {e}")
+
                 db.session.execute(
                     text("""
-                        INSERT INTO public.profiles (user_id, plan, guidebook_limit)
-                        VALUES (:uid, :plan, :limit)
+                        INSERT INTO public.profiles (user_id, plan, guidebook_limit, stripe_customer_id, stripe_subscription_id, pro_starts_at, pro_expires_at)
+                        VALUES (:uid, :plan, :limit, :cust_id, :sub_id, :starts_at, :expires_at)
                         ON CONFLICT (user_id)
-                        DO UPDATE SET plan = EXCLUDED.plan, guidebook_limit = EXCLUDED.guidebook_limit
+                        DO UPDATE SET
+                            plan = EXCLUDED.plan,
+                            guidebook_limit = EXCLUDED.guidebook_limit,
+                            stripe_customer_id = EXCLUDED.stripe_customer_id,
+                            stripe_subscription_id = EXCLUDED.stripe_subscription_id,
+                            pro_starts_at = EXCLUDED.pro_starts_at,
+                            pro_expires_at = EXCLUDED.pro_expires_at
                     """),
-                    {"uid": user_id, "plan": plan, "limit": limit}
+                    {"uid": user_id, "plan": plan, "limit": limit, "cust_id": customer_id, "sub_id": subscription_id, "starts_at": starts_at, "expires_at": expires_at}
                 )
                 db.session.commit()
+
+        elif event_type == 'invoice.payment_succeeded':
+            # Subscription renewed successfully - update pro_expires_at and pro_starts_at
+            subscription_id = obj.get('subscription')
+            if subscription_id:
+                # Fetch the subscription to get current_period_end and current_period_start
+                try:
+                    subscription = stripe.Subscription.retrieve(subscription_id)
+                    period_end = subscription.get('current_period_end')
+                    period_start = subscription.get('current_period_start')
+
+                    if period_end and period_start:
+                        # Convert Unix timestamps to ISO datetime
+                        from datetime import datetime
+                        expires_at = datetime.fromtimestamp(period_end).isoformat()
+                        starts_at = datetime.fromtimestamp(period_start).isoformat()
+
+                        # Update the user's pro_expires_at and pro_starts_at
+                        db.session.execute(
+                            text("""
+                                UPDATE public.profiles
+                                SET pro_expires_at = :expires_at,
+                                    pro_starts_at = :starts_at,
+                                    stripe_subscription_id = :sub_id
+                                WHERE stripe_subscription_id = :sub_id
+                            """),
+                            {"expires_at": expires_at, "starts_at": starts_at, "sub_id": subscription_id}
+                        )
+                        db.session.commit()
+                except Exception as e:
+                    log.warning(f"Failed to update pro_expires_at/starts_at for subscription {subscription_id}: {e}")
+
+        elif event_type == 'invoice.payment_failed':
+            # Payment failed - log warning but don't immediately downgrade
+            # Stripe will retry and eventually send subscription.deleted if it keeps failing
+            subscription_id = obj.get('subscription')
+            if subscription_id:
+                log.warning(f"Payment failed for subscription {subscription_id}. Stripe will retry automatically.")
+                # Optionally: send email notification to user
+                # User keeps access during retry period
 
         elif event_type in ('customer.subscription.updated', 'customer.subscription.deleted'):
             # Subscription changed or cancelled
@@ -519,6 +585,50 @@ def stripe_webhook():
                         {"uid": user_id}
                     )
                     db.session.commit()
+
+            elif event_type == 'customer.subscription.updated' and status == 'active':
+                # Subscription plan changed (upgrade/downgrade) - update plan and limits
+                items = obj.get('items', {}).get('data', [])
+                if items:
+                    price_id = items[0].get('price', {}).get('id')
+
+                    # Map price_id back to plan name
+                    new_plan = None
+                    for plan_key, plan_config in PLAN_CONFIGS.items():
+                        if plan_config.get('price_id') == price_id:
+                            new_plan = plan_key
+                            break
+
+                    if new_plan:
+                        limit = PLAN_CONFIGS[new_plan]['guidebook_limit']
+
+                        # Get subscription period dates
+                        period_end = obj.get('current_period_end')
+                        period_start = obj.get('current_period_start')
+                        expires_at = None
+                        starts_at = None
+                        if period_end:
+                            from datetime import datetime
+                            expires_at = datetime.fromtimestamp(period_end).isoformat()
+                        if period_start:
+                            from datetime import datetime
+                            starts_at = datetime.fromtimestamp(period_start).isoformat()
+
+                        # Update user's plan
+                        db.session.execute(
+                            text("""
+                                UPDATE public.profiles
+                                SET plan = :plan,
+                                    guidebook_limit = :limit,
+                                    pro_starts_at = :starts_at,
+                                    pro_expires_at = :expires_at,
+                                    stripe_subscription_id = :sub_id
+                                WHERE stripe_subscription_id = :sub_id
+                            """),
+                            {"plan": new_plan, "limit": limit, "starts_at": starts_at, "expires_at": expires_at, "sub_id": subscription_id}
+                        )
+                        db.session.commit()
+                        log.info(f"Updated subscription {subscription_id} to plan {new_plan}")
 
     except Exception as e:
         # Log but don't fail webhook
@@ -1433,6 +1543,13 @@ def run_startup_migrations():
         # Profiles - add guidebook_limit, remove old extra_slots
         "ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS guidebook_limit INTEGER;",
         "ALTER TABLE public.profiles DROP COLUMN IF EXISTS extra_slots;",
+        # Profiles - add Stripe tracking columns
+        "ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT;",
+        "ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT;",
+        "ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS pro_starts_at TIMESTAMPTZ;",
+        # Add indexes for faster Stripe lookups
+        "CREATE INDEX IF NOT EXISTS idx_profiles_stripe_customer ON public.profiles(stripe_customer_id);",
+        "CREATE INDEX IF NOT EXISTS idx_profiles_stripe_subscription ON public.profiles(stripe_subscription_id);",
         # Make host name and guidebook.host_id optional
         "ALTER TABLE host ALTER COLUMN name DROP NOT NULL;",
         "ALTER TABLE guidebook ALTER COLUMN host_id DROP NOT NULL;",
