@@ -68,7 +68,7 @@ export default function SuccessPage() {
   };
 
   const getUrlPlaceholder = (templateKey: 'template_original' | 'template_generic' | 'template_modern') => {
-    if (templateKey === 'template_modern') return '/images/URL_Modern.png';
+    if (templateKey === 'template_modern') return '/images/URL_Modern.jpg';
     return templateKey === 'template_original' ? '/images/URL_Generic1.png' : '/images/URL_Generic2.png';
   };
 

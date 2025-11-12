@@ -139,9 +139,6 @@ export default function BillingPage() {
                         Renews {new Date((summary.stripe.subscription.current_period_end as number) * 1000).toLocaleDateString()}
                       </div>
                     )}
-                    <div className="text-xs text-gray-500">
-                      Stripe status: {summary.stripe.subscription?.status || 'No active subscription'}
-                    </div>
                   </div>
                 </div>
                 <div className="flex flex-col gap-2">

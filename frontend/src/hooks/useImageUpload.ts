@@ -28,6 +28,26 @@ export function useImageUpload(options: UseImageUploadOptions) {
         return undefined;
       }
 
+      // Verify user is authenticated before uploading
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      console.log('Upload auth check:', {
+        hasSession: !!session,
+        sessionError,
+        userId: session?.user?.id,
+        accessToken: session?.access_token?.substring(0, 20) + '...'
+      });
+
+      if (sessionError || !session) {
+        console.error('User must be authenticated to upload files', sessionError);
+        throw new Error('Authentication required for file upload');
+      }
+
+      // Validate that the file is an image for RLS policy compliance
+      if (!file.type || !file.type.startsWith('image/')) {
+        console.error('File must be an image. Got:', file.type);
+        throw new Error('Only image files are allowed');
+      }
+
       // Sanitize filename to prevent issues
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
       const path = `${prefix}/${Date.now()}-${safeName}`;
@@ -35,7 +55,7 @@ export function useImageUpload(options: UseImageUploadOptions) {
       const { error } = await supabase.storage
         .from(bucketName)
         .upload(path, file, {
-          contentType: file.type || 'application/octet-stream',
+          contentType: file.type,
           upsert: true
         });
 
@@ -47,7 +67,7 @@ export function useImageUpload(options: UseImageUploadOptions) {
       return data?.publicUrl || undefined;
     } catch (err) {
       console.error('Upload failed:', err);
-      return undefined;
+      throw err;
     }
   };
 

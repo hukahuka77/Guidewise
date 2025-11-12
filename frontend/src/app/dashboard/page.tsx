@@ -27,7 +27,7 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [plan, setPlan] = useState<'starter'|'growth'|'pro'|'enterprise'|'trial'|''>('');
+  const [plan, setPlan] = useState<'free'|'trial'|'starter'|'growth'|'pro'|'enterprise'|''>('');
   const [guidebookLimit, setGuidebookLimit] = useState<number | null>(0);
   const [activeCount, setActiveCount] = useState<number>(0);
   const [toggling, setToggling] = useState<string | null>(null); // guidebook id being toggled
@@ -203,7 +203,7 @@ export default function DashboardPage() {
             <p className="text-gray-600 mt-1">Manage, share, and download your property guidebooks</p>
             {plan && guidebookLimit !== null && (
               <p className="text-sm text-gray-500 mt-1">
-                {plan === 'trial' ? (
+                {(plan === 'free' || plan === 'trial') ? (
                   <span>Free preview mode - <Link href="/pricing" className="underline text-[#CC7A52]">Upgrade to publish</Link></span>
                 ) : guidebookLimit === null ? (
                   <span className="font-semibold text-green-700">Unlimited guidebooks ({plan})</span>
@@ -220,7 +220,7 @@ export default function DashboardPage() {
             <Link href="/create">
               <Button className="bg-[oklch(0.6923_0.22_21.05)] hover:opacity-90">Create New</Button>
             </Link>
-            {plan && !['pro', 'enterprise'].includes(plan) && (
+            {(plan === 'free' || plan === 'trial') && (
               <Link href="/pricing">
                 <Button variant="secondary">Upgrade</Button>
               </Link>

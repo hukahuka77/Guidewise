@@ -843,7 +843,8 @@ def _render_guidebook(gb: Guidebook, show_watermark: bool = False):
 
     html = render_template(
         TEMPLATE_REGISTRY.get(template_key, TEMPLATE_REGISTRY['template_original']),
-        ctx=ctx
+        ctx=ctx,
+        show_watermark=show_watermark
     )
     RENDER_CACHE[cache_key] = html
     resp = make_response(html)

@@ -23,17 +23,26 @@ export async function startStripeCheckout(plan: 'starter' | 'growth' | 'pro' = '
   });
   const json: unknown = await res.json().catch(() => ({}));
 
-  // Handle case where user already has a subscription
+  // Handle case where user already has a subscription - open Stripe portal to manage it
   if (!res.ok && res.status === 409) {
-    // Check if there's a redirect URL
-    if (typeof json === "object" && json && "redirect" in json) {
-      const { redirect } = json as { redirect?: string };
-      if (redirect) {
-        window.location.href = redirect;
+    try {
+      const portalRes = await fetch(`${API_BASE}/api/billing/create-portal-session`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ email }),
+      });
+      const portalJson = await portalRes.json();
+      if (portalRes.ok && portalJson.url) {
+        window.location.href = portalJson.url;
         return;
       }
+    } catch (e) {
+      console.error("Failed to open customer portal:", e);
     }
-    // Fallback to billing page
+    // Fallback to billing page if portal fails
     window.location.href = "/dashboard/billing";
     return;
   }

@@ -188,7 +188,7 @@ export default function GuidebookUrlTemplatesPage() {
                   <Card template="template_generic" title="Minimal (Basic)" img="/images/URL_Generic2.png" />
                 </div>
                 <div className="flex-shrink-0 w-[300px] snap-start">
-                  <Card template="template_modern" title="Modern Cards" img="/images/URL_Modern.png" />
+                  <Card template="template_modern" title="Modern Cards" img="/images/URL_Modern.jpg" />
                 </div>
               </div>
 
