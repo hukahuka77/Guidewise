@@ -239,7 +239,7 @@ export default function PricingPage() {
               </li>
             </ul>
             <div className="mt-6">
-              <Link href="mailto:support@guidewiseapp.com?subject=Enterprise%20Plan%20Inquiry">
+              <Link href="/#contact">
                 <Button variant="outline" className="w-full">Contact Sales</Button>
               </Link>
             </div>

@@ -67,13 +67,16 @@ export default function Home() {
                   />
                 </div>
               </div>
-              {/* Right: large template image */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/images/URL_Generic1.png"
-                alt="Guidebook URL template preview"
-                className="w-full rounded-2xl shadow-sm"
-              />
+              {/* Right: overlaid iPhone images */}
+              <div className="relative w-full flex justify-end items-center min-h-[500px] pr-8">
+                {/* Portrait iPhone - back layer (higher up) */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/images/Iphone-portrait.png"
+                  alt="Guidebook on iPhone"
+                  className="w-3/5 h-auto object-contain relative z-10 -translate-y-8"
+                />
+              </div>
             </div>
           </div>
         </section>
