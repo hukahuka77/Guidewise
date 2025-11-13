@@ -79,9 +79,8 @@
   }
 
   .nav-container {
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 0.75rem 1rem;
+    width: 100%;
+    padding: 0.75rem 2rem;
     display: flex;
     gap: 0.5rem;
     overflow-x: auto;
@@ -122,19 +121,12 @@
     stroke-width: 2;
   }
 
-  /* Container */
-  .container {
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 0 1.5rem 3rem;
-  }
-
   /* Section Card */
   .section-card {
     background: var(--bg-white);
     border-radius: 20px;
     padding: 2.5rem 2rem;
-    margin-bottom: 2rem;
+    margin: 0 2rem 2rem 2rem;
     box-shadow: 0 2px 10px rgba(0,0,0,0.05);
   }
 
@@ -220,6 +212,13 @@
     background: var(--bg-cream);
     border-radius: 12px;
     margin-bottom: 0.75rem;
+    cursor: pointer;
+    transition: background 0.3s ease;
+    position: relative;
+  }
+
+  .info-item:hover {
+    background: #EBE7E2;
   }
 
   .info-item-icon {
@@ -231,17 +230,52 @@
     stroke-width: 2;
   }
 
+  .info-item-content {
+    flex: 1;
+  }
+
   .info-item-content h5 {
     font-size: 1.05rem;
     font-weight: 600;
     margin-bottom: 0.25rem;
     color: var(--text-dark);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
 
   .info-item-content p {
     color: var(--text-gray);
     font-size: 0.95rem;
     margin: 0;
+    padding-top: 0;
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: max-height 0.25s ease-out,
+                opacity 0.2s ease-out,
+                transform 0.25s ease-out,
+                padding-top 0.25s ease-out;
+  }
+
+  .info-item.expanded .info-item-content p {
+    max-height: 500px;
+    opacity: 1;
+    transform: translateY(0);
+    padding-top: 0.5rem;
+  }
+
+  .chevron-icon {
+    width: 1rem;
+    height: 1rem;
+    color: var(--text-gray);
+    transition: transform 0.2s ease-out;
+    flex-shrink: 0;
+  }
+
+  .info-item.expanded .chevron-icon {
+    transform: rotate(180deg);
   }
 
   /* Rules List */
@@ -251,16 +285,14 @@
   }
 
   .rules-list li {
-    padding: 0.75rem 0;
-    border-bottom: 1px solid var(--border-light);
+    padding: 1rem;
+    background: var(--bg-cream);
+    border-radius: 12px;
     color: var(--text-dark);
     display: flex;
     align-items: center;
     gap: 0.75rem;
-  }
-
-  .rules-list li:last-child {
-    border-bottom: none;
+    margin-bottom: 0.75rem;
   }
 
   .rules-list li::before {
@@ -268,6 +300,7 @@
     color: var(--accent-warm);
     font-size: 1.5rem;
     font-weight: bold;
+    flex-shrink: 0;
   }
 
   /* Places Grid */
@@ -315,11 +348,11 @@
 
   /* Cover Image */
   .cover-image {
-    width: 100%;
+    width: calc(100% - 4rem);
     height: 300px;
     object-fit: cover;
     border-radius: 20px;
-    margin-bottom: 2rem;
+    margin: 0 2rem 2rem 2rem;
   }
 
   /* Responsive */
@@ -334,6 +367,12 @@
 
     .section-card {
       padding: 1.5rem 1.25rem;
+      margin: 0 1rem 1.5rem 1rem;
+    }
+
+    .cover-image {
+      width: calc(100% - 2rem);
+      margin: 0 1rem 1.5rem 1rem;
     }
 
     .places-grid {
@@ -347,6 +386,7 @@
 
     .nav-container {
       justify-content: flex-start;
+      padding: 0.75rem 1rem;
     }
 
     .nav-link {
@@ -405,13 +445,13 @@
         <span>Rules</span>
       </a>
       {% endif %}
-      {% if 'food' in ctx.included_tabs and ctx.food_recommendations %}
+      {% if 'food' in ctx.included_tabs and ctx.places_to_eat %}
       <a href="#food" class="nav-link">
         <i data-lucide="utensils" class="nav-icon"></i>
         <span>Dining</span>
       </a>
       {% endif %}
-      {% if 'activities' in ctx.included_tabs and ctx.activities %}
+      {% if 'activities' in ctx.included_tabs and ctx.things_to_do %}
       <a href="#activities" class="nav-link">
         <i data-lucide="compass" class="nav-icon"></i>
         <span>Activities</span>
@@ -423,16 +463,24 @@
         <span>Checkout</span>
       </a>
       {% endif %}
+      {% for tab_key in ctx.included_tabs %}
+        {% if tab_key.startswith('custom_') and ctx.custom_sections.get(tab_key) %}
+          {% set meta = ctx.custom_tabs_meta.get(tab_key) if ctx.custom_tabs_meta else None %}
+          <a href="#{{ tab_key }}" class="nav-link">
+            <i data-lucide="puzzle" class="nav-icon"></i>
+            <span>{{ (meta.label if meta and meta.label) or (tab_key | replace('custom_', '') | replace('_', ' ') | title) }}</span>
+          </a>
+        {% endif %}
+      {% endfor %}
     </div>
   </nav>
 
-  <div class="container">
-    <!-- Cover Image -->
-    {% if ctx.cover_image_url %}
-    <img src="{{ ctx.cover_image_url }}" alt="Property" class="cover-image" />
-    {% endif %}
+  <!-- Cover Image -->
+  {% if ctx.cover_image_url %}
+  <img src="{{ ctx.cover_image_url }}" alt="Property" class="cover-image" />
+  {% endif %}
 
-    <!-- Welcome Section -->
+  <!-- Welcome Section -->
     {% if 'welcome' in ctx.included_tabs %}
     <div id="welcome" class="section-card">
       <h2 class="section-title">
@@ -453,6 +501,29 @@
         </div>
         {% endif %}
 
+        {% if ctx.safety_info and (ctx.safety_info.emergency_contact or ctx.safety_info.fire_extinguisher_location) %}
+        <ul class="info-list" style="margin-top: 1.5rem;">
+          {% if ctx.safety_info.emergency_contact %}
+          <li class="info-item">
+            <i data-lucide="phone" class="info-item-icon"></i>
+            <div class="info-item-content">
+              <h5>Emergency Contact</h5>
+              <p>{{ ctx.safety_info.emergency_contact }}</p>
+            </div>
+          </li>
+          {% endif %}
+          {% if ctx.safety_info.fire_extinguisher_location %}
+          <li class="info-item">
+            <i data-lucide="flame" class="info-item-icon"></i>
+            <div class="info-item-content">
+              <h5>Fire Extinguisher</h5>
+              <p>{{ ctx.safety_info.fire_extinguisher_location }}</p>
+            </div>
+          </li>
+          {% endif %}
+        </ul>
+        {% endif %}
+
         {% if ctx.host and (ctx.host.name or ctx.host.photo_url) %}
         <div class="host-card">
           {% if ctx.host.photo_url %}
@@ -462,11 +533,11 @@
             {% if ctx.host.name %}
             <h4>{{ ctx.host.name }}</h4>
             {% endif %}
-            {% if ctx.host.phone %}
-            <p>📱 {{ ctx.host.phone }}</p>
+            {% if ctx.host.bio %}
+            <p>{{ ctx.host.bio }}</p>
             {% endif %}
-            {% if ctx.host.email %}
-            <p>✉️ {{ ctx.host.email }}</p>
+            {% if ctx.host.contact %}
+            <p style="white-space: pre-line;">{{ ctx.host.contact }}</p>
             {% endif %}
           </div>
         </div>
@@ -493,14 +564,19 @@
         <div class="section-value" style="white-space: pre-line;">{{ ctx.access_info }}</div>
         {% endif %}
 
-        {% if ctx.wifi_name or ctx.wifi_password %}
+        {% if ctx.parking_info %}
+        <div class="section-label">Parking</div>
+        <div class="section-value" style="white-space: pre-line;">{{ ctx.parking_info }}</div>
+        {% endif %}
+
+        {% if ctx.wifi.network or ctx.wifi.password %}
         <ul class="info-list">
           <li class="info-item">
             <i data-lucide="wifi" class="info-item-icon"></i>
             <div class="info-item-content">
               <h5>WiFi</h5>
-              {% if ctx.wifi_name %}<p><strong>Network:</strong> {{ ctx.wifi_name }}</p>{% endif %}
-              {% if ctx.wifi_password %}<p><strong>Password:</strong> {{ ctx.wifi_password }}</p>{% endif %}
+              {% if ctx.wifi.network %}<p><strong>Network:</strong> {{ ctx.wifi.network }}</p>{% endif %}
+              {% if ctx.wifi.password %}<p><strong>Password:</strong> {{ ctx.wifi.password }}</p>{% endif %}
             </div>
           </li>
         </ul>
@@ -518,12 +594,15 @@
       </h2>
       <ul class="info-list">
         {% for item in ctx.house_manual %}
-        <li class="info-item">
+        <li class="info-item" onclick="this.classList.toggle('expanded')">
           <i data-lucide="info" class="info-item-icon"></i>
           <div class="info-item-content">
-            <h5>{{ item.name }}</h5>
-            {% if item.instructions %}
-            <p>{{ item.instructions }}</p>
+            <h5>
+              {{ item.name }}
+              <i data-lucide="chevron-down" class="chevron-icon"></i>
+            </h5>
+            {% if item.description %}
+            <p>{{ item.description }}</p>
             {% endif %}
           </div>
         </li>
@@ -539,23 +618,36 @@
         <i data-lucide="clipboard-list" class="section-icon"></i>
         House Rules
       </h2>
-      <ul class="rules-list">
+      <ul class="info-list">
         {% for rule in ctx.rules %}
-        <li>{{ rule.text }}</li>
+        <li class="info-item" onclick="this.classList.toggle('expanded')">
+          <i data-lucide="shield-check" class="info-item-icon"></i>
+          <div class="info-item-content">
+            <h5>
+              {{ rule.name }}
+              {% if rule.description %}
+              <i data-lucide="chevron-down" class="chevron-icon"></i>
+              {% endif %}
+            </h5>
+            {% if rule.description %}
+            <p>{{ rule.description }}</p>
+            {% endif %}
+          </div>
+        </li>
         {% endfor %}
       </ul>
     </div>
     {% endif %}
 
     <!-- Places to Eat -->
-    {% if 'food' in ctx.included_tabs and ctx.food_recommendations %}
+    {% if 'food' in ctx.included_tabs and ctx.places_to_eat %}
     <div id="food" class="section-card">
       <h2 class="section-title">
         <i data-lucide="utensils" class="section-icon"></i>
         Places to Eat
       </h2>
       <div class="places-grid">
-        {% for place in ctx.food_recommendations %}
+        {% for place in ctx.places_to_eat %}
         <div class="place-card">
           <h5>{{ place.name }}</h5>
           {% if place.description %}
@@ -574,14 +666,14 @@
     {% endif %}
 
     <!-- Activities -->
-    {% if 'activities' in ctx.included_tabs and ctx.activities %}
+    {% if 'activities' in ctx.included_tabs and ctx.things_to_do %}
     <div id="activities" class="section-card">
       <h2 class="section-title">
         <i data-lucide="compass" class="section-icon"></i>
         Things to Do
       </h2>
       <div class="places-grid">
-        {% for activity in ctx.activities %}
+        {% for activity in ctx.things_to_do %}
         <div class="place-card">
           <h5>{{ activity.name }}</h5>
           {% if activity.description %}
@@ -607,20 +699,23 @@
         Before You Go
       </h2>
       <div class="section-content">
-        {% if ctx.checkout_time %}
+        {% if ctx.check_out_time %}
         <div class="section-label">Checkout Time</div>
-        <div class="section-value">{{ ctx.checkout_time }}</div>
+        <div class="section-value">{{ ctx.check_out_time }}</div>
         {% endif %}
 
         {% if ctx.checkout_info %}
         <ul class="info-list">
           {% for item in ctx.checkout_info %}
-          <li class="info-item">
+          <li class="info-item" onclick="this.classList.toggle('expanded')">
             <i data-lucide="check-circle" class="info-item-icon"></i>
             <div class="info-item-content">
-              <h5>{{ item.name }}</h5>
-              {% if item.instructions %}
-              <p>{{ item.instructions }}</p>
+              <h5>
+                {{ item.name }}
+                <i data-lucide="chevron-down" class="chevron-icon"></i>
+              </h5>
+              {% if item.description %}
+              <p>{{ item.description }}</p>
               {% endif %}
             </div>
           </li>
@@ -635,23 +730,24 @@
     {% if ctx.custom_sections %}
       {% for tab_key in ctx.included_tabs %}
         {% if tab_key.startswith('custom_') and ctx.custom_sections.get(tab_key) %}
-          {% set section = ctx.custom_sections[tab_key] %}
+          {% set section_blocks = ctx.custom_sections[tab_key] %}
           {% set meta = ctx.custom_tabs_meta.get(tab_key) if ctx.custom_tabs_meta else None %}
-          <div class="section-card">
+          <div id="{{ tab_key }}" class="section-card">
             <h2 class="section-title">
               <i data-lucide="puzzle" class="section-icon"></i>
               {{ (meta.label if meta and meta.label) or (tab_key | replace('custom_', '') | replace('_', ' ') | title) }}
             </h2>
             <div class="section-content">
-              {% if section.content %}
-                <p style="white-space: pre-line;">{{ section.content }}</p>
+              {% if section_blocks %}
+                {% for block in section_blocks %}
+                  <p style="white-space: pre-line; margin-bottom: 1rem;">{{ block }}</p>
+                {% endfor %}
               {% endif %}
             </div>
           </div>
         {% endif %}
       {% endfor %}
     {% endif %}
-  </div>
 </div>
 {% endblock %}
 

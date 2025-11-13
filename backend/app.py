@@ -848,7 +848,8 @@ def _render_guidebook(gb: Guidebook, show_watermark: bool = False):
             "check_out_time": g.check_out_time,
             "access_info": g.access_info,
             "parking_info": g.parking_info,
-            "rules": [r.text for r in g.rules],
+            # Use new JSON rules format if available, otherwise fallback to old Rule model
+            "rules": (getattr(g, 'rules_json', None) or [{"name": r.text, "description": ""} for r in g.rules]) if hasattr(g, 'rules') else [],
             "things_to_do": g.things_to_do or [],
             "places_to_eat": g.places_to_eat or [],
             "checkout_info": getattr(g, 'checkout_info', None) or [],
@@ -1106,12 +1107,14 @@ def generate_guidebook_route():
     )
     db.session.add(new_guidebook)
 
-    # Add Rules
+    # Add Rules - store in new JSON format
     if 'rules' in data and data['rules']:
+        rules_json = []
         for rule_text in data['rules']:
             if rule_text:
-                new_rule = Rule(text=rule_text, guidebook=new_guidebook)
-                db.session.add(new_rule)
+                # Convert to new format with name and empty description
+                rules_json.append({"name": rule_text, "description": ""})
+        new_guidebook.rules_json = rules_json if rules_json else None
 
     # Set lifecycle fields: Auto-activate if user has available slots
     new_guidebook.public_slug = None
@@ -1271,7 +1274,8 @@ def publish_guidebook(guidebook_id):
             "check_out_time": gb.check_out_time,
             "access_info": gb.access_info,
             "parking_info": gb.parking_info,
-            "rules": [r.text for r in gb.rules],
+            # Use new JSON rules format if available, otherwise fallback to old Rule model
+            "rules": (getattr(gb, 'rules_json', None) or [{"name": r.text, "description": ""} for r in gb.rules]) if hasattr(gb, 'rules') else [],
             "things_to_do": gb.things_to_do or [],
             "places_to_eat": gb.places_to_eat or [],
             "checkout_info": getattr(gb, 'checkout_info', None) or [],
@@ -1301,7 +1305,8 @@ def publish_guidebook(guidebook_id):
             access_info=gb.access_info,
             welcome_message=getattr(gb, 'welcome_info', None),
             parking_info=getattr(gb, 'parking_info', None),
-            rules=[rule.text for rule in gb.rules],
+            # Use new JSON rules format if available, otherwise fallback to old Rule model
+            rules=(getattr(gb, 'rules_json', None) or [{"name": r.text, "description": ""} for r in gb.rules]) if hasattr(gb, 'rules') else [],
             things_to_do=gb.things_to_do,
             places_to_eat=gb.places_to_eat,
             checkout_info=getattr(gb, 'checkout_info', None),
@@ -1508,14 +1513,17 @@ def update_guidebook(guidebook_id):
             if wifi and wifi_password is not None:
                 wifi.password = wifi_password
 
-    # Replace Rules if provided
+    # Replace Rules if provided - store in new JSON format
     if 'rules' in data and isinstance(data.get('rules'), list):
-        # delete existing rules
-        for r in list(gb.rules):
-            db.session.delete(r)
+        rules_json = []
         for rule_text in data.get('rules'):
             if rule_text:
-                db.session.add(Rule(text=rule_text, guidebook=gb))
+                rules_json.append({"name": rule_text, "description": ""})
+        gb.rules_json = rules_json if rules_json else None
+
+        # Also clear old Rule model entries for consistency (will be deprecated)
+        for r in list(gb.rules):
+            db.session.delete(r)
 
     # Update last_modified_time
     try:
@@ -1542,6 +1550,7 @@ def run_startup_migrations():
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS included_tabs JSON;",
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS custom_sections JSON;",
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS custom_tabs_meta JSON;",
+        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS rules_json JSON;",
         # Lifecycle fields (simplified for preview mode)
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS active BOOLEAN DEFAULT FALSE;",
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS public_slug TEXT;",

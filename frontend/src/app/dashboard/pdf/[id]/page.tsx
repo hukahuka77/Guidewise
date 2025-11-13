@@ -63,7 +63,7 @@ export default function GuidebookPdfPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center p-4 sm:p-6 md:p-10">
+    <div className="min-h-screen flex flex-col items-center p-4 sm:p-6 md:p-10">
       <div className="w-full max-w-6xl space-y-8">
         <div className="flex items-center justify-between">
           <div className="text-left">
@@ -78,7 +78,7 @@ export default function GuidebookPdfPage() {
           </div>
         </div>
 
-        <section className="bg-gray-50 rounded-2xl p-6">
+        <section>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-semibold">PDF Templates</h2>
             <label className="flex items-center gap-2 text-sm text-gray-700">
