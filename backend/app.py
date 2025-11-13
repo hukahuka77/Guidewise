@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 from dotenv import load_dotenv
 import os
+import time
 import functools
 import logging
 import json
@@ -746,6 +747,8 @@ TEMPLATE_REGISTRY = {
     "template_generic": "templates_url/template_generic.html",
     # Modern mobile-first template
     "template_modern": "templates_url/template_modern.html",
+    # Clean welcome book style with neutral tones
+    "template_welcomebook": "templates_url/template_welcomebook.html",
 }
 ALLOWED_TEMPLATE_KEYS = set(TEMPLATE_REGISTRY.keys())
 # Allowed PDF template keys (canonical)
@@ -779,7 +782,8 @@ def _render_guidebook(gb: Guidebook, show_watermark: bool = False):
     included_tabs = [t for t in included_tabs if (t in base_tabs) or (isinstance(t, str) and t.startswith('custom_'))]
 
     # Caching: reuse rendered HTML if guidebook/template unchanged
-    cache_key = _render_cache_key(gb, template_key, template_file)
+    # Include show_watermark in cache key to prevent serving wrong version
+    cache_key = _render_cache_key(gb, template_key, template_file) + f":wm={show_watermark}"
     etag = hashlib.sha256(cache_key.encode('utf-8')).hexdigest()
     if request.headers.get('If-None-Match') == etag:
         resp = make_response('', 304)
@@ -857,10 +861,14 @@ def _render_guidebook(gb: Guidebook, show_watermark: bool = False):
 
     ctx = _build_ctx(gb)
 
+    # Build upgrade URL for preview banner
+    upgrade_url = f"{FRONTEND_ORIGIN}/pricing" if FRONTEND_ORIGIN else "https://guidewiseapp.com/pricing"
+
     html = render_template(
         TEMPLATE_REGISTRY.get(template_key, TEMPLATE_REGISTRY['template_original']),
         ctx=ctx,
-        show_watermark=show_watermark
+        show_watermark=show_watermark,
+        upgrade_url=upgrade_url
     )
     RENDER_CACHE[cache_key] = html
     resp = make_response(html)
@@ -1105,28 +1113,55 @@ def generate_guidebook_route():
                 new_rule = Rule(text=rule_text, guidebook=new_guidebook)
                 db.session.add(new_rule)
 
-    # Set lifecycle fields: Pro users get active + slug immediately
+    # Set lifecycle fields: Auto-activate if user has available slots
     new_guidebook.public_slug = None
     new_guidebook.active = False
+
+    # Flush to ensure the object is persisted before checking for slug uniqueness
+    db.session.flush()
+
     try:
-        plan_row = db.session.execute(text("SELECT plan FROM public.profiles WHERE user_id = :uid"), {"uid": user_id}).fetchone()
-        is_pro = bool(plan_row) and (plan_row[0] or 'free') == 'pro'
-        if is_pro:
+        # Check if user can activate this guidebook (has available slots)
+        can_activate, _ = can_activate_guidebook(user_id)
+        if can_activate:
             # Activate and assign a unique public slug
             new_guidebook.active = True
             base = _slugify(getattr(prop, 'name', None) or 'guidebook')
-            slug = base
-            # Ensure uniqueness
+
+            # Always start with a random suffix to avoid common name conflicts
+            slug = f"{base}-{secrets.token_hex(3)}"
+
+            # Ensure uniqueness - keep trying until we find a unique slug
             attempt = 0
-            while db.session.execute(text("SELECT 1 FROM guidebook WHERE public_slug = :s LIMIT 1"), {"s": slug}).fetchone():
-                attempt += 1
-                suffix = secrets.token_hex(2)
-                slug = f"{base}-{suffix}"
-                if attempt > 8:
+            max_attempts = 20
+            while True:
+                # Check if slug exists (excluding current guidebook id)
+                existing = db.session.execute(
+                    text("SELECT 1 FROM guidebook WHERE public_slug = :s AND id != :gid LIMIT 1"),
+                    {"s": slug, "gid": new_guidebook.id}
+                ).fetchone()
+
+                if not existing:
+                    # Slug is unique, use it
                     break
+
+                attempt += 1
+                if attempt >= max_attempts:
+                    # Fallback to guaranteed unique slug with timestamp
+                    slug = f"{base}-{secrets.token_hex(4)}-{int(time.time())}"
+                    log.warning(f"Using timestamp fallback slug after {max_attempts} attempts: {slug}")
+                    break
+
+                # Try another random suffix
+                slug = f"{base}-{secrets.token_hex(3)}"
+
             new_guidebook.public_slug = slug
-    except Exception:
+            log.info(f"Auto-activated guidebook {new_guidebook.id} with slug '{slug}' for user {user_id}")
+        else:
+            log.info(f"Guidebook {new_guidebook.id} created as draft for user {user_id} (no available slots)")
+    except Exception as e:
         # fallback to preview mode
+        log.warning(f"Failed to check activation eligibility: {e}", exc_info=True)
         pass
 
     db.session.commit()

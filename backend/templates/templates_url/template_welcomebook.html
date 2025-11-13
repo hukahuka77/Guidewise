@@ -1,0 +1,667 @@
+{% extends "base_guidebook.html" %}
+{% import "_macros.html" as m %}
+
+{% block head_extra %}
+<!-- Lucide Icons -->
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  :root {
+    --bg-cream: #F5F1ED;
+    --bg-white: #FFFFFF;
+    --text-dark: #1A1A1A;
+    --text-gray: #6B6B6B;
+    --border-light: #E5E1DC;
+    --accent-warm: #D4A574;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  /* Override base template to remove sidebar and make everything cream */
+  body > div.flex > div.flex {
+    background: var(--bg-cream) !important;
+  }
+
+  /* Hide the sidebar completely */
+  aside {
+    display: none !important;
+  }
+
+  /* Make main area full width with cream background */
+  main {
+    background: var(--bg-cream) !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg-cream);
+    color: var(--text-dark);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    padding: 3rem 1.5rem 2rem;
+    background: var(--bg-cream);
+  }
+
+  .header-title {
+    font-size: clamp(2.5rem, 6vw, 4rem);
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+    color: var(--text-dark);
+  }
+
+  .header-subtitle {
+    font-size: clamp(0.9rem, 2vw, 1.1rem);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-gray);
+    font-weight: 500;
+  }
+
+  /* Sticky Navigation */
+  .nav-bar {
+    position: sticky;
+    top: 0;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-bottom: 2px solid var(--border-light);
+    border-top: 2px solid var(--border-light);
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    margin-bottom: 2rem;
+  }
+
+  .nav-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0.75rem 1rem;
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .nav-container::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nav-link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.5rem 1rem;
+    text-decoration: none;
+    color: var(--text-gray);
+    border-radius: 8px;
+    transition: all 0.2s;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+
+  .nav-link:hover {
+    background: var(--bg-cream);
+    color: var(--text-dark);
+  }
+
+  .nav-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+    stroke-width: 2;
+  }
+
+  /* Container */
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 1.5rem 3rem;
+  }
+
+  /* Section Card */
+  .section-card {
+    background: var(--bg-white);
+    border-radius: 20px;
+    padding: 2.5rem 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  }
+
+  .section-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    color: var(--text-dark);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .section-icon {
+    width: 1.75rem;
+    height: 1.75rem;
+    color: var(--accent-warm);
+    stroke-width: 2;
+  }
+
+  .section-content p {
+    margin-bottom: 1rem;
+    color: var(--text-gray);
+    line-height: 1.8;
+  }
+
+  .section-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-gray);
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+
+  .section-value {
+    font-size: 1.1rem;
+    color: var(--text-dark);
+    margin-bottom: 1.5rem;
+    font-weight: 500;
+  }
+
+  /* Host Card */
+  .host-card {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 1.5rem;
+    background: var(--bg-cream);
+    border-radius: 16px;
+    margin-top: 1.5rem;
+  }
+
+  .host-photo {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--bg-white);
+  }
+
+  .host-info h4 {
+    font-size: 1.2rem;
+    margin-bottom: 0.25rem;
+    color: var(--text-dark);
+  }
+
+  .host-info p {
+    color: var(--text-gray);
+    font-size: 0.95rem;
+  }
+
+  /* List Items */
+  .info-list {
+    list-style: none;
+    padding: 0;
+  }
+
+  .info-item {
+    display: flex;
+    align-items: flex-start;
+    padding: 1rem;
+    background: var(--bg-cream);
+    border-radius: 12px;
+    margin-bottom: 0.75rem;
+  }
+
+  .info-item-icon {
+    width: 1.5rem;
+    height: 1.5rem;
+    margin-right: 1rem;
+    flex-shrink: 0;
+    color: var(--accent-warm);
+    stroke-width: 2;
+  }
+
+  .info-item-content h5 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    color: var(--text-dark);
+  }
+
+  .info-item-content p {
+    color: var(--text-gray);
+    font-size: 0.95rem;
+    margin: 0;
+  }
+
+  /* Rules List */
+  .rules-list {
+    list-style: none;
+    padding: 0;
+  }
+
+  .rules-list li {
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--border-light);
+    color: var(--text-dark);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .rules-list li:last-child {
+    border-bottom: none;
+  }
+
+  .rules-list li::before {
+    content: "•";
+    color: var(--accent-warm);
+    font-size: 1.5rem;
+    font-weight: bold;
+  }
+
+  /* Places Grid */
+  .places-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+  }
+
+  .place-card {
+    background: var(--bg-cream);
+    border-radius: 12px;
+    padding: 1.5rem;
+  }
+
+  .place-card h5 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--text-dark);
+  }
+
+  .place-card p {
+    color: var(--text-gray);
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .place-card .place-address {
+    font-size: 0.85rem;
+    color: var(--text-gray);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .place-address-icon {
+    width: 1rem;
+    height: 1rem;
+    color: var(--accent-warm);
+    stroke-width: 2;
+    flex-shrink: 0;
+  }
+
+  /* Cover Image */
+  .cover-image {
+    width: 100%;
+    height: 300px;
+    object-fit: cover;
+    border-radius: 20px;
+    margin-bottom: 2rem;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .header {
+      padding: 2rem 1rem 1.5rem;
+    }
+
+    .header-title {
+      font-size: 2rem;
+    }
+
+    .section-card {
+      padding: 1.5rem 1.25rem;
+    }
+
+    .places-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .host-card {
+      flex-direction: column;
+      text-align: center;
+    }
+
+    .nav-container {
+      justify-content: flex-start;
+    }
+
+    .nav-link {
+      font-size: 0.7rem;
+      padding: 0.4rem 0.75rem;
+    }
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Scroll offset for sticky nav */
+  section[id],
+  div[id] {
+    scroll-margin-top: 100px;
+  }
+</style>
+{% endblock %}
+
+{% block sidebar %}{% endblock %}
+
+{% block content %}
+<div style="max-width: none; width: 100%; padding: 0; margin: 0;">
+  <!-- Header -->
+  <div class="header">
+    <h1 class="header-title">Welcome Book</h1>
+    <p class="header-subtitle">Short Term Rental Guide</p>
+  </div>
+
+  <!-- Sticky Navigation -->
+  <nav class="nav-bar">
+    <div class="nav-container">
+      {% if 'welcome' in ctx.included_tabs %}
+      <a href="#welcome" class="nav-link">
+        <i data-lucide="home" class="nav-icon"></i>
+        <span>Welcome</span>
+      </a>
+      {% endif %}
+      {% if 'checkin' in ctx.included_tabs %}
+      <a href="#checkin" class="nav-link">
+        <i data-lucide="key" class="nav-icon"></i>
+        <span>Check-in</span>
+      </a>
+      {% endif %}
+      {% if 'property' in ctx.included_tabs and ctx.house_manual %}
+      <a href="#property" class="nav-link">
+        <i data-lucide="book-open" class="nav-icon"></i>
+        <span>House Guide</span>
+      </a>
+      {% endif %}
+      {% if 'rules' in ctx.included_tabs and ctx.rules %}
+      <a href="#rules" class="nav-link">
+        <i data-lucide="clipboard-list" class="nav-icon"></i>
+        <span>Rules</span>
+      </a>
+      {% endif %}
+      {% if 'food' in ctx.included_tabs and ctx.food_recommendations %}
+      <a href="#food" class="nav-link">
+        <i data-lucide="utensils" class="nav-icon"></i>
+        <span>Dining</span>
+      </a>
+      {% endif %}
+      {% if 'activities' in ctx.included_tabs and ctx.activities %}
+      <a href="#activities" class="nav-link">
+        <i data-lucide="compass" class="nav-icon"></i>
+        <span>Activities</span>
+      </a>
+      {% endif %}
+      {% if 'checkout' in ctx.included_tabs %}
+      <a href="#checkout" class="nav-link">
+        <i data-lucide="luggage" class="nav-icon"></i>
+        <span>Checkout</span>
+      </a>
+      {% endif %}
+    </div>
+  </nav>
+
+  <div class="container">
+    <!-- Cover Image -->
+    {% if ctx.cover_image_url %}
+    <img src="{{ ctx.cover_image_url }}" alt="Property" class="cover-image" />
+    {% endif %}
+
+    <!-- Welcome Section -->
+    {% if 'welcome' in ctx.included_tabs %}
+    <div id="welcome" class="section-card">
+      <h2 class="section-title">
+        <i data-lucide="home" class="section-icon"></i>
+        Welcome
+      </h2>
+      <div class="section-content">
+        {% if ctx.welcome_message %}
+        <p>{{ ctx.welcome_message }}</p>
+        {% endif %}
+
+        {% if ctx.address.street or ctx.address.city_state %}
+        <div style="margin-top: 1.5rem;">
+          <div class="section-label">Property Location</div>
+          <div class="section-value">
+            {{ ctx.address.street }}{% if ctx.address.city_state %}, {{ ctx.address.city_state }}{% endif %}{% if ctx.address.zip %} {{ ctx.address.zip }}{% endif %}
+          </div>
+        </div>
+        {% endif %}
+
+        {% if ctx.host and (ctx.host.name or ctx.host.photo_url) %}
+        <div class="host-card">
+          {% if ctx.host.photo_url %}
+          <img src="{{ ctx.host.photo_url }}" alt="{{ ctx.host.name or 'Host' }}" class="host-photo" />
+          {% endif %}
+          <div class="host-info">
+            {% if ctx.host.name %}
+            <h4>{{ ctx.host.name }}</h4>
+            {% endif %}
+            {% if ctx.host.phone %}
+            <p>📱 {{ ctx.host.phone }}</p>
+            {% endif %}
+            {% if ctx.host.email %}
+            <p>✉️ {{ ctx.host.email }}</p>
+            {% endif %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Check-in Section -->
+    {% if 'checkin' in ctx.included_tabs %}
+    <div id="checkin" class="section-card">
+      <h2 class="section-title">
+        <i data-lucide="key" class="section-icon"></i>
+        Check-in Info
+      </h2>
+      <div class="section-content">
+        {% if ctx.check_in_time %}
+        <div class="section-label">Check-in Time</div>
+        <div class="section-value">{{ ctx.check_in_time }}</div>
+        {% endif %}
+
+        {% if ctx.access_info %}
+        <div class="section-label">Access Instructions</div>
+        <div class="section-value" style="white-space: pre-line;">{{ ctx.access_info }}</div>
+        {% endif %}
+
+        {% if ctx.wifi_name or ctx.wifi_password %}
+        <ul class="info-list">
+          <li class="info-item">
+            <i data-lucide="wifi" class="info-item-icon"></i>
+            <div class="info-item-content">
+              <h5>WiFi</h5>
+              {% if ctx.wifi_name %}<p><strong>Network:</strong> {{ ctx.wifi_name }}</p>{% endif %}
+              {% if ctx.wifi_password %}<p><strong>Password:</strong> {{ ctx.wifi_password }}</p>{% endif %}
+            </div>
+          </li>
+        </ul>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- House Manual -->
+    {% if 'property' in ctx.included_tabs and ctx.house_manual %}
+    <div id="property" class="section-card">
+      <h2 class="section-title">
+        <i data-lucide="book-open" class="section-icon"></i>
+        House Guide
+      </h2>
+      <ul class="info-list">
+        {% for item in ctx.house_manual %}
+        <li class="info-item">
+          <i data-lucide="info" class="info-item-icon"></i>
+          <div class="info-item-content">
+            <h5>{{ item.name }}</h5>
+            {% if item.instructions %}
+            <p>{{ item.instructions }}</p>
+            {% endif %}
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    <!-- House Rules -->
+    {% if 'rules' in ctx.included_tabs and ctx.rules %}
+    <div id="rules" class="section-card">
+      <h2 class="section-title">
+        <i data-lucide="clipboard-list" class="section-icon"></i>
+        House Rules
+      </h2>
+      <ul class="rules-list">
+        {% for rule in ctx.rules %}
+        <li>{{ rule.text }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    <!-- Places to Eat -->
+    {% if 'food' in ctx.included_tabs and ctx.food_recommendations %}
+    <div id="food" class="section-card">
+      <h2 class="section-title">
+        <i data-lucide="utensils" class="section-icon"></i>
+        Places to Eat
+      </h2>
+      <div class="places-grid">
+        {% for place in ctx.food_recommendations %}
+        <div class="place-card">
+          <h5>{{ place.name }}</h5>
+          {% if place.description %}
+          <p>{{ place.description }}</p>
+          {% endif %}
+          {% if place.address %}
+          <div class="place-address">
+            <i data-lucide="map-pin" class="place-address-icon"></i>
+            <span>{{ place.address }}</span>
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Activities -->
+    {% if 'activities' in ctx.included_tabs and ctx.activities %}
+    <div id="activities" class="section-card">
+      <h2 class="section-title">
+        <i data-lucide="compass" class="section-icon"></i>
+        Things to Do
+      </h2>
+      <div class="places-grid">
+        {% for activity in ctx.activities %}
+        <div class="place-card">
+          <h5>{{ activity.name }}</h5>
+          {% if activity.description %}
+          <p>{{ activity.description }}</p>
+          {% endif %}
+          {% if activity.address %}
+          <div class="place-address">
+            <i data-lucide="map-pin" class="place-address-icon"></i>
+            <span>{{ activity.address }}</span>
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Checkout -->
+    {% if 'checkout' in ctx.included_tabs %}
+    <div id="checkout" class="section-card">
+      <h2 class="section-title">
+        <i data-lucide="luggage" class="section-icon"></i>
+        Before You Go
+      </h2>
+      <div class="section-content">
+        {% if ctx.checkout_time %}
+        <div class="section-label">Checkout Time</div>
+        <div class="section-value">{{ ctx.checkout_time }}</div>
+        {% endif %}
+
+        {% if ctx.checkout_info %}
+        <ul class="info-list">
+          {% for item in ctx.checkout_info %}
+          <li class="info-item">
+            <i data-lucide="check-circle" class="info-item-icon"></i>
+            <div class="info-item-content">
+              <h5>{{ item.name }}</h5>
+              {% if item.instructions %}
+              <p>{{ item.instructions }}</p>
+              {% endif %}
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Custom Sections -->
+    {% if ctx.custom_sections %}
+      {% for tab_key in ctx.included_tabs %}
+        {% if tab_key.startswith('custom_') and ctx.custom_sections.get(tab_key) %}
+          {% set section = ctx.custom_sections[tab_key] %}
+          {% set meta = ctx.custom_tabs_meta.get(tab_key) if ctx.custom_tabs_meta else None %}
+          <div class="section-card">
+            <h2 class="section-title">
+              <i data-lucide="puzzle" class="section-icon"></i>
+              {{ (meta.label if meta and meta.label) or (tab_key | replace('custom_', '') | replace('_', ' ') | title) }}
+            </h2>
+            <div class="section-content">
+              {% if section.content %}
+                <p style="white-space: pre-line;">{{ section.content }}</p>
+              {% endif %}
+            </div>
+          </div>
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script>
+  // Initialize Lucide icons when the page loads
+  document.addEventListener('DOMContentLoaded', function() {
+    if (typeof lucide !== 'undefined') {
+      lucide.createIcons();
+    }
+  });
+</script>
+{% endblock %}

@@ -10,7 +10,7 @@ import { supabase } from "@/lib/supabaseClient";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
-type TemplateKey = "template_original" | "template_generic" | "template_modern";
+type TemplateKey = "template_original" | "template_generic" | "template_modern" | "template_welcomebook";
 
 type GuidebookMeta = {
   id: string;
@@ -27,23 +27,14 @@ export default function GuidebookUrlTemplatesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState<TemplateKey | null>(null);
-
-  // Carousel state
-  const [carouselEl, setCarouselEl] = useState<HTMLDivElement | null>(null);
-
-  const scrollCarousel = (direction: 'left' | 'right') => {
-    if (!carouselEl) return;
-    const scrollAmount = 320; // Approximate card width + gap
-    const newScrollLeft = direction === 'left'
-      ? carouselEl.scrollLeft - scrollAmount
-      : carouselEl.scrollLeft + scrollAmount;
-    carouselEl.scrollTo({ left: newScrollLeft, behavior: 'smooth' });
-  };
+  const [cacheVersion, setCacheVersion] = useState<number>(0);
 
   const liveGuidebookUrl = useMemo(() => {
     if (!guidebookId) return null;
-    return `${API_BASE}/guidebook/${guidebookId}`;
-  }, [guidebookId]);
+    const baseUrl = `${API_BASE}/guidebook/${guidebookId}`;
+    // Only add cache-busting parameter if template was recently changed
+    return cacheVersion > 0 ? `${baseUrl}?v=${cacheVersion}` : baseUrl;
+  }, [guidebookId, cacheVersion]);
 
   useEffect(() => {
     let mounted = true;
@@ -85,6 +76,8 @@ export default function GuidebookUrlTemplatesPage() {
       if (!res.ok) throw new Error(`Failed to update template (${res.status})`);
       const json = await res.json();
       setGb((prev) => (prev ? { ...prev, template_key: json.template_key as TemplateKey } : prev));
+      // Bump cache version to force refresh when viewing live guidebook
+      setCacheVersion(Date.now());
     } catch (e: unknown) {
       console.error(e);
       alert("Could not save template. Please try again.");
@@ -96,7 +89,7 @@ export default function GuidebookUrlTemplatesPage() {
   const Card = ({ template, title, img }: { template: TemplateKey; title: string; img: string }) => {
     const isSelected = gb?.template_key === template;
     return (
-      <div className="group relative border rounded-xl p-4 bg-white shadow hover:shadow-lg transition">
+      <div className="group relative border border-[#E5E1DC] rounded-xl p-4 bg-white shadow hover:shadow-lg transition">
         <div className="absolute top-3 right-3">
           {isSelected && (
             <span className="text-[10px] px-2 py-1 bg-emerald-50 text-emerald-700 rounded border border-emerald-300">Selected</span>
@@ -131,7 +124,7 @@ export default function GuidebookUrlTemplatesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center p-4 sm:p-6 md:p-10">
+    <div className="min-h-screen flex flex-col items-center p-4 sm:p-6 md:p-10">
       <div className="w-full max-w-6xl space-y-8">
         <div className="flex items-center justify-between">
           <div className="text-left">
@@ -147,61 +140,23 @@ export default function GuidebookUrlTemplatesPage() {
         </div>
 
         {loading && (
-          <div className="bg-white rounded-xl border p-6 text-gray-700 flex items-center gap-3">
+          <div className="p-6 text-gray-700 flex items-center gap-3">
             <Spinner size={20} colorClass="text-[oklch(0.6923_0.22_21.05)]" />
             <span>Loading…</span>
           </div>
         )}
         {!loading && error && (
-          <div className="bg-white rounded-xl border p-6 text-red-600">{error}</div>
+          <div className="p-6 text-red-600">{error}</div>
         )}
 
         {!loading && !error && (
-          <section className="bg-white rounded-2xl shadow p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-semibold">URL Templates</h2>
-            </div>
-
-            {/* Horizontal Carousel */}
-            <div className="relative">
-              {/* Left Arrow */}
-              <button
-                onClick={() => scrollCarousel('left')}
-                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white rounded-full p-2 shadow-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                aria-label="Scroll left"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-                </svg>
-              </button>
-
-              {/* Scrollable Container */}
-              <div
-                ref={setCarouselEl}
-                className="flex gap-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory px-8"
-                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-              >
-                <div className="flex-shrink-0 w-[300px] snap-start">
-                  <Card template="template_original" title="Lifestyle (Standard)" img="/images/URL_Generic1.png" />
-                </div>
-                <div className="flex-shrink-0 w-[300px] snap-start">
-                  <Card template="template_generic" title="Minimal (Basic)" img="/images/URL_Generic2.png" />
-                </div>
-                <div className="flex-shrink-0 w-[300px] snap-start">
-                  <Card template="template_modern" title="Modern Cards" img="/images/URL_Modern.jpg" />
-                </div>
-              </div>
-
-              {/* Right Arrow */}
-              <button
-                onClick={() => scrollCarousel('right')}
-                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white rounded-full p-2 shadow-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                aria-label="Scroll right"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                </svg>
-              </button>
+          <section>
+            {/* Responsive Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <Card template="template_original" title="Lifestyle (Standard)" img="/images/URL_Generic1.png" />
+              <Card template="template_generic" title="Minimal (Basic)" img="/images/URL_Generic2.png" />
+              <Card template="template_modern" title="Modern Cards" img="/images/URL_Modern.jpg" />
+              <Card template="template_welcomebook" title="Welcome Book" img="/images/URL_WelcomeBook.jpg" />
             </div>
           </section>
         )}
