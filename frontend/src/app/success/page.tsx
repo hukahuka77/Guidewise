@@ -31,7 +31,6 @@ export default function SuccessPage() {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [plan, setPlan] = useState<'free'|'trial'|'starter'|'growth'|'pro'|''>('');
   const [guidebookLimit, setGuidebookLimit] = useState<number>(0);
-  const [activeGuidebooks, setActiveGuidebooks] = useState<number>(0);
   const [isPdfSectionExpanded, setIsPdfSectionExpanded] = useState<boolean>(false);
 
   // Carousel state
@@ -146,14 +145,6 @@ export default function SuccessPage() {
             const p = (prof?.plan as 'free'|'trial'|'starter'|'growth'|'pro'|undefined) || 'free';
             setPlan(p);
             setGuidebookLimit(prof?.guidebook_limit || 0);
-
-            // Get count of active guidebooks
-            const { count } = await supabase
-              .from('guidebook')
-              .select('*', { count: 'exact', head: true })
-              .eq('user_id', user.id)
-              .eq('active', true);
-            setActiveGuidebooks(count || 0);
           }
         } catch {}
         const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || '';
@@ -428,7 +419,7 @@ export default function SuccessPage() {
             <div className="w-full max-w-3xl rounded-2xl border border-amber-300 bg-gradient-to-br from-amber-50 to-white text-amber-900 p-6 md:p-8 shadow-md text-center">
               <h3 className="text-xl md:text-2xl font-semibold">Your guidebook is saved as a draft</h3>
               <p className="mt-2 text-sm md:text-base text-amber-800">
-                You've reached your guidebook limit ({guidebookLimit}). Upgrade your plan or deactivate an existing guidebook to activate this one from the <Link href="/dashboard" className="underline font-semibold">Dashboard</Link>.
+                You&apos;ve reached your guidebook limit ({guidebookLimit}). Upgrade your plan or deactivate an existing guidebook to activate this one from the <Link href="/dashboard" className="underline font-semibold">Dashboard</Link>.
               </p>
             </div>
             <div className="flex gap-3 items-center flex-wrap justify-center">
