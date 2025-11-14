@@ -64,7 +64,8 @@ log = logging.getLogger("auth")
 
 @app.before_request
 def redirect_root():
-    if request.host == "guidewise.onrender.com":
+    # Only redirect the root path, not API endpoints
+    if request.host == "guidewise.onrender.com" and request.path == "/":
         return redirect("https://guidewiseapp.com", code=301)
 
 # Optional gzip compression if Flask-Compress is available
