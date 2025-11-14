@@ -1,4 +1,4 @@
-from flask import Flask, request, send_file, jsonify, render_template, make_response, g, abort
+from flask import Flask, request, send_file, jsonify, render_template, make_response, g, abort, redirect
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
