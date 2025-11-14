@@ -7,7 +7,7 @@ import main as pdf_generator
 import io
 import secrets
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 import hashlib
 from dotenv import load_dotenv
 import os
@@ -23,7 +23,7 @@ from jwt import PyJWKClient
 import stripe
 
 # Import db and models from models.py
-from models import db, Guidebook, Host, Property, Wifi, Rule
+from models import db, Guidebook, Host, Property
 from utils.ai_recommendations import (
     get_ai_recommendations,
     get_ai_food_recommendations,  # backward compatibility
@@ -61,6 +61,11 @@ app = Flask(__name__)
 # Basic logging setup
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("auth")
+
+@app.before_request
+def redirect_root():
+    if request.host == "guidewise.onrender.com":
+        return redirect("https://guidewiseapp.com", code=301)
 
 # Optional gzip compression if Flask-Compress is available
 try:
