@@ -632,6 +632,22 @@
               {{ item.name }}
               <i data-lucide="chevron-down" class="chevron-icon"></i>
             </h5>
+            {% if item.media_type and item.media_url %}
+              <div style="margin-top: 0.5rem; margin-bottom: 0.5rem; display: flex; justify-content: flex-start;">
+                {% if item.media_type == 'image' %}
+                  <img
+                    src="{{ item.media_url }}"
+                    alt="{{ item.name }}"
+                    style="max-width: 320px; max-height: 260px; height: auto; object-fit: contain; border-radius: 10px; display: block;"
+                  />
+                {% elif item.media_type == 'video' %}
+                  <video controls style="width: 100%; max-height: 260px; border-radius: 10px;">
+                    <source src="{{ item.media_url }}" type="video/mp4" />
+                    Your browser does not support the video tag.
+                  </video>
+                {% endif %}
+              </div>
+            {% endif %}
             {% if item.description %}
             <p>{{ item.description }}</p>
             {% endif %}

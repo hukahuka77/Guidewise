@@ -26,9 +26,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSectionNavigation } from "@/hooks/useSectionNavigation";
 import { buildGuidebookPayload } from "@/utils/guidebookPayload";
 import { EDIT_SECTIONS_ORDER } from "@/config/sections";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL as string;
 const BUCKET_NAME = process.env.NEXT_PUBLIC_SUPABASE_FOOD_ACTIVITIES_BUCKET as string;
+const HOUSE_MEDIA_BUCKET = process.env.NEXT_PUBLIC_SUPABASE_USER_VIDEOS_BUCKET as string;
 
 
 type GuidebookDetail = {
@@ -67,7 +69,7 @@ type GuidebookDetail = {
   parking_info?: string | null;
   cover_image_url?: string | null;
   checkout_info?: { name: string; description: string }[] | null;
-  house_manual?: { name: string; description: string }[] | null;
+  house_manual?: { name?: string | null; description?: string | null; media_url?: string | null; media_type?: string | null }[] | null;
   safety_info?: { emergency_contact?: string | null; fire_extinguisher_location?: string | null } | null;
 };
 
@@ -135,9 +137,12 @@ export default function EditGuidebookPage() {
     onError: (msg) => setError(msg),
   });
 
-  // Use image upload hook
+  // Use image upload hooks
   const { uploadToStorage } = useImageUpload({
     bucketName: BUCKET_NAME,
+  });
+  const { uploadToStorage: uploadHouseMedia, deleteFromStorage: deleteHouseMedia } = useImageUpload({
+    bucketName: HOUSE_MEDIA_BUCKET || BUCKET_NAME,
   });
 
   // Use section navigation hook
@@ -152,6 +157,8 @@ export default function EditGuidebookPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pendingHouseMediaIndex, setPendingHouseMediaIndex] = useState<number | null>(null);
+  const [showHouseMediaConfirm, setShowHouseMediaConfirm] = useState(false);
 
   // Fetch existing guidebook details
   useEffect(() => {
@@ -213,7 +220,12 @@ export default function EditGuidebookPage() {
           image_url: i.image_url || "",
         })));
         setCheckoutItems((data.checkout_info || []).map(i => ({ ...i, checked: true })));
-        setHouseManualItems((data.house_manual || []).map(i => ({ name: i.name, description: i.description })));
+        setHouseManualItems((data.house_manual || []).map(i => ({
+          name: i.name || "",
+          description: i.description || "",
+          mediaUrl: i.media_url || "",
+          mediaType: i.media_type === 'video' ? 'video' : i.media_type === 'image' ? 'image' : undefined,
+        })));
         setRules((data.rules || []).map((text: string) => ({ name: text.split(":")[0] || text, description: text.includes(":") ? text.split(":").slice(1).join(":").trim() : "", checked: true })));
         if (data.cover_image_url) setPreviewUrl(data.cover_image_url);
         if (data.host?.photo_url) setHostPhotoPreviewUrl(data.host.photo_url);
@@ -431,6 +443,35 @@ export default function EditGuidebookPage() {
                 }}
                 onAdd={() => setHouseManualItems(items => [...items, { name: "", description: "" }])}
                 onDelete={(idx) => setHouseManualItems(items => items.filter((_, i) => i !== idx))}
+                onMediaSelect={async (idx, file) => {
+                  if (!file) {
+                    setHouseManualItems(items =>
+                      items.map((it, i) =>
+                        i === idx ? { ...it, mediaUrl: undefined, mediaType: undefined } : it
+                      )
+                    );
+                    return;
+                  }
+
+                  try {
+                    const url = await uploadHouseMedia('guide', file);
+                    if (!url) return;
+                    const isVideo = file.type && file.type.startsWith('video/');
+                    const mediaType = isVideo ? 'video' : 'image';
+                    setHouseManualItems(items =>
+                      items.map((it, i) =>
+                        i === idx ? { ...it, mediaUrl: url, mediaType } : it
+                      )
+                    );
+                  } catch (e) {
+                    console.error('Failed to upload house manual media:', e);
+                    setError(prev => prev || 'Failed to upload media. Please try a smaller file or different format.');
+                  }
+                }}
+                onRemoveMedia={(idx) => {
+                  setPendingHouseMediaIndex(idx);
+                  setShowHouseMediaConfirm(true);
+                }}
               />
             </div>
           </>
@@ -575,6 +616,41 @@ export default function EditGuidebookPage() {
           />
         )}
       </CreateGuidebookLayout>
+
+      <ConfirmModal
+        open={showHouseMediaConfirm}
+        title="Remove media?"
+        description={"This will permanently remove the attached image or video from this House Manual item and delete it from storage."}
+        confirmLabel="Remove"
+        cancelLabel="Cancel"
+        destructive
+        onCancel={() => {
+          setShowHouseMediaConfirm(false);
+          setPendingHouseMediaIndex(null);
+        }}
+        onConfirm={async () => {
+          if (pendingHouseMediaIndex == null) {
+            setShowHouseMediaConfirm(false);
+            return;
+          }
+          const current = houseManualItems[pendingHouseMediaIndex];
+          const url = current?.mediaUrl;
+          if (url) {
+            try {
+              await deleteHouseMedia(url);
+            } catch (e) {
+              console.error('Failed to delete house manual media:', e);
+            }
+          }
+          setHouseManualItems(items =>
+            items.map((it, i) =>
+              i === pendingHouseMediaIndex ? { ...it, mediaUrl: undefined, mediaType: undefined } : it
+            )
+          );
+          setShowHouseMediaConfirm(false);
+          setPendingHouseMediaIndex(null);
+        }}
+      />
     </div>
   );
 }

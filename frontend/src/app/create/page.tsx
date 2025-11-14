@@ -25,12 +25,16 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSectionNavigation } from "@/hooks/useSectionNavigation";
 import { buildGuidebookPayload } from "@/utils/guidebookPayload";
 import { CREATE_SECTIONS_ORDER } from "@/config/sections";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 
 
 // Base URL for backend API, configured via environment. Example in .env.local:
 // NEXT_PUBLIC_API_BASE_URL=http://localhost:5001
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL as string;
+// Primary bucket for covers, host photos, and food/activity images
 const BUCKET_NAME = process.env.NEXT_PUBLIC_SUPABASE_FOOD_ACTIVITIES_BUCKET as string;
+// Dedicated bucket for user-uploaded house manual media (images/videos)
+const HOUSE_MEDIA_BUCKET = process.env.NEXT_PUBLIC_SUPABASE_USER_VIDEOS_BUCKET as string;
 
 export default function CreateGuidebookPage() {
   const router = useRouter();
@@ -96,9 +100,12 @@ export default function CreateGuidebookPage() {
     onError: (msg) => setError(msg),
   });
 
-  // Use image upload hook
+  // Use image upload hooks
   const { uploadToStorage } = useImageUpload({
     bucketName: BUCKET_NAME,
+  });
+  const { uploadToStorage: uploadHouseMedia, deleteFromStorage: deleteHouseMedia } = useImageUpload({
+    bucketName: HOUSE_MEDIA_BUCKET || BUCKET_NAME,
   });
 
   // Use section navigation hook - pass dynamic included sections
@@ -119,6 +126,8 @@ export default function CreateGuidebookPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [signupSuccess, setSignupSuccess] = useState<boolean>(false);
+  const [pendingHouseMediaIndex, setPendingHouseMediaIndex] = useState<number | null>(null);
+  const [showHouseMediaConfirm, setShowHouseMediaConfirm] = useState(false);
 
   // Handle signup success banner
   useEffect(() => {
@@ -334,6 +343,35 @@ export default function CreateGuidebookPage() {
             }}
             onAdd={() => setHouseManualItems(items => [...items, { name: "", description: "" }])}
             onDelete={(idx) => setHouseManualItems(items => items.filter((_, i) => i !== idx))}
+            onMediaSelect={async (idx, file) => {
+              if (!file) {
+                setHouseManualItems(items =>
+                  items.map((it, i) =>
+                    i === idx ? { ...it, mediaUrl: undefined, mediaType: undefined } : it
+                  )
+                );
+                return;
+              }
+
+              try {
+                const url = await uploadHouseMedia('guide', file);
+                if (!url) return;
+                const isVideo = file.type && file.type.startsWith('video/');
+                const mediaType = isVideo ? 'video' : 'image';
+                setHouseManualItems(items =>
+                  items.map((it, i) =>
+                    i === idx ? { ...it, mediaUrl: url, mediaType } : it
+                  )
+                );
+              } catch (e) {
+                console.error('Failed to upload house manual media:', e);
+                setError(prev => prev || 'Failed to upload media. Please try a smaller file or different format.');
+              }
+            }}
+            onRemoveMedia={(idx) => {
+              setPendingHouseMediaIndex(idx);
+              setShowHouseMediaConfirm(true);
+            }}
           />
         </div>
       )}
@@ -568,6 +606,41 @@ export default function CreateGuidebookPage() {
           ) : null}
         </div>
       </CreateGuidebookLayout>
+
+      <ConfirmModal
+        open={showHouseMediaConfirm}
+        title="Remove media?"
+        description={"This will permanently remove the attached image or video from this House Manual item and delete it from storage."}
+        confirmLabel="Remove"
+        cancelLabel="Cancel"
+        destructive
+        onCancel={() => {
+          setShowHouseMediaConfirm(false);
+          setPendingHouseMediaIndex(null);
+        }}
+        onConfirm={async () => {
+          if (pendingHouseMediaIndex == null) {
+            setShowHouseMediaConfirm(false);
+            return;
+          }
+          const current = houseManualItems[pendingHouseMediaIndex];
+          const url = current?.mediaUrl;
+          if (url) {
+            try {
+              await deleteHouseMedia(url);
+            } catch (e) {
+              console.error('Failed to delete house manual media:', e);
+            }
+          }
+          setHouseManualItems(items =>
+            items.map((it, i) =>
+              i === pendingHouseMediaIndex ? { ...it, mediaUrl: undefined, mediaType: undefined } : it
+            )
+          );
+          setShowHouseMediaConfirm(false);
+          setPendingHouseMediaIndex(null);
+        }}
+      />
     </div>
   );
 

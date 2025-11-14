@@ -1367,6 +1367,25 @@ def get_guidebook(guidebook_id):
     }
     return jsonify(payload)
 
+
+@app.route('/api/guidebooks/<guidebook_id>', methods=['DELETE'])
+@require_auth
+def delete_guidebook(guidebook_id):
+    """Delete a guidebook owned by the authenticated user."""
+    gb = Guidebook.query.get_or_404(guidebook_id)
+
+    # Enforce ownership: only the guidebook owner can delete
+    if getattr(gb, 'user_id', None) != g.user_id:
+        return jsonify({"error": "Not found"}), 404
+
+    try:
+        db.session.delete(gb)
+        db.session.commit()
+        return jsonify({"ok": True}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Delete failed: {type(e).__name__}: {e}"}), 500
+
 @app.route('/api/guidebooks/<guidebook_id>', methods=['PUT', 'PATCH'])
 @require_auth
 def update_guidebook(guidebook_id):

@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import Spinner from "@/components/ui/spinner";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 import { cacheGet, cacheSet } from "@/lib/cache";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
@@ -35,6 +36,8 @@ export default function DashboardPage() {
   // UI state
   const [qrModalFor, setQrModalFor] = useState<string | null>(null); // guidebook id
   const [syncSuccess, setSyncSuccess] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -328,6 +331,13 @@ export default function DashboardPage() {
                       <Link href={`/dashboard/url/${gb.id}`} className="col-span-2">
                         <Button variant="outline" className="w-full whitespace-nowrap text-sm">Guidebook Templates</Button>
                       </Link>
+                      <Button
+                        variant="outline"
+                        className="col-span-2 w-full whitespace-nowrap text-sm border-red-200 text-red-700 hover:bg-red-50"
+                        onClick={() => setDeleteId(gb.id)}
+                      >
+                        Delete Guidebook
+                      </Button>
                     </div>
                   </div>
                 </li>
@@ -372,6 +382,56 @@ export default function DashboardPage() {
             </div>
           </div>
         )}
+
+        {/* Delete Guidebook Confirmation */}
+        <ConfirmModal
+          open={!!deleteId}
+          title="Delete guidebook?"
+          description={"This will permanently delete this guidebook and its data. This action cannot be undone."}
+          confirmLabel={deleteLoading ? "Deleting…" : "Delete"}
+          cancelLabel="Cancel"
+          destructive
+          onCancel={() => {
+            if (deleteLoading) return;
+            setDeleteId(null);
+          }}
+          onConfirm={async () => {
+            if (!deleteId || deleteLoading) return;
+            setDeleteLoading(true);
+            try {
+              const token = (await supabase?.auth.getSession())?.data.session?.access_token || null;
+              if (!token) {
+                console.error('Missing auth token for delete');
+                setDeleteLoading(false);
+                return;
+              }
+
+              const res = await fetch(`${API_BASE}/api/guidebooks/${deleteId}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${token}` },
+              });
+
+              if (!res.ok) {
+                console.error('Delete failed', await res.text());
+                setDeleteLoading(false);
+                return;
+              }
+
+              setItems(prev => prev.filter(item => item.id !== deleteId));
+              // If a deleted guidebook was active, adjust activeCount
+              const deleted = items.find(i => i.id === deleteId);
+              if (deleted?.active) {
+                setActiveCount(prev => Math.max(0, prev - 1));
+              }
+              cacheSet("dashboard:guidebooks", null, 0);
+              setDeleteId(null);
+            } catch (e) {
+              console.error('Delete guidebook error:', e);
+            } finally {
+              setDeleteLoading(false);
+            }
+          }}
+        />
       </div>
     </div>
   );

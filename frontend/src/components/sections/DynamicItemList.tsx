@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { LIMITS } from "@/constants/limits";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 
 export interface DynamicItem {
   name: string;
@@ -33,6 +34,8 @@ const BUCKET_NAME = process.env.NEXT_PUBLIC_SUPABASE_FOOD_ACTIVITIES_BUCKET as s
 
 export default function DynamicItemList({ items, onChange, onAdd, onDelete, label }: DynamicItemListProps) {
   const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
+  const [pendingDeleteIdx, setPendingDeleteIdx] = useState<number | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const uploadImage = async (idx: number, file: File) => {
     try {
@@ -84,8 +87,11 @@ export default function DynamicItemList({ items, onChange, onAdd, onDelete, labe
                   <button
                     type="button"
                     aria-label="Delete item"
-                    className="absolute top-2 right-2 p-1 rounded hover:bg-[oklch(0.6923_0.22_21.05)]/10 transition"
-                    onClick={() => onDelete(idx)}
+                    className="absolute top-2 left-2 z-20 p-1 rounded bg-white/90 hover:bg-[oklch(0.6923_0.22_21.05)]/10 transition"
+                    onClick={() => {
+                      setPendingDeleteIdx(idx);
+                      setShowDeleteConfirm(true);
+                    }}
                   >
                     <Trash style={{ color: 'oklch(0.6923 0.22 21.05)' }} size={20} />
                   </button>
@@ -167,6 +173,30 @@ export default function DynamicItemList({ items, onChange, onAdd, onDelete, labe
             <span>Add another</span>
           </button>
         </>
+      )}
+
+      {onDelete && (
+        <ConfirmModal
+          open={showDeleteConfirm}
+          title="Remove item?"
+          description={"This will permanently remove this place or activity from your guidebook."}
+          confirmLabel="Remove"
+          cancelLabel="Cancel"
+          destructive
+          onCancel={() => {
+            setShowDeleteConfirm(false);
+            setPendingDeleteIdx(null);
+          }}
+          onConfirm={() => {
+            if (pendingDeleteIdx == null) {
+              setShowDeleteConfirm(false);
+              return;
+            }
+            onDelete(pendingDeleteIdx);
+            setShowDeleteConfirm(false);
+            setPendingDeleteIdx(null);
+          }}
+        />
       )}
     </section>
   );

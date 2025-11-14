@@ -55,7 +55,9 @@ export function mapCheckoutItems(items: CheckoutItem[]) {
 export function mapHouseManualItems(items: HouseManualItem[]) {
   return items.map(i => ({
     name: i.name,
-    description: i.description
+    description: i.description,
+    media_url: i.mediaUrl || "",
+    media_type: i.mediaType || undefined,
   }));
 }
 

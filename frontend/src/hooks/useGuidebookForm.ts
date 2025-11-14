@@ -38,6 +38,8 @@ export interface CheckoutItem {
 export interface HouseManualItem {
   name: string;
   description: string;
+  mediaUrl?: string;
+  mediaType?: "image" | "video";
 }
 
 const DEFAULT_FORM_DATA: FormData = {
