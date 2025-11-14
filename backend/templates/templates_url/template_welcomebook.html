@@ -445,6 +445,12 @@
         <span>Check-in</span>
       </a>
       {% endif %}
+      {% if ctx.wifi_json and (ctx.wifi_json.network or ctx.wifi_json.password) %}
+      <a href="#wifi" class="nav-link">
+        <i data-lucide="wifi" class="nav-icon"></i>
+        <span>Wi-Fi</span>
+      </a>
+      {% endif %}
       {% if 'property' in ctx.included_tabs and ctx.house_manual %}
       <a href="#property" class="nav-link">
         <i data-lucide="book-open" class="nav-icon"></i>
@@ -582,16 +588,28 @@
         <div class="section-label">Parking</div>
         <div class="section-value" style="white-space: pre-line;">{{ ctx.parking_info }}</div>
         {% endif %}
+      </div>
+    </div>
+    {% endif %}
 
-        {% if ctx.wifi_json and (ctx.wifi_json.network or ctx.wifi_json.password) %}
-        <div style="margin-top: 1.5rem;">
-          <div class="section-label">WiFi</div>
-          {% if ctx.wifi_json.network %}
-          <div class="section-value"><strong>Network:</strong> {{ ctx.wifi_json.network }}</div>
-          {% endif %}
-          {% if ctx.wifi_json.password %}
-          <div class="section-value"><strong>Password:</strong> {{ ctx.wifi_json.password }}</div>
-          {% endif %}
+    <!-- Wi-Fi -->
+    {% if ctx.wifi_json and (ctx.wifi_json.network or ctx.wifi_json.password) %}
+    <div id="wifi" class="section-card">
+      <h2 class="section-title">
+        <i data-lucide="wifi" class="section-icon"></i>
+        Wi-Fi
+      </h2>
+      <div class="section-content">
+        {% if ctx.wifi_json.network %}
+        <div style="margin-bottom: 1rem;">
+          <div class="section-label">Network Name</div>
+          <div class="section-value">{{ ctx.wifi_json.network }}</div>
+        </div>
+        {% endif %}
+        {% if ctx.wifi_json.password %}
+        <div>
+          <div class="section-label">Password</div>
+          <div class="section-value">{{ ctx.wifi_json.password }}</div>
         </div>
         {% endif %}
       </div>

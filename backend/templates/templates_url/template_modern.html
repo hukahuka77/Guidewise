@@ -398,14 +398,14 @@
     </div>
     {% endif %}
 
-    {% if ctx.wifi.network %}
+    {% if ctx.wifi_json and ctx.wifi_json.network %}
     <div class="info-card">
       <span class="info-card-icon">📶</span>
       <div class="info-card-title">Wi-Fi Network</div>
-      <div class="info-card-value">{{ ctx.wifi.network }}</div>
-      {% if ctx.wifi.password %}
+      <div class="info-card-value">{{ ctx.wifi_json.network }}</div>
+      {% if ctx.wifi_json.password %}
       <div class="label" style="margin-top: 0.75rem;">Password</div>
-      <div class="info-card-value" style="font-size: 1rem;">{{ ctx.wifi.password }}</div>
+      <div class="info-card-value" style="font-size: 1rem;">{{ ctx.wifi_json.password }}</div>
       {% endif %}
     </div>
     {% endif %}

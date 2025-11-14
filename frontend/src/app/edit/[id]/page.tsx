@@ -48,8 +48,7 @@ type GuidebookDetail = {
     contact?: string | null;
     photo_url?: string | null;
   };
-  wifi?: {
-    id?: number | string | null;
+  wifi_json?: {
     network?: string | null;
     password?: string | null;
   };
@@ -192,8 +191,8 @@ export default function EditGuidebookPage() {
           location: data.property?.address_street || "",
           emergencyContact: data.safety_info?.emergency_contact || "",
           fireExtinguisherLocation: data.safety_info?.fire_extinguisher_location || "",
-          wifiNetwork: data.wifi?.network || "",
-          wifiPassword: data.wifi?.password || "",
+          wifiNetwork: data.wifi_json?.network || "",
+          wifiPassword: data.wifi_json?.password || "",
           checkInTime: data.check_in_time || prev.checkInTime,
           checkOutTime: data.check_out_time || prev.checkOutTime,
         }));
@@ -394,14 +393,23 @@ export default function EditGuidebookPage() {
           />
         )}
         {currentSection === "checkin" && (
-          <CheckinSection
-            accessInfo={formData.access_info}
-            parkingInfo={formData.parkingInfo}
-            checkInTime={formData.checkInTime}
-            emergencyContact={formData.emergencyContact}
-            fireExtinguisherLocation={formData.fireExtinguisherLocation}
-            onChange={(id: string, value: string) => setFormData(f => ({ ...f, [id]: value }))}
-          />
+          <>
+            <CheckinSection
+              accessInfo={formData.access_info}
+              parkingInfo={formData.parkingInfo}
+              checkInTime={formData.checkInTime}
+              emergencyContact={formData.emergencyContact}
+              fireExtinguisherLocation={formData.fireExtinguisherLocation}
+              onChange={(id: string, value: string) => setFormData(f => ({ ...f, [id]: value }))}
+            />
+            <div className="mt-6">
+              <WifiSection
+                wifiNetwork={formData.wifiNetwork}
+                wifiPassword={formData.wifiPassword}
+                onChange={(id: string, value: string) => setFormData(f => ({ ...f, [id]: value }))}
+              />
+            </div>
+          </>
         )}
         {currentSection === "hostinfo" && (
           <HostInfoSection

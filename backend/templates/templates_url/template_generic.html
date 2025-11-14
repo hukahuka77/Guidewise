@@ -212,11 +212,11 @@
           {% if ctx.check_in_time %}
           <div class="info-item"><strong>Check-in Time:</strong> {{ ctx.check_in_time }}</div>
           {% endif %}
-          {% if ctx.wifi.network or ctx.wifi.password %}
+          {% if ctx.wifi_json and (ctx.wifi_json.network or ctx.wifi_json.password) %}
           <div class="info-item"><strong>Wi‑Fi:</strong>
             <div>
-              {% if ctx.wifi.network %}<div>Network: {{ ctx.wifi.network }}</div>{% endif %}
-              {% if ctx.wifi.password %}<div>Password: {{ ctx.wifi.password }}</div>{% endif %}
+              {% if ctx.wifi_json.network %}<div>Network: {{ ctx.wifi_json.network }}</div>{% endif %}
+              {% if ctx.wifi_json.password %}<div>Password: {{ ctx.wifi_json.password }}</div>{% endif %}
             </div>
           </div>
           {% endif %}

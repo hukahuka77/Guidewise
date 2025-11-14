@@ -83,14 +83,14 @@
         <label class="block text-xs uppercase tracking-wide text-gray-500">Parking Info</label>
         <p class="mt-1 text-gray-900 font-medium whitespace-pre-line">{{ ctx.parking_info }}</p>
         {% endif %}
-        {% if ctx.wifi.network or ctx.wifi.password %}
+        {% if ctx.wifi_json and (ctx.wifi_json.network or ctx.wifi_json.password) %}
         <div class="mt-4">
           <h3 class="text-lg font-semibold">WiFi</h3>
-          {% if ctx.wifi.network %}
-          <div><span class="text-xs uppercase tracking-wide text-gray-500">Network</span> <span class="font-medium">{{ ctx.wifi.network }}</span></div>
+          {% if ctx.wifi_json.network %}
+          <div><span class="text-xs uppercase tracking-wide text-gray-500">Network</span> <span class="font-medium">{{ ctx.wifi_json.network }}</span></div>
           {% endif %}
-          {% if ctx.wifi.password %}
-          <div><span class="text-xs uppercase tracking-wide text-gray-500">Password</span> <span class="font-medium">{{ ctx.wifi.password }}</span></div>
+          {% if ctx.wifi_json.password %}
+          <div><span class="text-xs uppercase tracking-wide text-gray-500">Password</span> <span class="font-medium">{{ ctx.wifi_json.password }}</span></div>
           {% endif %}
         </div>
         {% endif %}
