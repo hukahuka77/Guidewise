@@ -840,10 +840,7 @@ def _render_guidebook(gb: Guidebook, show_watermark: bool = False):
                 "city_state": getattr(g.property, 'address_city_state', None),
                 "zip": getattr(g.property, 'address_zip', None),
             },
-            "wifi": {
-                "network": getattr(g.wifi, 'network', None) if g.wifi else None,
-                "password": getattr(g.wifi, 'password', None) if g.wifi else None,
-            },
+            "wifi_json": getattr(g, 'wifi_json', None) or {},
             "check_in_time": g.check_in_time,
             "check_out_time": g.check_out_time,
             "access_info": g.access_info,
@@ -938,7 +935,6 @@ def view_guidebook(guidebook_id):
         Guidebook.query.options(
             joinedload(Guidebook.host),
             joinedload(Guidebook.property),
-            joinedload(Guidebook.wifi),
             joinedload(Guidebook.rules),
         ).get_or_404(guidebook_id)
     )
@@ -1034,18 +1030,14 @@ def generate_guidebook_route():
         if 'address_zip' in data:
             prop.address_zip = data.get('address_zip')
 
-    # Find or create Wifi (update password if it already exists)
-    wifi = None
+    # Build WiFi JSON from incoming data
+    wifi_json = {}
     if data.get('wifi_network'):
-        wifi = Wifi.query.filter_by(network=data['wifi_network'], user_id=user_id).first()
-        if not wifi:
-            wifi = Wifi(network=data['wifi_network'], password=data.get('wifi_password'), user_id=user_id)
-            db.session.add(wifi)
-        else:
-            if 'wifi_password' in data:
-                wifi.password = data.get('wifi_password')
-    
-    # Flush session to assign IDs to new host, prop, wifi before linking to guidebook
+        wifi_json['network'] = data.get('wifi_network')
+    if data.get('wifi_password'):
+        wifi_json['password'] = data.get('wifi_password')
+
+    # Flush session to assign IDs to new host, prop before linking to guidebook
     db.session.flush()
 
     # Create Guidebook
@@ -1096,13 +1088,13 @@ def generate_guidebook_route():
         places_to_eat=data.get('places_to_eat'),
         checkout_info=data.get('checkout_info'),
         house_manual=data.get('house_manual'),
+        wifi_json=wifi_json if wifi_json else None,
         included_tabs=included_tabs,
         custom_sections=custom_sections,
         custom_tabs_meta=custom_tabs_meta if custom_tabs_meta else None,
         template_key=selected_template_key,
         host_id=host.id if host else None,
         property_id=prop.id,
-        wifi_id=wifi.id if wifi else None,
         user_id=user_id,
     )
     db.session.add(new_guidebook)
@@ -1266,10 +1258,7 @@ def publish_guidebook(guidebook_id):
                 "city_state": getattr(gb.property, 'address_city_state', None),
                 "zip": getattr(gb.property, 'address_zip', None),
             },
-            "wifi": {
-                "network": getattr(gb.wifi, 'network', None) if gb.wifi else None,
-                "password": getattr(gb.wifi, 'password', None) if gb.wifi else None,
-            },
+            "wifi_json": getattr(gb, 'wifi_json', None) or {},
             "check_in_time": gb.check_in_time,
             "check_out_time": gb.check_out_time,
             "access_info": gb.access_info,
@@ -1295,8 +1284,6 @@ def publish_guidebook(guidebook_id):
             host_contact=getattr(gb.host, 'contact', None),
             host_photo_url=getattr(gb.host, 'host_image_url', None),
             property_name=gb.property.name,
-            wifi_network=gb.wifi.network if gb.wifi and gb.wifi.network else None,
-            wifi_password=gb.wifi.password if gb.wifi and gb.wifi.password else None,
             check_in_time=gb.check_in_time,
             check_out_time=gb.check_out_time,
             address_street=gb.property.address_street,
@@ -1358,12 +1345,7 @@ def get_guidebook(guidebook_id):
             "contact": getattr(gb.host, 'contact', None),
             "photo_url": getattr(gb.host, 'host_image_url', None),
         },
-        "wifi": {
-            "id": gb.wifi_id,
-            "network": getattr(gb.wifi, 'network', None),
-            # include password so Edit form can show/modify it; send None if absent
-            "password": getattr(gb.wifi, 'password', None) if hasattr(gb.wifi, 'password') else None,
-        },
+        "wifi_json": getattr(gb, 'wifi_json', None) or {},
         "included_tabs": gb.included_tabs,
         "custom_sections": gb.custom_sections,
         "custom_tabs_meta": gb.custom_tabs_meta,
@@ -1489,29 +1471,16 @@ def update_guidebook(guidebook_id):
         if addr_zip is not None:
             prop.address_zip = addr_zip
 
-    # Update or create related Wifi (create only if network provided)
+    # Update WiFi JSON
     wifi_network = data.get('wifi_network')
     wifi_password = data.get('wifi_password')
     if wifi_network is not None or wifi_password is not None:
-        wifi = Wifi.query.get(gb.wifi_id) if gb.wifi_id else None
-        # If we have a non-empty network, create or update
-        if isinstance(wifi_network, str) and wifi_network.strip():
-            if not wifi:
-                # try find existing by network for this user
-                wifi = Wifi.query.filter_by(network=wifi_network, user_id=g.user_id).first()
-            if not wifi:
-                wifi = Wifi(network=wifi_network.strip(), user_id=g.user_id)
-                db.session.add(wifi)
-                db.session.flush()
-                gb.wifi_id = wifi.id
-            else:
-                wifi.network = wifi_network.strip()
-            if wifi_password is not None:
-                wifi.password = wifi_password
-        else:
-            # No network provided; only update password if a wifi already exists
-            if wifi and wifi_password is not None:
-                wifi.password = wifi_password
+        wifi_json = gb.wifi_json or {}
+        if wifi_network is not None:
+            wifi_json['network'] = wifi_network
+        if wifi_password is not None:
+            wifi_json['password'] = wifi_password
+        gb.wifi_json = wifi_json if wifi_json else None
 
     # Replace Rules if provided - store in new JSON format
     if 'rules' in data and isinstance(data.get('rules'), list):
@@ -1551,6 +1520,7 @@ def run_startup_migrations():
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS custom_sections JSON;",
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS custom_tabs_meta JSON;",
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS rules_json JSON;",
+        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS wifi_json JSON;",
         # Lifecycle fields (simplified for preview mode)
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS active BOOLEAN DEFAULT FALSE;",
         "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS public_slug TEXT;",

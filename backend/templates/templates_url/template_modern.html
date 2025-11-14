@@ -512,7 +512,7 @@
         {% if item.image_url %}<img src="{{ item.image_url }}" alt="{{ item.name }}" class="item-image">{% endif %}
         <div class="item-name">{{ item.name }}</div>
         {% if item.description %}<div class="item-desc">{{ item.description }}</div>{% endif %}
-        {% if item.address %}<div class="item-address">📍 {{ item.address }}</div>{% endif %}
+        {% if item.address %}<a href="https://maps.google.com/maps?q={{ item.address | urlencode }}" target="_blank" rel="noopener noreferrer" class="item-address" style="text-decoration: none; color: inherit; display: block;">📍 {{ item.address }}</a>{% endif %}
       </div>
       {% endfor %}
     </div>
@@ -532,7 +532,7 @@
         {% if item.image_url %}<img src="{{ item.image_url }}" alt="{{ item.name }}" class="item-image">{% endif %}
         <div class="item-name">{{ item.name }}</div>
         {% if item.description %}<div class="item-desc">{{ item.description }}</div>{% endif %}
-        {% if item.address %}<div class="item-address">📍 {{ item.address }}</div>{% endif %}
+        {% if item.address %}<a href="https://maps.google.com/maps?q={{ item.address | urlencode }}" target="_blank" rel="noopener noreferrer" class="item-address" style="text-decoration: none; color: inherit; display: block;">📍 {{ item.address }}</a>{% endif %}
       </div>
       {% endfor %}
     </div>

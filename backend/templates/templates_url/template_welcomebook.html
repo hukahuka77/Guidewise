@@ -508,7 +508,9 @@
         <div style="margin-top: 1.5rem;">
           <div class="section-label">Property Location</div>
           <div class="section-value">
-            {{ ctx.address.street }}{% if ctx.address.city_state %}, {{ ctx.address.city_state }}{% endif %}{% if ctx.address.zip %} {{ ctx.address.zip }}{% endif %}
+            <a href="https://maps.google.com/maps?q={{ (ctx.address.street ~ ', ' ~ ctx.address.city_state ~ ' ' ~ (ctx.address.zip or '')) | urlencode }}" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: none;">
+              {{ ctx.address.street }}{% if ctx.address.city_state %}, {{ ctx.address.city_state }}{% endif %}{% if ctx.address.zip %} {{ ctx.address.zip }}{% endif %}
+            </a>
           </div>
         </div>
         {% endif %}
@@ -581,17 +583,16 @@
         <div class="section-value" style="white-space: pre-line;">{{ ctx.parking_info }}</div>
         {% endif %}
 
-        {% if ctx.wifi.network or ctx.wifi.password %}
-        <ul class="info-list">
-          <li class="info-item">
-            <i data-lucide="wifi" class="info-item-icon"></i>
-            <div class="info-item-content">
-              <h5>WiFi</h5>
-              {% if ctx.wifi.network %}<p><strong>Network:</strong> {{ ctx.wifi.network }}</p>{% endif %}
-              {% if ctx.wifi.password %}<p><strong>Password:</strong> {{ ctx.wifi.password }}</p>{% endif %}
-            </div>
-          </li>
-        </ul>
+        {% if ctx.wifi_json and (ctx.wifi_json.network or ctx.wifi_json.password) %}
+        <div style="margin-top: 1.5rem;">
+          <div class="section-label">WiFi</div>
+          {% if ctx.wifi_json.network %}
+          <div class="section-value"><strong>Network:</strong> {{ ctx.wifi_json.network }}</div>
+          {% endif %}
+          {% if ctx.wifi_json.password %}
+          <div class="section-value"><strong>Password:</strong> {{ ctx.wifi_json.password }}</div>
+          {% endif %}
+        </div>
         {% endif %}
       </div>
     </div>
@@ -670,10 +671,10 @@
             <p>{{ place.description }}</p>
             {% endif %}
             {% if place.address %}
-            <div class="place-address">
+            <a href="https://maps.google.com/maps?q={{ place.address | urlencode }}" target="_blank" rel="noopener noreferrer" class="place-address" style="text-decoration: none; color: inherit;">
               <i data-lucide="map-pin" class="place-address-icon"></i>
               <span>{{ place.address }}</span>
-            </div>
+            </a>
             {% endif %}
           </div>
         </div>
@@ -701,10 +702,10 @@
             <p>{{ activity.description }}</p>
             {% endif %}
             {% if activity.address %}
-            <div class="place-address">
+            <a href="https://maps.google.com/maps?q={{ activity.address | urlencode }}" target="_blank" rel="noopener noreferrer" class="place-address" style="text-decoration: none; color: inherit;">
               <i data-lucide="map-pin" class="place-address-icon"></i>
               <span>{{ activity.address }}</span>
-            </div>
+            </a>
             {% endif %}
           </div>
         </div>

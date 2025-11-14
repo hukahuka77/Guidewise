@@ -294,7 +294,7 @@
             <div class="recommendation-card-content">
               {% if place.name %}<h3>{{ place.name }}</h3>{% endif %}
               {% if place.description %}<p>{{ place.description }}</p>{% endif %}
-              {% if place.address %}<p style="color: #64748b; font-size: 0.9rem; margin-top: 0.25rem;">{{ place.address }}</p>{% endif %}
+              {% if place.address %}<a href="https://maps.google.com/maps?q={{ place.address | urlencode }}" target="_blank" rel="noopener noreferrer" style="color: #64748b; font-size: 0.9rem; margin-top: 0.25rem; display: block; text-decoration: none;">{{ place.address }}</a>{% endif %}
             </div>
           </div>
           {% endfor %}
@@ -316,7 +316,7 @@
             <div class="recommendation-card-content">
               {% if place.name %}<h3>{{ place.name }}</h3>{% endif %}
               {% if place.description %}<p>{{ place.description }}</p>{% endif %}
-              {% if place.address %}<p style="color: #64748b; font-size: 0.9rem; margin-top: 0.25rem;">{{ place.address }}</p>{% endif %}
+              {% if place.address %}<a href="https://maps.google.com/maps?q={{ place.address | urlencode }}" target="_blank" rel="noopener noreferrer" style="color: #64748b; font-size: 0.9rem; margin-top: 0.25rem; display: block; text-decoration: none;">{{ place.address }}</a>{% endif %}
             </div>
           </div>
           {% endfor %}

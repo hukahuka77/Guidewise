@@ -54,6 +54,8 @@ class Guidebook(db.Model):
     house_manual = db.Column(db.JSON)
     # List of objects: [{ name: string, description: string }] - new JSON format for rules
     rules_json = db.Column(db.JSON)
+    # WiFi info stored as JSON: { network: str, password: str }
+    wifi_json = db.Column(db.JSON)
     included_tabs = db.Column(db.JSON)
     # Map of custom tab key -> list of strings (content blocks)
     custom_sections = db.Column(db.JSON)

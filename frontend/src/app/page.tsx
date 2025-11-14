@@ -1,6 +1,7 @@
 import Link from "next/link";
 import GetStartedButton from "@/components/custom/GetStartedButton";
 import Contact from "@/components/custom/Contact";
+import TemplateCarousel from "@/components/custom/TemplateCarousel";
 
 export default function Home() {
   return (
@@ -76,6 +77,37 @@ export default function Home() {
                   alt="Guidebook on iPhone"
                   className="w-3/5 h-auto object-contain relative z-10 -translate-y-8"
                 />
+              </div>
+            </div>
+          </div>
+        </section>
+        {/* Template Showcase Carousel */}
+        <section className="w-full py-12 md:py-16 bg-gradient-to-b from-white to-[#F8F5F1] overflow-hidden">
+          <div className="px-4 md:px-6 max-w-6xl mx-auto mb-10">
+            <div className="text-center">
+              <h2 className="text-2xl sm:text-3xl font-semibold text-gray-800 mb-3">Choose Your Perfect Template</h2>
+              <p className="text-gray-600">Multiple beautiful designs to match your brand and style</p>
+            </div>
+          </div>
+          <TemplateCarousel />
+        </section>
+        {/* Live Demo Guidebook */}
+        <section className="hidden md:block w-full py-12 md:py-20 bg-gradient-to-b from-white to-[#F8F5F1]">
+          <div className="px-4 md:px-6 max-w-5xl mx-auto">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl sm:text-3xl font-semibold text-gray-800 mb-3">Try It Out: Interactive Demo</h2>
+              <p className="text-gray-600">Explore a live guidebook below—click around, navigate sections, and see how your guests will experience it.</p>
+            </div>
+            <div className="w-full">
+              <div className="rounded-2xl overflow-hidden shadow-xl border-4 border-gray-300 bg-gray-100 p-2">
+                <div className="rounded-xl overflow-hidden bg-white shadow-inner">
+                  <iframe
+                    src="https://guidewise.onrender.com/guidebook/c0bc448b-2c20-4f85-83d7-5687c12b7651"
+                    title="Demo Guidebook"
+                    className="w-full h-[700px] lg:h-[800px]"
+                    style={{ border: 'none' }}
+                  />
+                </div>
               </div>
             </div>
           </div>
