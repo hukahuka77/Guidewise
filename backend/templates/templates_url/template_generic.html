@@ -333,7 +333,18 @@
         <h2>Rules</h2>
         <ul class="rules-list">
           {% for rule in ctx.rules %}
-            {% if rule %}<li>{{ rule }}</li>{% endif %}
+            {% if rule %}
+              {% if rule.name is defined or rule.description is defined %}
+                <li>
+                  {% if rule.name %}<strong>{{ rule.name }}</strong>{% endif %}
+                  {% if rule.description %}
+                    {% if rule.name %}: {% endif %}{{ rule.description }}
+                  {% endif %}
+                </li>
+              {% else %}
+                <li>{{ rule }}</li>
+              {% endif %}
+            {% endif %}
           {% endfor %}
         </ul>
       </div>

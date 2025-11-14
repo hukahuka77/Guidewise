@@ -138,11 +138,25 @@
           <h2 class="text-xl font-semibold">House Rules</h2>
         </div>
         {% if ctx.rules and ctx.rules|length > 0 %}
-          <ul class="list-disc pl-6 text-gray-800 space-y-2">
-            {% for rule in ctx.rules %}
-            <li>{{ rule }}</li>
-            {% endfor %}
-          </ul>
+          <section id="rules">
+            <h2>House Rules</h2>
+            <ul>
+              {% for rule in ctx.rules %}
+              {% if rule %}
+                {% if rule.name is defined or rule.description is defined %}
+                  <li>
+                    {% if rule.name %}<strong>{{ rule.name }}</strong>{% endif %}
+                    {% if rule.description %}
+                      {% if rule.name %}: {% endif %}{{ rule.description }}
+                    {% endif %}
+                  </li>
+                {% else %}
+                  <li>{{ rule }}</li>
+                {% endif %}
+              {% endif %}
+              {% endfor %}
+            </ul>
+          </section>
         {% else %}
           <p class="text-gray-600">No rules provided.</p>
         {% endif %}

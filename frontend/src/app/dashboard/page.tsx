@@ -10,6 +10,7 @@ import ConfirmModal from "@/components/ui/ConfirmModal";
 import { cacheGet, cacheSet } from "@/lib/cache";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 
 type GuidebookItem = {
   id: string;
@@ -30,6 +31,32 @@ const TEMPLATE_DISPLAY_NAMES: Record<string, string> = {
   template_welcomebook: "Welcome Book",
 };
 
+// Derive a resized cover thumbnail URL using Supabase's image transformation endpoint
+function getCoverThumbUrl(coverUrl: string | null | undefined): string | null {
+  if (!coverUrl || !SUPABASE_URL) return coverUrl || null;
+
+  const marker = `${SUPABASE_URL.replace(/\/$/, "")}/storage/v1/object/public/`;
+  const idx = coverUrl.indexOf(marker);
+  if (idx === -1) return coverUrl; // not a Supabase public URL; return as-is
+
+  const rest = coverUrl.substring(idx + marker.length); // "bucket/path/to/file.jpg"
+  const firstSlash = rest.indexOf("/");
+  if (firstSlash === -1) return coverUrl;
+
+  const bucket = rest.substring(0, firstSlash);
+  const path = rest.substring(firstSlash + 1);
+  if (!bucket || !path) return coverUrl;
+
+  // Encode each path segment but preserve slashes so Supabase can resolve the object
+  const encodedPath = path
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+  const base = `${SUPABASE_URL.replace(/\/$/, "")}/storage/v1/render/image/public/${bucket}/${encodedPath}`;
+  // Reasonable thumbnail size + compression for dashboard cards
+  return `${base}?width=600&height=300&quality=75`;
+}
+
 export default function DashboardPage() {
   const [items, setItems] = useState<GuidebookItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,6 +73,7 @@ export default function DashboardPage() {
   const [syncSuccess, setSyncSuccess] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(5);
 
   useEffect(() => {
     let cancelled = false;
@@ -257,7 +285,7 @@ export default function DashboardPage() {
 
         {!loading && !error && items.length > 0 && (
           <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {items.map((gb) => {
+            {items.slice(0, visibleCount).map((gb) => {
               const isActive = gb.active || false;
               const viewUrl = isActive && gb.public_slug
                 ? `${API_BASE}/g/${gb.public_slug}`
@@ -283,7 +311,7 @@ export default function DashboardPage() {
                   <div className="aspect-[16/9] w-full overflow-hidden rounded-t-2xl bg-gray-100">
                     {gb.cover_image_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={gb.cover_image_url} alt="Cover" className="w-full h-full object-cover" />
+                      <img src={getCoverThumbUrl(gb.cover_image_url) || gb.cover_image_url} alt="Cover" className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-gray-400">No cover</div>
                     )}
@@ -360,6 +388,18 @@ export default function DashboardPage() {
               );
             })}
           </ul>
+        )}
+
+        {!loading && !error && items.length > visibleCount && (
+          <div className="mt-6 flex justify-center">
+            <Button
+              variant="outline"
+              className="px-6 py-2 text-sm"
+              onClick={() => setVisibleCount((prev) => Math.min(items.length, prev + 5))}
+            >
+              Load more
+            </Button>
+          </div>
         )}
 
         {/* removed inline PDF modal; handled in dedicated PDF page */}

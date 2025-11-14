@@ -16,9 +16,19 @@
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
-  /* Override base template to remove sidebar and make everything cream */
+  /* Override base template layout so page scrolls normally (no inner scroll box) */
+  body > div.flex {
+    min-height: 0 !important;
+    align-items: stretch !important;
+  }
+
   body > div.flex > div.flex {
     background: var(--bg-cream) !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: auto !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
   }
 
   /* Hide the sidebar completely */
@@ -26,11 +36,12 @@
     display: none !important;
   }
 
-  /* Make main area full width with cream background */
+  /* Make main area full width with cream background and normal page scrolling */
   main {
     background: var(--bg-cream) !important;
     max-width: 100% !important;
     padding: 0 !important;
+    overflow: visible !important;
   }
 
   body {
