@@ -22,6 +22,14 @@ type GuidebookItem = {
   public_slug?: string | null;
 };
 
+// Map internal template keys to human-friendly display names
+const TEMPLATE_DISPLAY_NAMES: Record<string, string> = {
+  template_original: "Original",
+  template_generic: "Generic",
+  template_modern: "Modern",
+  template_welcomebook: "Welcome Book",
+};
+
 export default function DashboardPage() {
   const [items, setItems] = useState<GuidebookItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -289,7 +297,9 @@ export default function DashboardPage() {
                            gb.created_time ? `Created ${new Date(gb.created_time).toLocaleString()}` : ''}
                         </div>
                       </div>
-                      <span className="text-[10px] px-2 py-1 bg-gray-100 rounded border text-gray-600">{gb.template_key || "template_original"}</span>
+                      <span className="text-[10px] px-2 py-1 bg-gray-100 rounded border text-gray-600">
+                        {TEMPLATE_DISPLAY_NAMES[gb.template_key || "template_original"] || "Original"}
+                      </span>
                     </div>
 
                     <div className="mt-4 grid grid-cols-2 gap-2">
@@ -312,11 +322,14 @@ export default function DashboardPage() {
                         )}
                       </Button>
 
-                      <Link href={viewUrl} target="_blank">
-                        <Button variant="outline" className="w-full whitespace-nowrap text-sm">
-                          {isActive ? 'View Live' : 'Preview'}
-                        </Button>
-                      </Link>
+                      {/* Delete in small outline slot */}
+                      <Button
+                        variant="outline"
+                        className="w-full whitespace-nowrap text-sm border-red-200 text-red-700 hover:bg-red-50"
+                        onClick={() => setDeleteId(gb.id)}
+                      >
+                        Delete
+                      </Button>
                       <Link href={`/edit/${gb.id}`}>
                         <Button className="w-full whitespace-nowrap text-sm">Edit</Button>
                       </Link>
@@ -331,13 +344,16 @@ export default function DashboardPage() {
                       <Link href={`/dashboard/url/${gb.id}`} className="col-span-2">
                         <Button variant="outline" className="w-full whitespace-nowrap text-sm">Guidebook Templates</Button>
                       </Link>
-                      <Button
-                        variant="outline"
-                        className="col-span-2 w-full whitespace-nowrap text-sm border-red-200 text-red-700 hover:bg-red-50"
-                        onClick={() => setDeleteId(gb.id)}
-                      >
-                        Delete Guidebook
-                      </Button>
+
+                      {/* View Live/Preview as full-width light green button */}
+                      <Link href={viewUrl} target="_blank" className="col-span-2">
+                        <Button
+                          className="w-full whitespace-nowrap text-sm bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100"
+                          variant="outline"
+                        >
+                          {isActive ? 'View Live' : 'Preview'}
+                        </Button>
+                      </Link>
                     </div>
                   </div>
                 </li>
