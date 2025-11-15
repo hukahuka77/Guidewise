@@ -180,7 +180,7 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
           const insertion = dragOver.list === listName ? dragOver.index : index;
           handleDropOnList(e, listName, insertion);
         }}
-        className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+        className={`flex items-center gap-0 md:gap-3 px-2 md:px-3 py-2 rounded-lg transition-colors ${
           currentSection === section && listName === "included" ? "bg-white/20" : "hover:bg-white/10"
         } ${!isEnabled && listName === 'included' ? 'opacity-50 cursor-not-allowed' : 'cursor-move'}`}
         onClick={() => {
@@ -190,15 +190,19 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
         }}
         title="Drag to reorder or move between lists"
       >
-        <span className="w-6 h-6">{meta.icon}</span>
-        <span className="font-medium">{meta.label}</span>
+        <span className="w-6 h-6 flex items-center justify-center text-lg" aria-hidden="true">{meta.icon}</span>
+        <span className="font-medium text-sm md:text-base hidden sm:inline">{meta.label}</span>
       </li>
     );
   };
 
   return (
-    <nav ref={containerRef} className="h-full w-56 bg-[oklch(0.6923_0.22_21.05)] text-white flex flex-col py-8 px-4 shadow-lg" onDragOver={onContainerDragOver}>
-      <div className="mb-4 text-2xl font-bold tracking-tight">Guidebook</div>
+    <nav
+      ref={containerRef}
+      className="h-full w-10 sm:w-20 md:w-56 bg-[oklch(0.6923_0.22_21.05)] text-white flex flex-col py-6 md:py-8 px-1 sm:px-3 md:px-4 shadow-lg"
+      onDragOver={onContainerDragOver}
+    >
+      <div className="mb-4 text-xl md:text-2xl font-bold tracking-tight hidden sm:block">Guidebook</div>
 
       {/* Included list */}
       <ul
@@ -223,13 +227,13 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
       {/* Add custom button (below Included, above Excluded) */}
       <button
         type="button"
-        className={`mb-2 inline-flex items-center gap-2 text-sm px-3 py-2 rounded bg-white/10 hover:bg-white/20 transition ${!canAddCustom ? 'opacity-50 cursor-not-allowed' : ''}`}
+        className={`mb-2 inline-flex items-center justify-center sm:justify-start gap-0 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 py-2 rounded bg-white/10 hover:bg-white/20 transition ${!canAddCustom ? 'opacity-50 cursor-not-allowed' : ''}`}
         onClick={() => { if (!canAddCustom) return; setShowCustomModal(true); }}
         aria-label="Add custom tab"
         disabled={!canAddCustom}
       >
-        <span>➕</span>
-        <span>Add custom</span>
+        <span className="text-base" aria-hidden="true">➕</span>
+        <span className="hidden sm:inline">Add custom</span>
       </button>
 
       {/* Divider for Excluded */}
