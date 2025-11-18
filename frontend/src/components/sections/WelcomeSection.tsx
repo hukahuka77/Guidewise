@@ -43,6 +43,15 @@ export default function WelcomeSection({
         <h2 className="text-xl font-semibold">Welcome</h2>
       </div>
 
+      {/* Location - Most important field, placed first */}
+      <Label htmlFor="location">Location <span className="text-red-500" title="Required">*</span></Label>
+      <PlacesAutocomplete
+        value={location}
+        onChange={(val) => onChange("location", val)}
+        placeholder="Start typing an address or place..."
+        className="mb-4 mt-1"
+      />
+
       {/* Welcome message */}
       <Label htmlFor="welcomeMessage">Welcome Message</Label>
       <Textarea
@@ -52,15 +61,6 @@ export default function WelcomeSection({
         onChange={(e) => onChange("welcomeMessage", e.target.value)}
         className="mb-2 mt-1"
         placeholder="Write a friendly greeting and what guests can expect during their stay."
-      />
-
-      {/* Location */}
-      <Label htmlFor="location">Location <span className="text-red-500" title="Required">*</span></Label>
-      <PlacesAutocomplete
-        value={location}
-        onChange={(val) => onChange("location", val)}
-        placeholder="Start typing an address or place..."
-        className="mb-4 mt-1"
       />
 
       {/* Property basics (moved below Welcome and Location) */}
