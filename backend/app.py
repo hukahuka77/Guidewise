@@ -1838,6 +1838,7 @@ def places_enrich():
 
 # In-memory cache for generated PDFs for the lifetime of the process
 PDF_CACHE = {}
+PRINT_PDF_CACHE = {}
 
 def _pdf_cache_key(guidebook: Guidebook, template_key: str) -> str:
     # Use id + template; include last_modified_time when available for better busting
@@ -1931,6 +1932,69 @@ def activate_guidebooks_for_user():
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": f"Activation failed: {type(e).__name__}: {e}"}), 500
+
+@app.route('/api/guidebook/<guidebook_id>/print-pdf', methods=['GET'])
+def get_print_pdf(guidebook_id):
+    """Generate print-ready PDF from web template (welcomebook).
+
+    This uses the same template as the web version with print CSS applied.
+    Perfect for creating physical guidebooks or binders.
+
+    Query params:
+        - download: Set to '1' or 'true' to force download instead of inline display
+    """
+    gb = Guidebook.query.get_or_404(guidebook_id)
+    want_download = str(request.args.get('download', '1')).lower() in ('1', 'true', 'yes')
+
+    # Cache key includes template and last modified time
+    cache_key = _pdf_cache_key(gb, getattr(gb, 'template_key', 'template_welcomebook') + '_print')
+    etag = hashlib.sha256(cache_key.encode('utf-8')).hexdigest()
+
+    # Check if client has cached version
+    if request.headers.get('If-None-Match') == etag:
+        resp = make_response('', 304)
+        resp.headers['ETag'] = etag
+        return resp
+
+    # Check server cache
+    cached = PRINT_PDF_CACHE.get(cache_key)
+    if cached:
+        resp = send_file(
+            io.BytesIO(cached),
+            mimetype='application/pdf',
+            as_attachment=want_download,
+            download_name=f"{getattr(gb.property, 'name', 'guidebook') if hasattr(gb, 'property') else 'guidebook'}_print.pdf"
+        )
+        resp.headers['ETag'] = etag
+        resp.headers['Cache-Control'] = 'public, max-age=3600'
+        resp.headers['X-PDF-Type'] = 'print'
+        return resp
+
+    # Generate PDF from web template
+    try:
+        pdf_bytes = pdf_generator.create_print_pdf_from_web_template(gb)
+    except Exception as e:
+        log.error(f"Failed to generate print PDF: {type(e).__name__}: {e}")
+        return jsonify({"error": "Failed to generate print PDF"}), 500
+
+    # Cache the generated PDF
+    PRINT_PDF_CACHE[cache_key] = pdf_bytes
+
+    # Return PDF
+    property_name = getattr(gb.property, 'name', 'guidebook') if hasattr(gb, 'property') else 'guidebook'
+    safe_filename = property_name.replace(' ', '_').replace('/', '_')
+
+    resp = send_file(
+        io.BytesIO(pdf_bytes),
+        mimetype='application/pdf',
+        as_attachment=want_download,
+        download_name=f"{safe_filename}_print.pdf"
+    )
+    resp.headers['ETag'] = etag
+    resp.headers['Cache-Control'] = 'public, max-age=3600'
+    resp.headers['X-PDF-Type'] = 'print'
+
+    return resp
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)

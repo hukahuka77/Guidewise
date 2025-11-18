@@ -1,14 +1,43 @@
 from dotenv import load_dotenv
 from jinja2 import Environment, FileSystemLoader
-from weasyprint import HTML
+from weasyprint import HTML, default_url_fetcher
 from utils.aifunctions import get_ai_recommendations
 # Import models from models.py to be used in PDF generation
 from models import Guidebook, Host, Property, Wifi, Rule
 import json
 import ast
 import urllib.parse
+import ssl
+import urllib.request
 
 load_dotenv()
+
+# Custom URL fetcher that ignores SSL verification for external images
+def custom_url_fetcher(url):
+    """Fetch URLs with relaxed SSL verification to allow external images."""
+    try:
+        # Create a context that doesn't verify SSL certificates
+        context = ssl.create_default_context()
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+
+        # Add a user agent to avoid being blocked
+        req = urllib.request.Request(
+            url,
+            headers={'User-Agent': 'Mozilla/5.0 (compatible; GuidewisePDF/1.0)'}
+        )
+
+        with urllib.request.urlopen(req, context=context, timeout=10) as response:
+            return {
+                'string': response.read(),
+                'mime_type': response.headers.get('Content-Type', 'application/octet-stream'),
+                'encoding': response.headers.get_content_charset(),
+                'redirected_url': response.url,
+            }
+    except Exception as e:
+        print(f"Failed to fetch {url}: {e}")
+        # Fall back to default fetcher
+        return default_url_fetcher(url)
 
 # Map template keys to HTML template files for PDF rendering (PDF-only)
 # Canonical PDF keys
@@ -59,10 +88,106 @@ def _normalize_recommendations(items):
     return normalized
 
 
+def create_print_pdf_from_web_template(guidebook):
+    """
+    Generates a print-ready PDF using dedicated print templates.
+    Uses professionally designed PDF templates optimized for physical printing.
+
+    Args:
+        guidebook (Guidebook): The Guidebook object from the database.
+
+    Returns:
+        bytes: The generated PDF file as a byte string.
+    """
+    # Map template keys to their print-optimized PDF templates
+    PRINT_TEMPLATE_REGISTRY = {
+        "template_welcomebook": "templates/templates_pdf/template_pdf_welcomebook.html",
+        "template_modern": "templates/templates_pdf/template_pdf_original.html",
+        "template_generic": "templates/templates_pdf/template_pdf_basic.html",
+        "template_original": "templates/templates_pdf/template_pdf_original.html",
+    }
+
+    # Get the template key from the guidebook (defaults to welcomebook for print)
+    template_key = getattr(guidebook, 'template_key', None) or 'template_welcomebook'
+    if template_key not in PRINT_TEMPLATE_REGISTRY:
+        template_key = 'template_welcomebook'
+
+    template_file = PRINT_TEMPLATE_REGISTRY[template_key]
+
+    # Build the context (same as web rendering)
+    PLACEHOLDER_COVER_URL = (
+        "https://hojncqasasvvrhdmwwhv.supabase.co/storage/v1/object/public/my_images/home_placeholder.jpg"
+    )
+
+    base_tabs = ['welcome','checkin','property','food','activities','rules','checkout']
+    included_tabs = getattr(guidebook, 'included_tabs', None) or base_tabs
+    included_tabs = [t for t in included_tabs if (t in base_tabs) or (isinstance(t, str) and t.startswith('custom_'))]
+
+    # Sanitize custom tabs meta
+    safe_custom_tabs_meta = None
+    try:
+        meta = getattr(guidebook, 'custom_tabs_meta', None)
+        if isinstance(meta, dict):
+            safe_custom_tabs_meta = {}
+            for k, v in meta.items():
+                if isinstance(v, dict):
+                    lbl = str(v.get('label')) if v.get('label') is not None else ''
+                    ico = str(v.get('icon')) if v.get('icon') is not None else ''
+                    safe_custom_tabs_meta[k] = {'label': lbl, 'icon': ico}
+    except Exception:
+        safe_custom_tabs_meta = getattr(guidebook, 'custom_tabs_meta', None)
+
+    ctx = {
+        "schema_version": 1,
+        "id": guidebook.id,
+        "property_name": (getattr(guidebook.property, 'name', None) or 'My Guidebook') if hasattr(guidebook, 'property') else 'My Guidebook',
+        "host": {
+            "name": getattr(guidebook.host, 'name', None) if hasattr(guidebook, 'host') and guidebook.host else None,
+            "bio": getattr(guidebook.host, 'bio', None) if hasattr(guidebook, 'host') and guidebook.host else None,
+            "contact": getattr(guidebook.host, 'contact', None) if hasattr(guidebook, 'host') and guidebook.host else None,
+            "photo_url": getattr(guidebook.host, 'host_image_url', None) if hasattr(guidebook, 'host') and guidebook.host else None,
+        },
+        "welcome_message": getattr(guidebook, 'welcome_info', None),
+        "safety_info": getattr(guidebook, 'safety_info', {}) or {},
+        "address": {
+            "street": getattr(guidebook.property, 'address_street', None) if hasattr(guidebook, 'property') and guidebook.property else None,
+            "city_state": getattr(guidebook.property, 'address_city_state', None) if hasattr(guidebook, 'property') and guidebook.property else None,
+            "zip": getattr(guidebook.property, 'address_zip', None) if hasattr(guidebook, 'property') and guidebook.property else None,
+        },
+        "wifi_json": getattr(guidebook, 'wifi_json', None) or {},
+        "check_in_time": getattr(guidebook, 'check_in_time', None),
+        "check_out_time": getattr(guidebook, 'check_out_time', None),
+        "access_info": getattr(guidebook, 'access_info', None),
+        "parking_info": getattr(guidebook, 'parking_info', None),
+        "rules": (getattr(guidebook, 'rules_json', None) or [{"name": r.text, "description": ""} for r in guidebook.rules]) if hasattr(guidebook, 'rules') else [],
+        "things_to_do": getattr(guidebook, 'things_to_do', None) or [],
+        "places_to_eat": getattr(guidebook, 'places_to_eat', None) or [],
+        "checkout_info": getattr(guidebook, 'checkout_info', None) or [],
+        "house_manual": getattr(guidebook, 'house_manual', None) or [],
+        "included_tabs": included_tabs,
+        "custom_sections": getattr(guidebook, 'custom_sections', None) or {},
+        "custom_tabs_meta": safe_custom_tabs_meta or (getattr(guidebook, 'custom_tabs_meta', None) or {}),
+        "cover_image_url": (getattr(guidebook, 'cover_image_url', None) or PLACEHOLDER_COVER_URL),
+    }
+
+    # Setup Jinja2 environment
+    env = Environment(loader=FileSystemLoader(['.', 'templates']))
+    template = env.get_template(template_file)
+
+    # Render the HTML template with context
+    # Don't show watermark in printed version
+    html_out = template.render(ctx=ctx, show_watermark=False)
+
+    # Generate PDF from HTML using WeasyPrint with custom URL fetcher
+    # This allows fetching external images with relaxed SSL verification
+    pdf = HTML(string=html_out, base_url='.', url_fetcher=custom_url_fetcher).write_pdf()
+    return pdf
+
+
 def create_guidebook_pdf(guidebook, qr_url: str | None = None):
     """
-    Generates a PDF guidebook from a Guidebook database object.
-    
+    Generates a PDF guidebook from a Guidebook database object using PDF-specific templates.
+
     Args:
         guidebook (Guidebook): The Guidebook object from the database.
 

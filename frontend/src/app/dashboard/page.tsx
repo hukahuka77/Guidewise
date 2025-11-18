@@ -74,6 +74,7 @@ export default function DashboardPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [visibleCount, setVisibleCount] = useState(5);
+  const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null); // guidebook id being downloaded
 
   useEffect(() => {
     let cancelled = false;
@@ -173,6 +174,42 @@ export default function DashboardPage() {
   const getQrTargetUrl = (id: string) => `${API_BASE}/guidebook/${id}`;
   const getQrImageUrl = (url: string, size = 300) =>
     `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(url)}`;
+
+  // Download print PDF with loading state
+  const downloadPrintPdf = async (id: string, propertyName: string) => {
+    setDownloadingPdf(id);
+    try {
+      const token = (await supabase?.auth.getSession())?.data.session?.access_token || null;
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const res = await fetch(`${API_BASE}/api/guidebook/${id}/print-pdf?download=1`, {
+        headers,
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to generate PDF');
+      }
+
+      // Create blob and trigger download
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${propertyName.replace(/[^a-z0-9]/gi, '_')}_print.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('PDF download error:', e);
+      alert('Failed to generate PDF. Please try again.');
+    } finally {
+      setDownloadingPdf(null);
+    }
+  };
 
   // Toggle guidebook active state
   const toggleGuidebook = async (id: string) => {
@@ -358,7 +395,7 @@ export default function DashboardPage() {
                       >
                         Delete
                       </Button>
-                      <Link href={`/edit/${gb.id}`}>
+                      <Link href={`/dashboard/url/${gb.id}`}>
                         <Button className="w-full whitespace-nowrap text-sm">Edit</Button>
                       </Link>
                       <Button
@@ -369,9 +406,21 @@ export default function DashboardPage() {
                       <Link href={`/dashboard/pdf/${gb.id}`}>
                         <Button variant="outline" className="w-full whitespace-nowrap text-sm">PDF Templates</Button>
                       </Link>
-                      <Link href={`/dashboard/url/${gb.id}`} className="col-span-2">
-                        <Button variant="outline" className="w-full whitespace-nowrap text-sm">Guidebook Templates</Button>
-                      </Link>
+                      <Button
+                        variant="outline"
+                        className="col-span-2 w-full whitespace-nowrap text-sm border-[#CC7A52] text-[#CC7A52] hover:bg-[#CC7A52]/10"
+                        onClick={() => downloadPrintPdf(gb.id, gb.property_name || 'guidebook')}
+                        disabled={downloadingPdf === gb.id}
+                      >
+                        {downloadingPdf === gb.id ? (
+                          <span className="flex items-center gap-2">
+                            <Spinner size={14} colorClass="text-[#CC7A52]" />
+                            Generating PDF...
+                          </span>
+                        ) : (
+                          '📄 Download Print Version'
+                        )}
+                      </Button>
 
                       {/* View Live/Preview as full-width light green button */}
                       <Link href={viewUrl} target="_blank" className="col-span-2">
