@@ -14,16 +14,20 @@
     --accent-warm: #D4A574;
   }
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
 
   /* Override base template layout so page scrolls normally (no inner scroll box) */
-  body > div.flex {
+  body>div.flex {
     min-height: 0 !important;
     align-items: stretch !important;
     overflow: visible !important;
   }
 
-  body > div.flex > div.flex {
+  body>div.flex>div.flex {
     background: var(--bg-cream) !important;
     width: 100% !important;
     max-width: none !important;
@@ -95,7 +99,7 @@
     border-bottom: 2px solid var(--border-light);
     border-top: 2px solid var(--border-light);
     z-index: 100;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     margin-bottom: 2rem;
     overflow: hidden;
   }
@@ -114,9 +118,9 @@
     justify-content: center;
     flex-wrap: wrap;
     transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-                transform 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-                max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-                padding 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      transform 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+      max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+      padding 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     max-height: 200px;
     opacity: 1;
     transform: translateY(0);
@@ -142,8 +146,8 @@
     cursor: pointer;
     padding: 0.35rem;
     transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-                transform 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-                max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      transform 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+      max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     max-height: 0;
     opacity: 0;
     transform: translateY(-10px);
@@ -200,7 +204,7 @@
     border-radius: 20px;
     padding: 2.5rem 2rem;
     margin: 0 2rem 2rem 2rem;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   }
 
   .section-title {
@@ -317,26 +321,33 @@
     justify-content: space-between;
   }
 
-  .info-item-content p {
-    color: var(--text-gray);
-    font-size: 0.95rem;
-    margin: 0;
-    padding-top: 0;
+  .expandable-content {
     max-height: 0;
     overflow: hidden;
     opacity: 0;
     transform: translateY(-10px);
     transition: max-height 0.25s ease-out,
-                opacity 0.2s ease-out,
-                transform 0.25s ease-out,
-                padding-top 0.25s ease-out;
+      opacity 0.2s ease-out,
+      transform 0.25s ease-out;
   }
 
-  .info-item.expanded .info-item-content p {
-    max-height: 500px;
+  .info-item.expanded .expandable-content {
+    max-height: 2000px;
     opacity: 1;
     transform: translateY(0);
     padding-top: 0.5rem;
+  }
+
+  .expandable-content p {
+    color: var(--text-gray);
+    font-size: 0.95rem;
+    margin: 0 0 0.5rem 0;
+  }
+
+  .media-container {
+    margin-top: 0.75rem;
+    display: flex;
+    justify-content: flex-start;
   }
 
   .chevron-icon {
@@ -530,68 +541,69 @@
 <!-- Sticky Navigation -->
 <nav class="nav-bar" id="navbar">
   <div class="nav-container">
-      {% if 'welcome' in ctx.included_tabs %}
-      <a href="#welcome" class="nav-link">
-        <i data-lucide="home" class="nav-icon"></i>
-        <span>Welcome</span>
-      </a>
-      {% endif %}
-      {% if 'checkin' in ctx.included_tabs %}
-      <a href="#checkin" class="nav-link">
-        <i data-lucide="key" class="nav-icon"></i>
-        <span>Check-in</span>
-      </a>
-      {% endif %}
-      {% if ctx.wifi_json and (ctx.wifi_json.network or ctx.wifi_json.password) %}
-      <a href="#wifi" class="nav-link">
-        <i data-lucide="wifi" class="nav-icon"></i>
-        <span>Wi-Fi</span>
-      </a>
-      {% endif %}
-      {% if 'property' in ctx.included_tabs and ctx.house_manual %}
-      <a href="#property" class="nav-link">
-        <i data-lucide="book-open" class="nav-icon"></i>
-        <span>House Guide</span>
-      </a>
-      {% endif %}
-      {% if 'rules' in ctx.included_tabs and ctx.rules %}
-      <a href="#rules" class="nav-link">
-        <i data-lucide="clipboard-list" class="nav-icon"></i>
-        <span>Rules</span>
-      </a>
-      {% endif %}
-      {% if 'food' in ctx.included_tabs and ctx.places_to_eat %}
-      <a href="#food" class="nav-link">
-        <i data-lucide="utensils" class="nav-icon"></i>
-        <span>Dining</span>
-      </a>
-      {% endif %}
-      {% if 'activities' in ctx.included_tabs and ctx.things_to_do %}
-      <a href="#activities" class="nav-link">
-        <i data-lucide="compass" class="nav-icon"></i>
-        <span>Activities</span>
-      </a>
-      {% endif %}
-      {% if 'checkout' in ctx.included_tabs %}
-      <a href="#checkout" class="nav-link">
-        <i data-lucide="luggage" class="nav-icon"></i>
-        <span>Checkout</span>
-      </a>
-      {% endif %}
-      {% for tab_key in ctx.included_tabs %}
-        {% if tab_key.startswith('custom_') and ctx.custom_sections.get(tab_key) %}
-          {% set meta = ctx.custom_tabs_meta.get(tab_key) if ctx.custom_tabs_meta else None %}
-          <a href="#{{ tab_key }}" class="nav-link">
-            <i data-lucide="puzzle" class="nav-icon"></i>
-            <span>{{ (meta.label if meta and meta.label) or (tab_key | replace('custom_', '') | replace('_', ' ') | title) }}</span>
-          </a>
-        {% endif %}
-      {% endfor %}
-    </div>
-    <div class="nav-toggle" id="navToggle">
-      <i data-lucide="chevron-down" class="toggle-icon"></i>
-    </div>
-  </nav>
+    {% if 'welcome' in ctx.included_tabs %}
+    <a href="#welcome" class="nav-link">
+      <i data-lucide="home" class="nav-icon"></i>
+      <span>Welcome</span>
+    </a>
+    {% endif %}
+    {% if 'checkin' in ctx.included_tabs %}
+    <a href="#checkin" class="nav-link">
+      <i data-lucide="key" class="nav-icon"></i>
+      <span>Check-in</span>
+    </a>
+    {% endif %}
+    {% if ctx.wifi_json and (ctx.wifi_json.network or ctx.wifi_json.password) %}
+    <a href="#wifi" class="nav-link">
+      <i data-lucide="wifi" class="nav-icon"></i>
+      <span>Wi-Fi</span>
+    </a>
+    {% endif %}
+    {% if 'property' in ctx.included_tabs and ctx.house_manual %}
+    <a href="#property" class="nav-link">
+      <i data-lucide="book-open" class="nav-icon"></i>
+      <span>House Guide</span>
+    </a>
+    {% endif %}
+    {% if 'rules' in ctx.included_tabs and ctx.rules %}
+    <a href="#rules" class="nav-link">
+      <i data-lucide="clipboard-list" class="nav-icon"></i>
+      <span>Rules</span>
+    </a>
+    {% endif %}
+    {% if 'food' in ctx.included_tabs and ctx.places_to_eat %}
+    <a href="#food" class="nav-link">
+      <i data-lucide="utensils" class="nav-icon"></i>
+      <span>Dining</span>
+    </a>
+    {% endif %}
+    {% if 'activities' in ctx.included_tabs and ctx.things_to_do %}
+    <a href="#activities" class="nav-link">
+      <i data-lucide="compass" class="nav-icon"></i>
+      <span>Activities</span>
+    </a>
+    {% endif %}
+    {% if 'checkout' in ctx.included_tabs %}
+    <a href="#checkout" class="nav-link">
+      <i data-lucide="luggage" class="nav-icon"></i>
+      <span>Checkout</span>
+    </a>
+    {% endif %}
+    {% for tab_key in ctx.included_tabs %}
+    {% if tab_key.startswith('custom_') and ctx.custom_sections.get(tab_key) %}
+    {% set meta = ctx.custom_tabs_meta.get(tab_key) if ctx.custom_tabs_meta else None %}
+    <a href="#{{ tab_key }}" class="nav-link">
+      <i data-lucide="puzzle" class="nav-icon"></i>
+      <span>{{ (meta.label if meta and meta.label) or (tab_key | replace('custom_', '') | replace('_', ' ') | title)
+        }}</span>
+    </a>
+    {% endif %}
+    {% endfor %}
+  </div>
+  <div class="nav-toggle" id="navToggle">
+    <i data-lucide="chevron-down" class="toggle-icon"></i>
+  </div>
+</nav>
 
 <div style="max-width: none; width: 100%; padding: 0; margin: 0;">
   <!-- Cover Image -->
@@ -600,155 +612,283 @@
   {% endif %}
 
   <!-- Welcome Section -->
-    {% if 'welcome' in ctx.included_tabs %}
-    <div id="welcome" class="section-card">
-      <h2 class="section-title">
-        <i data-lucide="home" class="section-icon"></i>
-        Welcome
-      </h2>
-      <div class="section-content">
-        {% if ctx.welcome_message %}
-        <p>{{ ctx.welcome_message }}</p>
-        {% endif %}
+  {% if 'welcome' in ctx.included_tabs %}
+  <div id="welcome" class="section-card">
+    <h2 class="section-title">
+      <i data-lucide="home" class="section-icon"></i>
+      Welcome
+    </h2>
+    <div class="section-content">
+      {% if ctx.welcome_message %}
+      <p>{{ ctx.welcome_message }}</p>
+      {% endif %}
 
-        {% if ctx.address.street or ctx.address.city_state %}
-        <div style="margin-top: 1.5rem;">
-          <div class="section-label">Property Location</div>
-          <div class="section-value">
-            <a href="https://maps.google.com/maps?q={{ (ctx.address.street ~ ', ' ~ ctx.address.city_state ~ ' ' ~ (ctx.address.zip or '')) | urlencode }}" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: none;">
-              {{ ctx.address.street }}{% if ctx.address.city_state %}, {{ ctx.address.city_state }}{% endif %}{% if ctx.address.zip %} {{ ctx.address.zip }}{% endif %}
-            </a>
+      {% if ctx.address.street or ctx.address.city_state %}
+      <div style="margin-top: 1.5rem;">
+        <div class="section-label">Property Location</div>
+        <div class="section-value">
+          <a href="https://maps.google.com/maps?q={{ (ctx.address.street ~ ', ' ~ ctx.address.city_state ~ ' ' ~ (ctx.address.zip or '')) | urlencode }}"
+            target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: none;">
+            {{ ctx.address.street }}{% if ctx.address.city_state %}, {{ ctx.address.city_state }}{% endif %}{% if
+            ctx.address.zip %} {{ ctx.address.zip }}{% endif %}
+          </a>
+        </div>
+      </div>
+      {% endif %}
+
+      {% if ctx.safety_info and (ctx.safety_info.emergency_contact or ctx.safety_info.fire_extinguisher_location) %}
+      <ul class="info-list" style="margin-top: 1.5rem;">
+        {% if ctx.safety_info.emergency_contact %}
+        <li class="info-item">
+          <i data-lucide="phone" class="info-item-icon"></i>
+          <div class="info-item-content">
+            <h5>Emergency Contact</h5>
+            <p>{{ ctx.safety_info.emergency_contact }}</p>
+          </div>
+        </li>
+        {% endif %}
+        {% if ctx.safety_info.fire_extinguisher_location %}
+        <li class="info-item">
+          <i data-lucide="flame" class="info-item-icon"></i>
+          <div class="info-item-content">
+            <h5>Fire Extinguisher</h5>
+            <p>{{ ctx.safety_info.fire_extinguisher_location }}</p>
+          </div>
+        </li>
+        {% endif %}
+      </ul>
+      {% endif %}
+
+      {% if ctx.host and (ctx.host.name or ctx.host.photo_url) %}
+      <div class="host-card">
+        {% if ctx.host.photo_url %}
+        <img src="{{ ctx.host.photo_url }}" alt="{{ ctx.host.name or 'Host' }}" class="host-photo" />
+        {% endif %}
+        <div class="host-info">
+          {% if ctx.host.name %}
+          <h4>{{ ctx.host.name }}</h4>
+          {% endif %}
+          {% if ctx.host.bio %}
+          <p>{{ ctx.host.bio }}</p>
+          {% endif %}
+          {% if ctx.host.contact %}
+          <p style="white-space: pre-line;">{{ ctx.host.contact }}</p>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Check-in Section -->
+  {% if 'checkin' in ctx.included_tabs %}
+  <div id="checkin" class="section-card">
+    <h2 class="section-title">
+      <i data-lucide="key" class="section-icon"></i>
+      Check-in Info
+    </h2>
+    <div class="section-content">
+      {% if ctx.check_in_time %}
+      <div class="section-label">Check-in Time</div>
+      <div class="section-value">{{ ctx.check_in_time }}</div>
+      {% endif %}
+
+      {% if ctx.access_info %}
+      <div class="section-label">Access Instructions</div>
+      <div class="section-value" style="white-space: pre-line;">{{ ctx.access_info }}</div>
+      {% endif %}
+
+      {% if ctx.parking_info %}
+      <div class="section-label">Parking</div>
+      <div class="section-value" style="white-space: pre-line;">{{ ctx.parking_info }}</div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Wi-Fi -->
+  {% if ctx.wifi_json and (ctx.wifi_json.network or ctx.wifi_json.password) %}
+  <div id="wifi" class="section-card">
+    <h2 class="section-title">
+      <i data-lucide="wifi" class="section-icon"></i>
+      Wi-Fi
+    </h2>
+    <div class="section-content">
+      {% if ctx.wifi_json.network %}
+      <div style="margin-bottom: 1rem;">
+        <div class="section-label">Network Name</div>
+        <div class="section-value">{{ ctx.wifi_json.network }}</div>
+      </div>
+      {% endif %}
+      {% if ctx.wifi_json.password %}
+      <div>
+        <div class="section-label">Password</div>
+        <div class="section-value">{{ ctx.wifi_json.password }}</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- House Manual -->
+  {% if 'property' in ctx.included_tabs and ctx.house_manual %}
+  <div id="property" class="section-card">
+    <h2 class="section-title">
+      <i data-lucide="book-open" class="section-icon"></i>
+      House Guide
+    </h2>
+    <ul class="info-list">
+      {% for item in ctx.house_manual %}
+      <li class="info-item" onclick="this.classList.toggle('expanded')">
+        <i data-lucide="info" class="info-item-icon"></i>
+        <div class="info-item-content">
+          <h5>
+            {{ item.name }}
+            <i data-lucide="chevron-down" class="chevron-icon"></i>
+          </h5>
+          <div class="expandable-content">
+            {% if item.description %}
+            <p>{{ item.description }}</p>
+            {% endif %}
+            {% if item.media_type and item.media_url %}
+            <div class="media-container">
+              {% if item.media_type == 'image' %}
+              <img src="{{ item.media_url }}" alt="{{ item.name }}"
+                style="max-width: 320px; max-height: 260px; height: auto; object-fit: contain; border-radius: 10px; display: block;" />
+              {% elif item.media_type == 'video' %}
+              <video controls style="width: 100%; max-height: 260px; border-radius: 10px;">
+                <source src="{{ item.media_url }}" type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
+              {% endif %}
+            </div>
+            {% endif %}
           </div>
         </div>
-        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
 
-        {% if ctx.safety_info and (ctx.safety_info.emergency_contact or ctx.safety_info.fire_extinguisher_location) %}
-        <ul class="info-list" style="margin-top: 1.5rem;">
-          {% if ctx.safety_info.emergency_contact %}
-          <li class="info-item">
-            <i data-lucide="phone" class="info-item-icon"></i>
-            <div class="info-item-content">
-              <h5>Emergency Contact</h5>
-              <p>{{ ctx.safety_info.emergency_contact }}</p>
-            </div>
-          </li>
-          {% endif %}
-          {% if ctx.safety_info.fire_extinguisher_location %}
-          <li class="info-item">
-            <i data-lucide="flame" class="info-item-icon"></i>
-            <div class="info-item-content">
-              <h5>Fire Extinguisher</h5>
-              <p>{{ ctx.safety_info.fire_extinguisher_location }}</p>
-            </div>
-          </li>
-          {% endif %}
-        </ul>
-        {% endif %}
-
-        {% if ctx.host and (ctx.host.name or ctx.host.photo_url) %}
-        <div class="host-card">
-          {% if ctx.host.photo_url %}
-          <img src="{{ ctx.host.photo_url }}" alt="{{ ctx.host.name or 'Host' }}" class="host-photo" />
-          {% endif %}
-          <div class="host-info">
-            {% if ctx.host.name %}
-            <h4>{{ ctx.host.name }}</h4>
+  <!-- House Rules -->
+  {% if 'rules' in ctx.included_tabs and ctx.rules %}
+  <div id="rules" class="section-card">
+    <h2 class="section-title">
+      <i data-lucide="clipboard-list" class="section-icon"></i>
+      House Rules
+    </h2>
+    <ul class="info-list">
+      {% for rule in ctx.rules %}
+      <li class="info-item" onclick="this.classList.toggle('expanded')">
+        <i data-lucide="shield-check" class="info-item-icon"></i>
+        <div class="info-item-content">
+          <h5>
+            {{ rule.name }}
+            {% if rule.description %}
+            <i data-lucide="chevron-down" class="chevron-icon"></i>
             {% endif %}
-            {% if ctx.host.bio %}
-            <p>{{ ctx.host.bio }}</p>
-            {% endif %}
-            {% if ctx.host.contact %}
-            <p style="white-space: pre-line;">{{ ctx.host.contact }}</p>
-            {% endif %}
-          </div>
+          </h5>
+          {% if rule.description %}
+          <p>{{ rule.description }}</p>
+          {% endif %}
         </div>
-        {% endif %}
-      </div>
-    </div>
-    {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
 
-    <!-- Check-in Section -->
-    {% if 'checkin' in ctx.included_tabs %}
-    <div id="checkin" class="section-card">
-      <h2 class="section-title">
-        <i data-lucide="key" class="section-icon"></i>
-        Check-in Info
-      </h2>
-      <div class="section-content">
-        {% if ctx.check_in_time %}
-        <div class="section-label">Check-in Time</div>
-        <div class="section-value">{{ ctx.check_in_time }}</div>
+  <!-- Places to Eat -->
+  {% if 'food' in ctx.included_tabs and ctx.places_to_eat %}
+  <div id="food" class="section-card">
+    <h2 class="section-title">
+      <i data-lucide="utensils" class="section-icon"></i>
+      Places to Eat
+    </h2>
+    <div class="places-grid">
+      {% for place in ctx.places_to_eat %}
+      <div class="place-card">
+        {% if place.image_url %}
+        <img src="/api/place-photo?photo_reference={{ place.image_url | urlencode }}&maxwidth=800"
+          alt="{{ place.name }}" class="place-card-image" />
         {% endif %}
-
-        {% if ctx.access_info %}
-        <div class="section-label">Access Instructions</div>
-        <div class="section-value" style="white-space: pre-line;">{{ ctx.access_info }}</div>
-        {% endif %}
-
-        {% if ctx.parking_info %}
-        <div class="section-label">Parking</div>
-        <div class="section-value" style="white-space: pre-line;">{{ ctx.parking_info }}</div>
-        {% endif %}
-      </div>
-    </div>
-    {% endif %}
-
-    <!-- Wi-Fi -->
-    {% if ctx.wifi_json and (ctx.wifi_json.network or ctx.wifi_json.password) %}
-    <div id="wifi" class="section-card">
-      <h2 class="section-title">
-        <i data-lucide="wifi" class="section-icon"></i>
-        Wi-Fi
-      </h2>
-      <div class="section-content">
-        {% if ctx.wifi_json.network %}
-        <div style="margin-bottom: 1rem;">
-          <div class="section-label">Network Name</div>
-          <div class="section-value">{{ ctx.wifi_json.network }}</div>
+        <div class="place-card-content">
+          <h5>{{ place.name }}</h5>
+          {% if place.description %}
+          <p>{{ place.description }}</p>
+          {% endif %}
+          {% if place.address %}
+          <a href="https://maps.google.com/maps?q={{ place.address | urlencode }}" target="_blank"
+            rel="noopener noreferrer" class="place-address" style="text-decoration: none; color: inherit;">
+            <i data-lucide="map-pin" class="place-address-icon"></i>
+            <span>{{ place.address }}</span>
+          </a>
+          {% endif %}
         </div>
-        {% endif %}
-        {% if ctx.wifi_json.password %}
-        <div>
-          <div class="section-label">Password</div>
-          <div class="section-value">{{ ctx.wifi_json.password }}</div>
-        </div>
-        {% endif %}
       </div>
+      {% endfor %}
     </div>
-    {% endif %}
+  </div>
+  {% endif %}
 
-    <!-- House Manual -->
-    {% if 'property' in ctx.included_tabs and ctx.house_manual %}
-    <div id="property" class="section-card">
-      <h2 class="section-title">
-        <i data-lucide="book-open" class="section-icon"></i>
-        House Guide
-      </h2>
+  <!-- Activities -->
+  {% if 'activities' in ctx.included_tabs and ctx.things_to_do %}
+  <div id="activities" class="section-card">
+    <h2 class="section-title">
+      <i data-lucide="compass" class="section-icon"></i>
+      Things to Do
+    </h2>
+    <div class="places-grid">
+      {% for activity in ctx.things_to_do %}
+      <div class="place-card">
+        {% if activity.image_url %}
+        <img src="/api/place-photo?photo_reference={{ activity.image_url | urlencode }}&maxwidth=800"
+          alt="{{ activity.name }}" class="place-card-image" />
+        {% endif %}
+        <div class="place-card-content">
+          <h5>{{ activity.name }}</h5>
+          {% if activity.description %}
+          <p>{{ activity.description }}</p>
+          {% endif %}
+          {% if activity.address %}
+          <a href="https://maps.google.com/maps?q={{ activity.address | urlencode }}" target="_blank"
+            rel="noopener noreferrer" class="place-address" style="text-decoration: none; color: inherit;">
+            <i data-lucide="map-pin" class="place-address-icon"></i>
+            <span>{{ activity.address }}</span>
+          </a>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Checkout -->
+  {% if 'checkout' in ctx.included_tabs %}
+  <div id="checkout" class="section-card">
+    <h2 class="section-title">
+      <i data-lucide="luggage" class="section-icon"></i>
+      Before You Go
+    </h2>
+    <div class="section-content">
+      {% if ctx.check_out_time %}
+      <div class="section-label">Checkout Time</div>
+      <div class="section-value">{{ ctx.check_out_time }}</div>
+      {% endif %}
+
+      {% if ctx.checkout_info %}
       <ul class="info-list">
-        {% for item in ctx.house_manual %}
+        {% for item in ctx.checkout_info %}
         <li class="info-item" onclick="this.classList.toggle('expanded')">
-          <i data-lucide="info" class="info-item-icon"></i>
+          <i data-lucide="check-circle" class="info-item-icon"></i>
           <div class="info-item-content">
             <h5>
               {{ item.name }}
               <i data-lucide="chevron-down" class="chevron-icon"></i>
             </h5>
-            {% if item.media_type and item.media_url %}
-              <div style="margin-top: 0.5rem; margin-bottom: 0.5rem; display: flex; justify-content: flex-start;">
-                {% if item.media_type == 'image' %}
-                  <img
-                    src="{{ item.media_url }}"
-                    alt="{{ item.name }}"
-                    style="max-width: 320px; max-height: 260px; height: auto; object-fit: contain; border-radius: 10px; display: block;"
-                  />
-                {% elif item.media_type == 'video' %}
-                  <video controls style="width: 100%; max-height: 260px; border-radius: 10px;">
-                    <source src="{{ item.media_url }}" type="video/mp4" />
-                    Your browser does not support the video tag.
-                  </video>
-                {% endif %}
-              </div>
-            {% endif %}
             {% if item.description %}
             <p>{{ item.description }}</p>
             {% endif %}
@@ -756,163 +896,40 @@
         </li>
         {% endfor %}
       </ul>
+      {% endif %}
     </div>
-    {% endif %}
+  </div>
+  {% endif %}
 
-    <!-- House Rules -->
-    {% if 'rules' in ctx.included_tabs and ctx.rules %}
-    <div id="rules" class="section-card">
-      <h2 class="section-title">
-        <i data-lucide="clipboard-list" class="section-icon"></i>
-        House Rules
-      </h2>
-      <ul class="info-list">
-        {% for rule in ctx.rules %}
-        <li class="info-item" onclick="this.classList.toggle('expanded')">
-          <i data-lucide="shield-check" class="info-item-icon"></i>
-          <div class="info-item-content">
-            <h5>
-              {{ rule.name }}
-              {% if rule.description %}
-              <i data-lucide="chevron-down" class="chevron-icon"></i>
-              {% endif %}
-            </h5>
-            {% if rule.description %}
-            <p>{{ rule.description }}</p>
-            {% endif %}
-          </div>
-        </li>
-        {% endfor %}
-      </ul>
-    </div>
-    {% endif %}
-
-    <!-- Places to Eat -->
-    {% if 'food' in ctx.included_tabs and ctx.places_to_eat %}
-    <div id="food" class="section-card">
-      <h2 class="section-title">
-        <i data-lucide="utensils" class="section-icon"></i>
-        Places to Eat
-      </h2>
-      <div class="places-grid">
-        {% for place in ctx.places_to_eat %}
-        <div class="place-card">
-          {% if place.image_url %}
-          <img src="/api/place-photo?photo_reference={{ place.image_url | urlencode }}&maxwidth=800" alt="{{ place.name }}" class="place-card-image" />
-          {% endif %}
-          <div class="place-card-content">
-            <h5>{{ place.name }}</h5>
-            {% if place.description %}
-            <p>{{ place.description }}</p>
-            {% endif %}
-            {% if place.address %}
-            <a href="https://maps.google.com/maps?q={{ place.address | urlencode }}" target="_blank" rel="noopener noreferrer" class="place-address" style="text-decoration: none; color: inherit;">
-              <i data-lucide="map-pin" class="place-address-icon"></i>
-              <span>{{ place.address }}</span>
-            </a>
-            {% endif %}
-          </div>
-        </div>
-        {% endfor %}
-      </div>
-    </div>
-    {% endif %}
-
-    <!-- Activities -->
-    {% if 'activities' in ctx.included_tabs and ctx.things_to_do %}
-    <div id="activities" class="section-card">
-      <h2 class="section-title">
-        <i data-lucide="compass" class="section-icon"></i>
-        Things to Do
-      </h2>
-      <div class="places-grid">
-        {% for activity in ctx.things_to_do %}
-        <div class="place-card">
-          {% if activity.image_url %}
-          <img src="/api/place-photo?photo_reference={{ activity.image_url | urlencode }}&maxwidth=800" alt="{{ activity.name }}" class="place-card-image" />
-          {% endif %}
-          <div class="place-card-content">
-            <h5>{{ activity.name }}</h5>
-            {% if activity.description %}
-            <p>{{ activity.description }}</p>
-            {% endif %}
-            {% if activity.address %}
-            <a href="https://maps.google.com/maps?q={{ activity.address | urlencode }}" target="_blank" rel="noopener noreferrer" class="place-address" style="text-decoration: none; color: inherit;">
-              <i data-lucide="map-pin" class="place-address-icon"></i>
-              <span>{{ activity.address }}</span>
-            </a>
-            {% endif %}
-          </div>
-        </div>
-        {% endfor %}
-      </div>
-    </div>
-    {% endif %}
-
-    <!-- Checkout -->
-    {% if 'checkout' in ctx.included_tabs %}
-    <div id="checkout" class="section-card">
-      <h2 class="section-title">
-        <i data-lucide="luggage" class="section-icon"></i>
-        Before You Go
-      </h2>
-      <div class="section-content">
-        {% if ctx.check_out_time %}
-        <div class="section-label">Checkout Time</div>
-        <div class="section-value">{{ ctx.check_out_time }}</div>
-        {% endif %}
-
-        {% if ctx.checkout_info %}
-        <ul class="info-list">
-          {% for item in ctx.checkout_info %}
-          <li class="info-item" onclick="this.classList.toggle('expanded')">
-            <i data-lucide="check-circle" class="info-item-icon"></i>
-            <div class="info-item-content">
-              <h5>
-                {{ item.name }}
-                <i data-lucide="chevron-down" class="chevron-icon"></i>
-              </h5>
-              {% if item.description %}
-              <p>{{ item.description }}</p>
-              {% endif %}
-            </div>
-          </li>
-          {% endfor %}
-        </ul>
-        {% endif %}
-      </div>
-    </div>
-    {% endif %}
-
-    <!-- Custom Sections -->
-    {% if ctx.custom_sections %}
-      {% for tab_key in ctx.included_tabs %}
-        {% if tab_key.startswith('custom_') and ctx.custom_sections.get(tab_key) %}
-          {% set section_blocks = ctx.custom_sections[tab_key] %}
-          {% set meta = ctx.custom_tabs_meta.get(tab_key) if ctx.custom_tabs_meta else None %}
-          <div id="{{ tab_key }}" class="section-card">
-            <h2 class="section-title">
-              <i data-lucide="puzzle" class="section-icon"></i>
-              {{ (meta.label if meta and meta.label) or (tab_key | replace('custom_', '') | replace('_', ' ') | title) }}
-            </h2>
-            <div class="section-content">
-              {% if section_blocks %}
-                {% for block in section_blocks %}
-                  <p style="white-space: pre-line; margin-bottom: 1rem;">{{ block }}</p>
-                {% endfor %}
-              {% endif %}
-            </div>
-          </div>
-        {% endif %}
+  <!-- Custom Sections -->
+  {% if ctx.custom_sections %}
+  {% for tab_key in ctx.included_tabs %}
+  {% if tab_key.startswith('custom_') and ctx.custom_sections.get(tab_key) %}
+  {% set section_blocks = ctx.custom_sections[tab_key] %}
+  {% set meta = ctx.custom_tabs_meta.get(tab_key) if ctx.custom_tabs_meta else None %}
+  <div id="{{ tab_key }}" class="section-card">
+    <h2 class="section-title">
+      <i data-lucide="puzzle" class="section-icon"></i>
+      {{ (meta.label if meta and meta.label) or (tab_key | replace('custom_', '') | replace('_', ' ') | title) }}
+    </h2>
+    <div class="section-content">
+      {% if section_blocks %}
+      {% for block in section_blocks %}
+      <p style="white-space: pre-line; margin-bottom: 1rem;">{{ block }}</p>
       {% endfor %}
-    {% endif %}
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+  {% endfor %}
+  {% endif %}
 </div>
 {% endblock %}
 
 {% block body_scripts %}
 <script>
   // Initialize Lucide icons when the page loads
-  document.addEventListener('DOMContentLoaded', function() {
+  document.addEventListener('DOMContentLoaded', function () {
     if (typeof lucide !== 'undefined') {
       lucide.createIcons();
     }
@@ -974,9 +991,9 @@
     }
 
     // Throttle scroll events for better performance
-    window.addEventListener('scroll', function() {
+    window.addEventListener('scroll', function () {
       if (!ticking) {
-        window.requestAnimationFrame(function() {
+        window.requestAnimationFrame(function () {
           handleScroll();
           ticking = false;
         });
@@ -985,7 +1002,7 @@
     });
 
     // Manual toggle - only expand from collapsed state
-    navToggle.addEventListener('click', function(e) {
+    navToggle.addEventListener('click', function (e) {
       e.preventDefault();
       e.stopPropagation();
 
