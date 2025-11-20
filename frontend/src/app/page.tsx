@@ -2,6 +2,7 @@ import Link from "next/link";
 import GetStartedButton from "@/components/custom/GetStartedButton";
 import Contact from "@/components/custom/Contact";
 import TemplateCarousel from "@/components/custom/TemplateCarousel";
+import { Heart, Clock, RefreshCw, Smartphone, Star, MapPin, ArrowRight } from "lucide-react";
 
 export default function Home() {
   return (
@@ -112,76 +113,135 @@ export default function Home() {
             </div>
           </div>
         </section>
-        {/* Why Digital Guidebooks section (hero background) */}
-        <section className="w-full py-12 md:py-20 bg-transparent">
+        {/* Why Digital Guidebooks section - Clean & Professional */}
+        <section className="w-full py-20 md:py-32 bg-white">
           <div className="px-4 md:px-6 max-w-6xl mx-auto">
-            <div className="text-center max-w-3xl mx-auto">
-              <h2 className="text-2xl sm:text-3xl font-semibold text-gray-800">Why Digital Guidebooks Matter for Short‑Term Rentals</h2>
-              <p className="text-gray-600 mt-3">
-                Digital guidebooks keep Airbnb and VRBO guests informed and delighted. They’re always up to date, easy to access, and
-                reduce repetitive questions for short‑term rentals—freeing up your time while elevating the guest experience.
+            {/* Header */}
+            <div className="max-w-3xl mb-20">
+              <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6 tracking-tight">
+                Why digital guidebooks matter
+              </h2>
+              <p className="text-xl text-gray-600 leading-relaxed">
+                Your guests deserve more than a PDF buried in their inbox. Digital guidebooks create seamless,
+                memorable stays while saving you countless hours.
               </p>
             </div>
-            <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* Card 1 */}
-              <div className="rounded-2xl bg-white/70 backdrop-blur-sm border border-gray-200 p-6 shadow-sm">
-                <div className="w-10 h-10 rounded-xl bg-pink-100 text-pink-700 flex items-center justify-center mb-3">
-                  {/* Refresh/Update icon */}
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-                    <path d="M12 6v3l4-4-4-4v3a9 9 0 1 0 9 9h-2a7 7 0 1 1-7-7z" />
-                  </svg>
+
+            {/* Benefits List - Two Column Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-16 gap-y-12">
+              {/* Benefit 1 */}
+              <div className="flex gap-6">
+                <div className="flex-shrink-0">
+                  <div className="w-12 h-12 rounded-lg bg-pink-50 flex items-center justify-center">
+                    <Heart className="w-6 h-6 text-pink-600" />
+                  </div>
                 </div>
-                <h3 className="font-semibold text-gray-800">Always Up To Date</h3>
-                <p className="text-gray-600 mt-1">Edit once, update everywhere—no reprinting or resending PDFs.</p>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Delight guests from day one</h3>
+                  <p className="text-gray-600 leading-relaxed">
+                    When guests arrive and scan a QR code to find everything they need—WiFi, check-in instructions,
+                    local recommendations—they immediately feel taken care of. This sets the tone for 5-star reviews.
+                  </p>
+                </div>
               </div>
-              {/* Card 2 */}
-              <div className="rounded-2xl bg-white/70 backdrop-blur-sm border border-gray-200 p-6 shadow-sm">
-                <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-3">
-                  {/* Phone icon */}
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-                    <path d="M7 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H7zm0 2h10v16H7V4zm5 14a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z" />
-                  </svg>
+
+              {/* Benefit 2 */}
+              <div className="flex gap-6">
+                <div className="flex-shrink-0">
+                  <div className="w-12 h-12 rounded-lg bg-emerald-50 flex items-center justify-center">
+                    <Clock className="w-6 h-6 text-emerald-600" />
+                  </div>
                 </div>
-                <h3 className="font-semibold text-gray-800">Mobile-First Access</h3>
-                <p className="text-gray-600 mt-1">Open via link or QR code—perfect for phones and tablets.</p>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Save hours every week</h3>
+                  <p className="text-gray-600 leading-relaxed">
+                    Stop answering "What's the WiFi password?" for the hundredth time. Digital guidebooks answer
+                    common questions before guests even ask. Hosts report saving 5-10 hours per week.
+                  </p>
+                </div>
               </div>
-              {/* Card 3 */}
-              <div className="rounded-2xl bg-white/70 backdrop-blur-sm border border-gray-200 p-6 shadow-sm">
-                <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center mb-3">
-                  {/* Chat bubble icon */}
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-                    <path d="M4 4h16v10H7l-3 3V4zm2 4h12v2H6V8zm0 3h8v2H6v-2z" />
-                  </svg>
+
+              {/* Benefit 3 */}
+              <div className="flex gap-6">
+                <div className="flex-shrink-0">
+                  <div className="w-12 h-12 rounded-lg bg-blue-50 flex items-center justify-center">
+                    <RefreshCw className="w-6 h-6 text-blue-600" />
+                  </div>
                 </div>
-                <h3 className="font-semibold text-gray-800">Fewer Questions</h3>
-                <p className="text-gray-600 mt-1">Answer common questions proactively—directions, Wi‑Fi, house rules, and more.</p>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Update once, reflect everywhere</h3>
+                  <p className="text-gray-600 leading-relaxed">
+                    Restaurant closed? New house rule? WiFi password changed? Update your guidebook in 30 seconds
+                    and every current and future guest sees the latest information instantly.
+                  </p>
+                </div>
+              </div>
+
+              {/* Benefit 4 */}
+              <div className="flex gap-6">
+                <div className="flex-shrink-0">
+                  <div className="w-12 h-12 rounded-lg bg-purple-50 flex items-center justify-center">
+                    <Smartphone className="w-6 h-6 text-purple-600" />
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Built for mobile-first guests</h3>
+                  <p className="text-gray-600 leading-relaxed">
+                    Your guidebook works beautifully on any device—no app downloads, no logins.
+                    Guests can access it from the Uber, at dinner, or lounging on your couch.
+                  </p>
+                </div>
+              </div>
+
+              {/* Benefit 5 */}
+              <div className="flex gap-6">
+                <div className="flex-shrink-0">
+                  <div className="w-12 h-12 rounded-lg bg-amber-50 flex items-center justify-center">
+                    <Star className="w-6 h-6 text-amber-600" />
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Stand out, earn better reviews</h3>
+                  <p className="text-gray-600 leading-relaxed">
+                    A polished digital guidebook signals professionalism and care. "The digital guidebook was so helpful!"
+                    becomes a recurring theme that attracts more premium bookings.
+                  </p>
+                </div>
+              </div>
+
+              {/* Benefit 6 */}
+              <div className="flex gap-6">
+                <div className="flex-shrink-0">
+                  <div className="w-12 h-12 rounded-lg bg-rose-50 flex items-center justify-center">
+                    <MapPin className="w-6 h-6 text-rose-600" />
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Be their local expert</h3>
+                  <p className="text-gray-600 leading-relaxed">
+                    Share your favorite coffee shop, hidden hiking trail, or best pizza spot. Curated local recommendations
+                    make guests feel like insiders, not tourists.
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        </section>
-        {/* PDF Downloads section */}
-        <section className="w-full py-12 md:py-20 bg-white">
-          <div className="px-4 md:px-6 max-w-6xl mx-auto">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
-              {/* Image */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/images/PDF_Standard.png"
-                alt="Sample PDF guidebook"
-                className="w-full rounded-2xl shadow-sm border"
-              />
-              {/* Copy */}
-              <div className="text-left">
-                <h2 className="text-2xl sm:text-3xl font-semibold text-gray-800">Prefer PDFs? We’ve got you covered</h2>
-                <p className="text-gray-600 mt-3">
-                  In addition to digital guidebooks, we provide polished PDF downloads—great for printing, sharing,
-                  or sending ahead of time. Choose from clean, branded layouts that look great on any device.
+
+            {/* Bottom CTA */}
+            <div className="mt-20 pt-16 border-t border-gray-200">
+              <div className="max-w-2xl">
+                <h3 className="text-3xl font-bold text-gray-900 mb-4">
+                  Ready to elevate your guest experience?
+                </h3>
+                <p className="text-lg text-gray-600 mb-8">
+                  Join hundreds of hosts who've upgraded to digital guidebooks and never looked back.
                 </p>
-                <ul className="mt-5 space-y-2 text-gray-700">
-                  <li className="flex items-start gap-2"><span className="mt-1 h-2 w-2 rounded-full bg-emerald-500"></span> Professional, print-ready designs</li>
-                  <li className="flex items-start gap-2"><span className="mt-1 h-2 w-2 rounded-full bg-pink-500"></span> Share as attachment or link</li>
-                  <li className="flex items-start gap-2"><span className="mt-1 h-2 w-2 rounded-full bg-indigo-500"></span> Optional scannable QR for easy access</li>
-                </ul>
+                <a
+                  href="/signup"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-800 transition-colors"
+                >
+                  Create your first guidebook
+                  <ArrowRight className="w-4 h-4" />
+                </a>
               </div>
             </div>
           </div>
