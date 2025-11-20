@@ -185,12 +185,39 @@
           {% set meta = ctx.custom_tabs_meta.get(tab) if ctx.custom_tabs_meta else None %}
           <h2 class="text-xl font-semibold">{{ (meta.label if meta and meta.label) or (tab | replace('custom_', '') | replace('_', ' ') | title) }}</h2>
         </div>
-        {% set blocks = ctx.custom_sections.get(tab) if ctx.custom_sections else [] %}
-        {% if blocks and blocks|length > 0 %}
+        {% set items = ctx.custom_sections.get(tab) if ctx.custom_sections else [] %}
+        {% if items and items|length > 0 %}
           <div class="space-y-3">
-            {% for text in blocks %}
-              {% if text %}
-              <p class="text-gray-900 font-medium whitespace-pre-line">{{ text }}</p>
+            {% for item in items %}
+              {% if item is string %}
+                {# Legacy text block #}
+                <p class="text-gray-900 font-medium whitespace-pre-line">{{ item }}</p>
+              {% elif item.type == 'text' %}
+                {# New text item #}
+                <p class="text-gray-900 font-medium whitespace-pre-line">{{ item.content }}</p>
+              {% elif item.type == 'manual' %}
+                {# Manual item with optional media #}
+                <div class="p-4 rounded-lg bg-white/80 border border-gray-200 shadow-sm">
+                  {% if item.name %}
+                  <div class="font-semibold text-gray-900">{{ item.name }}</div>
+                  {% endif %}
+                  {% if item.description %}
+                  <p class="mt-1 text-gray-800 whitespace-pre-line">{{ item.description }}</p>
+                  {% endif %}
+                  {% if item.mediaUrl and item.mediaType %}
+                  <div class="mt-3">
+                    {% if item.mediaType == 'image' %}
+                    <img src="{{ item.mediaUrl }}" alt="{{ item.name }}"
+                      style="max-width: 100%; width: auto; max-height: 260px; height: auto; object-fit: contain; border-radius: 8px; display: block; margin: 0 auto;" />
+                    {% elif item.mediaType == 'video' %}
+                    <video controls style="width: 100%; max-width: 100%; max-height: 260px; border-radius: 8px; display: block; margin: 0 auto;">
+                      <source src="{{ item.mediaUrl }}" type="video/mp4" />
+                      Your browser does not support the video tag.
+                    </video>
+                    {% endif %}
+                  </div>
+                  {% endif %}
+                </div>
               {% endif %}
             {% endfor %}
           </div>

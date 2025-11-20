@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Marcellus&display=swap" rel="stylesheet">
   <style>
     :root {
-      --primary-color: oklch(0.6923 0.22 21.05);
+      --primary-color: #0369a1;
       --background-color: #f8fafc;
       --card-background: #ffffff;
       --text-color: #1e293b;
@@ -23,12 +23,18 @@
     .header-content { position: relative; z-index: 1; }
     .header h1 { margin: 0; font-size: 2.5rem; }
     .tabs-container { position: relative; background-color: var(--card-background); border-bottom: 1px solid var(--border-color); }
-    .tabs { display: flex; overflow-x: auto; -ms-overflow-style: none; scrollbar-width: none; }
+    .tabs { display: flex; overflow-x: auto; -ms-overflow-style: none; scrollbar-width: none; gap: 0.25rem; padding: 0.375rem; }
     .tabs::-webkit-scrollbar { display: none; }
-    .tab-button { padding: 1rem; border: none; background: none; cursor: pointer; font-size: 1rem; font-weight: 600; color: var(--light-text-color); white-space: nowrap; display: flex; align-items: center; gap: 0.5rem; transition: color 0.3s ease; position: relative; z-index: 1; }
-    .tab-button:not(.active):hover { background-color: #f1f5f9; border-radius: 8px; }
-    .tab-button.active { color: white; }
-    .tab-slider { position: absolute; top: 50%; transform: translateY(-50%); height: calc(100% - 0.75rem); background-color: var(--primary-color); border-radius: 8px; transition: left 0.3s ease-out, width 0.3s ease-out; z-index: 0; }
+    .tab-button { padding: 0.75rem 1rem; border: none; background: none; cursor: pointer; font-size: 1rem; font-weight: 600; color: var(--light-text-color); white-space: nowrap; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s ease; position: relative; z-index: 1; border-radius: 8px; }
+    .tab-button:not(.active):hover { background-color: #f1f5f9; }
+    .tab-button.active { color: var(--primary-color); background-color: #eff6ff; font-weight: 700; }
+    .tab-slider { position: absolute; top: 0.375rem; height: calc(100% - 0.75rem); background-color: var(--primary-color); border-radius: 8px; transition: left 0.3s ease-out, width 0.3s ease-out; z-index: 0; display: none; }
+
+    /* Desktop: Show slider background */
+    @media (min-width: 768px) {
+      .tab-slider { display: block; }
+      .tab-button.active { color: white; background-color: transparent; }
+    }
     .tab-content { display: none; padding: 1.5rem; }
     .tab-content.active { display: block; }
     .card { background: var(--card-background); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
@@ -48,6 +54,31 @@
     @media (min-width: 1024px) { .recommendation-grid { grid-template-columns: repeat(3, 1fr); } }
     @media (min-width: 768px) { .info-grid { grid-template-columns: 1fr 1fr; } .tabs { justify-content: center; } }
     .gw-logo{ font-family: 'Marcellus', serif; letter-spacing: 0.15em; text-transform: uppercase; }
+
+    /* House Manual Expandable Items */
+    .manual-item { cursor: pointer; transition: background-color 0.2s; }
+    .manual-item:hover { background-color: #f8fafc; }
+    .manual-item-header { display: flex; justify-content: space-between; align-items: center; }
+    .manual-item-title { font-weight: 600; margin: 0; }
+    .chevron-icon {
+      color: var(--light-text-color);
+      transition: transform 0.2s ease-out;
+      font-size: 0.875rem;
+    }
+    .manual-item.expanded .chevron-icon { transform: rotate(180deg); }
+    .expandable-content {
+      max-height: 0;
+      overflow: hidden;
+      opacity: 0;
+      transform: translateY(-5px);
+      transition: max-height 0.25s ease-out, opacity 0.2s ease-out, transform 0.25s ease-out;
+    }
+    .manual-item.expanded .expandable-content {
+      max-height: 2000px;
+      opacity: 1;
+      transform: translateY(0);
+      padding-top: 0.5rem;
+    }
 
     /* Preview Mode Watermark */
     .preview-watermark {
@@ -241,19 +272,48 @@
     {% endif %}
 
     {% if ctx.custom_sections %}
-    {% for key, blocks in ctx.custom_sections.items() %}
+    {% for key, items in ctx.custom_sections.items() %}
       {% if key in ctx.included_tabs %}
       <div id="{{ key }}" class="tab-content {% if first_tab == key %}active{% endif %}">
-        {% if blocks and blocks|length > 0 %}
+        {% if items and items|length > 0 %}
         <div class="card">
           {% set meta = (ctx.custom_tabs_meta.get(key) if ctx.custom_tabs_meta else None) %}
           <h2>{{ (meta.label if meta and meta.label) or (key | replace('custom_', '') | replace('_', ' ') | title) }}</h2>
           <div class="info-grid">
-            {% for text in blocks %}
-              {% if text %}
-              <div class="info-item">
-                <div class="whitespace-pre-line">{{ text }}</div>
-              </div>
+            {% for item in items %}
+              {% if item is string %}
+                {# Legacy text block #}
+                <div class="info-item">
+                  <div class="whitespace-pre-line">{{ item }}</div>
+                </div>
+              {% elif item.type == 'text' %}
+                {# New text item #}
+                <div class="info-item">
+                  <div class="whitespace-pre-line">{{ item.content }}</div>
+                </div>
+              {% elif item.type == 'manual' %}
+                {# Manual item with optional media #}
+                <div class="info-item" style="grid-column: 1 / -1;">
+                  {% if item.name %}
+                  <div style="font-weight: 600; margin-bottom: 0.5rem;">{{ item.name }}</div>
+                  {% endif %}
+                  {% if item.description %}
+                  <div class="whitespace-pre-line" style="margin-bottom: 0.5rem;">{{ item.description }}</div>
+                  {% endif %}
+                  {% if item.mediaUrl and item.mediaType %}
+                  <div style="margin-top: 0.75rem;">
+                    {% if item.mediaType == 'image' %}
+                    <img src="{{ item.mediaUrl }}" alt="{{ item.name }}"
+                      style="max-width: 100%; width: auto; max-height: 260px; height: auto; object-fit: contain; border-radius: 8px; display: block; margin: 0 auto;" />
+                    {% elif item.mediaType == 'video' %}
+                    <video controls style="width: 100%; max-width: 100%; max-height: 260px; border-radius: 8px; display: block; margin: 0 auto;">
+                      <source src="{{ item.mediaUrl }}" type="video/mp4" />
+                      Your browser does not support the video tag.
+                    </video>
+                    {% endif %}
+                  </div>
+                  {% endif %}
+                </div>
               {% endif %}
             {% endfor %}
           </div>
@@ -269,11 +329,29 @@
       {% if ctx.house_manual and ctx.house_manual|length > 0 %}
       <div class="card">
         <h2>House Manual</h2>
-        <div class="info-grid">
+        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
           {% for item in ctx.house_manual %}
-          <div class="info-item">
-            {% if item.name %}<strong>{{ item.name }}</strong>{% endif %}
-            {% if item.description %}<div class="whitespace-pre-line">{{ item.description }}</div>{% endif %}
+          <div class="manual-item info-item" onclick="this.classList.toggle('expanded')" style="padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color);">
+            <div class="manual-item-header">
+              {% if item.name %}<div class="manual-item-title">{{ item.name }}</div>{% endif %}
+              <span class="chevron-icon">▼</span>
+            </div>
+            <div class="expandable-content">
+              {% if item.description %}<div class="whitespace-pre-line" style="color: var(--light-text-color); margin-top: 0.5rem;">{{ item.description }}</div>{% endif %}
+              {% if item.media_url and item.media_type %}
+              <div style="margin-top: 0.75rem;">
+                {% if item.media_type == 'image' %}
+                <img src="{{ item.media_url }}" alt="{{ item.name }}"
+                  style="max-width: 100%; width: auto; max-height: 260px; height: auto; object-fit: contain; border-radius: 8px; display: block; margin: 0 auto;" />
+                {% elif item.media_type == 'video' %}
+                <video controls style="width: 100%; max-width: 100%; max-height: 260px; border-radius: 8px; display: block; margin: 0 auto;">
+                  <source src="{{ item.media_url }}" type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
+                {% endif %}
+              </div>
+              {% endif %}
+            </div>
           </div>
           {% endfor %}
         </div>
@@ -290,7 +368,7 @@
         <div class="recommendation-grid">
           {% for place in ctx.places_to_eat %}
           <div class="recommendation-card">
-            {% if place.image_url %}<img src="{{ place.image_url }}" alt="{{ place.name }}">{% endif %}
+            {% if place.image_url %}<img src="/api/place-photo?photo_reference={{ place.image_url | urlencode }}&maxwidth=800" alt="{{ place.name }}">{% endif %}
             <div class="recommendation-card-content">
               {% if place.name %}<h3>{{ place.name }}</h3>{% endif %}
               {% if place.description %}<p>{{ place.description }}</p>{% endif %}
@@ -312,7 +390,7 @@
         <div class="recommendation-grid">
           {% for place in ctx.things_to_do %}
           <div class="recommendation-card">
-            {% if place.image_url %}<img src="{{ place.image_url }}" alt="{{ place.name }}">{% endif %}
+            {% if place.image_url %}<img src="/api/place-photo?photo_reference={{ place.image_url | urlencode }}&maxwidth=800" alt="{{ place.name }}">{% endif %}
             <div class="recommendation-card-content">
               {% if place.name %}<h3>{{ place.name }}</h3>{% endif %}
               {% if place.description %}<p>{{ place.description }}</p>{% endif %}
@@ -383,21 +461,43 @@
       const tabs = Array.from(document.querySelectorAll('.tab-button'));
       const slider = document.querySelector('.tab-slider');
       const sections = Array.from(document.querySelectorAll('.tab-content'));
+      const tabsContainer = document.querySelector('.tabs');
+      const isDesktop = () => window.innerWidth >= 768;
+
       function positionSlider(active){
-        if (!active) return;
+        if (!active || !isDesktop()) return;
         const rect = active.getBoundingClientRect();
         const parentRect = active.parentElement.getBoundingClientRect();
-        slider.style.left = (active.offsetLeft - 8) + 'px';
-        slider.style.width = (rect.width + 16) + 'px';
+        slider.style.left = active.offsetLeft + 'px';
+        slider.style.width = rect.width + 'px';
       }
+
       function showTab(tabId){
         tabs.forEach(t => t.classList.toggle('active', t.getAttribute('data-tab') === tabId));
         sections.forEach(s => s.classList.toggle('active', s.id === tabId));
         const active = tabs.find(t => t.getAttribute('data-tab') === tabId);
+
+        // Scroll active tab into view on mobile
+        if (!isDesktop() && active) {
+          active.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        }
+
         positionSlider(active);
       }
+
       tabs.forEach(t => t.addEventListener('click', () => showTab(t.getAttribute('data-tab'))));
+
+      // Initialize
       positionSlider(document.querySelector('.tab-button.active'));
+
+      // Reposition slider on window resize
+      let resizeTimer;
+      window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+          positionSlider(document.querySelector('.tab-button.active'));
+        }, 250);
+      });
     })();
   </script>
 </body>

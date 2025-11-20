@@ -1061,14 +1061,14 @@ def generate_guidebook_route():
         if isinstance(t, str) and (t in base_tabs or t.startswith('custom_')):
             included_tabs.append(t)
 
-    # Custom sections payload: map custom tab key -> list of strings
+    # Custom sections payload: map custom tab key -> list of items (strings or objects)
     custom_sections = {}
     if isinstance(data.get('custom_sections'), dict):
         for k, v in data.get('custom_sections', {}).items():
             if isinstance(k, str) and k.startswith('custom_'):
-                # normalize to list of strings
+                # Keep items as-is (can be strings for legacy or objects for new format)
                 if isinstance(v, list):
-                    custom_sections[k] = [str(x) for x in v if x is not None]
+                    custom_sections[k] = v
 
     # Custom tabs meta: map custom key -> { label, icon }
     custom_tabs_meta = {}

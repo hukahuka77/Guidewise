@@ -755,9 +755,9 @@
             <div class="media-container">
               {% if item.media_type == 'image' %}
               <img src="{{ item.media_url }}" alt="{{ item.name }}"
-                style="max-width: 320px; max-height: 260px; height: auto; object-fit: contain; border-radius: 10px; display: block;" />
+                style="max-width: 100%; width: auto; max-height: 260px; height: auto; object-fit: contain; border-radius: 10px; display: block; margin: 0 auto;" />
               {% elif item.media_type == 'video' %}
-              <video controls style="width: 100%; max-height: 260px; border-radius: 10px;">
+              <video controls style="width: 100%; max-width: 100%; max-height: 260px; border-radius: 10px; display: block; margin: 0 auto;">
                 <source src="{{ item.media_url }}" type="video/mp4" />
                 Your browser does not support the video tag.
               </video>
@@ -889,9 +889,11 @@
               {{ item.name }}
               <i data-lucide="chevron-down" class="chevron-icon"></i>
             </h5>
-            {% if item.description %}
-            <p>{{ item.description }}</p>
-            {% endif %}
+            <div class="expandable-content">
+              {% if item.description %}
+              <p>{{ item.description }}</p>
+              {% endif %}
+            </div>
           </div>
         </li>
         {% endfor %}
@@ -905,7 +907,7 @@
   {% if ctx.custom_sections %}
   {% for tab_key in ctx.included_tabs %}
   {% if tab_key.startswith('custom_') and ctx.custom_sections.get(tab_key) %}
-  {% set section_blocks = ctx.custom_sections[tab_key] %}
+  {% set section_items = ctx.custom_sections[tab_key] %}
   {% set meta = ctx.custom_tabs_meta.get(tab_key) if ctx.custom_tabs_meta else None %}
   <div id="{{ tab_key }}" class="section-card">
     <h2 class="section-title">
@@ -913,9 +915,43 @@
       {{ (meta.label if meta and meta.label) or (tab_key | replace('custom_', '') | replace('_', ' ') | title) }}
     </h2>
     <div class="section-content">
-      {% if section_blocks %}
-      {% for block in section_blocks %}
-      <p style="white-space: pre-line; margin-bottom: 1rem;">{{ block }}</p>
+      {% if section_items %}
+      {% for item in section_items %}
+        {% if item is string %}
+          {# Legacy text block #}
+          <p style="white-space: pre-line; margin-bottom: 1rem;">{{ item }}</p>
+        {% elif item.type == 'text' %}
+          {# New text item #}
+          <p style="white-space: pre-line; margin-bottom: 1rem;">{{ item.content }}</p>
+        {% elif item.type == 'manual' %}
+          {# Manual item with optional media #}
+          <div class="info-item expanded" style="display: block; margin-bottom: 1rem;">
+            <div style="display: flex; align-items: flex-start;">
+              <i data-lucide="info" class="info-item-icon"></i>
+              <div class="info-item-content" style="flex: 1;">
+                <h5 style="margin: 0;">{{ item.name }}</h5>
+                <div style="padding-top: 0.5rem;">
+                  {% if item.description %}
+                  <p style="margin: 0 0 0.5rem 0;">{{ item.description }}</p>
+                  {% endif %}
+                  {% if item.mediaUrl and item.mediaType %}
+                  <div class="media-container">
+                    {% if item.mediaType == 'image' %}
+                    <img src="{{ item.mediaUrl }}" alt="{{ item.name }}"
+                      style="max-width: 100%; width: auto; max-height: 260px; height: auto; object-fit: contain; border-radius: 10px; display: block; margin: 0 auto;" />
+                    {% elif item.mediaType == 'video' %}
+                    <video controls style="width: 100%; max-width: 100%; max-height: 260px; border-radius: 10px; display: block; margin: 0 auto;">
+                      <source src="{{ item.mediaUrl }}" type="video/mp4" />
+                      Your browser does not support the video tag.
+                    </video>
+                    {% endif %}
+                  </div>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+        {% endif %}
       {% endfor %}
       {% endif %}
     </div>

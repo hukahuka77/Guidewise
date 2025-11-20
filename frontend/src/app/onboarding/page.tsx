@@ -800,6 +800,7 @@ function CheckoutSlide({
       setTimeout(() => {
         onChange(newIndex, "name", suggestion.name);
         onChange(newIndex, "description", suggestion.description);
+        onChange(newIndex, "checked", true);
       }, 0);
     }
   };
