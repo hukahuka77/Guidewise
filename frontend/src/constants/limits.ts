@@ -32,7 +32,8 @@ export const LIMITS = {
   maxCustomTextBoxes: 5,
   // Custom tabs limit
   maxCustomTabs: 3,
+  maxCustomSectionItems: 8,
   // Custom tab fields
-  customTabTitle: 20,
-  customTabEmojiChars: 1,
+  customTabTitle: 12,
+  customTabEmojiChars: 10, // Increased to handle emojis (which can be 2+ UTF-16 code units)
 } as const;

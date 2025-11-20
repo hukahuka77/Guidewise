@@ -91,15 +91,13 @@ export const CREATE_SECTIONS_ORDER = [
 ] as const;
 
 /**
- * Section order for edit flow (9 sections)
- * More granular - hostinfo and wifi are separate sections
+ * Section order for edit flow (7 sections)
+ * Host info is embedded in welcome section, Wi-Fi is embedded in checkin section
  */
 export const EDIT_SECTIONS_ORDER = [
   'welcome',
   'checkin',
   'property',
-  'hostinfo',
-  'wifi',
   'food',
   'activities',
   'rules',

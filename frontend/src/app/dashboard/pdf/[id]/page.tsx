@@ -67,7 +67,7 @@ export default function GuidebookPdfPage() {
       <div className="w-full max-w-6xl space-y-8">
         <div className="flex items-center justify-between">
           <div className="text-left">
-            <h1 className="text-3xl font-bold text-gray-800">PDF Templates</h1>
+            <h1 className="text-3xl font-bold text-gray-800">PDFs</h1>
             <p className="text-gray-600 mt-1">Preview or download your guidebook as a PDF</p>
           </div>
           <div className="flex gap-2">
@@ -80,7 +80,7 @@ export default function GuidebookPdfPage() {
 
         <section>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-semibold">PDF Templates</h2>
+            <h2 className="text-2xl font-semibold">PDFs</h2>
             <label className="flex items-center gap-2 text-sm text-gray-700">
               <input
                 type="checkbox"

@@ -3,7 +3,7 @@ import { LIMITS } from "@/constants/limits";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Pencil, Check, X } from "lucide-react";
+import { Plus, Pencil, Check, X, Trash2 } from "lucide-react";
 
 interface Rule {
   name: string;
@@ -15,13 +15,22 @@ interface RulesSectionProps {
   rules: Rule[];
   onChange: (index: number, field: keyof Rule, value: string | boolean) => void;
   onAdd: () => void;
+  onDelete?: (index: number) => void;
   autoEditIndex?: number | null;
   onAutoEditHandled?: () => void;
 }
 
+const RULES_SUGGESTIONS = [
+  { name: "No Smoking", description: "Smoking is not permitted anywhere on the property." },
+  { name: "No Parties", description: "No parties or events are allowed." },
+  { name: "Quiet Hours", description: "Please keep noise to a minimum between 10 PM and 8 AM." },
+  { name: "No Pets", description: "Pets are not allowed on the property." },
+  { name: "Respect Neighbors", description: "Please be respectful of our neighbors and the surrounding community." },
+];
 
 
-export default function RulesSection({ rules, onChange, onAdd, autoEditIndex, onAutoEditHandled }: RulesSectionProps) {
+
+export default function RulesSection({ rules, onChange, onAdd, onDelete, autoEditIndex, onAutoEditHandled }: RulesSectionProps) {
   const [editing, setEditing] = useState<Set<number>>(new Set());
   const prevLen = useRef<number>(rules.length);
 
@@ -49,11 +58,60 @@ export default function RulesSection({ rules, onChange, onAdd, autoEditIndex, on
   const finishEdit = (idx: number) => setEditing(prev => { const next = new Set(prev); next.delete(idx); return next; });
   const cancelEdit = (idx: number) => finishEdit(idx); // changes are live; cancel just exits
   const canAdd = rules.length < LIMITS.maxRules;
+
+  // Check if a suggestion is already added
+  const isSuggestionActive = (suggestionName: string) => {
+    return rules.some(rule => rule.name.toLowerCase() === suggestionName.toLowerCase());
+  };
+
+  // Add or remove a suggestion
+  const handleAddSuggestion = (suggestion: { name: string; description: string }) => {
+    const existingIndex = rules.findIndex(rule => rule.name.toLowerCase() === suggestion.name.toLowerCase());
+    if (existingIndex >= 0) {
+      // Remove if exists
+      onDelete?.(existingIndex);
+    } else {
+      // Add if doesn't exist
+      if (!canAdd) return;
+      onAdd();
+      const newIndex = rules.length;
+      setTimeout(() => {
+        onChange(newIndex, "name", suggestion.name);
+        onChange(newIndex, "description", suggestion.description);
+        onChange(newIndex, "checked", true);
+      }, 0);
+    }
+  };
   return (
     <section className="mb-8">
       <div className="flex items-center gap-2 mb-2">
-        <h2 className="text-xl font-semibold">House Rules</h2>
+        <h2 className="text-xl font-semibold text-center">House Rules</h2>
       </div>
+
+      {/* Quick-add suggestions */}
+      <div className="mb-6 flex flex-col items-center">
+        <div className="flex flex-wrap justify-center gap-2 mb-2">
+          {RULES_SUGGESTIONS.map((suggestion) => {
+            const isActive = isSuggestionActive(suggestion.name);
+            return (
+              <button
+                key={suggestion.name}
+                type="button"
+                onClick={() => handleAddSuggestion(suggestion)}
+                className={`px-3 py-1.5 text-sm rounded-md border transition-colors ${
+                  isActive
+                    ? "bg-[oklch(0.6923_0.22_21.05)] text-white border-[oklch(0.6923_0.22_21.05)] hover:opacity-90"
+                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-[oklch(0.6923_0.22_21.05)]"
+                }`}
+              >
+                {isActive ? "✓ " : "+ "}{suggestion.name}
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-sm text-gray-400 italic">Quick add suggestions</p>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {[...rules.keys()].filter(i => rules[i].checked).map((idx) => {
           const rule = rules[idx];
@@ -61,6 +119,16 @@ export default function RulesSection({ rules, onChange, onAdd, autoEditIndex, on
           return (
             <div key={idx} className="p-4 rounded-lg bg-white/80 shadow flex flex-col gap-3 relative">
               <div className="absolute top-2 right-2 flex items-center gap-1">
+                {onDelete && (
+                  <button
+                    type="button"
+                    aria-label="Delete rule"
+                    className="p-1 rounded hover:bg-red-100 transition"
+                    onClick={() => onDelete(idx)}
+                  >
+                    <Trash2 style={{ color: '#ef4444' }} size={18} />
+                  </button>
+                )}
                 {!isEditing ? (
                   <button
                     type="button"
@@ -145,6 +213,16 @@ export default function RulesSection({ rules, onChange, onAdd, autoEditIndex, on
           return (
             <div key={idx} className="p-4 rounded-lg bg-white/80 shadow flex flex-col gap-3 relative opacity-60 grayscale">
               <div className="absolute top-2 right-2 flex items-center gap-1">
+                {onDelete && (
+                  <button
+                    type="button"
+                    aria-label="Delete rule"
+                    className="p-1 rounded hover:bg-red-100 transition"
+                    onClick={() => onDelete(idx)}
+                  >
+                    <Trash2 style={{ color: '#ef4444' }} size={18} />
+                  </button>
+                )}
                 {!isEditing ? (
                   <button
                     type="button"

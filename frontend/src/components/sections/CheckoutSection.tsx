@@ -3,6 +3,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Pencil, Check, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { LIMITS } from "@/constants/limits";
 
 export interface CheckoutInfoItem {
@@ -17,14 +18,44 @@ interface CheckoutSectionProps {
   onTimeChange: (value: string) => void;
   onChange: (idx: number, field: keyof CheckoutInfoItem, value: string | boolean) => void;
   onAdd: () => void;
+  onDelete?: (idx: number) => void;
 }
 
-export default function CheckoutSection({ checkoutTime, items, onTimeChange, onChange, onAdd }: CheckoutSectionProps) {
+const CHECKOUT_SUGGESTIONS = [
+  { name: "Trash", description: "Please bag all trash and place it in the outside bin." },
+  { name: "Dishes", description: "Load and run the dishwasher (or hand wash any used dishes)." },
+  { name: "Lights", description: "Turn off all lights throughout the property." },
+  { name: "Thermostat", description: "Set thermostat to 72°F." },
+  { name: "Lock Doors", description: "Ensure all doors and windows are locked." },
+];
+
+export default function CheckoutSection({ checkoutTime, items, onTimeChange, onChange, onAdd, onDelete }: CheckoutSectionProps) {
   const [editing, setEditing] = useState<Set<number>>(new Set());
   const startEdit = (idx: number) => setEditing(prev => new Set(prev).add(idx));
   const finishEdit = (idx: number) => setEditing(prev => { const next = new Set(prev); next.delete(idx); return next; });
   const cancelEdit = (idx: number) => finishEdit(idx);
   const canAdd = items.length < LIMITS.maxCheckoutItems;
+
+  const handleAddSuggestion = (suggestion: { name: string; description: string }) => {
+    const existingIndex = items.findIndex(item => item.name.toLowerCase() === suggestion.name.toLowerCase());
+    if (existingIndex >= 0) {
+      onDelete?.(existingIndex);
+    } else {
+      if (!canAdd) return;
+      onAdd();
+      const newIndex = items.length;
+      setTimeout(() => {
+        onChange(newIndex, "name", suggestion.name);
+        onChange(newIndex, "description", suggestion.description);
+        onChange(newIndex, "checked", true);
+      }, 0);
+    }
+  };
+
+  const isSuggestionActive = (suggestionName: string) => {
+    return items.some(item => item.name.toLowerCase() === suggestionName.toLowerCase());
+  };
+
   return (
     <section className="mb-8">
       <div className="flex items-center gap-2 mb-2">
@@ -32,7 +63,32 @@ export default function CheckoutSection({ checkoutTime, items, onTimeChange, onC
       </div>
       <Label htmlFor="checkOutTime">Checkout Time</Label>
       <Input id="checkOutTime" type="time" step={300} value={checkoutTime} onChange={e => onTimeChange(e.target.value)} className="mb-2 mt-1 w-40" />
-      <p className="text-sm text-gray-500 mb-2">Select your preferred checkout time (5-minute increments).</p>
+      <p className="text-sm text-gray-500 mb-4">Select your preferred checkout time (5-minute increments).</p>
+
+      {/* Quick-add suggestions */}
+      <div className="mb-6 flex flex-col items-center">
+        <div className="flex flex-wrap justify-center gap-2 mb-2">
+          {CHECKOUT_SUGGESTIONS.map((suggestion) => {
+            const isActive = isSuggestionActive(suggestion.name);
+            return (
+              <Button
+                key={suggestion.name}
+                type="button"
+                onClick={() => handleAddSuggestion(suggestion)}
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                  isActive
+                    ? "bg-[oklch(0.6923_0.22_21.05)] text-white border border-[oklch(0.6923_0.22_21.05)] hover:opacity-90"
+                    : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-[oklch(0.6923_0.22_21.05)]"
+                }`}
+              >
+                {isActive ? "✓ " : "+ "}{suggestion.name}
+              </Button>
+            );
+          })}
+        </div>
+        <p className="text-sm text-gray-400 italic">Quick add suggestions</p>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mt-4">
         {[...items.keys()].filter(i => items[i].checked).map((idx) => {
           const item = items[idx];

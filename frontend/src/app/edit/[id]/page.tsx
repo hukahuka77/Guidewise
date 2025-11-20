@@ -1,23 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
 // Shared components
 import SidebarNav from "@/components/sections/SidebarNav";
 import CreateGuidebookLayout from "@/components/sections/CreateGuidebookLayout";
-import WifiSection from "@/components/sections/WifiSection";
 import CheckinSection from "@/components/sections/CheckinSection";
 import WelcomeSection from "@/components/sections/WelcomeSection";
 import Spinner from "@/components/ui/spinner";
-import HostInfoSection from "@/components/sections/HostInfoSection";
 import DynamicItemList, { DynamicItem } from "@/components/sections/DynamicItemList";
 import HouseManualList from "@/components/sections/HouseManualList";
 import RulesSection from "@/components/sections/RulesSection";
 import CheckoutSection from "@/components/sections/CheckoutSection";
+import CustomSection, { CustomItem } from "@/components/sections/CustomSection";
 import AddItemChoiceModal from "@/components/places/AddItemChoiceModal";
 import PlacePickerModal from "@/components/places/PlacePickerModal";
+import EditTutorial from "@/components/ui/EditTutorial";
 import { LIMITS } from "@/constants/limits";
 import { useGuidebookForm } from "@/hooks/useGuidebookForm";
 import { useAIRecommendations } from "@/hooks/useAIRecommendations";
@@ -76,7 +76,9 @@ type GuidebookDetail = {
 export default function EditGuidebookPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const guidebookId = params?.id as string;
+  const isNewGuidebook = searchParams.get('new') === 'true';
 
   // Use consolidated auth hook
   const { accessToken, authChecked: authReady } = useAuth({
@@ -159,6 +161,29 @@ export default function EditGuidebookPage() {
   const [error, setError] = useState<string | null>(null);
   const [pendingHouseMediaIndex, setPendingHouseMediaIndex] = useState<number | null>(null);
   const [showHouseMediaConfirm, setShowHouseMediaConfirm] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
+
+  // Check if this is first-time visiting edit page (skip on mobile)
+  useEffect(() => {
+    if (!initialLoading) {
+      const isMobile = window.innerWidth < 768; // Skip tutorial on mobile/tablet
+      const hasSeenTutorial = localStorage.getItem('hasSeenEditTutorial') === 'true';
+      if (!hasSeenTutorial && !isMobile) {
+        setShowTutorial(true);
+      }
+    }
+  }, [initialLoading]);
+
+  // Hide tutorial if window is resized to mobile
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768 && showTutorial) {
+        setShowTutorial(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [showTutorial]);
 
   // Fetch existing guidebook details
   useEffect(() => {
@@ -204,7 +229,14 @@ export default function EditGuidebookPage() {
           checkOutTime: data.check_out_time || prev.checkOutTime,
         }));
 
-        setIncluded(Array.isArray(data.included_tabs) && data.included_tabs.length ? data.included_tabs : [...EDIT_SECTIONS_ORDER]);
+        const loadedIncluded = Array.isArray(data.included_tabs) && data.included_tabs.length ? data.included_tabs : [...EDIT_SECTIONS_ORDER];
+        setIncluded(loadedIncluded);
+
+        // Compute excluded sections as all sections not in included
+        const allSections = [...EDIT_SECTIONS_ORDER];
+        const loadedExcluded = allSections.filter(section => !loadedIncluded.includes(section));
+        setExcluded(loadedExcluded);
+
         setCustomSections(data.custom_sections || {});
         setCustomTabsMeta(data.custom_tabs_meta || {});
         setFoodItems((data.places_to_eat || []).map((i: Partial<DynamicItem>) => ({
@@ -296,8 +328,12 @@ export default function EditGuidebookPage() {
         console.warn('Snapshot publish failed (edit):', e);
       }
 
-      // Then go to live view
-      window.location.href = `${API_BASE}/guidebook/${guidebookId}`;
+      // Redirect based on whether this is a new guidebook or an edit
+      if (isNewGuidebook) {
+        router.push(`/select-template/${guidebookId}`);
+      } else {
+        router.push('/dashboard?updated=true');
+      }
     } catch (err: unknown) {
       console.error(err);
       const msg = err instanceof Error ? err.message : "An unexpected error occurred. Please try again.";
@@ -307,11 +343,8 @@ export default function EditGuidebookPage() {
     }
   };
 
-  useEffect(() => {
-    if (!included.includes(currentSection)) {
-      goToSection(included[0] || "checkin");
-    }
-  }, [included, currentSection, goToSection]);
+  // Allow viewing both included and excluded sections
+  // Removed automatic redirect to first included section
 
   useEffect(() => {
     setCustomSections(prev => {
@@ -348,41 +381,35 @@ export default function EditGuidebookPage() {
 
   return (
     <div className="w-full">
-      <div className="w-full sticky top-0 z-20 bg-transparent">
-        <div className="max-w-[1800px] mx-auto px-4 py-2 flex items-center justify-end">
-          <Button
-            type="button"
-            className="px-10 py-4 bg-[oklch(0.6923_0.22_21.05)] text-white font-semibold rounded-lg shadow-lg hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed text-lg md:text-xl"
-            onClick={(e) => handleSubmit(e as unknown as React.FormEvent)}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <span className="inline-flex items-center gap-2">
-                <Spinner size={18} />
-                Updating…
-              </span>
-            ) : (
-              "Publish Changes"
-            )}
-          </Button>
-        </div>
-      </div>
+      {/* Tutorial overlay */}
+      {showTutorial && (
+        <EditTutorial
+          onComplete={() => {
+            setShowTutorial(false);
+            localStorage.setItem('hasSeenEditTutorial', 'true');
+          }}
+        />
+      )}
 
       <CreateGuidebookLayout
         sidebar={
-          <SidebarNav
-            currentSection={currentSection}
-            onSectionChange={goToSection}
-            included={included}
-            excluded={excluded}
-            onUpdate={(inc, exc) => {
-              setIncluded(inc);
+          <div data-tutorial="sidebar">
+            <SidebarNav
+              currentSection={currentSection}
+              onSectionChange={goToSection}
+              included={included}
+              excluded={excluded}
+              onUpdate={(inc, exc) => {
+                setIncluded(inc);
               setExcluded(exc);
             }}
             onCustomMetaChange={(meta) => setCustomTabsMeta(meta)}
+            customTabsMeta={customTabsMeta}
           />
+          </div>
         }
       >
+        <div data-tutorial="content-area">
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
             <strong className="font-bold">Error:</strong>
@@ -405,32 +432,15 @@ export default function EditGuidebookPage() {
           />
         )}
         {currentSection === "checkin" && (
-          <>
-            <CheckinSection
-              accessInfo={formData.access_info}
-              parkingInfo={formData.parkingInfo}
-              checkInTime={formData.checkInTime}
-              emergencyContact={formData.emergencyContact}
-              fireExtinguisherLocation={formData.fireExtinguisherLocation}
-              onChange={(id: string, value: string) => setFormData(f => ({ ...f, [id]: value }))}
-            />
-            <div className="mt-6">
-              <WifiSection
-                wifiNetwork={formData.wifiNetwork}
-                wifiPassword={formData.wifiPassword}
-                onChange={(id: string, value: string) => setFormData(f => ({ ...f, [id]: value }))}
-              />
-            </div>
-          </>
-        )}
-        {currentSection === "hostinfo" && (
-          <HostInfoSection
-            name={formData.hostName}
-            bio={formData.hostBio}
-            contact={formData.hostContact}
-            onChange={(id, value) => setFormData(f => ({ ...f, [id]: value }))}
-            onHostPhotoChange={handleHostPhotoSelect}
-            hostPhotoPreviewUrl={hostPhotoPreviewUrl}
+          <CheckinSection
+            accessInfo={formData.access_info}
+            parkingInfo={formData.parkingInfo}
+            checkInTime={formData.checkInTime}
+            emergencyContact={formData.emergencyContact}
+            fireExtinguisherLocation={formData.fireExtinguisherLocation}
+            wifiNetwork={formData.wifiNetwork}
+            wifiPassword={formData.wifiPassword}
+            onChange={(id: string, value: string) => setFormData(f => ({ ...f, [id]: value }))}
           />
         )}
         {currentSection === "property" && (
@@ -475,13 +485,6 @@ export default function EditGuidebookPage() {
               />
             </div>
           </>
-        )}
-        {currentSection === "wifi" && (
-          <WifiSection
-            wifiNetwork={formData.wifiNetwork}
-            wifiPassword={formData.wifiPassword}
-            onChange={(id, value) => setFormData(f => ({ ...f, [id]: value }))}
-          />
         )}
         {currentSection === "food" && (
           <div>
@@ -600,6 +603,7 @@ export default function EditGuidebookPage() {
               );
             }}
             onAdd={() => setRules([...rules, { name: '', description: '', checked: false }])}
+            onDelete={(idx: number) => setRules(rules => rules.filter((_, i) => i !== idx))}
           />
         )}
         {currentSection === "checkout" && (
@@ -613,8 +617,74 @@ export default function EditGuidebookPage() {
               ));
             }}
             onAdd={() => setCheckoutItems(items => [...items, { name: '', description: '', checked: false }])}
+            onDelete={(idx: number) => setCheckoutItems(items => items.filter((_, i) => i !== idx))}
           />
         )}
+
+        {/* Custom sections */}
+        {currentSection.startsWith("custom_") && (
+          <CustomSection
+            sectionKey={currentSection}
+            icon={customTabsMeta[currentSection]?.icon || "📝"}
+            label={customTabsMeta[currentSection]?.label || "Custom Section"}
+            items={customSections[currentSection] || []}
+            onChange={(items) => setCustomSections(prev => ({ ...prev, [currentSection]: items }))}
+            onLabelChange={(newLabel) => setCustomTabsMeta(prev => ({
+              ...prev,
+              [currentSection]: {
+                icon: prev[currentSection]?.icon || "📝",
+                label: newLabel
+              }
+            }))}
+            onMediaSelect={async (idx, file) => {
+              if (!file) return;
+              const mediaType = file.type.startsWith("video/") ? "video" : "image";
+              const uploadedUrl = await uploadHouseMedia(file);
+              if (uploadedUrl) {
+                setCustomSections(prev => {
+                  const items = [...(prev[currentSection] || [])];
+                  const item = items[idx];
+                  if (item && item.type === 'manual') {
+                    items[idx] = { ...item, mediaUrl: uploadedUrl, mediaType };
+                  }
+                  return { ...prev, [currentSection]: items };
+                });
+              }
+            }}
+            onRemoveMedia={(idx) => {
+              setCustomSections(prev => {
+                const items = [...(prev[currentSection] || [])];
+                const item = items[idx];
+                if (item && item.type === 'manual' && item.mediaUrl) {
+                  deleteHouseMedia(item.mediaUrl);
+                  items[idx] = { ...item, mediaUrl: undefined, mediaType: undefined };
+                }
+                return { ...prev, [currentSection]: items };
+              });
+            }}
+          />
+        )}
+
+        {/* Publish button at bottom right */}
+        <div className="flex justify-end mt-8">
+          <Button
+            type="button"
+            data-tutorial="publish-button"
+            className="px-10 py-4 bg-[oklch(0.6923_0.22_21.05)] text-white font-semibold rounded-lg shadow-lg hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed text-lg md:text-xl"
+            onClick={(e) => handleSubmit(e as unknown as React.FormEvent)}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <span className="inline-flex items-center gap-2">
+                <Spinner size={18} />
+                Updating…
+              </span>
+            ) : (
+              "Publish Changes"
+            )}
+          </Button>
+        </div>
+        </div>
       </CreateGuidebookLayout>
 
       <ConfirmModal

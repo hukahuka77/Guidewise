@@ -35,7 +35,7 @@ export default function SignupPage() {
           const hash = `#gb=${encodeURIComponent(gb)}&token=${encodeURIComponent(token)}`;
           emailRedirectTo = `${baseUrl}/success${hash}`;
         } else {
-          emailRedirectTo = `${baseUrl}/create?created=1`;
+          emailRedirectTo = `${baseUrl}/onboarding`;
         }
       }
       const { error, data } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo } });
@@ -54,7 +54,7 @@ export default function SignupPage() {
       
       // Depending on Supabase email confirmation settings, user may need to confirm via email
       if (data.session) {
-        router.push("/create?created=1");
+        router.push("/onboarding");
         return;
       }
       setMessage("Check your email to confirm your account. Once confirmed, you can log in.");
@@ -156,7 +156,7 @@ export default function SignupPage() {
                   await supabase.auth.signInWithOAuth({
                     provider: 'google',
                     options: {
-                      redirectTo: `${(typeof window !== 'undefined' ? window.location.origin : process.env.NEXT_PUBLIC_SITE_URL)}${hasPendingPreview ? `/success#gb=${encodeURIComponent(gb as string)}&token=${encodeURIComponent(token as string)}` : '/create?created=1'}`,
+                      redirectTo: `${(typeof window !== 'undefined' ? window.location.origin : process.env.NEXT_PUBLIC_SITE_URL)}${hasPendingPreview ? `/success#gb=${encodeURIComponent(gb as string)}&token=${encodeURIComponent(token as string)}` : '/onboarding'}`,
                       queryParams: { prompt: 'select_account' },
                     },
                   });

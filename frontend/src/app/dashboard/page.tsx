@@ -71,10 +71,23 @@ export default function DashboardPage() {
   // UI state
   const [qrModalFor, setQrModalFor] = useState<string | null>(null); // guidebook id
   const [syncSuccess, setSyncSuccess] = useState(false);
+  const [updateSuccess, setUpdateSuccess] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [visibleCount, setVisibleCount] = useState(5);
   const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null); // guidebook id being downloaded
+
+  // Check for update success message
+  useEffect(() => {
+    if (searchParams.get('updated') === 'true') {
+      setUpdateSuccess(true);
+      // Clear the URL parameter
+      router.replace('/dashboard');
+      // Auto-hide after 5 seconds
+      const timer = setTimeout(() => setUpdateSuccess(false), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [searchParams, router]);
 
   useEffect(() => {
     let cancelled = false;
@@ -272,6 +285,21 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {updateSuccess && (
+        <div className="w-full bg-emerald-100 border-b border-emerald-300 text-emerald-800" role="alert">
+          <div className="px-4 py-3 text-center flex items-center justify-center gap-2">
+            <strong className="font-bold">Guidebook updated successfully!</strong>
+            <button
+              onClick={() => setUpdateSuccess(false)}
+              className="ml-2 text-emerald-600 hover:text-emerald-900"
+              aria-label="Close"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-6xl mx-auto p-6 md:p-10">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
@@ -293,7 +321,7 @@ export default function DashboardPage() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            <Link href="/create">
+            <Link href="/onboarding">
               <Button className="bg-[oklch(0.6923_0.22_21.05)] hover:opacity-90">Create New</Button>
             </Link>
             {(plan === 'free' || plan === 'trial') && (
@@ -404,7 +432,7 @@ export default function DashboardPage() {
                         onClick={() => setQrModalFor(gb.id)}
                       >QR Code</Button>
                       <Link href={`/dashboard/pdf/${gb.id}`}>
-                        <Button variant="outline" className="w-full whitespace-nowrap text-sm">PDF Templates</Button>
+                        <Button variant="outline" className="w-full whitespace-nowrap text-sm">PDFs</Button>
                       </Link>
                       <Button
                         variant="outline"

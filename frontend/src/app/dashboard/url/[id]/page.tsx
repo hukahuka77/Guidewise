@@ -156,8 +156,19 @@ export default function GuidebookUrlTemplatesPage() {
               <Card template="template_original" title="Lifestyle (Standard)" img="/images/URL_Generic1.png" />
               <Card template="template_generic" title="Minimal (Basic)" img="/images/URL_Generic2.png" />
               <Card template="template_modern" title="Modern Cards" img="/images/URL_Modern.jpg" />
-              <Card template="template_welcomebook" title="Welcome Book" img="/images/URL_WelcomeBook.jpg" />
+              <Card template="template_welcomebook" title="Welcome Book" img="/images/URL_WelcomeBook.png" />
             </div>
+
+            {/* Continue to edit button at bottom right */}
+            {guidebookId && (
+              <div className="flex justify-end mt-8">
+                <Link href={`/edit/${guidebookId}`}>
+                  <Button className="px-8 py-3 bg-[oklch(0.6923_0.22_21.05)] text-white rounded-lg font-semibold hover:opacity-90 transition">
+                    Continue to edit
+                  </Button>
+                </Link>
+              </div>
+            )}
           </section>
         )}
       </div>

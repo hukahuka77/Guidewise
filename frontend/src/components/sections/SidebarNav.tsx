@@ -4,6 +4,8 @@ import { LIMITS } from "../../constants/limits";
 const NAV_META: Record<string, { label: string; icon: string }> = {
   welcome: { label: "Welcome", icon: "👋" },
   checkin: { label: "Check-in Info", icon: "🏠" },
+  wifi: { label: "Wi-Fi", icon: "📶" },
+  hostinfo: { label: "Host Info", icon: "👤" },
   property: { label: "House Manual", icon: "📘" },
   food: { label: "Food", icon: "🍽️" },
   activities: { label: "Activities", icon: "🎡" },
@@ -22,9 +24,11 @@ interface SidebarNavProps {
   allowedSections?: string[];
   /** Whether the Add custom button is enabled. Defaults to true. */
   customEnabled?: boolean;
+  /** Custom section metadata from parent */
+  customTabsMeta?: Record<string, { icon: string; label: string }>;
 }
 
-export default function SidebarNav({ currentSection, onSectionChange, included, excluded, onUpdate, onCustomMetaChange, allowedSections, customEnabled = true }: SidebarNavProps) {
+export default function SidebarNav({ currentSection, onSectionChange, included, excluded, onUpdate, onCustomMetaChange, allowedSections, customEnabled = true, customTabsMeta }: SidebarNavProps) {
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const [dragOver, setDragOver] = React.useState<{
     list: "included" | "excluded" | null;
@@ -48,10 +52,12 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
   ), [included, excluded]);
   const canAddCustom = customCount < LIMITS.maxCustomTabs && customEnabled;
 
-  // Whenever customMeta changes, notify parent if provided
+  // Sync local customMeta with prop from parent
   React.useEffect(() => {
-    if (onCustomMetaChange) onCustomMetaChange(customMeta);
-  }, [customMeta, onCustomMetaChange]);
+    if (customTabsMeta) {
+      setCustomMeta(customTabsMeta);
+    }
+  }, [customTabsMeta]);
 
   const handleDragStart = (e: React.DragEvent, section: string, from: "included" | "excluded") => {
     const originalIndex = (from === "included" ? included : excluded).indexOf(section);
@@ -157,15 +163,43 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
     />
   );
 
+  const handleToggleSection = (e: React.MouseEvent, section: string, from: "included" | "excluded") => {
+    e.stopPropagation();
+    const newIncluded = included.slice();
+    const newExcluded = excluded.slice();
+
+    if (from === "included") {
+      // Move to excluded
+      const idx = newIncluded.indexOf(section);
+      if (idx >= 0) newIncluded.splice(idx, 1);
+      newExcluded.push(section);
+    } else {
+      // Move to included
+      const idx = newExcluded.indexOf(section);
+      if (idx >= 0) newExcluded.splice(idx, 1);
+      newIncluded.push(section);
+    }
+
+    onUpdate(newIncluded, newExcluded);
+  };
+
   const renderItem = (section: string, index: number, listName: "included" | "excluded") => {
     const meta: { icon: string; label: string } = NAV_META[section] ?? customMeta[section] ?? { icon: "📝", label: section };
     const isEnabled = listName === "included" ? (!allowedSections || allowedSections.includes(section)) : true;
+    const isWelcome = section === "welcome";
+    const isDraggable = !isWelcome;
     return (
       <li
         key={section}
         data-index={index}
-        draggable
-        onDragStart={(e) => handleDragStart(e, section, listName)}
+        draggable={isDraggable}
+        onDragStart={(e) => {
+          if (!isDraggable) {
+            e.preventDefault();
+            return;
+          }
+          handleDragStart(e, section, listName);
+        }}
         onDragEnd={() => setDragOver({ list: null, index: -1 })}
         onDragOver={(e) => {
           // Compute before/after relative to the item so dropping on the item is allowed
@@ -180,18 +214,28 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
           const insertion = dragOver.list === listName ? dragOver.index : index;
           handleDropOnList(e, listName, insertion);
         }}
-        className={`flex items-center gap-0 md:gap-3 px-2 md:px-3 py-2 rounded-lg transition-colors ${
-          currentSection === section && listName === "included" ? "bg-white/20" : "hover:bg-white/10"
-        } ${!isEnabled && listName === 'included' ? 'opacity-50 cursor-not-allowed' : 'cursor-move'}`}
+        className={`flex items-center gap-0 md:gap-2 px-2 md:px-3 py-2 rounded-lg transition-colors ${
+          currentSection === section ? "bg-white/20" : "hover:bg-white/10"
+        } ${!isEnabled ? 'opacity-50 cursor-not-allowed' : isDraggable ? 'cursor-move' : 'cursor-pointer'}`}
         onClick={() => {
-          if (listName !== "included") return;
           if (!isEnabled) return;
           onSectionChange(section);
         }}
-        title="Drag to reorder or move between lists"
+        title={isWelcome ? "Welcome section (required)" : "Drag to reorder or move between lists"}
       >
         <span className="w-6 h-6 flex items-center justify-center text-lg" aria-hidden="true">{meta.icon}</span>
-        <span className="font-medium text-sm md:text-base hidden sm:inline">{meta.label}</span>
+        <span className="font-medium text-sm md:text-base hidden sm:inline flex-1">{meta.label}</span>
+        {!isWelcome && (
+          <button
+            type="button"
+            onClick={(e) => handleToggleSection(e, section, listName)}
+            className="w-6 h-6 flex items-center justify-center text-white hover:bg-white/20 rounded transition-colors hidden sm:flex"
+            title={listName === "included" ? "Exclude section" : "Include section"}
+            aria-label={listName === "included" ? "Exclude section" : "Include section"}
+          >
+            {listName === "included" ? "−" : "+"}
+          </button>
+        )}
       </li>
     );
   };
@@ -199,13 +243,14 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
   return (
     <nav
       ref={containerRef}
-      className="h-full w-10 sm:w-20 md:w-56 bg-[oklch(0.6923_0.22_21.05)] text-white flex flex-col py-6 md:py-8 px-1 sm:px-3 md:px-4 shadow-lg"
+      className="h-full w-10 sm:w-20 md:w-56 text-white flex flex-col py-6 md:py-8 px-1 sm:px-3 md:px-4"
       onDragOver={onContainerDragOver}
     >
       <div className="mb-4 text-xl md:text-2xl font-bold tracking-tight hidden sm:block">Guidebook</div>
 
       {/* Included list */}
       <ul
+        data-tutorial="sidebar-included"
         className="flex flex-col gap-2 mb-4 min-h-4"
         onDragOver={(e) => onDragOver(e)}
         onDragLeave={(e) => onDragLeaveList(e, "included")}
@@ -238,6 +283,7 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
 
       {/* Divider for Excluded */}
       <div
+        data-tutorial="excluded"
         className="mt-2 mb-2 text-xs uppercase tracking-wider text-white/60"
         onDragOver={(e) => {
           onDragOver(e);
@@ -250,6 +296,7 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
 
       {/* Excluded list */}
       <ul
+        data-tutorial="sidebar-excluded"
         className="flex flex-col gap-2 min-h-4"
         onDragOver={(e) => onDragOver(e)}
         onDragLeave={(e) => onDragLeaveList(e, "excluded")}
@@ -328,7 +375,12 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
                   const emoji = ((customEmoji || "").trim().slice(0, LIMITS.customTabEmojiChars)) || "📝";
                   if (!title || !canAddCustom) return;
                   const key = `custom_${Date.now()}`;
-                  setCustomMeta((prev) => ({ ...prev, [key]: { icon: emoji, label: title } }));
+                  const newMeta = { ...customMeta, [key]: { icon: emoji, label: title } };
+                  setCustomMeta(newMeta);
+                  // Notify parent of the new custom section
+                  if (onCustomMetaChange) {
+                    onCustomMetaChange(newMeta);
+                  }
                   onUpdate([...included, key], excluded);
                   onSectionChange(key);
                   setShowCustomModal(false);
