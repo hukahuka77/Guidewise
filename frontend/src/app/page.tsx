@@ -155,7 +155,7 @@ export default function Home() {
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">Save hours every week</h3>
                   <p className="text-gray-600 leading-relaxed">
-                    Stop answering "What's the WiFi password?" for the hundredth time. Digital guidebooks answer
+                    Stop answering &ldquo;What&rsquo;s the WiFi password?&rdquo; for the hundredth time. Digital guidebooks answer
                     common questions before guests even ask. Hosts report saving 5-10 hours per week.
                   </p>
                 </div>
@@ -203,7 +203,7 @@ export default function Home() {
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">Stand out, earn better reviews</h3>
                   <p className="text-gray-600 leading-relaxed">
-                    A polished digital guidebook signals professionalism and care. "The digital guidebook was so helpful!"
+                    A polished digital guidebook signals professionalism and care. &ldquo;The digital guidebook was so helpful!&rdquo;
                     becomes a recurring theme that attracts more premium bookings.
                   </p>
                 </div>
@@ -233,7 +233,7 @@ export default function Home() {
                   Ready to elevate your guest experience?
                 </h3>
                 <p className="text-lg text-gray-600 mb-8">
-                  Join hundreds of hosts who've upgraded to digital guidebooks and never looked back.
+                  Join hundreds of hosts who&rsquo;ve upgraded to digital guidebooks and never looked back.
                 </p>
                 <a
                   href="/signup"
