@@ -1,5 +1,6 @@
 import type { DynamicItem } from '@/components/sections/DynamicItemList';
 import type { FormData, RuleItem, CheckoutItem, HouseManualItem } from '@/hooks/useGuidebookForm';
+import type { CustomItem } from '@/components/sections/CustomSection';
 
 export interface BuildPayloadOptions {
   formData: FormData;
@@ -8,7 +9,7 @@ export interface BuildPayloadOptions {
   rules: RuleItem[];
   houseManualItems: HouseManualItem[];
   checkoutItems: CheckoutItem[];
-  customSections: Record<string, string[]>;
+  customSections: Record<string, (string | CustomItem)[]>;
   customTabsMeta: Record<string, { icon: string; label: string }>;
   included: string[];
   coverImageUrl?: string;

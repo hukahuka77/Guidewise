@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { useGuidebookForm } from "@/hooks/useGuidebookForm";
@@ -13,11 +14,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import Spinner from "@/components/ui/spinner";
 import PlacesAutocomplete from "@/components/PlacesAutocomplete";
-import { CREATE_SECTIONS_ORDER } from "@/config/sections";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL as string;
 const BUCKET_NAME = process.env.NEXT_PUBLIC_SUPABASE_FOOD_ACTIVITIES_BUCKET as string;
-const HOUSE_MEDIA_BUCKET = process.env.NEXT_PUBLIC_SUPABASE_USER_VIDEOS_BUCKET as string;
 
 // Wizard steps
 const STEPS = [
@@ -25,6 +24,7 @@ const STEPS = [
   { id: "location", title: "Location", canSkip: false },
   { id: "welcome", title: "Welcome Info", canSkip: true },
   { id: "host", title: "Host Info", canSkip: true },
+  { id: "photos", title: "Photos", canSkip: true },
   { id: "checkin", title: "Check-in", canSkip: true },
   { id: "wifi", title: "Wi-Fi", canSkip: true },
   { id: "checkout", title: "Checkout", canSkip: true },
@@ -48,11 +48,9 @@ export default function OnboardingPage() {
     foodItems,
     activityItems,
     houseManualItems,
-    setHouseManualItems,
     checkoutItems,
     setCheckoutItems,
     rules,
-    setRules,
     included,
     customSections,
     customTabsMeta,
@@ -73,9 +71,6 @@ export default function OnboardingPage() {
 
   // Image upload hooks
   const { uploadToStorage } = useImageUpload({ bucketName: BUCKET_NAME });
-  const { uploadToStorage: uploadHouseMedia } = useImageUpload({
-    bucketName: HOUSE_MEDIA_BUCKET || BUCKET_NAME,
-  });
 
   const currentStepData = STEPS[currentStep];
   const progress = ((currentStep + 1) / STEPS.length) * 100;
@@ -199,90 +194,96 @@ export default function OnboardingPage() {
           )}
 
           {/* Slide Content */}
-          <div className="bg-white rounded-2xl shadow-lg p-8 md:p-12 min-h-[500px] overflow-hidden">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentStep}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.3, ease: "easeInOut" }}
-              >
-                {currentStepData.id === "intro" && <IntroSlide />}
-                {currentStepData.id === "location" && (
-                  <LocationSlide
-                    location={formData.location}
-                    onChange={(val) => setFormData((f) => ({ ...f, location: val }))}
-                  />
-                )}
-                {currentStepData.id === "welcome" && (
-                  <WelcomeSlide
-                    welcomeMessage={formData.welcomeMessage}
-                    propertyName={formData.propertyName}
-                    coverPreviewUrl={previewUrl}
-                    onChange={(id, val) => setFormData((f) => ({ ...f, [id]: val }))}
-                    onCoverImageChange={handleCoverImageSelect}
-                  />
-                )}
-                {currentStepData.id === "host" && (
-                  <HostSlide
-                    hostName={formData.hostName}
-                    hostBio={formData.hostBio}
-                    hostContact={formData.hostContact}
-                    hostPhotoPreviewUrl={hostPhotoPreviewUrl}
-                    onChange={(id, val) => setFormData((f) => ({ ...f, [id]: val }))}
-                    onHostPhotoChange={handleHostPhotoSelect}
-                  />
-                )}
-                {currentStepData.id === "checkin" && (
-                  <CheckinSlide
-                    checkInTime={formData.checkInTime}
-                    items={checkinItems}
-                    onChange={(id, val) => setFormData((f) => ({ ...f, [id]: val }))}
-                    onItemChange={(idx, field, value) => {
-                      setCheckinItems(items => items.map((item, i) =>
-                        i === idx ? { ...item, [field]: value } : item
-                      ));
-                    }}
-                    onAddItem={() => setCheckinItems([...checkinItems, { name: '', description: '' }])}
-                    onDeleteItem={(idx) => setCheckinItems(items => items.filter((_, i) => i !== idx))}
-                  />
-                )}
-                {currentStepData.id === "wifi" && (
-                  <WifiSlide
-                    wifiNetwork={formData.wifiNetwork}
-                    wifiPassword={formData.wifiPassword}
-                    onChange={(id, val) => setFormData((f) => ({ ...f, [id]: val }))}
-                  />
-                )}
-                {currentStepData.id === "checkout" && (
-                  <CheckoutSlide
-                    checkOutTime={formData.checkOutTime}
-                    items={checkoutItems}
-                    onTimeChange={(val) => setFormData((f) => ({ ...f, checkOutTime: val }))}
-                    onChange={(idx, field, val) =>
-                      setCheckoutItems((items) =>
-                        items.map((item, i) =>
-                          i === idx
-                            ? { ...item, [field]: field === "checked" ? Boolean(val) : String(val) }
-                            : item
+          <div className="bg-white rounded-2xl shadow-lg p-8 md:p-12 h-[650px] flex flex-col overflow-hidden">
+            <div className="flex-1 overflow-y-auto -mx-4 px-4 md:-mx-8 md:px-8 custom-scrollbar">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentStep}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3, ease: "easeInOut" }}
+                >
+                  {currentStepData.id === "intro" && <IntroSlide />}
+                  {currentStepData.id === "location" && (
+                    <LocationSlide
+                      location={formData.location}
+                      onChange={(val) => setFormData((f) => ({ ...f, location: val }))}
+                    />
+                  )}
+                  {currentStepData.id === "welcome" && (
+                    <WelcomeSlide
+                      welcomeMessage={formData.welcomeMessage}
+                      propertyName={formData.propertyName}
+                      onChange={(id, val) => setFormData((f) => ({ ...f, [id]: val }))}
+                    />
+                  )}
+                  {currentStepData.id === "host" && (
+                    <HostSlide
+                      hostName={formData.hostName}
+                      hostBio={formData.hostBio}
+                      hostContact={formData.hostContact}
+                      onChange={(id, val) => setFormData((f) => ({ ...f, [id]: val }))}
+                    />
+                  )}
+                  {currentStepData.id === "photos" && (
+                    <PhotosSlide
+                      coverPreviewUrl={previewUrl}
+                      hostPhotoPreviewUrl={hostPhotoPreviewUrl}
+                      onCoverImageChange={handleCoverImageSelect}
+                      onHostPhotoChange={handleHostPhotoSelect}
+                    />
+                  )}
+                  {currentStepData.id === "checkin" && (
+                    <CheckinSlide
+                      checkInTime={formData.checkInTime}
+                      items={checkinItems}
+                      onChange={(id, val) => setFormData((f) => ({ ...f, [id]: val }))}
+                      onItemChange={(idx, field, value) => {
+                        setCheckinItems(items => items.map((item, i) =>
+                          i === idx ? { ...item, [field]: value } : item
+                        ));
+                      }}
+                      onAddItem={() => setCheckinItems([...checkinItems, { name: '', description: '' }])}
+                      onDeleteItem={(idx) => setCheckinItems(items => items.filter((_, i) => i !== idx))}
+                    />
+                  )}
+                  {currentStepData.id === "wifi" && (
+                    <WifiSlide
+                      wifiNetwork={formData.wifiNetwork}
+                      wifiPassword={formData.wifiPassword}
+                      onChange={(id, val) => setFormData((f) => ({ ...f, [id]: val }))}
+                    />
+                  )}
+                  {currentStepData.id === "checkout" && (
+                    <CheckoutSlide
+                      checkOutTime={formData.checkOutTime}
+                      items={checkoutItems}
+                      onTimeChange={(val) => setFormData((f) => ({ ...f, checkOutTime: val }))}
+                      onChange={(idx, field, val) =>
+                        setCheckoutItems((items) =>
+                          items.map((item, i) =>
+                            i === idx
+                              ? { ...item, [field]: field === "checked" ? Boolean(val) : String(val) }
+                              : item
+                          )
                         )
-                      )
-                    }
-                    onAdd={() =>
-                      setCheckoutItems((items) => [
-                        ...items,
-                        { name: "", description: "", checked: false },
-                      ])
-                    }
-                    onDelete={(idx) =>
-                      setCheckoutItems((items) => items.filter((_, i) => i !== idx))
-                    }
-                  />
-                )}
-                {currentStepData.id === "complete" && <CompleteSlide />}
-              </motion.div>
-            </AnimatePresence>
+                      }
+                      onAdd={() =>
+                        setCheckoutItems((items) => [
+                          ...items,
+                          { name: "", description: "", checked: false },
+                        ])
+                      }
+                      onDelete={(idx) =>
+                        setCheckoutItems((items) => items.filter((_, i) => i !== idx))
+                      }
+                    />
+                  )}
+                  {currentStepData.id === "complete" && <CompleteSlide />}
+                </motion.div>
+              </AnimatePresence>
+            </div>
 
             {/* Progress Bar */}
             <div className="mt-8 mb-6">
@@ -341,10 +342,10 @@ function IntroSlide() {
   return (
     <div className="text-center py-12">
       <h1 className="text-4xl font-bold text-gray-800 mb-4">
-        Let's Create Your First Guidebook
+        Let&apos;s Create Your First Guidebook
       </h1>
       <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-        We'll gather the essentials now. You can add finishing touches later.
+        We&apos;ll gather the essentials now. You can add finishing touches later.
       </p>
     </div>
   );
@@ -377,17 +378,12 @@ function LocationSlide({
 function WelcomeSlide({
   welcomeMessage,
   propertyName,
-  coverPreviewUrl,
   onChange,
-  onCoverImageChange,
 }: {
   welcomeMessage: string;
   propertyName: string;
-  coverPreviewUrl: string | null;
   onChange: (id: string, val: string) => void;
-  onCoverImageChange: (file: File | null) => void;
 }) {
-  const [dragOver, setDragOver] = useState(false);
   return (
     <div className="py-8">
       <h2 className="text-2xl font-bold text-gray-800 mb-3 text-center">Welcome Info</h2>
@@ -416,53 +412,6 @@ function WelcomeSlide({
             className="mt-2"
           />
         </div>
-
-        <div>
-          <Label>Cover Image</Label>
-          <input
-            type="file"
-            accept="image/*"
-            className="sr-only"
-            id="coverImage"
-            onChange={(e) => {
-              const file = e.target.files?.[0] || null;
-              onCoverImageChange(file);
-            }}
-          />
-          <label htmlFor="coverImage">
-            <div
-              className={`mt-2 h-48 w-full rounded-xl border-2 border-dashed flex items-center justify-center cursor-pointer transition ${
-                dragOver
-                  ? "border-[oklch(0.6923_0.22_21.05)] bg-orange-50"
-                  : "border-gray-300 hover:border-[oklch(0.6923_0.22_21.05)] hover:bg-orange-50"
-              }`}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setDragOver(true);
-              }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={(e) => {
-                e.preventDefault();
-                setDragOver(false);
-                const file = e.dataTransfer.files?.[0] || null;
-                onCoverImageChange(file);
-              }}
-            >
-              {coverPreviewUrl ? (
-                <img
-                  src={coverPreviewUrl}
-                  alt="Cover"
-                  className="h-full w-full object-cover rounded-xl"
-                />
-              ) : (
-                <div className="text-center text-gray-500">
-                  <p className="font-medium">Click to upload or drag & drop</p>
-                  <p className="text-sm text-gray-400 mt-1">Property photo</p>
-                </div>
-              )}
-            </div>
-          </label>
-        </div>
       </div>
     </div>
   );
@@ -472,18 +421,13 @@ function HostSlide({
   hostName,
   hostBio,
   hostContact,
-  hostPhotoPreviewUrl,
   onChange,
-  onHostPhotoChange,
 }: {
   hostName: string;
   hostBio: string;
   hostContact: string;
-  hostPhotoPreviewUrl: string | null;
   onChange: (id: string, val: string) => void;
-  onHostPhotoChange: (file: File | null) => void;
 }) {
-  const [dragOver, setDragOver] = useState(false);
   return (
     <div className="py-8">
       <h2 className="text-2xl font-bold text-gray-800 mb-3 text-center">Host Information</h2>
@@ -524,9 +468,86 @@ function HostSlide({
             rows={2}
           />
         </div>
+      </div>
+    </div>
+  );
+}
 
+function PhotosSlide({
+  coverPreviewUrl,
+  hostPhotoPreviewUrl,
+  onCoverImageChange,
+  onHostPhotoChange,
+}: {
+  coverPreviewUrl: string | null;
+  hostPhotoPreviewUrl: string | null;
+  onCoverImageChange: (file: File | null) => void;
+  onHostPhotoChange: (file: File | null) => void;
+}) {
+  const [coverDragOver, setCoverDragOver] = useState(false);
+  const [hostDragOver, setHostDragOver] = useState(false);
+
+  return (
+    <div className="py-8">
+      <h2 className="text-2xl font-bold text-gray-800 mb-3 text-center">Add Photos</h2>
+      <p className="text-gray-600 mb-6 text-center">Personalize your guidebook with images.</p>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Cover Image */}
         <div>
-          <Label>Your Photo</Label>
+          <Label>Cover Image</Label>
+          <p className="text-sm text-gray-500 italic mb-2">Upload a photo of your property</p>
+          <input
+            type="file"
+            accept="image/*"
+            className="sr-only"
+            id="coverImage"
+            onChange={(e) => {
+              const file = e.target.files?.[0] || null;
+              onCoverImageChange(file);
+            }}
+          />
+          <label htmlFor="coverImage">
+            <div
+              className={`mt-2 h-48 w-full rounded-xl border-2 border-dashed flex items-center justify-center cursor-pointer transition ${coverDragOver
+                ? "border-[oklch(0.6923_0.22_21.05)] bg-orange-50"
+                : "border-gray-300 hover:border-[oklch(0.6923_0.22_21.05)] hover:bg-orange-50"
+                }`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setCoverDragOver(true);
+              }}
+              onDragLeave={() => setCoverDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setCoverDragOver(false);
+                const file = e.dataTransfer.files?.[0] || null;
+                onCoverImageChange(file);
+              }}
+            >
+              {coverPreviewUrl ? (
+                <Image
+                  src={coverPreviewUrl}
+                  alt="Cover"
+                  className="h-full w-full object-cover rounded-xl"
+                  width={400}
+                  height={300}
+                  unoptimized
+                />
+              ) : (
+                <div className="text-center text-gray-500">
+                  <p className="font-medium">Click/Drop</p>
+                  <p className="text-xs text-gray-400 mt-1">Property</p>
+                </div>
+              )}
+            </div>
+          </label>
+        </div>
+
+        {/* Host Photo */}
+        <div>
+          <Label>Host Photo</Label>
+          <p className="text-sm text-gray-500 italic mb-2">Submit a photo of yourself</p>
           <input
             type="file"
             accept="image/*"
@@ -539,32 +560,35 @@ function HostSlide({
           />
           <label htmlFor="hostPhoto">
             <div
-              className={`mt-2 h-40 w-40 rounded-full border-2 border-dashed flex items-center justify-center cursor-pointer transition ${
-                dragOver
-                  ? "border-[oklch(0.6923_0.22_21.05)] bg-orange-50"
-                  : "border-gray-300 hover:border-[oklch(0.6923_0.22_21.05)] hover:bg-orange-50"
-              }`}
+              className={`mt-2 h-48 w-full rounded-xl border-2 border-dashed flex items-center justify-center cursor-pointer transition ${hostDragOver
+                ? "border-[oklch(0.6923_0.22_21.05)] bg-orange-50"
+                : "border-gray-300 hover:border-[oklch(0.6923_0.22_21.05)] hover:bg-orange-50"
+                }`}
               onDragOver={(e) => {
                 e.preventDefault();
-                setDragOver(true);
+                setHostDragOver(true);
               }}
-              onDragLeave={() => setDragOver(false)}
+              onDragLeave={() => setHostDragOver(false)}
               onDrop={(e) => {
                 e.preventDefault();
-                setDragOver(false);
+                setHostDragOver(false);
                 const file = e.dataTransfer.files?.[0] || null;
                 onHostPhotoChange(file);
               }}
             >
               {hostPhotoPreviewUrl ? (
-                <img
+                <Image
                   src={hostPhotoPreviewUrl}
                   alt="Host"
-                  className="h-full w-full object-cover rounded-full"
+                  className="h-full w-full object-cover rounded-xl"
+                  width={400}
+                  height={300}
+                  unoptimized
                 />
               ) : (
-                <div className="text-center text-gray-500 text-sm px-2">
-                  <p>Click or drag</p>
+                <div className="text-center text-gray-500">
+                  <p className="font-medium">Click/Drop</p>
+                  <p className="text-xs text-gray-400 mt-1">Host</p>
                 </div>
               )}
             </div>
@@ -643,11 +667,10 @@ function CheckinSlide({
                     key={suggestion.name}
                     type="button"
                     onClick={() => handleAddSuggestion(suggestion)}
-                    className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                      isActive
-                        ? "bg-[oklch(0.6923_0.22_21.05)] text-white border border-[oklch(0.6923_0.22_21.05)] hover:opacity-90"
-                        : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-[oklch(0.6923_0.22_21.05)]"
-                    }`}
+                    className={`px-3 py-1.5 text-sm rounded-md transition-colors ${isActive
+                      ? "bg-[oklch(0.6923_0.22_21.05)] text-white border border-[oklch(0.6923_0.22_21.05)] hover:opacity-90"
+                      : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-[oklch(0.6923_0.22_21.05)]"
+                      }`}
                   >
                     {isActive ? "✓ " : "+ "}{suggestion.name}
                   </Button>
@@ -737,103 +760,7 @@ function WifiSlide({
   );
 }
 
-function PropertySlide({
-  items,
-  onChange,
-  onAdd,
-  onDelete,
-  onMediaSelect,
-}: {
-  items: Array<{ name: string; description: string; mediaUrl?: string; mediaType?: string }>;
-  onChange: (idx: number, field: string, val: string) => void;
-  onAdd: () => void;
-  onDelete: (idx: number) => void;
-  onMediaSelect: (idx: number, file: File | null) => void;
-}) {
-  return (
-    <div className="py-8">
-      <h2 className="text-2xl font-bold text-gray-800 mb-3">House Manual</h2>
-      <p className="text-gray-600 mb-6">Add instructions for appliances, amenities, etc.</p>
 
-      <div className="space-y-4">
-        {items.map((item, idx) => (
-          <div key={idx} className="border rounded-lg p-4 bg-gray-50">
-            <div className="flex items-start justify-between mb-3">
-              <Input
-                placeholder="Item name (e.g. Coffee Maker)"
-                value={item.name}
-                onChange={(e) => onChange(idx, "name", e.target.value)}
-                className="flex-1"
-              />
-              <Button
-                onClick={() => onDelete(idx)}
-                className="ml-2 px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-              >
-                Remove
-              </Button>
-            </div>
-            <Textarea
-              placeholder="Instructions..."
-              value={item.description}
-              onChange={(e) => onChange(idx, "description", e.target.value)}
-              rows={2}
-            />
-          </div>
-        ))}
-
-        <Button
-          onClick={onAdd}
-          className="w-full py-3 border-2 border-dashed border-gray-300 bg-white text-gray-600 rounded-lg hover:border-[oklch(0.6923_0.22_21.05)] hover:text-[oklch(0.6923_0.22_21.05)]"
-        >
-          + Add Item
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function RulesSlide({
-  rules,
-  onChange,
-  onAdd,
-}: {
-  rules: Array<{ name: string; description: string; checked: boolean }>;
-  onChange: (idx: number, field: string, val: string | boolean) => void;
-  onAdd: () => void;
-}) {
-  return (
-    <div className="py-8">
-      <h2 className="text-2xl font-bold text-gray-800 mb-3">House Rules</h2>
-      <p className="text-gray-600 mb-6">Set expectations for your guests.</p>
-
-      <div className="space-y-4">
-        {rules.map((rule, idx) => (
-          <div key={idx} className="border rounded-lg p-4 bg-gray-50">
-            <Input
-              placeholder="Rule (e.g. No smoking)"
-              value={rule.name}
-              onChange={(e) => onChange(idx, "name", e.target.value)}
-              className="mb-2"
-            />
-            <Textarea
-              placeholder="Additional details (optional)..."
-              value={rule.description}
-              onChange={(e) => onChange(idx, "description", e.target.value)}
-              rows={2}
-            />
-          </div>
-        ))}
-
-        <Button
-          onClick={onAdd}
-          className="w-full py-3 border-2 border-dashed border-gray-300 bg-white text-gray-600 rounded-lg hover:border-[oklch(0.6923_0.22_21.05)] hover:text-[oklch(0.6923_0.22_21.05)]"
-        >
-          + Add Rule
-        </Button>
-      </div>
-    </div>
-  );
-}
 
 function CheckoutSlide({
   checkOutTime,
@@ -909,11 +836,10 @@ function CheckoutSlide({
                   key={idx}
                   type="button"
                   onClick={() => handleAddSuggestion(suggestion)}
-                  className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                    isActive
-                      ? "bg-[oklch(0.6923_0.22_21.05)] text-white border border-[oklch(0.6923_0.22_21.05)] hover:opacity-90"
-                      : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-[oklch(0.6923_0.22_21.05)]"
-                  }`}
+                  className={`px-3 py-1.5 text-sm rounded-md transition-colors ${isActive
+                    ? "bg-[oklch(0.6923_0.22_21.05)] text-white border border-[oklch(0.6923_0.22_21.05)] hover:opacity-90"
+                    : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-[oklch(0.6923_0.22_21.05)]"
+                    }`}
                 >
                   {isActive ? "✓ " : "+ "}{suggestion.name}
                 </Button>
@@ -970,9 +896,9 @@ function CheckoutSlide({
 function CompleteSlide() {
   return (
     <div className="text-center py-12">
-      <h1 className="text-4xl font-bold text-gray-800 mb-4">You're All Set!</h1>
+      <h1 className="text-4xl font-bold text-gray-800 mb-4">You&apos;re All Set!</h1>
       <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-        Let's finalize your guidebook and add any finishing touches.
+        Let&apos;s finalize your guidebook and add any finishing touches.
       </p>
     </div>
   );

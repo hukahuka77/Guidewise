@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { DynamicItem } from '@/components/sections/DynamicItemList';
+import type { CustomItem } from '@/components/sections/CustomSection';
 
 export interface FormData {
   propertyName: string;
@@ -135,7 +136,7 @@ export interface UseGuidebookFormOptions {
   initialRules?: RuleItem[];
   initialIncluded?: string[];
   initialExcluded?: string[];
-  initialCustomSections?: Record<string, string[]>;
+  initialCustomSections?: Record<string, CustomItem[]>;
   initialCustomTabsMeta?: Record<string, { icon: string; label: string }>;
   initialPreviewUrl?: string | null;
   initialHostPhotoPreviewUrl?: string | null;
@@ -187,7 +188,7 @@ export function useGuidebookForm(options: UseGuidebookFormOptions = {}) {
   // Section organization states
   const [included, setIncluded] = useState<string[]>(initialIncluded);
   const [excluded, setExcluded] = useState<string[]>(initialExcluded);
-  const [customSections, setCustomSections] = useState<Record<string, string[]>>(initialCustomSections);
+  const [customSections, setCustomSections] = useState<Record<string, CustomItem[]>>(initialCustomSections);
   const [customTabsMeta, setCustomTabsMeta] = useState<Record<string, { icon: string; label: string }>>(initialCustomTabsMeta);
 
   // Modal states for place pickers

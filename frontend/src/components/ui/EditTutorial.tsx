@@ -117,14 +117,7 @@ export default function EditTutorial({ onComplete }: EditTutorialProps) {
     onComplete();
   };
 
-  const getTooltipPosition = () => {
-    // Always center the tooltip
-    return {
-      top: "50%",
-      left: "50%",
-      transform: "translate(-50%, -50%)",
-    };
-  };
+
 
 
   return (
@@ -185,9 +178,8 @@ export default function EditTutorial({ onComplete }: EditTutorialProps) {
             {TUTORIAL_STEPS.map((_, index) => (
               <div
                 key={index}
-                className={`h-1.5 rounded-full transition-all ${
-                  index === currentStep ? "bg-[oklch(0.6923_0.22_21.05)] w-8" : index < currentStep ? "bg-[oklch(0.6923_0.22_21.05)]/50 w-1.5" : "bg-gray-300 w-1.5"
-                }`}
+                className={`h-1.5 rounded-full transition-all ${index === currentStep ? "bg-[oklch(0.6923_0.22_21.05)] w-8" : index < currentStep ? "bg-[oklch(0.6923_0.22_21.05)]/50 w-1.5" : "bg-gray-300 w-1.5"
+                  }`}
               />
             ))}
           </div>

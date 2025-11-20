@@ -3,14 +3,13 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { startStripeCheckout } from '@/lib/billing';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { supabase } from '@/lib/supabaseClient';
 // No auth/claim needed here anymore
 
-const PdfViewer = dynamic(() => import('@/components/custom/PdfViewer'), { 
-  ssr: false 
+const PdfViewer = dynamic(() => import('@/components/custom/PdfViewer'), {
+  ssr: false
 });
 
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -88,9 +87,9 @@ export default function SuccessPage() {
             sessionStorage.setItem('liveGuidebookUrl', previewPath);
             localStorage.setItem('guidebookId', gb);
             localStorage.setItem('liveGuidebookUrl', previewPath);
-          } catch {}
+          } catch { }
           // Clean the hash to avoid re-processing
-          try { window.history.replaceState(null, '', window.location.pathname); } catch {}
+          try { window.history.replaceState(null, '', window.location.pathname); } catch { }
         }
       }
       const liveUrl = sessionStorage.getItem('liveGuidebookUrl') || localStorage.getItem('liveGuidebookUrl');
@@ -102,14 +101,14 @@ export default function SuccessPage() {
       const storedPreview = sessionStorage.getItem('previewGuidebookUrl') || localStorage.getItem('previewGuidebookUrl');
       if (storedPreview) {
         setPreviewUrl(storedPreview);
-        try { localStorage.setItem('previewGuidebookUrl', storedPreview); } catch {}
+        try { localStorage.setItem('previewGuidebookUrl', storedPreview); } catch { }
       }
       const storedId = sessionStorage.getItem('guidebookId') || localStorage.getItem('guidebookId');
       if (storedId) {
         setGuidebookId(storedId);
         localStorage.setItem('guidebookId', storedId);
       }
-    } catch {}
+    } catch { }
   }, []);
 
   // remove: no auth/claim flow
@@ -147,9 +146,9 @@ export default function SuccessPage() {
                 const activeCount = guidebooks.filter((gb: { active: boolean }) => gb.active).length;
                 setActiveGuidebooksCount(activeCount);
               }
-            } catch {}
+            } catch { }
           }
-        } catch {}
+        } catch { }
         const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || '';
         const res = await fetch(`${apiBase}/api/guidebooks/${guidebookId}`, {
           headers: tok ? { 'Authorization': `Bearer ${tok}` } : undefined,
@@ -168,7 +167,7 @@ export default function SuccessPage() {
             try {
               sessionStorage.setItem('liveGuidebookUrl', live);
               localStorage.setItem('liveGuidebookUrl', live);
-            } catch {}
+            } catch { }
           } else {
             // If not active, clear any old live URL and ensure preview URL is set
             setLiveGuidebookUrl(null);
@@ -179,10 +178,10 @@ export default function SuccessPage() {
               localStorage.removeItem('liveGuidebookUrl');
               sessionStorage.setItem('previewGuidebookUrl', preview);
               localStorage.setItem('previewGuidebookUrl', preview);
-            } catch {}
+            } catch { }
           }
         }
-      } catch {}
+      } catch { }
     };
     fetchTemplate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -238,7 +237,7 @@ export default function SuccessPage() {
           try {
             sessionStorage.setItem('liveGuidebookUrl', live);
             localStorage.setItem('liveGuidebookUrl', live);
-          } catch {}
+          } catch { }
         } else {
           console.warn('No public_slug in activation response, will use preview URL');
         }
@@ -258,7 +257,7 @@ export default function SuccessPage() {
               try {
                 sessionStorage.setItem('liveGuidebookUrl', live);
                 localStorage.setItem('liveGuidebookUrl', live);
-              } catch {}
+              } catch { }
             }
           }).catch(e => console.error('Failed to refetch guidebook:', e));
         }, 1000);
@@ -563,50 +562,50 @@ export default function SuccessPage() {
               </div>
               <p className="text-sm text-gray-500 mb-4">Preview a compact PDF. Click to open a larger preview.</p>
 
-          {/* Horizontal Carousel */}
-          <div className="relative">
-            {/* Left Arrow */}
-            <button
-              onClick={() => scrollCarousel('left', pdfCarouselEl)}
-              className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white rounded-full p-2 shadow-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              aria-label="Scroll left"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-              </svg>
-            </button>
+              {/* Horizontal Carousel */}
+              <div className="relative">
+                {/* Left Arrow */}
+                <button
+                  onClick={() => scrollCarousel('left', pdfCarouselEl)}
+                  className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white rounded-full p-2 shadow-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label="Scroll left"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                  </svg>
+                </button>
 
-            {/* Scrollable Container */}
-            <div
-              ref={setPdfCarouselEl}
-              className="flex gap-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory px-8"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            >
-              <div className="flex-shrink-0 w-[300px] snap-start">
-                <PdfCard label="Basic PDF" templateKey="template_pdf_basic" />
-              </div>
-              <div className="flex-shrink-0 w-[300px] snap-start">
-                <PdfCard label="Standard PDF" templateKey="template_pdf_original" />
-              </div>
-              <div className="flex-shrink-0 w-[300px] snap-start">
-                <PdfCard label="Modern PDF" templateKey="template_pdf_modern" />
-              </div>
-              <div className="flex-shrink-0 w-[300px] snap-start">
-                <PdfCard label="Mobile PDF" templateKey="template_pdf_mobile" />
-              </div>
-            </div>
+                {/* Scrollable Container */}
+                <div
+                  ref={setPdfCarouselEl}
+                  className="flex gap-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory px-8"
+                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                >
+                  <div className="flex-shrink-0 w-[300px] snap-start">
+                    <PdfCard label="Basic PDF" templateKey="template_pdf_basic" />
+                  </div>
+                  <div className="flex-shrink-0 w-[300px] snap-start">
+                    <PdfCard label="Standard PDF" templateKey="template_pdf_original" />
+                  </div>
+                  <div className="flex-shrink-0 w-[300px] snap-start">
+                    <PdfCard label="Modern PDF" templateKey="template_pdf_modern" />
+                  </div>
+                  <div className="flex-shrink-0 w-[300px] snap-start">
+                    <PdfCard label="Mobile PDF" templateKey="template_pdf_mobile" />
+                  </div>
+                </div>
 
-            {/* Right Arrow */}
-            <button
-              onClick={() => scrollCarousel('right', pdfCarouselEl)}
-              className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white rounded-full p-2 shadow-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              aria-label="Scroll right"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-              </svg>
-            </button>
-          </div>
+                {/* Right Arrow */}
+                <button
+                  onClick={() => scrollCarousel('right', pdfCarouselEl)}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white rounded-full p-2 shadow-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label="Scroll right"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                  </svg>
+                </button>
+              </div>
             </div>
           )}
         </section>

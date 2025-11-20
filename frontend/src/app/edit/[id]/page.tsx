@@ -55,8 +55,8 @@ type GuidebookDetail = {
     password?: string | null;
   };
   included_tabs?: string[] | null;
-  custom_sections?: Record<string, string[]> | null;
-  custom_tabs_meta?: Record<string, { icon: string; label: string }>| null;
+  custom_sections?: Record<string, (string | CustomItem)[]> | null;
+  custom_tabs_meta?: Record<string, { icon: string; label: string }> | null;
   things_to_do?: DynamicItem[] | null;
   places_to_eat?: DynamicItem[] | null;
   rules?: string[] | null;
@@ -237,7 +237,16 @@ export default function EditGuidebookPage() {
         const loadedExcluded = allSections.filter(section => !loadedIncluded.includes(section));
         setExcluded(loadedExcluded);
 
-        setCustomSections(data.custom_sections || {});
+        // Convert legacy string[] custom sections to CustomItem[]
+        const loadedCustomSections: Record<string, CustomItem[]> = {};
+        if (data.custom_sections) {
+          Object.entries(data.custom_sections).forEach(([key, items]) => {
+            loadedCustomSections[key] = items.map(item =>
+              typeof item === 'string' ? { type: 'text', content: item } : item
+            );
+          });
+        }
+        setCustomSections(loadedCustomSections);
         setCustomTabsMeta(data.custom_tabs_meta || {});
         setFoodItems((data.places_to_eat || []).map((i: Partial<DynamicItem>) => ({
           name: i.name || "",
@@ -349,10 +358,10 @@ export default function EditGuidebookPage() {
   useEffect(() => {
     setCustomSections(prev => {
       let changed = false;
-      const next = { ...prev } as Record<string, string[]>;
+      const next = { ...prev } as Record<string, CustomItem[]>;
       for (const key of included) {
         if (key.startsWith("custom_") && !(key in next)) {
-          next[key] = [""];
+          next[key] = [{ type: 'text', content: '' }];
           changed = true;
         }
       }
@@ -401,289 +410,289 @@ export default function EditGuidebookPage() {
               excluded={excluded}
               onUpdate={(inc, exc) => {
                 setIncluded(inc);
-              setExcluded(exc);
-            }}
-            onCustomMetaChange={(meta) => setCustomTabsMeta(meta)}
-            customTabsMeta={customTabsMeta}
-          />
+                setExcluded(exc);
+              }}
+              onCustomMetaChange={(meta) => setCustomTabsMeta(meta)}
+              customTabsMeta={customTabsMeta}
+            />
           </div>
         }
       >
         <div data-tutorial="content-area">
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
-            <strong className="font-bold">Error:</strong>
-            <span className="block sm:inline"> {error}</span>
-          </div>
-        )}
-        {currentSection === "welcome" && (
-          <WelcomeSection
-            welcomeMessage={formData.welcomeMessage}
-            location={formData.location}
-            onChange={(id: string, value: string) => setFormData(f => ({ ...f, [id]: value }))}
-            propertyName={formData.propertyName}
-            onCoverImageChange={handleCoverImageSelect}
-            coverPreviewUrl={previewUrl}
-            hostName={formData.hostName}
-            hostBio={formData.hostBio}
-            hostContact={formData.hostContact}
-            onHostPhotoChange={handleHostPhotoSelect}
-            hostPhotoPreviewUrl={hostPhotoPreviewUrl}
-          />
-        )}
-        {currentSection === "checkin" && (
-          <CheckinSection
-            accessInfo={formData.access_info}
-            parkingInfo={formData.parkingInfo}
-            checkInTime={formData.checkInTime}
-            emergencyContact={formData.emergencyContact}
-            fireExtinguisherLocation={formData.fireExtinguisherLocation}
-            wifiNetwork={formData.wifiNetwork}
-            wifiPassword={formData.wifiPassword}
-            onChange={(id: string, value: string) => setFormData(f => ({ ...f, [id]: value }))}
-          />
-        )}
-        {currentSection === "property" && (
-          <>
-            <div className="mt-0">
-              <HouseManualList
-                items={houseManualItems}
-                onChange={(idx, field, value) => {
-                  setHouseManualItems(items => items.map((it, i) => (i === idx ? { ...it, [field]: value } : it)));
-                }}
-                onAdd={() => setHouseManualItems(items => [...items, { name: "", description: "" }])}
-                onDelete={(idx) => setHouseManualItems(items => items.filter((_, i) => i !== idx))}
-                onMediaSelect={async (idx, file) => {
-                  if (!file) {
-                    setHouseManualItems(items =>
-                      items.map((it, i) =>
-                        i === idx ? { ...it, mediaUrl: undefined, mediaType: undefined } : it
-                      )
-                    );
-                    return;
-                  }
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
+              <strong className="font-bold">Error:</strong>
+              <span className="block sm:inline"> {error}</span>
+            </div>
+          )}
+          {currentSection === "welcome" && (
+            <WelcomeSection
+              welcomeMessage={formData.welcomeMessage}
+              location={formData.location}
+              onChange={(id: string, value: string) => setFormData(f => ({ ...f, [id]: value }))}
+              propertyName={formData.propertyName}
+              onCoverImageChange={handleCoverImageSelect}
+              coverPreviewUrl={previewUrl}
+              hostName={formData.hostName}
+              hostBio={formData.hostBio}
+              hostContact={formData.hostContact}
+              onHostPhotoChange={handleHostPhotoSelect}
+              hostPhotoPreviewUrl={hostPhotoPreviewUrl}
+            />
+          )}
+          {currentSection === "checkin" && (
+            <CheckinSection
+              accessInfo={formData.access_info}
+              parkingInfo={formData.parkingInfo}
+              checkInTime={formData.checkInTime}
+              emergencyContact={formData.emergencyContact}
+              fireExtinguisherLocation={formData.fireExtinguisherLocation}
+              wifiNetwork={formData.wifiNetwork}
+              wifiPassword={formData.wifiPassword}
+              onChange={(id: string, value: string) => setFormData(f => ({ ...f, [id]: value }))}
+            />
+          )}
+          {currentSection === "property" && (
+            <>
+              <div className="mt-0">
+                <HouseManualList
+                  items={houseManualItems}
+                  onChange={(idx, field, value) => {
+                    setHouseManualItems(items => items.map((it, i) => (i === idx ? { ...it, [field]: value } : it)));
+                  }}
+                  onAdd={() => setHouseManualItems(items => [...items, { name: "", description: "" }])}
+                  onDelete={(idx) => setHouseManualItems(items => items.filter((_, i) => i !== idx))}
+                  onMediaSelect={async (idx, file) => {
+                    if (!file) {
+                      setHouseManualItems(items =>
+                        items.map((it, i) =>
+                          i === idx ? { ...it, mediaUrl: undefined, mediaType: undefined } : it
+                        )
+                      );
+                      return;
+                    }
 
-                  try {
-                    const url = await uploadHouseMedia('guide', file);
-                    if (!url) return;
-                    const isVideo = file.type && file.type.startsWith('video/');
-                    const mediaType = isVideo ? 'video' : 'image';
-                    setHouseManualItems(items =>
-                      items.map((it, i) =>
-                        i === idx ? { ...it, mediaUrl: url, mediaType } : it
-                      )
-                    );
-                  } catch (e) {
-                    console.error('Failed to upload house manual media:', e);
-                    setError(prev => prev || 'Failed to upload media. Please try a smaller file or different format.');
-                  }
+                    try {
+                      const url = await uploadHouseMedia('guide', file);
+                      if (!url) return;
+                      const isVideo = file.type && file.type.startsWith('video/');
+                      const mediaType = isVideo ? 'video' : 'image';
+                      setHouseManualItems(items =>
+                        items.map((it, i) =>
+                          i === idx ? { ...it, mediaUrl: url, mediaType } : it
+                        )
+                      );
+                    } catch (e) {
+                      console.error('Failed to upload house manual media:', e);
+                      setError(prev => prev || 'Failed to upload media. Please try a smaller file or different format.');
+                    }
+                  }}
+                  onRemoveMedia={(idx) => {
+                    setPendingHouseMediaIndex(idx);
+                    setShowHouseMediaConfirm(true);
+                  }}
+                />
+              </div>
+            </>
+          )}
+          {currentSection === "food" && (
+            <div>
+              <button
+                type="button"
+                className="mb-4 px-4 py-2 rounded bg-[oklch(0.6923_0.22_21.05)] text-white font-semibold shadow hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isFetchingFood || !formData.location}
+                onClick={async () => {
+                  const items = await fetchFoodRecommendations(formData.location, 5);
+                  setFoodItems(items);
                 }}
-                onRemoveMedia={(idx) => {
-                  setPendingHouseMediaIndex(idx);
-                  setShowHouseMediaConfirm(true);
+              >
+                {isFetchingFood ? (
+                  <span className="inline-flex items-center gap-2"><Spinner size={16} /> Prepopulate with AI…</span>
+                ) : (
+                  "Prepopulate with AI"
+                )}
+              </button>
+              <DynamicItemList
+                items={foodItems}
+                label="Nearby Food"
+                onChange={(idx, field, value) => {
+                  setFoodItems(items => items.map((item, i) => i === idx ? { ...item, [field]: value } : item));
+                }}
+                onAdd={() => setFoodAddChoiceOpen(true)}
+                onDelete={idx => setFoodItems(items => items.filter((_, i) => i !== idx))}
+              />
+              <AddItemChoiceModal
+                open={foodAddChoiceOpen}
+                onClose={() => setFoodAddChoiceOpen(false)}
+                title="Add Food"
+                onGoogle={() => setFoodPickerOpen(true)}
+                onManual={() =>
+                  setFoodItems(items =>
+                    items.length >= LIMITS.maxFoodActivityItems ? items : [...items, { name: '', address: '', description: '' }]
+                  )
+                }
+              />
+              <PlacePickerModal
+                open={foodPickerOpen}
+                onClose={() => setFoodPickerOpen(false)}
+                apiBase={API_BASE}
+                near={formData.location}
+                title="Add Food"
+                onSelect={(item) => {
+                  setFoodItems(items =>
+                    items.length >= LIMITS.maxFoodActivityItems
+                      ? items
+                      : [...items, { name: item.name, address: item.address, description: item.description || '', image_url: item.image_url || '' }]
+                  );
                 }}
               />
             </div>
-          </>
-        )}
-        {currentSection === "food" && (
-          <div>
-            <button
-              type="button"
-              className="mb-4 px-4 py-2 rounded bg-[oklch(0.6923_0.22_21.05)] text-white font-semibold shadow hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={isFetchingFood || !formData.location}
-              onClick={async () => {
-                const items = await fetchFoodRecommendations(formData.location, 5);
-                setFoodItems(items);
-              }}
-            >
-              {isFetchingFood ? (
-                <span className="inline-flex items-center gap-2"><Spinner size={16} /> Prepopulate with AI…</span>
-              ) : (
-                "Prepopulate with AI"
-              )}
-            </button>
-            <DynamicItemList
-              items={foodItems}
-              label="Nearby Food"
-              onChange={(idx, field, value) => {
-                setFoodItems(items => items.map((item, i) => i === idx ? { ...item, [field]: value } : item));
-              }}
-              onAdd={() => setFoodAddChoiceOpen(true)}
-              onDelete={idx => setFoodItems(items => items.filter((_, i) => i !== idx))}
-            />
-            <AddItemChoiceModal
-              open={foodAddChoiceOpen}
-              onClose={() => setFoodAddChoiceOpen(false)}
-              title="Add Food"
-              onGoogle={() => setFoodPickerOpen(true)}
-              onManual={() =>
-                setFoodItems(items =>
-                  items.length >= LIMITS.maxFoodActivityItems ? items : [...items, { name: '', address: '', description: '' }]
-                )
-              }
-            />
-            <PlacePickerModal
-              open={foodPickerOpen}
-              onClose={() => setFoodPickerOpen(false)}
-              apiBase={API_BASE}
-              near={formData.location}
-              title="Add Food"
-              onSelect={(item) => {
-                setFoodItems(items =>
-                  items.length >= LIMITS.maxFoodActivityItems
-                    ? items
-                    : [...items, { name: item.name, address: item.address, description: item.description || '', image_url: item.image_url || '' }]
+          )}
+          {currentSection === "activities" && (
+            <div>
+              <button
+                type="button"
+                className="mb-4 px-4 py-2 rounded bg-[oklch(0.6923_0.22_21.05)] text-white font-semibold shadow hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isFetchingActivities || !formData.location}
+                onClick={async () => {
+                  const items = await fetchActivityRecommendations(formData.location, 5);
+                  setActivityItems(items);
+                }}
+              >
+                {isFetchingActivities ? (
+                  <span className="inline-flex items-center gap-2"><Spinner size={16} /> Prepopulate with AI…</span>
+                ) : (
+                  "Prepopulate with AI"
+                )}
+              </button>
+              <DynamicItemList
+                items={activityItems}
+                label="Nearby Activities"
+                onChange={(idx, field, value) => {
+                  setActivityItems(items => items.map((item, i) => i === idx ? { ...item, [field]: value } : item));
+                }}
+                onAdd={() => setActivityAddChoiceOpen(true)}
+                onDelete={idx => setActivityItems(items => items.filter((_, i) => i !== idx))}
+              />
+              <AddItemChoiceModal
+                open={activityAddChoiceOpen}
+                onClose={() => setActivityAddChoiceOpen(false)}
+                title="Add Activity"
+                onGoogle={() => setActivityPickerOpen(true)}
+                onManual={() =>
+                  setActivityItems(items =>
+                    items.length >= LIMITS.maxFoodActivityItems ? items : [...items, { name: '', address: '', description: '' }]
+                  )
+                }
+              />
+              <PlacePickerModal
+                open={activityPickerOpen}
+                onClose={() => setActivityPickerOpen(false)}
+                apiBase={API_BASE}
+                near={formData.location}
+                title="Add Activity"
+                onSelect={(item) => {
+                  setActivityItems(items =>
+                    items.length >= LIMITS.maxFoodActivityItems
+                      ? items
+                      : [...items, { name: item.name, address: item.address, description: item.description || '', image_url: item.image_url || '' }]
+                  );
+                }}
+              />
+            </div>
+          )}
+          {currentSection === "rules" && (
+            <RulesSection
+              rules={rules}
+              onChange={(idx: number, field, value) => {
+                setRules(rules =>
+                  rules.map((rule, i) =>
+                    i === idx ? { ...rule, [field]: field === 'checked' ? Boolean(value) : String(value) } : rule
+                  )
                 );
               }}
+              onAdd={() => setRules([...rules, { name: '', description: '', checked: false }])}
+              onDelete={(idx: number) => setRules(rules => rules.filter((_, i) => i !== idx))}
             />
-          </div>
-        )}
-        {currentSection === "activities" && (
-          <div>
-            <button
-              type="button"
-              className="mb-4 px-4 py-2 rounded bg-[oklch(0.6923_0.22_21.05)] text-white font-semibold shadow hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={isFetchingActivities || !formData.location}
-              onClick={async () => {
-                const items = await fetchActivityRecommendations(formData.location, 5);
-                setActivityItems(items);
+          )}
+          {currentSection === "checkout" && (
+            <CheckoutSection
+              checkoutTime={formData.checkOutTime}
+              items={checkoutItems}
+              onTimeChange={(value: string) => setFormData(f => ({ ...f, checkOutTime: value }))}
+              onChange={(idx: number, field, value) => {
+                setCheckoutItems(items => items.map((item, i) =>
+                  i === idx ? { ...item, [field]: field === 'checked' ? Boolean(value) : String(value) } : item
+                ));
               }}
-            >
-              {isFetchingActivities ? (
-                <span className="inline-flex items-center gap-2"><Spinner size={16} /> Prepopulate with AI…</span>
-              ) : (
-                "Prepopulate with AI"
-              )}
-            </button>
-            <DynamicItemList
-              items={activityItems}
-              label="Nearby Activities"
-              onChange={(idx, field, value) => {
-                setActivityItems(items => items.map((item, i) => i === idx ? { ...item, [field]: value } : item));
-              }}
-              onAdd={() => setActivityAddChoiceOpen(true)}
-              onDelete={idx => setActivityItems(items => items.filter((_, i) => i !== idx))}
+              onAdd={() => setCheckoutItems(items => [...items, { name: '', description: '', checked: false }])}
+              onDelete={(idx: number) => setCheckoutItems(items => items.filter((_, i) => i !== idx))}
             />
-            <AddItemChoiceModal
-              open={activityAddChoiceOpen}
-              onClose={() => setActivityAddChoiceOpen(false)}
-              title="Add Activity"
-              onGoogle={() => setActivityPickerOpen(true)}
-              onManual={() =>
-                setActivityItems(items =>
-                  items.length >= LIMITS.maxFoodActivityItems ? items : [...items, { name: '', address: '', description: '' }]
-                )
-              }
-            />
-            <PlacePickerModal
-              open={activityPickerOpen}
-              onClose={() => setActivityPickerOpen(false)}
-              apiBase={API_BASE}
-              near={formData.location}
-              title="Add Activity"
-              onSelect={(item) => {
-                setActivityItems(items =>
-                  items.length >= LIMITS.maxFoodActivityItems
-                    ? items
-                    : [...items, { name: item.name, address: item.address, description: item.description || '', image_url: item.image_url || '' }]
-                );
-              }}
-            />
-          </div>
-        )}
-        {currentSection === "rules" && (
-          <RulesSection
-            rules={rules}
-            onChange={(idx: number, field, value) => {
-              setRules(rules =>
-                rules.map((rule, i) =>
-                  i === idx ? { ...rule, [field]: field === 'checked' ? Boolean(value) : String(value) } : rule
-                )
-              );
-            }}
-            onAdd={() => setRules([...rules, { name: '', description: '', checked: false }])}
-            onDelete={(idx: number) => setRules(rules => rules.filter((_, i) => i !== idx))}
-          />
-        )}
-        {currentSection === "checkout" && (
-          <CheckoutSection
-            checkoutTime={formData.checkOutTime}
-            items={checkoutItems}
-            onTimeChange={(value: string) => setFormData(f => ({ ...f, checkOutTime: value }))}
-            onChange={(idx: number, field, value) => {
-              setCheckoutItems(items => items.map((item, i) =>
-                i === idx ? { ...item, [field]: field === 'checked' ? Boolean(value) : String(value) } : item
-              ));
-            }}
-            onAdd={() => setCheckoutItems(items => [...items, { name: '', description: '', checked: false }])}
-            onDelete={(idx: number) => setCheckoutItems(items => items.filter((_, i) => i !== idx))}
-          />
-        )}
+          )}
 
-        {/* Custom sections */}
-        {currentSection.startsWith("custom_") && (
-          <CustomSection
-            sectionKey={currentSection}
-            icon={customTabsMeta[currentSection]?.icon || "📝"}
-            label={customTabsMeta[currentSection]?.label || "Custom Section"}
-            items={customSections[currentSection] || []}
-            onChange={(items) => setCustomSections(prev => ({ ...prev, [currentSection]: items }))}
-            onLabelChange={(newLabel) => setCustomTabsMeta(prev => ({
-              ...prev,
-              [currentSection]: {
-                icon: prev[currentSection]?.icon || "📝",
-                label: newLabel
-              }
-            }))}
-            onMediaSelect={async (idx, file) => {
-              if (!file) return;
-              const mediaType = file.type.startsWith("video/") ? "video" : "image";
-              const uploadedUrl = await uploadHouseMedia(file);
-              if (uploadedUrl) {
+          {/* Custom sections */}
+          {currentSection.startsWith("custom_") && (
+            <CustomSection
+              sectionKey={currentSection}
+              icon={customTabsMeta[currentSection]?.icon || "📝"}
+              label={customTabsMeta[currentSection]?.label || "Custom Section"}
+              items={customSections[currentSection] || []}
+              onChange={(items) => setCustomSections(prev => ({ ...prev, [currentSection]: items }))}
+              onLabelChange={(newLabel) => setCustomTabsMeta(prev => ({
+                ...prev,
+                [currentSection]: {
+                  icon: prev[currentSection]?.icon || "📝",
+                  label: newLabel
+                }
+              }))}
+              onMediaSelect={async (idx, file) => {
+                if (!file) return;
+                const mediaType = file.type.startsWith("video/") ? "video" : "image";
+                const uploadedUrl = await uploadHouseMedia('guide', file);
+                if (uploadedUrl) {
+                  setCustomSections(prev => {
+                    const items = [...(prev[currentSection] || [])];
+                    const item = items[idx];
+                    if (item && item.type === 'manual') {
+                      items[idx] = { ...item, mediaUrl: uploadedUrl, mediaType };
+                    }
+                    return { ...prev, [currentSection]: items };
+                  });
+                }
+              }}
+              onRemoveMedia={(idx) => {
                 setCustomSections(prev => {
                   const items = [...(prev[currentSection] || [])];
                   const item = items[idx];
-                  if (item && item.type === 'manual') {
-                    items[idx] = { ...item, mediaUrl: uploadedUrl, mediaType };
+                  if (item && item.type === 'manual' && item.mediaUrl) {
+                    deleteHouseMedia(item.mediaUrl);
+                    items[idx] = { ...item, mediaUrl: undefined, mediaType: undefined };
                   }
                   return { ...prev, [currentSection]: items };
                 });
-              }
-            }}
-            onRemoveMedia={(idx) => {
-              setCustomSections(prev => {
-                const items = [...(prev[currentSection] || [])];
-                const item = items[idx];
-                if (item && item.type === 'manual' && item.mediaUrl) {
-                  deleteHouseMedia(item.mediaUrl);
-                  items[idx] = { ...item, mediaUrl: undefined, mediaType: undefined };
-                }
-                return { ...prev, [currentSection]: items };
-              });
-            }}
-          />
-        )}
+              }}
+            />
+          )}
 
-        {/* Publish button at bottom right */}
-        <div className="flex justify-end mt-8">
-          <Button
-            type="button"
-            data-tutorial="publish-button"
-            className="px-10 py-4 bg-[oklch(0.6923_0.22_21.05)] text-white font-semibold rounded-lg shadow-lg hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed text-lg md:text-xl"
-            onClick={(e) => handleSubmit(e as unknown as React.FormEvent)}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <span className="inline-flex items-center gap-2">
-                <Spinner size={18} />
-                Updating…
-              </span>
-            ) : (
-              "Publish Changes"
-            )}
-          </Button>
-        </div>
+          {/* Publish button at bottom right */}
+          <div className="flex justify-end mt-8">
+            <Button
+              type="button"
+              data-tutorial="publish-button"
+              className="px-10 py-4 bg-[oklch(0.6923_0.22_21.05)] text-white font-semibold rounded-lg shadow-lg hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed text-lg md:text-xl"
+              onClick={(e) => handleSubmit(e as unknown as React.FormEvent)}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <span className="inline-flex items-center gap-2">
+                  <Spinner size={18} />
+                  Updating…
+                </span>
+              ) : (
+                "Publish Changes"
+              )}
+            </Button>
+          </div>
         </div>
       </CreateGuidebookLayout>
 
