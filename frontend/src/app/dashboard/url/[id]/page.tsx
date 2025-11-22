@@ -10,7 +10,7 @@ import { supabase } from "@/lib/supabaseClient";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
-type TemplateKey = "template_original" | "template_generic" | "template_modern" | "template_welcomebook";
+type TemplateKey = "template_original" | "template_generic" | "template_welcomebook";
 
 type GuidebookMeta = {
   id: string;
@@ -153,10 +153,9 @@ export default function GuidebookUrlTemplatesPage() {
           <section>
             {/* Responsive Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <Card template="template_original" title="Lifestyle (Standard)" img="/images/URL_Generic1.png" />
-              <Card template="template_generic" title="Minimal (Basic)" img="/images/URL_Generic2.png" />
-              <Card template="template_modern" title="Modern Cards" img="/images/URL_Modern.jpg" />
-              <Card template="template_welcomebook" title="Welcome Book" img="/images/URL_WelcomeBook.png" />
+              <Card template="template_original" title="Guidewise Classic" img="/images/URL_Generic1.png" />
+              <Card template="template_generic" title="Lifestyle" img="/images/URL_Generic2.png" />
+              <Card template="template_welcomebook" title="Welcoming" img="/images/URL_WelcomeBook.png" />
             </div>
 
             {/* Continue to edit button at bottom right */}

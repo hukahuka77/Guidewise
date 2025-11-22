@@ -25,10 +25,10 @@ type GuidebookItem = {
 
 // Map internal template keys to human-friendly display names
 const TEMPLATE_DISPLAY_NAMES: Record<string, string> = {
-  template_original: "Original",
-  template_generic: "Generic",
-  template_modern: "Modern",
-  template_welcomebook: "Welcome Book",
+  template_original: "Guidewise Classic",
+  template_generic: "Lifestyle",
+  template_lifestyle: "Lifestyle",
+  template_welcomebook: "Welcoming",
 };
 
 // Derive a resized cover thumbnail URL using Supabase's image transformation endpoint
@@ -76,6 +76,7 @@ export default function DashboardPage() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [visibleCount, setVisibleCount] = useState(5);
   const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null); // guidebook id being downloaded
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   // Check for update success message
   useEffect(() => {
@@ -241,7 +242,12 @@ export default function DashboardPage() {
 
       if (!res.ok) {
         const error = await res.json();
-        alert(error.error || 'Failed to toggle guidebook');
+        // Check if it's an upgrade-related error
+        if (error.error && (error.error.toLowerCase().includes('upgrade') || error.error.toLowerCase().includes('limit') || error.error.toLowerCase().includes('plan'))) {
+          setShowUpgradeModal(true);
+        } else {
+          alert(error.error || 'Failed to toggle guidebook');
+        }
         return;
       }
 
@@ -305,7 +311,7 @@ export default function DashboardPage() {
           <div>
             <h1 className="text-3xl font-bold text-gray-800">Your Guidebooks</h1>
             <p className="text-gray-600 mt-1">Manage, share, and download your property guidebooks</p>
-            {plan && guidebookLimit !== null && (
+            {plan && (
               <p className="text-sm text-gray-500 mt-1">
                 {(plan === 'free' || plan === 'trial') ? (
                   <span>Free preview mode - <Link href="/pricing" className="underline text-[#CC7A52]">Upgrade to publish</Link></span>
@@ -428,12 +434,11 @@ export default function DashboardPage() {
                       </Link>
                       <Button
                         variant="outline"
-                        className="w-full whitespace-nowrap text-sm"
+                        className="col-span-2 w-full whitespace-nowrap text-sm border-black text-gray-900 hover:bg-gray-50"
                         onClick={() => setQrModalFor(gb.id)}
-                      >QR Code</Button>
-                      <Link href={`/dashboard/pdf/${gb.id}`}>
-                        <Button variant="outline" className="w-full whitespace-nowrap text-sm">PDFs</Button>
-                      </Link>
+                      >
+                        🔲 View QR Code
+                      </Button>
                       <Button
                         variant="outline"
                         className="col-span-2 w-full whitespace-nowrap text-sm border-[#CC7A52] text-[#CC7A52] hover:bg-[#CC7A52]/10"
@@ -565,6 +570,56 @@ export default function DashboardPage() {
             }
           }}
         />
+
+        {/* Upgrade Modal */}
+        {showUpgradeModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setShowUpgradeModal(false)}>
+            <div
+              className="bg-white rounded-xl shadow-2xl w-[90vw] max-w-md overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6 border-b flex items-center justify-between bg-gradient-to-r from-pink-50 to-orange-50">
+                <h3 className="font-bold text-xl text-gray-800">
+                  Upgrade Required
+                </h3>
+                <Button size="sm" variant="outline" onClick={() => setShowUpgradeModal(false)}>
+                  ✕
+                </Button>
+              </div>
+              <div className="p-6 space-y-4">
+                <p className="text-gray-700">
+                  You&apos;ve reached your guidebook limit. Upgrade your plan to activate more guidebooks and unlock additional features.
+                </p>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-sm text-blue-800 font-medium">
+                    ✨ Upgrade benefits:
+                  </p>
+                  <ul className="text-sm text-blue-700 mt-2 space-y-1 ml-4 list-disc">
+                    <li>Activate more guidebooks</li>
+                    <li>Premium templates</li>
+                    <li>Priority support</li>
+                  </ul>
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowUpgradeModal(false)}
+                    className="flex-1"
+                  >
+                    Maybe Later
+                  </Button>
+                  <Link href="/pricing" className="flex-1">
+                    <Button
+                      className="w-full bg-[oklch(0.6923_0.22_21.05)] hover:opacity-90 text-white"
+                    >
+                      View Plans
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

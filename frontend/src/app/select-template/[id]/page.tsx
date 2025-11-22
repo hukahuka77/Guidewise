@@ -11,7 +11,7 @@ export default function SelectTemplatePage() {
   const router = useRouter();
   const guidebookId = params?.id;
 
-  const [selectedTemplateKey, setSelectedTemplateKey] = useState<'template_original' | 'template_generic' | 'template_modern' | 'template_welcomebook'>('template_original');
+  const [selectedTemplateKey, setSelectedTemplateKey] = useState<'template_original' | 'template_generic' | 'template_welcomebook'>('template_original');
   const [isUpdatingTemplate, setIsUpdatingTemplate] = useState(false);
   const [templateMessage, setTemplateMessage] = useState<string | null>(null);
   const [urlCarouselEl, setUrlCarouselEl] = useState<HTMLDivElement | null>(null);
@@ -25,8 +25,7 @@ export default function SelectTemplatePage() {
     urlCarouselEl.scrollTo({ left: newScrollLeft, behavior: 'smooth' });
   };
 
-  const getUrlPlaceholder = (templateKey: 'template_original' | 'template_generic' | 'template_modern' | 'template_welcomebook') => {
-    if (templateKey === 'template_modern') return '/images/URL_Modern.jpg';
+  const getUrlPlaceholder = (templateKey: 'template_original' | 'template_generic' | 'template_welcomebook') => {
     if (templateKey === 'template_welcomebook') return '/images/URL_WelcomeBook.png';
     return templateKey === 'template_original' ? '/images/URL_Generic1.png' : '/images/URL_Generic2.png';
   };
@@ -61,7 +60,7 @@ export default function SelectTemplatePage() {
         });
         if (!res.ok) return;
         const data = await res.json();
-        if (data && (data.template_key === 'template_original' || data.template_key === 'template_generic' || data.template_key === 'template_modern' || data.template_key === 'template_welcomebook')) {
+        if (data && (data.template_key === 'template_original' || data.template_key === 'template_generic' || data.template_key === 'template_welcomebook')) {
           setSelectedTemplateKey(data.template_key);
         }
       } catch (e) {
@@ -71,9 +70,9 @@ export default function SelectTemplatePage() {
     fetchTemplate();
   }, [guidebookId]);
 
-  const TemplateCard = ({ label, templateKey }: { label: string; templateKey: 'template_original' | 'template_generic' | 'template_modern' | 'template_welcomebook' }) => {
+  const TemplateCard = ({ label, templateKey }: { label: string; templateKey: 'template_original' | 'template_generic' | 'template_welcomebook' }) => {
     const isSelected = selectedTemplateKey === templateKey;
-    const displayName = templateKey === 'template_original' ? 'Lifestyle (Standard)' : templateKey === 'template_modern' ? 'Modern Cards' : templateKey === 'template_welcomebook' ? 'Welcome Book' : 'Minimal (Basic)';
+    const displayName = templateKey === 'template_original' ? 'Guidewise Classic' : templateKey === 'template_welcomebook' ? 'Welcoming' : 'Lifestyle';
 
     return (
       <div className={`relative rounded-xl p-4 bg-white shadow hover:shadow-lg transition border ${isSelected ? 'border-emerald-300 ring-2 ring-emerald-200' : 'border-gray-200'}`}>
@@ -173,13 +172,13 @@ export default function SelectTemplatePage() {
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               <div className="flex-shrink-0 w-[300px] snap-start">
-                <TemplateCard label="Lifestyle (Standard)" templateKey="template_original" />
+                <TemplateCard label="Guidewise Classic" templateKey="template_original" />
               </div>
               <div className="flex-shrink-0 w-[300px] snap-start">
-                <TemplateCard label="Minimal (Basic)" templateKey="template_generic" />
+                <TemplateCard label="Lifestyle" templateKey="template_generic" />
               </div>
               <div className="flex-shrink-0 w-[300px] snap-start">
-                <TemplateCard label="Welcome Book" templateKey="template_welcomebook" />
+                <TemplateCard label="Welcoming" templateKey="template_welcomebook" />
               </div>
             </div>
 

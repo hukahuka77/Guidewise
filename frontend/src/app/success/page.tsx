@@ -4,67 +4,18 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import dynamic from 'next/dynamic';
 import { supabase } from '@/lib/supabaseClient';
-// No auth/claim needed here anymore
-
-const PdfViewer = dynamic(() => import('@/components/custom/PdfViewer'), {
-  ssr: false
-});
-
-import 'react-pdf/dist/Page/AnnotationLayer.css';
-import 'react-pdf/dist/Page/TextLayer.css';
 
 export default function SuccessPage() {
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [liveGuidebookUrl, setLiveGuidebookUrl] = useState<string | null>(null);
   const [guidebookId, setGuidebookId] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [isPdfModalOpen, setPdfModalOpen] = useState(false);
-  const [includeQrInPdf, setIncludeQrInPdf] = useState<boolean>(false);
   const [isActive, setIsActive] = useState<boolean>(false);
-  // removed unused editUrl state
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [guidebookLimit, setGuidebookLimit] = useState<number>(0);
   const [activeGuidebooksCount, setActiveGuidebooksCount] = useState<number>(0);
-  const [isPdfSectionExpanded, setIsPdfSectionExpanded] = useState<boolean>(false);
   const [isActivating, setIsActivating] = useState<boolean>(false);
   const [justActivated, setJustActivated] = useState<boolean>(false);
-
-  // Carousel state
-  const [pdfCarouselEl, setPdfCarouselEl] = useState<HTMLDivElement | null>(null);
-
-  const scrollCarousel = (direction: 'left' | 'right', carouselEl: HTMLDivElement | null) => {
-    if (!carouselEl) return;
-    const scrollAmount = 320; // Approximate card width + gap
-    const newScrollLeft = direction === 'left'
-      ? carouselEl.scrollLeft - scrollAmount
-      : carouselEl.scrollLeft + scrollAmount;
-    carouselEl.scrollTo({ left: newScrollLeft, behavior: 'smooth' });
-  };
-
-  // removed unused derived flag isEditPath
-
-  // no-op: claim tokens removed
-
-  const getTemplateFromPdfUrl = (): 'template_pdf_original' | 'template_pdf_basic' | 'template_pdf_mobile' | 'template_pdf_qr' | 'template_pdf_modern' | undefined => {
-    if (!pdfUrl) return undefined;
-    if (pdfUrl.includes('template=template_pdf_basic')) return 'template_pdf_basic';
-    if (pdfUrl.includes('template=template_pdf_original')) return 'template_pdf_original';
-    if (pdfUrl.includes('template=template_pdf_mobile')) return 'template_pdf_mobile';
-    if (pdfUrl.includes('template=template_pdf_qr')) return 'template_pdf_qr';
-    if (pdfUrl.includes('template=template_pdf_modern')) return 'template_pdf_modern';
-    return undefined;
-  };
-
-  const getPdfPlaceholder = (templateKey?: 'template_pdf_original' | 'template_pdf_basic' | 'template_pdf_mobile' | 'template_pdf_qr' | 'template_pdf_modern') => {
-    // Default to Standard placeholder
-    if (templateKey === 'template_pdf_basic') return '/images/PDF_Basic.png';
-    if (templateKey === 'template_pdf_mobile') return '/images/PDF_Mobile.png';
-    if (templateKey === 'template_pdf_qr') return '/images/PDF_QR.png';
-    if (templateKey === 'template_pdf_modern') return '/images/PDF_Modern.png';
-    return '/images/PDF_Standard.png';
-  };
 
   // Build a QR image URL for the live guidebook link (no extra deps)
   const getQrImageUrl = (url: string, size: number = 300) =>
@@ -275,77 +226,6 @@ export default function SuccessPage() {
     setIsActivating(false);
   };
 
-  const getQrTargetUrl = () => {
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || '';
-    if (liveGuidebookUrl) return liveGuidebookUrl;
-    if (guidebookId) return `${apiBase}/guidebook/${guidebookId}`;
-    return null;
-  };
-
-  const handleDownload = (templateKey?: 'template_pdf_original' | 'template_pdf_basic' | 'template_pdf_mobile' | 'template_pdf_qr' | 'template_pdf_modern') => {
-    // Build a URL that forces download on the server via ?download=1
-    if (!guidebookId) return;
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || '';
-    const tplParam = templateKey ? `&template=${templateKey}` : '';
-    const forceQr = templateKey === 'template_pdf_qr';
-    const qr = (forceQr || includeQrInPdf) ? getQrTargetUrl() : null;
-    const qrParams = qr ? `&include_qr=1&qr_url=${encodeURIComponent(qr)}` : '';
-    const url = `${apiBase}/api/guidebook/${guidebookId}/pdf?download=1${tplParam}${qrParams}`;
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'guidebook.pdf';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const buildPdfUrl = async (templateKey?: 'template_pdf_original' | 'template_pdf_basic' | 'template_pdf_mobile' | 'template_pdf_qr' | 'template_pdf_modern') => {
-    if (!guidebookId) return null;
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || '';
-    const hasTemplate = Boolean(templateKey);
-    const tplParam = templateKey ? `?template=${templateKey}` : '';
-    const forceQr = templateKey === 'template_pdf_qr';
-    const qr = (forceQr || includeQrInPdf) ? getQrTargetUrl() : null;
-    const qrParams = qr ? `${hasTemplate ? '&' : '?'}include_qr=1&qr_url=${encodeURIComponent(qr)}` : '';
-    const url = `${apiBase}/api/guidebook/${guidebookId}/pdf${tplParam}${qrParams}`;
-    setPdfUrl(url);
-    return url;
-  };
-
-  // remove: claim flow
-
-  const PdfCard = ({ label, templateKey }: { label: string; templateKey?: 'template_pdf_original' | 'template_pdf_basic' | 'template_pdf_mobile' | 'template_pdf_qr' | 'template_pdf_modern' }) => (
-    <div className="group relative border rounded-xl p-4 bg-white shadow hover:shadow-lg transition">
-      <div className="aspect-[8.5/11] w-full overflow-hidden rounded-lg bg-gray-100 flex items-center justify-center">
-        <img
-          src={getPdfPlaceholder(templateKey)}
-          alt={`${label} placeholder`}
-          className="object-contain w-full h-full"
-        />
-      </div>
-      <div className="mt-3 flex items-center justify-between">
-        <div>
-          <h3 className="font-semibold">{label}</h3>
-          <p className="text-sm text-gray-500">Preview the PDF or download it</p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            className="bg-white text-pink-600 border border-pink-500 hover:bg-pink-50"
-            onClick={async () => {
-              await buildPdfUrl(templateKey);
-              setPdfModalOpen(true);
-            }}
-          >
-            Preview
-          </Button>
-          <Button size="sm" onClick={() => handleDownload(templateKey)} disabled={!guidebookId}>Download</Button>
-        </div>
-      </div>
-    </div>
-  );
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#F8F5F1] to-white flex flex-col items-center p-4 sm:p-6 md:p-10">
       <div className="w-full max-w-6xl space-y-8">
@@ -514,124 +394,6 @@ export default function SuccessPage() {
               </div>
             </div>
           </section>
-        )}
-
-        {/* Center-dot divider */}
-        <div className="w-full py-6">
-          <div className="flex items-center gap-3">
-            <div className="h-px bg-gray-300 flex-1"></div>
-            <div className="w-2.5 h-2.5 rounded-full bg-gray-300"></div>
-            <div className="h-px bg-gray-300 flex-1"></div>
-          </div>
-        </div>
-
-        {/* PDF Templates Section - Collapsible */}
-        <section className="bg-white rounded-2xl shadow p-6">
-          <button
-            onClick={() => setIsPdfSectionExpanded(!isPdfSectionExpanded)}
-            className="w-full flex items-center justify-between text-left"
-          >
-            <div>
-              <h2 className="text-2xl font-semibold">PDF Templates</h2>
-              <p className="text-sm text-gray-500 mt-1">
-                {isPdfSectionExpanded ? 'Printable PDF versions of your guidebook' : 'Click to view printable PDF options'}
-              </p>
-            </div>
-            <svg
-              className={`w-6 h-6 text-gray-600 transition-transform ${isPdfSectionExpanded ? 'rotate-180' : ''}`}
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-
-          {isPdfSectionExpanded && (
-            <div className="mt-6">
-              <div className="flex items-center justify-between mb-4">
-                <label className="flex items-center gap-2 text-sm text-gray-700">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4"
-                    checked={includeQrInPdf}
-                    onChange={(e) => setIncludeQrInPdf(e.target.checked)}
-                  />
-                  Include Scannable QR Code in PDFs
-                </label>
-              </div>
-              <p className="text-sm text-gray-500 mb-4">Preview a compact PDF. Click to open a larger preview.</p>
-
-              {/* Horizontal Carousel */}
-              <div className="relative">
-                {/* Left Arrow */}
-                <button
-                  onClick={() => scrollCarousel('left', pdfCarouselEl)}
-                  className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white rounded-full p-2 shadow-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  aria-label="Scroll left"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-                  </svg>
-                </button>
-
-                {/* Scrollable Container */}
-                <div
-                  ref={setPdfCarouselEl}
-                  className="flex gap-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory px-8"
-                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-                >
-                  <div className="flex-shrink-0 w-[300px] snap-start">
-                    <PdfCard label="Basic PDF" templateKey="template_pdf_basic" />
-                  </div>
-                  <div className="flex-shrink-0 w-[300px] snap-start">
-                    <PdfCard label="Standard PDF" templateKey="template_pdf_original" />
-                  </div>
-                  <div className="flex-shrink-0 w-[300px] snap-start">
-                    <PdfCard label="Modern PDF" templateKey="template_pdf_modern" />
-                  </div>
-                  <div className="flex-shrink-0 w-[300px] snap-start">
-                    <PdfCard label="Mobile PDF" templateKey="template_pdf_mobile" />
-                  </div>
-                </div>
-
-                {/* Right Arrow */}
-                <button
-                  onClick={() => scrollCarousel('right', pdfCarouselEl)}
-                  className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white rounded-full p-2 shadow-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  aria-label="Scroll right"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          )}
-        </section>
-
-        {/* Modal for PDF large preview */}
-        {isPdfModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setPdfModalOpen(false)}>
-            <div className="bg-white rounded-xl shadow-2xl w-[95vw] h-[90vh] max-w-5xl overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between p-3 border-b shrink-0">
-                <h3 className="font-semibold">PDF Preview</h3>
-                <div className="flex gap-2">
-                  {guidebookId && (
-                    <Button size="sm" onClick={() => handleDownload(getTemplateFromPdfUrl())}>Download</Button>
-                  )}
-                  <Button size="sm" variant="outline" onClick={() => setPdfModalOpen(false)}>Close</Button>
-                </div>
-              </div>
-              <div className="w-full flex-1 min-h-0">
-                {pdfUrl ? (
-                  <PdfViewer fileUrl={pdfUrl} />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-500">No PDF available</div>
-                )}
-              </div>
-            </div>
-          </div>
         )}
 
         {/* Fallback when nothing in storage */}

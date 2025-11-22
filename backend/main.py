@@ -102,8 +102,8 @@ def create_print_pdf_from_web_template(guidebook):
     # Map template keys to their print-optimized PDF templates
     PRINT_TEMPLATE_REGISTRY = {
         "template_welcomebook": "templates/templates_pdf/template_pdf_welcomebook.html",
-        "template_modern": "templates/templates_pdf/template_pdf_original.html",
         "template_generic": "templates/templates_pdf/template_pdf_basic.html",
+        "template_lifestyle": "templates/templates_pdf/template_pdf_basic.html",
         "template_original": "templates/templates_pdf/template_pdf_original.html",
     }
 

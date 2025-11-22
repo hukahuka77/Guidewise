@@ -24,28 +24,28 @@ export default function TemplateCarousel() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/images/URL_Generic1.png"
-            alt="Classic Style Template"
+            alt="Guidewise Classic Template"
             className="w-full h-auto rounded-2xl shadow-lg border border-gray-200"
           />
-          <p className="text-center mt-3 font-medium text-gray-700">Classic Style</p>
+          <p className="text-center mt-3 font-medium text-gray-700">Guidewise Classic</p>
         </div>
         <div className="flex-shrink-0 w-80 md:w-96">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/images/URL_Generic2.png"
-            alt="Professional Template"
+            alt="Lifestyle Template"
             className="w-full h-auto rounded-2xl shadow-lg border border-gray-200"
           />
-          <p className="text-center mt-3 font-medium text-gray-700">Professional</p>
+          <p className="text-center mt-3 font-medium text-gray-700">Lifestyle</p>
         </div>
         <div className="flex-shrink-0 w-80 md:w-96">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/images/URL_WelcomeBook.png"
-            alt="Welcome Book Template"
+            alt="Welcoming Template"
             className="w-full h-auto rounded-2xl shadow-lg border border-gray-200"
           />
-          <p className="text-center mt-3 font-medium text-gray-700">Welcome Book</p>
+          <p className="text-center mt-3 font-medium text-gray-700">Welcoming</p>
         </div>
 
         {/* Duplicate set for infinite loop */}
@@ -53,28 +53,28 @@ export default function TemplateCarousel() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/images/URL_Generic1.png"
-            alt="Classic Style Template"
+            alt="Guidewise Classic Template"
             className="w-full h-auto rounded-2xl shadow-lg border border-gray-200"
           />
-          <p className="text-center mt-3 font-medium text-gray-700">Classic Style</p>
+          <p className="text-center mt-3 font-medium text-gray-700">Guidewise Classic</p>
         </div>
         <div className="flex-shrink-0 w-80 md:w-96">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/images/URL_Generic2.png"
-            alt="Professional Template"
+            alt="Lifestyle Template"
             className="w-full h-auto rounded-2xl shadow-lg border border-gray-200"
           />
-          <p className="text-center mt-3 font-medium text-gray-700">Professional</p>
+          <p className="text-center mt-3 font-medium text-gray-700">Lifestyle</p>
         </div>
         <div className="flex-shrink-0 w-80 md:w-96">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/images/URL_WelcomeBook.png"
-            alt="Welcome Book Template"
+            alt="Welcoming Template"
             className="w-full h-auto rounded-2xl shadow-lg border border-gray-200"
           />
-          <p className="text-center mt-3 font-medium text-gray-700">Welcome Book</p>
+          <p className="text-center mt-3 font-medium text-gray-700">Welcoming</p>
         </div>
       </div>
     </div>

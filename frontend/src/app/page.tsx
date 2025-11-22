@@ -237,7 +237,7 @@ export default function Home() {
                 </p>
                 <a
                   href="/signup"
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-800 transition-colors"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-[oklch(0.6923_0.22_21.05)] text-white font-medium rounded-lg hover:opacity-90 transition-all"
                 >
                   Create your first guidebook
                   <ArrowRight className="w-4 h-4" />

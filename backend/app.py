@@ -329,7 +329,10 @@ def billing_summary():
             {"uid": user_id}
         ).fetchone()
         plan = (row[0] if row else None) or 'trial'
-        limit = row[1] if row else 0
+        # Set limit to 0 for trial accounts or if null
+        limit = row[1] if row and row[1] is not None else 0
+        if plan == 'trial':
+            limit = 0
     except Exception:
         plan = 'trial'
         limit = 0
@@ -743,10 +746,10 @@ def require_auth(fn):
 # Template registry mapping keys to template files (URL renderer)
 TEMPLATE_REGISTRY = {
     "template_original": "templates_url/template_original.html",
-    # Canonical generic template
+    # Canonical generic template (legacy key)
     "template_generic": "templates_url/template_generic.html",
-    # Modern mobile-first template
-    "template_modern": "templates_url/template_modern.html",
+    # Lifestyle template (new canonical key, same as generic)
+    "template_lifestyle": "templates_url/template_generic.html",
     # Clean welcome book style with neutral tones
     "template_welcomebook": "templates_url/template_welcomebook.html",
 }

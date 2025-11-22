@@ -52,7 +52,7 @@ class Guidebook(db.Model):
     created_time = db.Column(db.DateTime(timezone=True), server_default=db.func.now(), nullable=False)
     last_modified_time = db.Column(db.DateTime(timezone=True), server_default=db.func.now(), onupdate=db.func.now(), nullable=False)
 
-    # Selected template (canonical keys: 'template_original', 'template_generic')
+    # Selected template (canonical keys: 'template_original', 'template_generic', 'template_lifestyle', 'template_welcomebook')
     template_key = db.Column(db.String(50), nullable=False, default='template_original')
 
     # Ownership: Supabase user ID (UUID as string)

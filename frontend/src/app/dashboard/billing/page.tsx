@@ -165,7 +165,9 @@ export default function BillingPage() {
                   </div>
                   <div className="mt-2 space-y-1">
                     <div className="text-sm text-gray-600">
-                      {summary.guidebook_limit === null ? (
+                      {summary.plan === 'trial' || summary.guidebook_limit === 0 ? (
+                        <span className="font-semibold text-amber-700">Preview only</span>
+                      ) : summary.guidebook_limit === null ? (
                         <span className="font-semibold text-green-700">Unlimited active guidebooks</span>
                       ) : (
                         <span>

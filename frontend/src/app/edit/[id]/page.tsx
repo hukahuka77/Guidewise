@@ -267,7 +267,17 @@ export default function EditGuidebookPage() {
           mediaUrl: i.media_url || "",
           mediaType: i.media_type === 'video' ? 'video' : i.media_type === 'image' ? 'image' : undefined,
         })));
-        setRules((data.rules || []).map((text: string) => ({ name: text.split(":")[0] || text, description: text.includes(":") ? text.split(":").slice(1).join(":").trim() : "", checked: true })));
+        setRules((data.rules || []).map((rule: any) => {
+          // Handle new JSON format: {name: string, description: string}
+          if (typeof rule === 'object' && rule.name !== undefined) {
+            return { name: rule.name || "", description: rule.description || "", checked: true };
+          }
+          // Handle legacy string format: "name: description"
+          if (typeof rule === 'string') {
+            return { name: rule.split(":")[0] || rule, description: rule.includes(":") ? rule.split(":").slice(1).join(":").trim() : "", checked: true };
+          }
+          return { name: "", description: "", checked: true };
+        }));
         if (data.cover_image_url) setPreviewUrl(data.cover_image_url);
         if (data.host?.photo_url) setHostPhotoPreviewUrl(data.host.photo_url);
       } catch (e: unknown) {
