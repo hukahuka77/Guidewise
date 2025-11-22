@@ -267,7 +267,7 @@ export default function EditGuidebookPage() {
           mediaUrl: i.media_url || "",
           mediaType: i.media_type === 'video' ? 'video' : i.media_type === 'image' ? 'image' : undefined,
         })));
-        setRules((data.rules || []).map((rule: any) => {
+        setRules((data.rules || []).map((rule: string | { name?: string; description?: string }) => {
           // Handle new JSON format: {name: string, description: string}
           if (typeof rule === 'object' && rule.name !== undefined) {
             return { name: rule.name || "", description: rule.description || "", checked: true };
