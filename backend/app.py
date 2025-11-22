@@ -109,6 +109,13 @@ STRIPE_PORTAL_CONFIGURATION_ID = os.environ.get('STRIPE_PORTAL_CONFIGURATION_ID'
 
 # Plan configuration for tiered pricing
 PLAN_CONFIGS = {
+    'trial': {
+        'name': 'Trial',
+        'price_id': None,
+        'guidebook_limit': 0,  # Preview only
+        'price': 0,
+        'price_display': 'Free Trial'
+    },
     'starter': {
         'name': 'Starter',
         'price_id': os.environ.get('STRIPE_STARTER_PRICE_ID'),
@@ -329,10 +336,12 @@ def billing_summary():
             {"uid": user_id}
         ).fetchone()
         plan = (row[0] if row else None) or 'trial'
-        # Set limit to 0 for trial accounts or if null
-        limit = row[1] if row and row[1] is not None else 0
-        if plan == 'trial':
-            limit = 0
+        # Get limit from plan config first (handles enterprise unlimited, trial 0, etc.)
+        if plan in PLAN_CONFIGS:
+            limit = PLAN_CONFIGS[plan]['guidebook_limit']
+        else:
+            # Custom or grandfathered plan - use DB value
+            limit = row[1] if row and row[1] is not None else 0
     except Exception:
         plan = 'trial'
         limit = 0
