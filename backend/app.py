@@ -1198,7 +1198,7 @@ def generate_guidebook_route():
 @require_auth
 def list_guidebooks():
     # ... (rest of the function remains the same)
-    q = Guidebook.query.filter_by(user_id=g.user_id).order_by(Guidebook.created_time.desc())
+    q = Guidebook.query.filter_by(user_id=g.user_id).order_by(Guidebook.last_modified_time.desc())
     items = [
         {
             "id": gb.id,

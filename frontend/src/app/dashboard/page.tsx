@@ -74,7 +74,7 @@ export default function DashboardPage() {
   const [updateSuccess, setUpdateSuccess] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(5);
+  const [visibleCount, setVisibleCount] = useState(6);
   const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null); // guidebook id being downloaded
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
@@ -477,7 +477,7 @@ export default function DashboardPage() {
             <Button
               variant="outline"
               className="px-6 py-2 text-sm"
-              onClick={() => setVisibleCount((prev) => Math.min(items.length, prev + 5))}
+              onClick={() => setVisibleCount((prev) => Math.min(items.length, prev + 6))}
             >
               Load more
             </Button>
