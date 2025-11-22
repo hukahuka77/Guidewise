@@ -1,8 +1,8 @@
 from flask import Flask, request, send_file, jsonify, render_template, make_response, g, abort, redirect
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import text
 from sqlalchemy.orm import joinedload
+from sqlalchemy import text
 import main as pdf_generator
 import io
 import secrets
@@ -456,11 +456,9 @@ def stripe_webhook():
                         period_end = subscription.get('current_period_end')
                         period_start = subscription.get('current_period_start')
                         if period_end:
-                            from datetime import datetime
-                            expires_at = datetime.fromtimestamp(period_end).isoformat()
+                            expires_at = datetime.fromtimestamp(period_end, tz=timezone.utc).isoformat()
                         if period_start:
-                            from datetime import datetime
-                            starts_at = datetime.fromtimestamp(period_start).isoformat()
+                            starts_at = datetime.fromtimestamp(period_start, tz=timezone.utc).isoformat()
                     except stripe.error.InvalidRequestError as e:
                         # Subscription not yet created - will be updated by customer.subscription.created or invoice.payment_succeeded
                         log.info(f"Subscription {subscription_id} not yet available, will update dates from later webhook")
@@ -491,9 +489,8 @@ def stripe_webhook():
             period_start = obj.get('current_period_start')
 
             if subscription_id and period_end and period_start:
-                from datetime import datetime
-                expires_at = datetime.fromtimestamp(period_end).isoformat()
-                starts_at = datetime.fromtimestamp(period_start).isoformat()
+                expires_at = datetime.fromtimestamp(period_end, tz=timezone.utc).isoformat()
+                starts_at = datetime.fromtimestamp(period_start, tz=timezone.utc).isoformat()
 
                 # Update dates for this subscription
                 db.session.execute(
@@ -521,9 +518,8 @@ def stripe_webhook():
 
                     if period_end and period_start:
                         # Convert Unix timestamps to ISO datetime
-                        from datetime import datetime
-                        expires_at = datetime.fromtimestamp(period_end).isoformat()
-                        starts_at = datetime.fromtimestamp(period_start).isoformat()
+                        expires_at = datetime.fromtimestamp(period_end, tz=timezone.utc).isoformat()
+                        starts_at = datetime.fromtimestamp(period_start, tz=timezone.utc).isoformat()
 
                         # Update the user's pro_expires_at and pro_starts_at
                         db.session.execute(
@@ -600,11 +596,9 @@ def stripe_webhook():
                         expires_at = None
                         starts_at = None
                         if period_end:
-                            from datetime import datetime
-                            expires_at = datetime.fromtimestamp(period_end).isoformat()
+                            expires_at = datetime.fromtimestamp(period_end, tz=timezone.utc).isoformat()
                         if period_start:
-                            from datetime import datetime
-                            starts_at = datetime.fromtimestamp(period_start).isoformat()
+                            starts_at = datetime.fromtimestamp(period_start, tz=timezone.utc).isoformat()
 
                         # Update user's plan and guidebook limit
                         result = db.session.execute(
@@ -851,8 +845,7 @@ def _render_guidebook(gb: Guidebook, show_watermark: bool = False):
             "check_out_time": g.check_out_time,
             "access_info": g.access_info,
             "parking_info": g.parking_info,
-            # Use new JSON rules format if available, otherwise fallback to old Rule model
-            "rules": (getattr(g, 'rules_json', None) or [{"name": r.text, "description": ""} for r in g.rules]) if hasattr(g, 'rules') else [],
+            "rules": getattr(g, 'rules_json', None) or [],
             "things_to_do": g.things_to_do or [],
             "places_to_eat": g.places_to_eat or [],
             "checkout_info": getattr(g, 'checkout_info', None) or [],
@@ -941,7 +934,6 @@ def view_guidebook(guidebook_id):
         Guidebook.query.options(
             joinedload(Guidebook.host),
             joinedload(Guidebook.property),
-            joinedload(Guidebook.rules),
         ).get_or_404(guidebook_id)
     )
     # Legacy direct-by-id path. Only allow if active; otherwise redirect to upgrade page on frontend.
@@ -1269,8 +1261,7 @@ def publish_guidebook(guidebook_id):
             "check_out_time": gb.check_out_time,
             "access_info": gb.access_info,
             "parking_info": gb.parking_info,
-            # Use new JSON rules format if available, otherwise fallback to old Rule model
-            "rules": (getattr(gb, 'rules_json', None) or [{"name": r.text, "description": ""} for r in gb.rules]) if hasattr(gb, 'rules') else [],
+            "rules": getattr(gb, 'rules_json', None) or [],
             "things_to_do": gb.things_to_do or [],
             "places_to_eat": gb.places_to_eat or [],
             "checkout_info": getattr(gb, 'checkout_info', None) or [],
@@ -1298,8 +1289,7 @@ def publish_guidebook(guidebook_id):
             access_info=gb.access_info,
             welcome_message=getattr(gb, 'welcome_info', None),
             parking_info=getattr(gb, 'parking_info', None),
-            # Use new JSON rules format if available, otherwise fallback to old Rule model
-            rules=(getattr(gb, 'rules_json', None) or [{"name": r.text, "description": ""} for r in gb.rules]) if hasattr(gb, 'rules') else [],
+            rules=getattr(gb, 'rules_json', None) or [],
             things_to_do=gb.things_to_do,
             places_to_eat=gb.places_to_eat,
             checkout_info=getattr(gb, 'checkout_info', None),
@@ -1357,7 +1347,7 @@ def get_guidebook(guidebook_id):
         "custom_tabs_meta": gb.custom_tabs_meta,
         "things_to_do": gb.things_to_do,
         "places_to_eat": gb.places_to_eat,
-        "rules": [r.text for r in gb.rules],
+        "rules": getattr(gb, 'rules_json', None) or [],
         "house_manual": getattr(gb, 'house_manual', None),
         "safety_info": getattr(gb, 'safety_info', None),
         # Additional fields used by Edit page
@@ -1391,6 +1381,25 @@ def delete_guidebook(guidebook_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": f"Delete failed: {type(e).__name__}: {e}"}), 500
+
+
+@app.route('/api/hosts', methods=['GET'])
+@require_auth
+def get_user_hosts():
+    """Fetch all hosts associated with the authenticated user."""
+    hosts = Host.query.filter_by(user_id=g.user_id).all()
+
+    hosts_data = []
+    for host in hosts:
+        hosts_data.append({
+            "id": host.id,
+            "name": host.name,
+            "bio": host.bio,
+            "contact": host.contact,
+            "photo_url": host.host_image_url,
+        })
+
+    return jsonify({"hosts": hosts_data}), 200
 
 @app.route('/api/guidebooks/<guidebook_id>', methods=['PUT', 'PATCH'])
 @require_auth
@@ -1515,10 +1524,6 @@ def update_guidebook(guidebook_id):
                 rules_json.append({"name": rule_text, "description": ""})
         gb.rules_json = rules_json if rules_json else None
 
-        # Also clear old Rule model entries for consistency (will be deprecated)
-        for r in list(gb.rules):
-            db.session.delete(r)
-
     # Update last_modified_time
     try:
         db.session.execute(text("UPDATE guidebook SET last_modified_time = NOW() WHERE id = :id"), {"id": gb.id})
@@ -1529,69 +1534,8 @@ def update_guidebook(guidebook_id):
 
     return jsonify({"ok": True, "guidebook_id": gb.id})
 
-def run_startup_migrations():
-    """Add missing columns if they don't already exist (Postgres)."""
-    stmts = [
-        "ALTER TABLE host ADD COLUMN IF NOT EXISTS bio TEXT;",
-        "ALTER TABLE host ADD COLUMN IF NOT EXISTS contact TEXT;",
-        "ALTER TABLE host DROP COLUMN IF EXISTS host_image_base64;",
-        "ALTER TABLE host ADD COLUMN IF NOT EXISTS host_image_url TEXT;",
-        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS welcome_info TEXT;",
-        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS parking_info TEXT;",
-        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS safety_info JSON;",
-        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS checkout_info JSON;",
-        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS house_manual JSON;",
-        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS included_tabs JSON;",
-        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS custom_sections JSON;",
-        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS custom_tabs_meta JSON;",
-        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS rules_json JSON;",
-        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS wifi_json JSON;",
-        # Lifecycle fields (simplified for preview mode)
-        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS active BOOLEAN DEFAULT FALSE;",
-        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS public_slug TEXT;",
-        # Remove old trial/claim fields
-        "ALTER TABLE guidebook DROP COLUMN IF EXISTS claim_token;",
-        "ALTER TABLE guidebook DROP COLUMN IF EXISTS claimed_at;",
-        "ALTER TABLE guidebook DROP COLUMN IF EXISTS expires_at;",
-        # Drop old index if exists
-        "DROP INDEX IF EXISTS ux_guidebook_claim_token;",
-        # Unique index for public_slug
-        "CREATE UNIQUE INDEX IF NOT EXISTS ux_guidebook_public_slug ON guidebook (public_slug);",
-        # Timestamps
-        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS created_time TIMESTAMPTZ DEFAULT NOW();",
-        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS last_modified_time TIMESTAMPTZ DEFAULT NOW();",
-        # Snapshot columns
-        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS published_html TEXT;",
-        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS published_etag TEXT;",
-        "ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS published_at TIMESTAMPTZ;",
-        # Profiles - add guidebook_limit, remove old extra_slots
-        "ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS guidebook_limit INTEGER;",
-        "ALTER TABLE public.profiles DROP COLUMN IF EXISTS extra_slots;",
-        # Profiles - add Stripe tracking columns
-        "ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT;",
-        "ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT;",
-        "ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS pro_starts_at TIMESTAMPTZ;",
-        # Add indexes for faster Stripe lookups
-        "CREATE INDEX IF NOT EXISTS idx_profiles_stripe_customer ON public.profiles(stripe_customer_id);",
-        "CREATE INDEX IF NOT EXISTS idx_profiles_stripe_subscription ON public.profiles(stripe_subscription_id);",
-        # Update plan check constraint to allow new plan tiers
-        "ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_plan_check;",
-        "ALTER TABLE public.profiles ADD CONSTRAINT profiles_plan_check CHECK (plan IN ('trial', 'free', 'starter', 'growth', 'pro', 'enterprise'));",
-        # Make host name and guidebook.host_id optional
-        "ALTER TABLE host ALTER COLUMN name DROP NOT NULL;",
-        "ALTER TABLE guidebook ALTER COLUMN host_id DROP NOT NULL;",
-    ]
-    for s in stmts:
-        try:
-            db.session.execute(text(s))
-            db.session.commit()
-        except Exception as e:
-            # Log and continue so the app still boots
-            print(f"Migration statement failed or already applied: {s} => {e}")
-
 with app.app_context():
-    db.create_all() # Create tables if they don't exist
-    run_startup_migrations()
+    db.create_all()  # Create tables from model definitions
 
 
 # (Removed) Claim endpoint deprecated: anonymous creation is no longer supported.

@@ -279,7 +279,7 @@ export default function EditGuidebookPage() {
         setInitialLoading(false);
       }
     })();
-  }, [guidebookId, accessToken, authReady, router, setActivityItems, setCheckoutItems, setCustomSections, setCustomTabsMeta, setFoodItems, setFormData, setHostPhotoPreviewUrl, setHouseManualItems, setIncluded, setPreviewUrl, setRules]);
+  }, [guidebookId, accessToken, authReady, router, setActivityItems, setCheckoutItems, setCustomSections, setCustomTabsMeta, setExcluded, setFoodItems, setFormData, setHostPhotoPreviewUrl, setHouseManualItems, setIncluded, setPreviewUrl, setRules]);
 
   // Image handlers are now provided by useGuidebookForm hook
 

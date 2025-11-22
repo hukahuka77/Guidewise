@@ -195,7 +195,7 @@ export default function OnboardingPage() {
 
           {/* Slide Content */}
           <div className="bg-white rounded-2xl shadow-lg p-8 md:p-12 h-[650px] flex flex-col overflow-hidden">
-            <div className="flex-1 overflow-y-auto -mx-4 px-4 md:-mx-8 md:px-8 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto -mx-4 px-4 md:-mx-8 md:px-8 custom-scrollbar flex items-center justify-center">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={currentStep}
@@ -428,12 +428,83 @@ function HostSlide({
   hostContact: string;
   onChange: (id: string, val: string) => void;
 }) {
+  const { accessToken } = useAuth();
+  const [existingHosts, setExistingHosts] = useState<Array<{
+    id: number;
+    name: string;
+    bio: string | null;
+    contact: string | null;
+    photo_url: string | null;
+  }>>([]);
+  const [loadingHosts, setLoadingHosts] = useState(true);
+
+  useEffect(() => {
+    const fetchHosts = async () => {
+      if (!accessToken) {
+        setLoadingHosts(false);
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/api/hosts`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          setExistingHosts(data.hosts || []);
+        }
+      } catch (error) {
+        console.error("Failed to fetch hosts:", error);
+      } finally {
+        setLoadingHosts(false);
+      }
+    };
+
+    fetchHosts();
+  }, [accessToken]);
+
+  const handleSelectHost = (host: typeof existingHosts[0]) => {
+    onChange("hostName", host.name || "");
+    onChange("hostBio", host.bio || "");
+    onChange("hostContact", host.contact || "");
+  };
+
+  const isHostSelected = (host: typeof existingHosts[0]) => {
+    return hostName === host.name && hostBio === (host.bio || "") && hostContact === (host.contact || "");
+  };
+
   return (
     <div className="py-8">
       <h2 className="text-2xl font-bold text-gray-800 mb-3 text-center">Host Information</h2>
       <p className="text-gray-600 mb-6 text-center">Tell your guests a bit about yourself.</p>
 
       <div className="space-y-4">
+        {!loadingHosts && existingHosts.length > 0 && (
+          <div className="mb-6">
+            <Label>Use Existing Host</Label>
+            <div className="flex flex-wrap justify-center gap-2 mt-3 mb-2">
+              {existingHosts.map((host) => {
+                const isSelected = isHostSelected(host);
+                return (
+                  <Button
+                    key={host.id}
+                    type="button"
+                    onClick={() => handleSelectHost(host)}
+                    className={`px-3 py-1.5 text-sm rounded-md transition-colors ${isSelected
+                      ? "bg-[oklch(0.6923_0.22_21.05)] text-white border border-[oklch(0.6923_0.22_21.05)] hover:opacity-90"
+                      : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-[oklch(0.6923_0.22_21.05)]"
+                    }`}
+                  >
+                    {isSelected ? "✓ " : ""}{host.name}
+                  </Button>
+                );
+              })}
+            </div>
+            <p className="text-sm text-gray-400 italic text-center mb-4">Quick select from previous guidebooks</p>
+          </div>
+        )}
+
         <div>
           <Label htmlFor="hostName">Your Name</Label>
           <Input

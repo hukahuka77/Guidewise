@@ -3,7 +3,7 @@ from jinja2 import Environment, FileSystemLoader
 from weasyprint import HTML, default_url_fetcher
 from utils.aifunctions import get_ai_recommendations
 # Import models from models.py to be used in PDF generation
-from models import Guidebook, Host, Property, Wifi, Rule
+from models import Guidebook, Host, Property
 import json
 import ast
 import urllib.parse
@@ -159,7 +159,7 @@ def create_print_pdf_from_web_template(guidebook):
         "check_out_time": getattr(guidebook, 'check_out_time', None),
         "access_info": getattr(guidebook, 'access_info', None),
         "parking_info": getattr(guidebook, 'parking_info', None),
-        "rules": (getattr(guidebook, 'rules_json', None) or [{"name": r.text, "description": ""} for r in guidebook.rules]) if hasattr(guidebook, 'rules') else [],
+        "rules": getattr(guidebook, 'rules_json', None) or [],
         "things_to_do": getattr(guidebook, 'things_to_do', None) or [],
         "places_to_eat": getattr(guidebook, 'places_to_eat', None) or [],
         "checkout_info": getattr(guidebook, 'checkout_info', None) or [],
