@@ -112,6 +112,19 @@
               {% if item.description %}
               <p class="mt-1 text-gray-800 whitespace-pre-line">{{ item.description }}</p>
               {% endif %}
+              {% if item.mediaUrl and item.mediaType %}
+              <div class="mt-3">
+                {% if item.mediaType == 'image' %}
+                <img src="{{ item.mediaUrl }}" alt="{{ item.name }}"
+                  style="max-width: 100%; width: auto; max-height: 260px; height: auto; object-fit: contain; border-radius: 8px; display: block; margin: 0 auto;" />
+                {% elif item.mediaType == 'video' %}
+                <video controls style="width: 100%; max-width: 100%; max-height: 260px; border-radius: 8px; display: block; margin: 0 auto;">
+                  <source src="{{ item.mediaUrl }}" type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
+                {% endif %}
+              </div>
+              {% endif %}
             </div>
             {% endfor %}
           </div>
@@ -138,25 +151,22 @@
           <h2 class="text-xl font-semibold">House Rules</h2>
         </div>
         {% if ctx.rules and ctx.rules|length > 0 %}
-          <section id="rules">
-            <h2>House Rules</h2>
-            <ul>
-              {% for rule in ctx.rules %}
-              {% if rule %}
-                {% if rule.name is defined or rule.description is defined %}
-                  <li>
-                    {% if rule.name %}<strong>{{ rule.name }}</strong>{% endif %}
-                    {% if rule.description %}
-                      {% if rule.name %}: {% endif %}{{ rule.description }}
-                    {% endif %}
-                  </li>
-                {% else %}
-                  <li>{{ rule }}</li>
-                {% endif %}
+          <ul>
+            {% for rule in ctx.rules %}
+            {% if rule %}
+              {% if rule.name is defined or rule.description is defined %}
+                <li>
+                  {% if rule.name %}<strong>{{ rule.name }}</strong>{% endif %}
+                  {% if rule.description %}
+                    {% if rule.name %}: {% endif %}{{ rule.description }}
+                  {% endif %}
+                </li>
+              {% else %}
+                <li>{{ rule }}</li>
               {% endif %}
-              {% endfor %}
-            </ul>
-          </section>
+            {% endif %}
+            {% endfor %}
+          </ul>
         {% else %}
           <p class="text-gray-600">No rules provided.</p>
         {% endif %}

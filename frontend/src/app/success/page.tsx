@@ -317,11 +317,16 @@ export default function SuccessPage() {
             <div className="flex gap-3 items-center flex-wrap justify-center mt-6">
               {guidebookId && (
                 <Link href={`/edit/${guidebookId}`}>
-                  <Button className="px-6 py-3 rounded-lg">Continue Editing</Button>
+                  <Button
+                    variant="outline"
+                    className="px-6 py-3 rounded-lg border border-pink-200 text-pink-700 bg-white hover:bg-pink-50"
+                  >
+                    Continue Editing
+                  </Button>
                 </Link>
               )}
               <Link href="/dashboard">
-                <Button variant="default" className="px-6 py-3 rounded-lg">Go to Dashboard</Button>
+                <Button className="px-6 py-3 rounded-lg">Go to Dashboard</Button>
               </Link>
             </div>
           </section>

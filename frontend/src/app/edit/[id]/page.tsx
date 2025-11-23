@@ -268,17 +268,30 @@ export default function EditGuidebookPage() {
           mediaType: i.media_type === 'video' ? 'video' : i.media_type === 'image' ? 'image' : undefined,
         })));
         setRules((data.rules || []).map(rule => {
-          // Handle new JSON format: { name: string | null | undefined, description: string | null | undefined }
+          // Handle new/JSON format: { name: string | { name, description } | null, description?: string | null }
           if (rule && typeof rule === 'object' && 'name' in rule) {
-            const obj = rule as { name?: string | null; description?: string | null };
+            const anyRule = rule as any;
+            const nameVal = anyRule.name;
+            const descVal = anyRule.description;
+
+            // Nested legacy format: { name: { name, description }, description: '' }
+            if (nameVal && typeof nameVal === 'object' && ('name' in nameVal || 'description' in nameVal)) {
+              const inner = nameVal as { name?: string | null; description?: string | null };
+              return {
+                name: inner.name ?? "",
+                description: inner.description ?? (typeof descVal === 'string' ? descVal : ""),
+                checked: true,
+              };
+            }
+
             return {
-              name: obj.name ?? "",
-              description: obj.description ?? "",
+              name: typeof nameVal === 'string' ? nameVal : "",
+              description: typeof descVal === 'string' ? descVal : "",
               checked: true,
             };
           }
 
-          // Handle legacy string format: "name: description"
+          // Handle legacy string format: "name: description" or plain "name"
           if (typeof rule === 'string') {
             const [rawName, ...rest] = rule.split(":");
             const description = rest.length > 0 ? rest.join(":").trim() : "";
@@ -704,7 +717,7 @@ export default function EditGuidebookPage() {
             <Button
               type="button"
               data-tutorial="publish-button"
-              className="px-10 py-4 bg-[oklch(0.6923_0.22_21.05)] text-white font-semibold rounded-lg shadow-lg hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed text-lg md:text-xl"
+              className="px-10 py-4 font-semibold rounded-lg shadow-lg hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed text-lg md:text-xl"
               onClick={(e) => handleSubmit(e as unknown as React.FormEvent)}
               disabled={isLoading}
             >

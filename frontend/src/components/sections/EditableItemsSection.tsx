@@ -85,12 +85,14 @@ export default function EditableItemsSection({
 
   // Check if a suggestion is already added
   const isSuggestionActive = (suggestionName: string) => {
-    return items.some(item => item.name.toLowerCase() === suggestionName.toLowerCase());
+    const target = suggestionName.toLowerCase();
+    return items.some(item => typeof item.name === 'string' && item.name.toLowerCase() === target);
   };
 
   // Add or remove a suggestion
   const handleAddSuggestion = (suggestion: Suggestion) => {
-    const existingIndex = items.findIndex(item => item.name.toLowerCase() === suggestion.name.toLowerCase());
+    const target = suggestion.name.toLowerCase();
+    const existingIndex = items.findIndex(item => typeof item.name === 'string' && item.name.toLowerCase() === target);
     if (existingIndex >= 0) {
       onDelete?.(existingIndex);
     } else {

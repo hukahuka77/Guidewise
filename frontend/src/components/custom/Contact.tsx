@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 
 export default function Contact() {
   const FORMSPREE_ENDPOINT = process.env.NEXT_PUBLIC_FORMSPREE_ENDPOINT || "https://formspree.io/f/mnnzldka"; // provided Formspree endpoint
@@ -66,9 +67,13 @@ export default function Contact() {
             </div>
             {error && <div className="text-red-600 text-sm">{error}</div>}
             {sent && <div className="text-emerald-700 text-sm">Thanks! Your message has been sent.</div>}
-            <button type="submit" disabled={submitting} className="w-full bg-primary hover:bg-primary/90 disabled:opacity-70 disabled:cursor-not-allowed text-primary-foreground p-2 rounded">
+            <Button
+              type="submit"
+              disabled={submitting}
+              className="w-full disabled:opacity-70 disabled:cursor-not-allowed p-2 rounded"
+            >
               {submitting ? "Sending..." : "Submit"}
-            </button>
+            </Button>
           </form>
         </div>
       </div>

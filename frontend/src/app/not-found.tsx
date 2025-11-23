@@ -12,7 +12,7 @@ export default function NotFound() {
         </p>
         <div className="pt-4">
           <Link href="/dashboard">
-            <Button className="bg-[oklch(0.6923_0.22_21.05)] hover:opacity-90">
+            <Button>
               Back to Dashboard
             </Button>
           </Link>

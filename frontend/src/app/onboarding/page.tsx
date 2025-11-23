@@ -322,7 +322,7 @@ export default function OnboardingPage() {
                 <Button
                   onClick={handleNext}
                   disabled={isSubmitting || (currentStepData.id === "location" && !formData.location)}
-                  className="px-8 py-3 bg-[oklch(0.6923_0.22_21.05)] text-white rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-8 py-3 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next
                 </Button>
@@ -330,7 +330,7 @@ export default function OnboardingPage() {
                 <Button
                   onClick={handleComplete}
                   disabled={isSubmitting}
-                  className="px-8 py-3 bg-[oklch(0.6923_0.22_21.05)] text-white rounded-lg font-semibold hover:opacity-90 disabled:opacity-50"
+                  className="px-8 py-3 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50"
                 >
                   {isSubmitting ? (
                     <span className="inline-flex items-center gap-2">

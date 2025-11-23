@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 import hashlib
 from dotenv import load_dotenv
 import os
+import ast
 import time
 import functools
 import logging
@@ -835,7 +836,68 @@ def _render_guidebook(gb: Guidebook, show_watermark: bool = False):
         "https://hojncqasasvvrhdmwwhv.supabase.co/storage/v1/object/public/my_images/home_placeholder.jpg"
     )
 
+    def _normalize_rules(raw_rules):
+        """Normalize rules from various legacy formats into [{name, description}] for rendering.
+
+        Supports:
+        - Proper dicts: {"name": str, "description": str}
+        - Nested dicts from older bug: {"name": {"name": str, "description": str}, "description": ""}
+        - Strings like "No Smoking: Details" or "No Smoking"
+        - Strings that look like python dicts: "{'name': 'No Smoking', 'description': '...'}"
+        """
+        rules_out = []
+        if not raw_rules:
+            return []
+        for r in raw_rules:
+            if not r:
+                continue
+            # Dict formats
+            if isinstance(r, dict):
+                name_val = r.get('name')
+                desc_val = r.get('description')
+                # Handle nested dict in name field
+                if isinstance(name_val, dict) and ('name' in name_val or 'description' in name_val):
+                    inner = name_val
+                    name = str(inner.get('name') or '').strip()
+                    # Prefer inner description, fall back to outer description
+                    desc = str(inner.get('description') or desc_val or '').strip()
+                else:
+                    name = str(name_val or '').strip()
+                    desc = str(desc_val or '').strip()
+                if name or desc:
+                    rules_out.append({'name': name, 'description': desc})
+                continue
+            # String forms
+            if isinstance(r, str):
+                s = r.strip()
+                # Try to parse legacy python-dict-style strings
+                if s.startswith('{') and s.endswith('}'):
+                    try:
+                        parsed = ast.literal_eval(s)
+                        if isinstance(parsed, dict):
+                            name = str(parsed.get('name') or '').strip()
+                            desc = str(parsed.get('description') or '').strip()
+                            if name or desc:
+                                rules_out.append({'name': name, 'description': desc})
+                                continue
+                    except Exception:
+                        pass
+                # Fallback: split on first colon
+                if ':' in s:
+                    name_part, desc_part = s.split(':', 1)
+                    name = name_part.strip()
+                    desc = desc_part.strip()
+                    rules_out.append({'name': name or s, 'description': desc})
+                else:
+                    rules_out.append({'name': s, 'description': ''})
+        return rules_out
+
     def _build_ctx(g: Guidebook) -> dict:
+        # Prefer structured rules_json, but fall back to legacy rules if needed
+        raw_rules = getattr(g, 'rules_json', None)
+        if not raw_rules:
+            raw_rules = getattr(g, 'rules', None) or []
+
         return {
             "schema_version": 1,
             "id": g.id,
@@ -858,7 +920,7 @@ def _render_guidebook(gb: Guidebook, show_watermark: bool = False):
             "check_out_time": g.check_out_time,
             "access_info": g.access_info,
             "parking_info": g.parking_info,
-            "rules": getattr(g, 'rules_json', None) or [],
+            "rules": _normalize_rules(raw_rules),
             "things_to_do": g.things_to_do or [],
             "places_to_eat": g.places_to_eat or [],
             "checkout_info": getattr(g, 'checkout_info', None) or [],
@@ -1114,13 +1176,25 @@ def generate_guidebook_route():
     )
     db.session.add(new_guidebook)
 
-    # Add Rules - store in new JSON format
-    if 'rules' in data and data['rules']:
+    # Add Rules - store in structured JSON format [{name, description}]
+    if 'rules' in data and isinstance(data.get('rules'), list):
         rules_json = []
-        for rule_text in data['rules']:
-            if rule_text:
-                # Convert to new format with name and empty description
-                rules_json.append({"name": rule_text, "description": ""})
+        for r in data.get('rules') or []:
+            if not r:
+                continue
+            if isinstance(r, dict):
+                name = str(r.get('name') or '').strip()
+                desc = str(r.get('description') or '').strip()
+            else:
+                s = str(r).strip()
+                if ':' in s:
+                    name_part, desc_part = s.split(':', 1)
+                    name = name_part.strip()
+                    desc = desc_part.strip()
+                else:
+                    name, desc = s, ''
+            if name or desc:
+                rules_json.append({"name": name, "description": desc})
         new_guidebook.rules_json = rules_json if rules_json else None
 
     # Set lifecycle fields: Auto-activate if user has available slots
@@ -1533,12 +1607,25 @@ def update_guidebook(guidebook_id):
             wifi_json['password'] = wifi_password
         gb.wifi_json = wifi_json if wifi_json else None
 
-    # Replace Rules if provided - store in new JSON format
+    # Replace Rules if provided - store in structured JSON format [{name, description}]
     if 'rules' in data and isinstance(data.get('rules'), list):
         rules_json = []
-        for rule_text in data.get('rules'):
-            if rule_text:
-                rules_json.append({"name": rule_text, "description": ""})
+        for r in data.get('rules') or []:
+            if not r:
+                continue
+            if isinstance(r, dict):
+                name = str(r.get('name') or '').strip()
+                desc = str(r.get('description') or '').strip()
+            else:
+                s = str(r).strip()
+                if ':' in s:
+                    name_part, desc_part = s.split(':', 1)
+                    name = name_part.strip()
+                    desc = desc_part.strip()
+                else:
+                    name, desc = s, ''
+            if name or desc:
+                rules_json.append({"name": name, "description": desc})
         gb.rules_json = rules_json if rules_json else None
 
     # Update last_modified_time

@@ -791,7 +791,9 @@
             {% endif %}
           </h5>
           {% if rule.description %}
-          <p>{{ rule.description }}</p>
+          <div class="expandable-content">
+            <p>{{ rule.description }}</p>
+          </div>
           {% endif %}
         </div>
       </li>

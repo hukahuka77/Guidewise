@@ -354,13 +354,11 @@ export default function Home() {
                 <p className="text-lg text-gray-600 mb-8">
                   Join thousands of hosts who&rsquo;ve upgraded to digital guidebooks and never looked back.
                 </p>
-                <a
-                  href="/signup"
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-[oklch(0.6923_0.22_21.05)] text-white font-medium rounded-lg hover:opacity-90 transition-all"
-                >
-                  Create your first guidebook
-                  <ArrowRight className="w-4 h-4" />
-                </a>
+                <GetStartedButton
+                  labelWhenLoggedOut="Create your first guidebook"
+                  labelWhenLoggedIn="Create your first guidebook"
+                  buttonClassName="px-6 py-3 text-lg rounded-lg"
+                />
               </div>
             </div>
           </div>

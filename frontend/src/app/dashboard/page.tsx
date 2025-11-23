@@ -329,7 +329,7 @@ export default function DashboardPage() {
           </div>
           <div className="flex items-center gap-2">
             <Link href="/onboarding">
-              <Button className="bg-[oklch(0.6923_0.22_21.05)] hover:opacity-90">Create New</Button>
+              <Button>Create New</Button>
             </Link>
             {(plan === 'free' || plan === 'trial') && (
               <Link href="/pricing">

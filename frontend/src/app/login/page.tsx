@@ -136,7 +136,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full px-4 py-2.5 rounded-lg bg-[#db2777] hover:bg-[#be185d] text-white font-semibold disabled:opacity-50 transition-colors"
+              className="w-full px-4 py-2.5 rounded-lg bg-gradient-to-r from-[#db2777] to-[#f97316] text-white font-semibold disabled:opacity-50 transition-opacity hover:opacity-90"
             >
               {loading ? "Logging in…" : "Login"}
             </button>
@@ -180,7 +180,7 @@ export default function LoginPage() {
                 await supabase.auth.signInWithOAuth({
                   provider: 'google',
                   options: {
-                    redirectTo: `${(process.env.NEXT_PUBLIC_SITE_URL || window.location.origin)}${hasPendingPreview ? `/success#gb=${encodeURIComponent(gb as string)}&token=${encodeURIComponent(token as string)}` : '/dashboard'}`,
+                    redirectTo: `${(process.env.NEXT_PUBLIC_SITE_URL || window.location.origin)}${hasPendingPreview ? `/success#gb=${encodeURIComponent(gb as string)}&token=${encodeURIComponent(token as string)}` : '/onboarding'}`,
                     queryParams: { prompt: 'select_account' },
                   },
                 });

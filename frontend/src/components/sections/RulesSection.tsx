@@ -32,10 +32,18 @@ export default function RulesSection({
   autoEditIndex,
   onAutoEditHandled
 }: RulesSectionProps) {
+  const normalizedRules: Rule[] = Array.isArray(rules)
+    ? rules.map((r) => ({
+        name: typeof r.name === 'string' ? r.name : '',
+        description: typeof r.description === 'string' ? r.description : '',
+        checked: typeof r.checked === 'boolean' ? r.checked : true,
+      }))
+    : [];
+
   return (
     <EditableItemsSection
       title="House Rules"
-      items={rules}
+      items={normalizedRules}
       suggestions={RULES_SUGGESTIONS}
       onChange={onChange}
       onAdd={onAdd}

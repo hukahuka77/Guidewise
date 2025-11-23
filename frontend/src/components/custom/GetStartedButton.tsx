@@ -4,10 +4,21 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
-export default function GetStartedButton() {
+interface GetStartedButtonProps {
+  labelWhenLoggedOut?: string;
+  labelWhenLoggedIn?: string;
+  buttonClassName?: string;
+}
+
+export default function GetStartedButton({
+  labelWhenLoggedOut = "Get Started for Free",
+  labelWhenLoggedIn = "Create new guidebook",
+  buttonClassName,
+}: GetStartedButtonProps) {
   const [href, setHref] = useState<string>("/signup");
-  const [label, setLabel] = useState<string>("Get Started for Free");
+  const [label, setLabel] = useState<string>(labelWhenLoggedOut);
 
   useEffect(() => {
     let mounted = true;
@@ -15,20 +26,22 @@ export default function GetStartedButton() {
       if (!supabase) {
         if (mounted) {
           setHref("/signup");
-          setLabel("Get Started for Free");
+          setLabel(labelWhenLoggedOut);
         }
         return;
       }
       const { data } = await supabase.auth.getSession();
       if (mounted) {
-        setHref(data.session ? "/onboarding" : "/signup");
-        setLabel(data.session ? "Create new guidebook" : "Get Started for Free");
+        const authed = !!data.session;
+        setHref(authed ? "/onboarding" : "/signup");
+        setLabel(authed ? labelWhenLoggedIn : labelWhenLoggedOut);
       }
     })();
     const subscription = supabase
       ? supabase.auth.onAuthStateChange((_event, session) => {
-          setHref(session ? "/onboarding" : "/signup");
-          setLabel(session ? "Create new guidebook" : "Get Started for Free");
+          const authed = !!session;
+          setHref(authed ? "/onboarding" : "/signup");
+          setLabel(authed ? labelWhenLoggedIn : labelWhenLoggedOut);
         }).data.subscription
       : { unsubscribe: () => {} };
     return () => {
@@ -39,7 +52,7 @@ export default function GetStartedButton() {
 
   return (
     <Link href={href} className="z-10">
-      <Button className="text-xl md:text-2xl px-10 md:px-14 py-6 md:py-8 rounded-2xl font-semibold shadow-lg bg-primary hover:bg-primary/90 text-primary-foreground">
+      <Button className={cn("text-xl md:text-2xl px-10 md:px-14 py-6 md:py-8 rounded-2xl font-semibold shadow-lg", buttonClassName)}>
         {label}
       </Button>
     </Link>
