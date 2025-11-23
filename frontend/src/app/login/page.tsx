@@ -11,11 +11,14 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   const [oauthLoading, setOauthLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setMessage(null);
     if (!supabase) {
       setError("Authentication is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.");
       return;
@@ -38,6 +41,35 @@ export default function LoginPage() {
       setError(msg);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    setError(null);
+    setMessage(null);
+    if (!supabase) {
+      setError("Authentication is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+      return;
+    }
+    if (!email) {
+      setError("Enter your email above so we can send a reset link.");
+      return;
+    }
+    try {
+      setResetLoading(true);
+      let redirectTo: string | undefined = undefined;
+      if (typeof window !== "undefined") {
+        const baseUrl = window.location.origin || process.env.NEXT_PUBLIC_SITE_URL;
+        redirectTo = `${baseUrl}/login`;
+      }
+      const { error } = await supabase.auth.resetPasswordForEmail(email, redirectTo ? { redirectTo } : undefined);
+      if (error) throw error;
+      setMessage("Check your email for a password reset link.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to send reset email";
+      setError(msg);
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -67,6 +99,12 @@ export default function LoginPage() {
             <div className="mt-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-center" role="alert">
               <strong className="font-semibold">Error: </strong>
               <span>{error}</span>
+            </div>
+          )}
+
+          {message && !error && (
+            <div className="mt-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded text-center" role="status">
+              <span>{message}</span>
             </div>
           )}
 
@@ -102,6 +140,16 @@ export default function LoginPage() {
             >
               {loading ? "Logging in…" : "Login"}
             </button>
+            <div className="mt-2 flex justify-center">
+              <button
+                type="button"
+                onClick={handlePasswordReset}
+                disabled={resetLoading}
+                className="text-xs text-pink-700 hover:text-pink-800 underline-offset-2 hover:underline disabled:opacity-50"
+              >
+                {resetLoading ? "Sending reset link…" : "Forgot your password?"}
+              </button>
+            </div>
           </form>
 
           {/* Divider */}
