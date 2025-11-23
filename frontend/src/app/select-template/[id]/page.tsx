@@ -26,8 +26,8 @@ export default function SelectTemplatePage() {
   };
 
   const getUrlPlaceholder = (templateKey: 'template_original' | 'template_generic' | 'template_welcomebook') => {
-    if (templateKey === 'template_welcomebook') return '/images/URL_WelcomeBook.png';
-    return templateKey === 'template_original' ? '/images/URL_Generic1.png' : '/images/URL_Generic2.png';
+    if (templateKey === 'template_welcomebook') return '/images/URL_Welcoming_WhiteHouse.png';
+    return templateKey === 'template_original' ? '/images/URL_Classic_WhiteHouse.png' : '/images/URL_Lifestyle_WhiteHouse.png';
   };
 
   // Store guidebookId in storage for success page

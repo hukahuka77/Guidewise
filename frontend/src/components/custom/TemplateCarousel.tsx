@@ -1,6 +1,12 @@
 "use client";
 
 export default function TemplateCarousel() {
+  const templates = [
+    { src: "/images/URL_Classic_WhiteHouse.png", alt: "Guidewise Classic Template", name: "Guidewise Classic" },
+    { src: "/images/URL_Lifestyle_WhiteHouse.png", alt: "Lifestyle Template", name: "Lifestyle" },
+    { src: "/images/URL_Welcoming_WhiteHouse.png", alt: "Welcoming Template", name: "Welcoming" },
+  ];
+
   return (
     <div className="relative overflow-hidden">
       <style jsx>{`
@@ -9,73 +15,31 @@ export default function TemplateCarousel() {
             transform: translateX(0);
           }
           100% {
-            transform: translateX(-50%);
+            transform: translateX(calc(-100% / 3));
           }
         }
         .carousel-track {
-          animation: scroll 30s linear infinite;
+          animation: scroll 40s linear infinite;
           will-change: transform;
-          width: max-content;
         }
       `}</style>
-      <div className="flex gap-8 carousel-track pl-4">
-        {/* First set of templates */}
-        <div className="flex-shrink-0 w-80 md:w-96">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/images/URL_Generic1.png"
-            alt="Guidewise Classic Template"
-            className="w-full h-auto rounded-2xl shadow-lg border border-gray-200"
-          />
-          <p className="text-center mt-3 font-medium text-gray-700">Guidewise Classic</p>
-        </div>
-        <div className="flex-shrink-0 w-80 md:w-96">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/images/URL_Generic2.png"
-            alt="Lifestyle Template"
-            className="w-full h-auto rounded-2xl shadow-lg border border-gray-200"
-          />
-          <p className="text-center mt-3 font-medium text-gray-700">Lifestyle</p>
-        </div>
-        <div className="flex-shrink-0 w-80 md:w-96">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/images/URL_WelcomeBook.png"
-            alt="Welcoming Template"
-            className="w-full h-auto rounded-2xl shadow-lg border border-gray-200"
-          />
-          <p className="text-center mt-3 font-medium text-gray-700">Welcoming</p>
-        </div>
-
-        {/* Duplicate set for infinite loop */}
-        <div className="flex-shrink-0 w-80 md:w-96">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/images/URL_Generic1.png"
-            alt="Guidewise Classic Template"
-            className="w-full h-auto rounded-2xl shadow-lg border border-gray-200"
-          />
-          <p className="text-center mt-3 font-medium text-gray-700">Guidewise Classic</p>
-        </div>
-        <div className="flex-shrink-0 w-80 md:w-96">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/images/URL_Generic2.png"
-            alt="Lifestyle Template"
-            className="w-full h-auto rounded-2xl shadow-lg border border-gray-200"
-          />
-          <p className="text-center mt-3 font-medium text-gray-700">Lifestyle</p>
-        </div>
-        <div className="flex-shrink-0 w-80 md:w-96">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/images/URL_WelcomeBook.png"
-            alt="Welcoming Template"
-            className="w-full h-auto rounded-2xl shadow-lg border border-gray-200"
-          />
-          <p className="text-center mt-3 font-medium text-gray-700">Welcoming</p>
-        </div>
+      <div className="flex gap-8 carousel-track">
+        {/* Render templates 3 times for seamless loop */}
+        {[...Array(3)].map((_, setIndex) => (
+          <div key={setIndex} className="flex gap-8 flex-shrink-0">
+            {templates.map((template, i) => (
+              <div key={`${setIndex}-${i}`} className="flex-shrink-0 w-80 md:w-96">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={template.src}
+                  alt={template.alt}
+                  className="w-full h-auto rounded-2xl shadow-lg border border-gray-200"
+                />
+                <p className="text-center mt-3 font-medium text-gray-700">{template.name}</p>
+              </div>
+            ))}
+          </div>
+        ))}
       </div>
     </div>
   );

@@ -153,9 +153,9 @@ export default function GuidebookUrlTemplatesPage() {
           <section>
             {/* Responsive Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <Card template="template_original" title="Guidewise Classic" img="/images/URL_Generic1.png" />
-              <Card template="template_generic" title="Lifestyle" img="/images/URL_Generic2.png" />
-              <Card template="template_welcomebook" title="Welcoming" img="/images/URL_WelcomeBook.png" />
+              <Card template="template_original" title="Guidewise Classic" img="/images/URL_Classic_WhiteHouse.png" />
+              <Card template="template_generic" title="Lifestyle" img="/images/URL_Lifestyle_WhiteHouse.png" />
+              <Card template="template_welcomebook" title="Welcoming" img="/images/URL_Welcoming_WhiteHouse.png" />
             </div>
 
             {/* Continue to edit button at bottom right */}

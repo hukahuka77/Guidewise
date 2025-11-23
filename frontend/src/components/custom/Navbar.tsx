@@ -37,7 +37,7 @@ export default function Navbar() {
 
       {/* Desktop nav */}
       <nav className="ml-auto hidden md:flex gap-2 sm:gap-3">
-        <Link className="text-sm font-medium no-underline hover:no-underline px-3 py-1 rounded-lg hover:bg-pink-50 hover:text-pink-700 transition-colors" href="/#digital">
+        <Link className="text-sm font-medium no-underline hover:no-underline px-3 py-1 rounded-lg hover:bg-pink-50 hover:text-pink-700 transition-colors" href="/#features">
           Features
         </Link>
         <Link className="text-sm font-medium no-underline hover:no-underline px-3 py-1 rounded-lg hover:bg-pink-50 hover:text-pink-700 transition-colors" href="/pricing">
@@ -97,7 +97,7 @@ export default function Navbar() {
       {mobileOpen && (
         <div className="absolute top-14 inset-x-0 bg-white border-b shadow-md md:hidden">
           <div className="px-4 py-3 flex flex-col gap-1">
-            <Link href="/#digital" className="px-3 py-2 rounded hover:bg-pink-50 hover:text-pink-700" onClick={() => setMobileOpen(false)}>
+            <Link href="/#features" className="px-3 py-2 rounded hover:bg-pink-50 hover:text-pink-700" onClick={() => setMobileOpen(false)}>
               Features
             </Link>
             <Link href="/pricing" className="px-3 py-2 rounded hover:bg-pink-50 hover:text-pink-700" onClick={() => setMobileOpen(false)}>
