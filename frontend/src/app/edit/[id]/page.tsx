@@ -270,9 +270,12 @@ export default function EditGuidebookPage() {
         setRules((data.rules || []).map(rule => {
           // Handle new/JSON format: { name: string | { name, description } | null, description?: string | null }
           if (rule && typeof rule === 'object' && 'name' in rule) {
-            const anyRule = rule as any;
-            const nameVal = anyRule.name;
-            const descVal = anyRule.description;
+            const objRule = rule as {
+              name?: string | { name?: string | null; description?: string | null } | null;
+              description?: string | null;
+            };
+            const nameVal = objRule.name;
+            const descVal = objRule.description;
 
             // Nested legacy format: { name: { name, description }, description: '' }
             if (nameVal && typeof nameVal === 'object' && ('name' in nameVal || 'description' in nameVal)) {

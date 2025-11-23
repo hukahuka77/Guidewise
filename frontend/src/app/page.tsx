@@ -2,7 +2,7 @@ import Link from "next/link";
 import GetStartedButton from "@/components/custom/GetStartedButton";
 import Contact from "@/components/custom/Contact";
 import TemplateCarousel from "@/components/custom/TemplateCarousel";
-import { Heart, Clock, RefreshCw, Smartphone, Star, MapPin, ArrowRight } from "lucide-react";
+import { Heart, Clock, RefreshCw, Smartphone, Star, MapPin } from "lucide-react";
 
 export default function Home() {
   return (

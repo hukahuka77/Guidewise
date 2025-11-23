@@ -48,7 +48,7 @@ export default function GetStartedButton({
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [labelWhenLoggedIn, labelWhenLoggedOut]);
 
   return (
     <Link href={href} className="z-10">
