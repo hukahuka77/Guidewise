@@ -536,9 +536,9 @@ export default function EditGuidebookPage() {
           )}
           {currentSection === "food" && (
             <div>
-              <button
+              <Button
                 type="button"
-                className="mb-4 px-4 py-2 rounded bg-[oklch(0.6923_0.22_21.05)] text-white font-semibold shadow hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                className="mb-4 px-4 py-2 font-semibold shadow hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={isFetchingFood || !formData.location}
                 onClick={async () => {
                   const items = await fetchFoodRecommendations(formData.location, 5);
@@ -550,7 +550,7 @@ export default function EditGuidebookPage() {
                 ) : (
                   "Prepopulate with AI"
                 )}
-              </button>
+              </Button>
               <DynamicItemList
                 items={foodItems}
                 label="Nearby Food"
@@ -589,9 +589,9 @@ export default function EditGuidebookPage() {
           )}
           {currentSection === "activities" && (
             <div>
-              <button
+              <Button
                 type="button"
-                className="mb-4 px-4 py-2 rounded bg-[oklch(0.6923_0.22_21.05)] text-white font-semibold shadow hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                className="mb-4 px-4 py-2 font-semibold shadow hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={isFetchingActivities || !formData.location}
                 onClick={async () => {
                   const items = await fetchActivityRecommendations(formData.location, 5);
@@ -603,7 +603,7 @@ export default function EditGuidebookPage() {
                 ) : (
                   "Prepopulate with AI"
                 )}
-              </button>
+              </Button>
               <DynamicItemList
                 items={activityItems}
                 label="Nearby Activities"

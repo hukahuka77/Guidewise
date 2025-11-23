@@ -170,17 +170,10 @@ export default function LoginPage() {
               }
               try {
                 setOauthLoading(true);
-                const { hasPendingPreview, gb, token } = (() => {
-                  try {
-                    const id = sessionStorage.getItem('guidebookId') || localStorage.getItem('guidebookId');
-                    const tok = sessionStorage.getItem('claimToken') || localStorage.getItem('claimToken');
-                    return { hasPendingPreview: !!(id && tok), gb: id, token: tok };
-                  } catch { return { hasPendingPreview: false, gb: null, token: null }; }
-                })();
                 await supabase.auth.signInWithOAuth({
                   provider: 'google',
                   options: {
-                    redirectTo: `${(process.env.NEXT_PUBLIC_SITE_URL || window.location.origin)}${hasPendingPreview ? `/success#gb=${encodeURIComponent(gb as string)}&token=${encodeURIComponent(token as string)}` : '/onboarding'}`,
+                    redirectTo: `${(process.env.NEXT_PUBLIC_SITE_URL || window.location.origin)}/onboarding`,
                     queryParams: { prompt: 'select_account' },
                   },
                 });
