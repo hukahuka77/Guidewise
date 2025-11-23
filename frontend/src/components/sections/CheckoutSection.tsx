@@ -65,7 +65,7 @@ export default function CheckoutSection({
       descriptionLabel="Description"
       nameMaxLength={LIMITS.checkoutName}
       descriptionMaxLength={LIMITS.checkoutDescription}
-      showCheckboxes={true}
+      showCheckboxes={false}
       headerContent={headerContent}
     />
   );

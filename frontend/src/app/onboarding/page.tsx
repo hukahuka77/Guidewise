@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useGuidebookForm } from "@/hooks/useGuidebookForm";
 import { useImageUpload } from "@/hooks/useImageUpload";
 import { buildGuidebookPayload } from "@/utils/guidebookPayload";
+import { CREATE_SECTIONS_ORDER } from "@/config/sections";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -60,9 +61,11 @@ export default function OnboardingPage() {
     previewUrl,
     hostPhotoPreviewUrl,
   } = useGuidebookForm({
-    initialIncluded: ["welcome", "checkin", "hostinfo", "wifi", "checkout"], // Sections covered in onboarding wizard
-    initialExcluded: ["property", "food", "activities", "rules"], // Sections not in wizard
+    initialIncluded: [...CREATE_SECTIONS_ORDER], // Start with all core sections included by default
+    initialExcluded: [],
     useDefaults: true,
+    initialHouseManualItems: [], // Do not prepopulate house manual items in onboarding-created guidebooks
+    initialRules: [], // Do not prepopulate default rules in onboarding-created guidebooks
     initialCheckoutItems: [], // Start with empty checkout items in onboarding
     initialFormData: {
       welcomeMessage: "Welcome to our home! We're so excited to host you. This guidebook has everything you need to know for a comfortable stay. Please don't hesitate to reach out if you have any questions.",
