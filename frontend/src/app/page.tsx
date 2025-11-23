@@ -42,12 +42,12 @@ export default function Home() {
               </div>
 
               {/* Right: iPhone mockup */}
-              <div className="hidden md:flex justify-end items-center">
+              <div className="mt-8 md:mt-0 flex justify-center md:justify-end items-center">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/images/Iphone-portrait.png"
                   alt="Guidebook on iPhone"
-                  className="w-2/3 h-auto object-contain drop-shadow-xl"
+                  className="w-2/3 sm:w-1/2 md:w-2/3 h-auto object-contain drop-shadow-xl"
                 />
               </div>
             </div>
@@ -57,8 +57,9 @@ export default function Home() {
         <section className="hidden md:block w-full py-12 md:py-20 bg-gradient-to-b from-white to-[#F8F5F1]">
           <div className="px-4 md:px-6 max-w-5xl mx-auto">
             <div className="text-center mb-8">
-              <h2 className="text-2xl sm:text-3xl font-semibold text-gray-800 mb-3">Try It Out: Interactive Demo</h2>
-              <p className="text-gray-600">Explore a live guidebook below. Click around, navigate sections, and see how your guests will experience it.</p>
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 tracking-tight">
+                Try it out with this Example Guidebook
+              </h2>
             </div>
             <div className="w-full">
               <div className="rounded-2xl overflow-hidden shadow-xl border-4 border-gray-300 bg-gray-100 p-2">
@@ -99,9 +100,6 @@ export default function Home() {
               <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6 tracking-tight">
                 Powerful Features That Save You Time
               </h2>
-              <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                Everything you need to create professional guidebooks that guests love, without the hassle.
-              </p>
             </div>
 
             {/* Features Grid */}
@@ -228,11 +226,7 @@ export default function Home() {
         <section className="w-full py-12 md:py-16 bg-gradient-to-b from-white to-[#F8F5F1] overflow-hidden">
           <div className="px-4 md:px-6 max-w-6xl mx-auto mb-10">
             <div className="text-center">
-              <h2 className="text-2xl sm:text-3xl font-semibold text-gray-800 mb-3">Select Your Perfect Template</h2>
-              <p className="text-gray-600">
-                Guidewise isn&apos;t just about contentit&apos;s about presentation. Preview the different template styles your
-                guests will experience.
-              </p>
+              <h2 className="text-2xl sm:text-3xl font-semibold text-gray-800 mb-3">Select Your Perfect Template from our Selection</h2>
             </div>
           </div>
           <TemplateCarousel />
@@ -358,7 +352,7 @@ export default function Home() {
                   Ready to elevate your guest experience?
                 </h3>
                 <p className="text-lg text-gray-600 mb-8">
-                  Join hundreds of hosts who&rsquo;ve upgraded to digital guidebooks and never looked back.
+                  Join thousands of hosts who&rsquo;ve upgraded to digital guidebooks and never looked back.
                 </p>
                 <a
                   href="/signup"
