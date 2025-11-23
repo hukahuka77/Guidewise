@@ -54,6 +54,9 @@
       {% if item.address %}
       <label class="text-xs uppercase tracking-wide text-gray-500">Address</label>
       <a href="https://maps.google.com/maps?q={{ item.address | urlencode }}" target="_blank" rel="noopener noreferrer" class="text-gray-900 font-medium hover:text-gray-700">{{ item.address }}</a>
+      {% if item.driving_minutes %}
+      <p class="text-xs text-gray-600 mt-1">🚗 {{ item.driving_minutes }} min drive</p>
+      {% endif %}
       {% endif %}
       {% if item.description %}
       <label class="text-xs uppercase tracking-wide text-gray-500">Description</label>

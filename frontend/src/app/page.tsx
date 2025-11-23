@@ -18,7 +18,7 @@ export default function Home() {
                     Create Beautiful Airbnb/VRBO Guest Guidebooks in Minutes
                   </h1>
                   <p className="text-gray-600 md:text-xl">
-                    Impress your short‑term rental guests with a professional guidebook tailored to your home. No design skills needed—delight guests, reduce questions, and boost reviews.
+                    Impress your short‑term rental guests with a professional guidebook tailored to your home. No design skills needed. Delight guests, reduce questions, and boost reviews.
                   </p>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-3 justify-center relative py-4">
@@ -51,7 +51,7 @@ export default function Home() {
               <div className="text-left md:pr-6">
                 <h2 className="text-2xl sm:text-3xl font-semibold text-gray-800">Beautiful, Digital Guidebooks for Airbnb & VRBO</h2>
                 <p className="text-gray-600 mt-3">
-                  Share a clean, mobile‑first guidebook with guests. Perfect for short‑term rentals on Airbnb or VRBO—access via link or QR code.
+                  Share a clean, mobile‑first guidebook with guests. Perfect for short‑term rentals on Airbnb or VRBO. Access via link or QR code.
                   Fully customizable templates keep your brand consistent and your guests informed.
                 </p>
                 <div className="mt-6 flex items-center gap-5">
@@ -97,7 +97,7 @@ export default function Home() {
           <div className="px-4 md:px-6 max-w-5xl mx-auto">
             <div className="text-center mb-8">
               <h2 className="text-2xl sm:text-3xl font-semibold text-gray-800 mb-3">Try It Out: Interactive Demo</h2>
-              <p className="text-gray-600">Explore a live guidebook below—click around, navigate sections, and see how your guests will experience it.</p>
+              <p className="text-gray-600">Explore a live guidebook below. Click around, navigate sections, and see how your guests will experience it.</p>
             </div>
             <div className="w-full">
               <div className="rounded-2xl overflow-hidden shadow-xl border-4 border-gray-300 bg-gray-100 p-2">
@@ -139,8 +139,8 @@ export default function Home() {
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">Delight guests from day one</h3>
                   <p className="text-gray-600 leading-relaxed">
-                    When guests arrive and scan a QR code to find everything they need—WiFi, check-in instructions,
-                    local recommendations—they immediately feel taken care of. This sets the tone for 5-star reviews.
+                    When guests arrive and scan a QR code to find everything they need (WiFi, check-in instructions,
+                    local recommendations), they immediately feel taken care of. This sets the tone for 5-star reviews.
                   </p>
                 </div>
               </div>
@@ -187,7 +187,7 @@ export default function Home() {
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">Built for mobile-first guests</h3>
                   <p className="text-gray-600 leading-relaxed">
-                    Your guidebook works beautifully on any device—no app downloads, no logins.
+                    Your guidebook works beautifully on any device. No app downloads, no logins.
                     Guests can access it from the Uber, at dinner, or lounging on your couch.
                   </p>
                 </div>

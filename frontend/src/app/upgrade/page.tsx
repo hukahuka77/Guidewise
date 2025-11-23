@@ -236,12 +236,12 @@ export default function UpgradePage() {
                     Go to Profile
                   </Button>
                 </div>
-                <p className="text-sm text-gray-500 text-center">After upgrading, return here and click “I’m Pro — Activate Now”.</p>
+                <p className="text-sm text-gray-500 text-center">After upgrading, return here and click "I'm Pro - Activate Now".</p>
               </>
             ) : (
               <>
                 <Button className="w-full" disabled={activating} onClick={onActivateNow}>
-                  {activating ? <div className="flex items-center gap-2"><Spinner size={18} /> Activating…</div> : "I’m Pro — Activate Now"}
+                  {activating ? <div className="flex items-center gap-2"><Spinner size={18} /> Activating…</div> : "I'm Pro - Activate Now"}
                 </Button>
                 <Button variant="outline" className="w-full" disabled={billingLoading} onClick={openBillingPortal}>
                   {billingLoading ? <div className="flex items-center gap-2"><Spinner size={18} /> Opening billing…</div> : 'Manage Billing'}

@@ -621,7 +621,8 @@ export default function EditGuidebookPage() {
                   )
                 );
               }}
-              onAdd={() => setRules([...rules, { name: '', description: '', checked: false }])}
+              onAdd={() => setRules([...rules, { name: '', description: '', checked: true }])}
+              onAddWithValues={(rule) => setRules([...rules, { ...rule, checked: true }])}
               onDelete={(idx: number) => setRules(rules => rules.filter((_, i) => i !== idx))}
             />
           )}
@@ -635,7 +636,8 @@ export default function EditGuidebookPage() {
                   i === idx ? { ...item, [field]: field === 'checked' ? Boolean(value) : String(value) } : item
                 ));
               }}
-              onAdd={() => setCheckoutItems(items => [...items, { name: '', description: '', checked: false }])}
+              onAdd={() => setCheckoutItems(items => [...items, { name: '', description: '', checked: true }])}
+              onAddWithValues={(item) => setCheckoutItems(items => [...items, { ...item, checked: true }])}
               onDelete={(idx: number) => setCheckoutItems(items => items.filter((_, i) => i !== idx))}
             />
           )}

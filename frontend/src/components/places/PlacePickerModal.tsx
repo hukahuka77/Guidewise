@@ -15,6 +15,7 @@ export type DynamicItem = {
   address: string;
   description: string;
   image_url?: string;
+  driving_minutes?: number | null;
 };
 
 type Props = {
@@ -59,7 +60,12 @@ export default function PlacePickerModal({ open, onClose, onSelect, near, apiBas
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${apiBase}/api/places/enrich?place_id=${encodeURIComponent(place_id)}`);
+      const url = new URL(`${apiBase}/api/places/enrich`);
+      url.searchParams.set('place_id', place_id);
+      if (near) {
+        url.searchParams.set('origin', near);
+      }
+      const res = await fetch(url.toString());
       if (!res.ok) throw new Error(`Enrich failed (${res.status})`);
       const item = (await res.json()) as DynamicItem;
       onSelect(item);

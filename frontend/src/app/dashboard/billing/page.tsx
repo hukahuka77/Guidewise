@@ -109,7 +109,7 @@ export default function BillingPage() {
   };
 
   const money = (cents?: number | null, currency?: string | null) => {
-    if (typeof cents !== "number") return "—";
+    if (typeof cents !== "number") return "-";
     const amount = (cents / 100).toFixed(2);
     return `${amount} ${(currency || "USD").toUpperCase()}`;
     };

@@ -826,6 +826,9 @@
             <span>{{ place.address }}</span>
           </a>
           {% endif %}
+          {% if place.driving_minutes %}
+          <div class="place-distance" style="font-size: 0.875rem; color: #6b7280; margin-top: 4px; margin-left: 22px;">🚗 {{ place.driving_minutes }} min drive</div>
+          {% endif %}
         </div>
       </div>
       {% endfor %}
@@ -858,6 +861,9 @@
             <i data-lucide="map-pin" class="place-address-icon"></i>
             <span>{{ activity.address }}</span>
           </a>
+          {% endif %}
+          {% if activity.driving_minutes %}
+          <div class="place-distance" style="font-size: 0.875rem; color: #6b7280; margin-top: 4px; margin-left: 22px;">🚗 {{ activity.driving_minutes }} min drive</div>
           {% endif %}
         </div>
       </div>

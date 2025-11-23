@@ -2,7 +2,7 @@ import os
 import json
 from dotenv import load_dotenv
 from openai import OpenAI
-from .google_places import google_places_text_search, google_places_details
+from .google_places import google_places_text_search, google_places_details, google_distance_matrix
 
 load_dotenv()
 
@@ -147,14 +147,14 @@ def _extract_items_from_response(response_data: dict | list, possible_keys: list
 
 def _enrich_with_google_places(items: list, location: str) -> list:
     """
-    Enrich recommendation items with Google Places data (real address, photo).
+    Enrich recommendation items with Google Places data (real address, photo, driving distance).
 
     Args:
         items: List of items from OpenAI (each with name, address, description)
-        location: General location for Google Places search
+        location: General location for Google Places search (also used as origin for distance calculation)
 
     Returns:
-        List of enriched items with photo_reference field
+        List of enriched items with photo_reference and driving_minutes fields
     """
     enriched = []
 
@@ -194,12 +194,21 @@ def _enrich_with_google_places(items: list, location: str) -> list:
                 if photos and len(photos) > 0:
                     photo_reference = photos[0].get("photo_reference")
 
+                # Calculate driving distance from property location
+                driving_minutes = None
+                if location and real_address:
+                    print(f"Calculating distance from '{location}' to '{real_address}'")
+                    distance_data = google_distance_matrix(location, real_address)
+                    driving_minutes = distance_data.get('duration_minutes')
+                    print(f"Distance result for {name}: {driving_minutes} minutes")
+
                 # Add enriched item
                 enriched.append({
                     "name": name,
                     "address": real_address,
                     "description": description,
-                    "photo_reference": photo_reference
+                    "photo_reference": photo_reference,
+                    "driving_minutes": driving_minutes
                 })
             else:
                 print(f"WARNING: No place_id for {name}, skipping")

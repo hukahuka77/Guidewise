@@ -33,6 +33,7 @@ from utils.google_places import (
     google_places_text_search,
     google_places_details,
     google_places_photo_url,
+    google_distance_matrix,
 )
 
 # --- Unicode utilities ---
@@ -1086,6 +1087,10 @@ def generate_guidebook_route():
                     'icon': str(icon) if icon is not None else ''
                 }
 
+    # Debug: Check if driving_minutes is in the data
+    print(f"DEBUG: Saving places_to_eat: {data.get('places_to_eat')}")
+    print(f"DEBUG: Saving things_to_do: {data.get('things_to_do')}")
+
     new_guidebook = Guidebook(
         check_in_time=data.get('check_in_time'),
         check_out_time=data.get('check_out_time'),
@@ -1752,9 +1757,11 @@ def places_search():
 @app.route('/api/places/enrich', methods=['GET'])
 def places_enrich():
     """Given a place_id, return a DynamicItem-like normalized object.
-    Response: { name, address, description, image_url }
+    Response: { name, address, description, image_url, driving_minutes }
+    Query params: place_id (required), origin (optional - property address for distance calculation)
     """
     place_id = (request.args.get('place_id') or '').strip()
+    origin = (request.args.get('origin') or '').strip()
     if not place_id:
         return jsonify({"error": "place_id is required"}), 400
     try:
@@ -1782,11 +1789,19 @@ def places_enrich():
                 # /api/place-photo proxy endpoint to bypass browser CORS.
                 # The frontend expects a non-http string here and will proxy it.
                 image_url = ref
+
+        # Calculate driving distance if origin is provided
+        driving_minutes = None
+        if origin and address:
+            distance_data = google_distance_matrix(origin, address)
+            driving_minutes = distance_data.get('duration_minutes')
+
         return jsonify({
             'name': name,
             'address': address,
             'description': description,
             'image_url': image_url,
+            'driving_minutes': driving_minutes,
         })
     except Exception as e:
         log.error("places_enrich error: %s: %s", type(e).__name__, e)

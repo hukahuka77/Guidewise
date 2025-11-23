@@ -13,6 +13,7 @@ export interface DynamicItem {
   address: string;
   description: string;
   image_url?: string;
+  driving_minutes?: number | null;
 }
 
 interface DynamicItemListProps {
@@ -148,9 +149,16 @@ export default function DynamicItemList({ items, onChange, onAdd, onDelete, labe
                 <Label>Name</Label>
                 <Input maxLength={LIMITS.itemName} value={item.name} onChange={e => onChange(idx, "name", e.target.value)} />
                 {item.address && (
-                  <div className="flex items-center text-xs text-gray-600 mt-1 mb-2">
-                    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="mr-1"><path strokeLinecap="round" strokeLinejoin="round" d="M12 11.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z"/><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7-7.5 11-7.5 11s-7.5-4-7.5-11a7.5 7.5 0 1115 0z"/></svg>
-                    <span>{item.address}</span>
+                  <div className="mt-1 mb-2">
+                    <div className="flex items-center text-xs text-gray-600">
+                      <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="mr-1"><path strokeLinecap="round" strokeLinejoin="round" d="M12 11.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z"/><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7-7.5 11-7.5 11s-7.5-4-7.5-11a7.5 7.5 0 1115 0z"/></svg>
+                      <span>{item.address}</span>
+                    </div>
+                    {item.driving_minutes != null && (
+                      <div className="flex items-center text-xs text-gray-500 mt-1 ml-5">
+                        🚗 {item.driving_minutes} min drive
+                      </div>
+                    )}
                   </div>
                 )}
                 <Label>Address</Label>

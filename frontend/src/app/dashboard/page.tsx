@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import Spinner from "@/components/ui/spinner";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import QRDownloadButton from "@/components/custom/QRDownloadButton";
 import { cacheGet, cacheSet } from "@/lib/cache";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
@@ -505,14 +506,10 @@ export default function DashboardPage() {
                     />
                     <div className="flex gap-2">
                       <Link href={getQrTargetUrl(qrModalFor)} target="_blank"><Button variant="outline">Open Live URL</Button></Link>
-                      <Button onClick={() => {
-                        const link = document.createElement('a');
-                        link.href = getQrImageUrl(getQrTargetUrl(qrModalFor), 600);
-                        link.download = 'guidebook-qr.png';
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                      }}>Download QR</Button>
+                      <QRDownloadButton
+                        targetUrl={getQrTargetUrl(qrModalFor)}
+                        propertyName={items.find(gb => gb.id === qrModalFor)?.property_name || 'guidebook'}
+                      />
                     </div>
                   </>
                 )}

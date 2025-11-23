@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
@@ -38,6 +38,7 @@ export default function OnboardingPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [checkinItems, setCheckinItems] = useState<Array<{ name: string; description: string }>>([]);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Use consolidated form hook
   const {
@@ -82,6 +83,13 @@ export default function OnboardingPage() {
       return { ...prev, address_street: prev.location };
     });
   }, [formData.location, setFormData]);
+
+  // Scroll to top when step changes
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0;
+    }
+  }, [currentStep]);
 
   const handleNext = () => {
     setError(null);
@@ -195,15 +203,16 @@ export default function OnboardingPage() {
 
           {/* Slide Content */}
           <div className="bg-white rounded-2xl shadow-lg p-8 md:p-12 h-[650px] flex flex-col overflow-hidden">
-            <div className="flex-1 overflow-y-auto -mx-4 px-4 md:-mx-8 md:px-8 custom-scrollbar flex items-center justify-center">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={currentStep}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.3, ease: "easeInOut" }}
-                >
+            <div ref={scrollContainerRef} className="flex-1 overflow-y-auto -mx-4 px-4 md:-mx-8 md:px-8 custom-scrollbar flex items-start justify-center">
+              <div className="my-auto w-full">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={currentStep}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                  >
                   {currentStepData.id === "intro" && <IntroSlide />}
                   {currentStepData.id === "location" && (
                     <LocationSlide
@@ -281,8 +290,9 @@ export default function OnboardingPage() {
                     />
                   )}
                   {currentStepData.id === "complete" && <CompleteSlide />}
-                </motion.div>
-              </AnimatePresence>
+                  </motion.div>
+                </AnimatePresence>
+              </div>
             </div>
 
             {/* Progress Bar */}

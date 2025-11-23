@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
+import QRDownloadButton from '@/components/custom/QRDownloadButton';
 
 export default function SuccessPage() {
   const [liveGuidebookUrl, setLiveGuidebookUrl] = useState<string | null>(null);
@@ -291,7 +292,7 @@ export default function SuccessPage() {
               <p className="text-gray-600">
                 {isActive
                   ? 'Your live guidebook is ready to share with guests.'
-                  : 'See how your guidebook looks—click around and navigate sections to experience it as your guests will.'}
+                  : 'See how your guidebook looks. Click around and navigate sections to experience it as your guests will.'}
               </p>
             </div>
             <div className="w-full">
@@ -331,7 +332,7 @@ export default function SuccessPage() {
           <section className="bg-white rounded-2xl shadow p-6">
             <div className="mb-4">
               <h2 className="text-2xl font-semibold mb-2">QR Code for Mobile Access</h2>
-              <p className="text-gray-600">Print and place in your rental—guests can scan with their phone to view the guidebook on mobile.</p>
+              <p className="text-gray-600">Print and place in your rental. Guests can scan with their phone to view the guidebook on mobile.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
@@ -350,22 +351,15 @@ export default function SuccessPage() {
                     className="w-64 h-64"
                   />
                 </div>
-                <Button
-                  className="mt-4"
-                  onClick={() => {
-                    const qrUrl = isActive && liveGuidebookUrl
+                <QRDownloadButton
+                  targetUrl={
+                    isActive && liveGuidebookUrl
                       ? liveGuidebookUrl
-                      : (previewUrl || `${process.env.NEXT_PUBLIC_API_BASE_URL || ''}/preview/${guidebookId}`);
-                    const link = document.createElement('a');
-                    link.href = getQrImageUrl(qrUrl, 800);
-                    link.download = 'guidebook-qr.png';
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                  }}
-                >
-                  Download QR Code
-                </Button>
+                      : (previewUrl || `${process.env.NEXT_PUBLIC_API_BASE_URL || ''}/preview/${guidebookId}`)
+                  }
+                  propertyName="guidebook"
+                  className="mt-4"
+                />
               </div>
 
               {/* Instructions */}
@@ -382,7 +376,7 @@ export default function SuccessPage() {
                     <svg className="w-5 h-5 text-emerald-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                     </svg>
-                    <span>Guests scan with their phone camera—no app needed</span>
+                    <span>Guests scan with their phone camera. No app needed</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <svg className="w-5 h-5 text-emerald-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">

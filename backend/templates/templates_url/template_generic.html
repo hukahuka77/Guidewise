@@ -373,6 +373,7 @@
               {% if place.name %}<h3>{{ place.name }}</h3>{% endif %}
               {% if place.description %}<p>{{ place.description }}</p>{% endif %}
               {% if place.address %}<a href="https://maps.google.com/maps?q={{ place.address | urlencode }}" target="_blank" rel="noopener noreferrer" style="color: #64748b; font-size: 0.9rem; margin-top: 0.25rem; display: block; text-decoration: none;">{{ place.address }}</a>{% endif %}
+              {% if place.driving_minutes %}<div style="color: #6b7280; font-size: 0.875rem; margin-top: 0.25rem;">🚗 {{ place.driving_minutes }} min drive</div>{% endif %}
             </div>
           </div>
           {% endfor %}
@@ -395,6 +396,7 @@
               {% if place.name %}<h3>{{ place.name }}</h3>{% endif %}
               {% if place.description %}<p>{{ place.description }}</p>{% endif %}
               {% if place.address %}<a href="https://maps.google.com/maps?q={{ place.address | urlencode }}" target="_blank" rel="noopener noreferrer" style="color: #64748b; font-size: 0.9rem; margin-top: 0.25rem; display: block; text-decoration: none;">{{ place.address }}</a>{% endif %}
+              {% if place.driving_minutes %}<div style="color: #6b7280; font-size: 0.875rem; margin-top: 0.25rem;">🚗 {{ place.driving_minutes }} min drive</div>{% endif %}
             </div>
           </div>
           {% endfor %}

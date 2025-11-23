@@ -513,6 +513,7 @@
         <div class="item-name">{{ item.name }}</div>
         {% if item.description %}<div class="item-desc">{{ item.description }}</div>{% endif %}
         {% if item.address %}<a href="https://maps.google.com/maps?q={{ item.address | urlencode }}" target="_blank" rel="noopener noreferrer" class="item-address" style="text-decoration: none; color: inherit; display: block;">📍 {{ item.address }}</a>{% endif %}
+        {% if item.driving_minutes %}<div class="item-distance" style="font-size: 0.875rem; color: #6b7280; margin-top: 4px;">🚗 {{ item.driving_minutes }} min drive</div>{% endif %}
       </div>
       {% endfor %}
     </div>
@@ -533,6 +534,7 @@
         <div class="item-name">{{ item.name }}</div>
         {% if item.description %}<div class="item-desc">{{ item.description }}</div>{% endif %}
         {% if item.address %}<a href="https://maps.google.com/maps?q={{ item.address | urlencode }}" target="_blank" rel="noopener noreferrer" class="item-address" style="text-decoration: none; color: inherit; display: block;">📍 {{ item.address }}</a>{% endif %}
+        {% if item.driving_minutes %}<div class="item-distance" style="font-size: 0.875rem; color: #6b7280; margin-top: 4px;">🚗 {{ item.driving_minutes }} min drive</div>{% endif %}
       </div>
       {% endfor %}
     </div>

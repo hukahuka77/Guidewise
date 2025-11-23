@@ -63,7 +63,8 @@ export function useAIRecommendations(options: UseAIRecommendationsOptions) {
             name: item.name || "",
             address: item.address || "",
             description: item.description || "",
-            image_url: photoRef
+            image_url: photoRef,
+            driving_minutes: item.driving_minutes || null
           };
         });
 
@@ -132,7 +133,8 @@ export function useAIRecommendations(options: UseAIRecommendationsOptions) {
             name: item.name || "",
             address: item.address || "",
             description: item.description || "",
-            image_url: photoRef
+            image_url: photoRef,
+            driving_minutes: item.driving_minutes || null
           };
         });
 
