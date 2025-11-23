@@ -79,7 +79,7 @@ export default function Home() {
                 href="https://guidewise.onrender.com/g/the-white-house"
                 className="inline-flex items-center px-3 py-2 rounded-xl text-pink-600 font-medium whitespace-nowrap no-underline hover:no-underline border border-transparent hover:border-pink-200 hover:bg-pink-50 hover:text-pink-700 transition-colors duration-200"
               >
-                or check it out on your phone →
+                Or check it out on your phone →
               </Link>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -228,7 +228,7 @@ export default function Home() {
         <section className="w-full py-12 md:py-16 bg-gradient-to-b from-white to-[#F8F5F1] overflow-hidden">
           <div className="px-4 md:px-6 max-w-6xl mx-auto mb-10">
             <div className="text-center">
-              <h2 className="text-2xl sm:text-3xl font-semibold text-gray-800 mb-3">Find the Perfect Template for your Home</h2>
+              <h2 className="text-2xl sm:text-3xl font-semibold text-gray-800 mb-3">Select Your Perfect Template</h2>
               <p className="text-gray-600">
                 Guidewise isn&apos;t just about contentit&apos;s about presentation. Preview the different template styles your
                 guests will experience.
