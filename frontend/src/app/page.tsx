@@ -10,10 +10,11 @@ export default function Home() {
 
       <main className="flex-1">
         <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48 bg-transparent">
-          <div className="px-4 md:px-6 max-w-5xl mx-auto">
-            <div className="flex flex-col items-center text-center gap-8">
-              <div className="flex flex-col items-center space-y-4 max-w-3xl">
-                <div className="space-y-2">
+          <div className="px-4 md:px-6 max-w-6xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
+              {/* Left: hero copy + CTA */}
+              <div className="flex flex-col items-center md:items-start text-center md:text-left gap-8">
+                <div className="space-y-4 max-w-3xl">
                   <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none text-gray-800">
                     Create Beautiful Airbnb/VRBO Guest Guidebooks in Minutes
                   </h1>
@@ -21,7 +22,7 @@ export default function Home() {
                     Impress your short‑term rental guests with a professional guidebook tailored to your home. No design skills needed. Delight guests, reduce questions, and boost reviews.
                   </p>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-3 justify-center relative py-4">
+                <div className="flex flex-col sm:flex-row gap-3 justify-center md:justify-start relative py-4">
                   {/* Arrows wrapper to sync animation */}
                   <div className="hidden md:block absolute inset-0 pointer-events-none animate-pulse">
                     {/* Left arrow */}
@@ -39,44 +40,14 @@ export default function Home() {
                   <GetStartedButton />
                 </div>
               </div>
-              {/* Hero image removed for now */}
-            </div>
-          </div>
-        </section>
-        {/* Digital Guidebooks section */}
-        <section className="w-full py-10 md:py-16 bg-white">
-          <div className="px-4 md:px-6 max-w-6xl mx-auto">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
-              {/* Left: copy + CTA + QR */}
-              <div className="text-left md:pr-6">
-                <h2 className="text-2xl sm:text-3xl font-semibold text-gray-800">Beautiful, Digital Guidebooks for Airbnb & VRBO</h2>
-                <p className="text-gray-600 mt-3">
-                  Share a clean, mobile‑first guidebook with guests. Perfect for short‑term rentals on Airbnb or VRBO. Access via link or QR code.
-                  Fully customizable templates keep your brand consistent and your guests informed.
-                </p>
-                <div className="mt-6 flex items-center gap-5">
-                  <Link
-                    href="https://guidewise.onrender.com/g/the-white-house"
-                    className="inline-flex items-center px-3 py-2 rounded-xl text-pink-600 font-medium whitespace-nowrap no-underline hover:no-underline border border-transparent hover:border-pink-200 hover:bg-pink-50 hover:text-pink-700 transition-colors duration-200"
-                  >
-                    See an example guidebook →
-                  </Link>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src="/images/QR_Code_WhiteHouse.png"
-                    alt="QR code to view example guidebook"
-                    className="hidden md:block w-40 h-40 md:w-48 md:h-48 object-contain rounded-xl border bg-white p-3"
-                  />
-                </div>
-              </div>
-              {/* Right: overlaid iPhone images */}
-              <div className="relative w-full flex justify-end items-center min-h-[500px] pr-8">
-                {/* Portrait iPhone - back layer (higher up) */}
+
+              {/* Right: iPhone mockup */}
+              <div className="hidden md:flex justify-end items-center">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/images/Iphone-portrait.png"
                   alt="Guidebook on iPhone"
-                  className="w-3/5 h-auto object-contain relative z-10 -translate-y-8"
+                  className="w-2/3 h-auto object-contain drop-shadow-xl"
                 />
               </div>
             </div>
@@ -95,11 +66,27 @@ export default function Home() {
                   <iframe
                     src="https://guidewise.onrender.com/g/the-white-house"
                     title="Demo Guidebook"
-                    className="w-full h-[700px] lg:h-[800px]"
+                    className="w-full h-[800px] lg:h-[900px]"
                     style={{ border: 'none' }}
                   />
                 </div>
               </div>
+            </div>
+
+            {/* QR code + link under demo */}
+            <div className="mt-8 flex items-center justify-center gap-5">
+              <Link
+                href="https://guidewise.onrender.com/g/the-white-house"
+                className="inline-flex items-center px-3 py-2 rounded-xl text-pink-600 font-medium whitespace-nowrap no-underline hover:no-underline border border-transparent hover:border-pink-200 hover:bg-pink-50 hover:text-pink-700 transition-colors duration-200"
+              >
+                or check it out on your phone →
+              </Link>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/images/QR_Code_WhiteHouse.png"
+                alt="QR code to view example guidebook on your phone"
+                className="w-40 h-40 md:w-48 md:h-48 object-contain rounded-xl border bg-white p-3"
+              />
             </div>
           </div>
         </section>
