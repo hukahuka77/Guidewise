@@ -17,13 +17,17 @@ export interface BuildPayloadOptions {
 }
 
 /**
- * Compiles rules from state (sends only checked rules as strings)
+ * Compiles rules from state.
+ * Sends only checked rules and preserves separate name/description fields
+ * so templates can render them independently.
  */
-export function compileRules(rules: RuleItem[]): string[] {
+export function compileRules(rules: RuleItem[]): { name: string; description: string }[] {
   return rules
-    .filter(r => r.checked)
-    .map(r => (r.description ? `${r.name}: ${r.description}` : r.name))
-    .filter(Boolean);
+    .filter(r => r.checked && (r.name || r.description))
+    .map(r => ({
+      name: r.name,
+      description: r.description,
+    }));
 }
 
 /**

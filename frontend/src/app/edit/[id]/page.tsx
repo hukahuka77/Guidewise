@@ -59,7 +59,7 @@ type GuidebookDetail = {
   custom_tabs_meta?: Record<string, { icon: string; label: string }> | null;
   things_to_do?: DynamicItem[] | null;
   places_to_eat?: DynamicItem[] | null;
-  rules?: string[] | null;
+  rules?: (string | { name?: string | null; description?: string | null })[] | null;
   created_time?: string | null;
   last_modified_time?: string | null;
   check_in_time?: string | null;
@@ -267,15 +267,28 @@ export default function EditGuidebookPage() {
           mediaUrl: i.media_url || "",
           mediaType: i.media_type === 'video' ? 'video' : i.media_type === 'image' ? 'image' : undefined,
         })));
-        setRules((data.rules || []).map((rule: string | { name?: string; description?: string }) => {
-          // Handle new JSON format: {name: string, description: string}
-          if (typeof rule === 'object' && rule.name !== undefined) {
-            return { name: rule.name || "", description: rule.description || "", checked: true };
+        setRules((data.rules || []).map(rule => {
+          // Handle new JSON format: { name: string | null | undefined, description: string | null | undefined }
+          if (rule && typeof rule === 'object' && 'name' in rule) {
+            const obj = rule as { name?: string | null; description?: string | null };
+            return {
+              name: obj.name ?? "",
+              description: obj.description ?? "",
+              checked: true,
+            };
           }
+
           // Handle legacy string format: "name: description"
           if (typeof rule === 'string') {
-            return { name: rule.split(":")[0] || rule, description: rule.includes(":") ? rule.split(":").slice(1).join(":").trim() : "", checked: true };
+            const [rawName, ...rest] = rule.split(":");
+            const description = rest.length > 0 ? rest.join(":").trim() : "";
+            return {
+              name: rawName || rule,
+              description,
+              checked: true,
+            };
           }
+
           return { name: "", description: "", checked: true };
         }));
         if (data.cover_image_url) setPreviewUrl(data.cover_image_url);
