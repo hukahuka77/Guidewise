@@ -2,6 +2,7 @@ import React from "react";
 import EditableItemsSection, { EditableItem } from "./EditableItemsSection";
 import { LIMITS } from "@/constants/limits";
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface Rule extends EditableItem {}
 
 interface RulesSectionProps {

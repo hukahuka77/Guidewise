@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { LIMITS } from "@/constants/limits";
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface CheckoutInfoItem extends EditableItem {}
 
 interface CheckoutSectionProps {
