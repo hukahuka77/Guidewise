@@ -5,9 +5,12 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { startStripeCheckout } from "@/lib/billing";
+import Spinner from "@/components/ui/spinner";
+import { PROMOTION_CONFIG } from "@/config/promotion";
 
 export default function PricingPage() {
   const [isAuthed, setIsAuthed] = useState(false);
+  const [loadingPlan, setLoadingPlan] = useState<'starter' | 'growth' | 'pro' | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -16,13 +19,20 @@ export default function PricingPage() {
     })();
   }, []);
 
-  const handlePlanSelect = (plan: 'starter' | 'growth' | 'pro') => {
+  const handlePlanSelect = async (plan: 'starter' | 'growth' | 'pro') => {
     if (!isAuthed) {
       // Redirect to signup with plan in query param
+      setLoadingPlan(plan);
       window.location.href = `/signup?plan=${plan}`;
       return;
     }
-    void startStripeCheckout(plan);
+    try {
+      setLoadingPlan(plan);
+      await startStripeCheckout(plan);
+    } catch (error) {
+      console.error('Checkout error:', error);
+      setLoadingPlan(null);
+    }
   };
 
   return (
@@ -33,14 +43,68 @@ export default function PricingPage() {
           <p className="mt-4 text-lg text-gray-600">Choose the plan that fits your needs. All plans include AI content generation, custom templates, and unlimited previews.</p>
         </div>
 
+        {/* Promotion Banner */}
+        {PROMOTION_CONFIG.enabled && (
+          <div className="max-w-4xl mx-auto mb-10">
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-pink-600 to-orange-500 p-8 shadow-xl">
+              {/* Badge */}
+              <div className="absolute top-4 right-4 bg-white/20 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide">
+                LIMITED TIME
+              </div>
+              
+              {/* Content */}
+              <div className="text-center text-white">
+                <h2 className="text-3xl md:text-4xl font-extrabold mb-2">
+                  {PROMOTION_CONFIG.badge}
+                </h2>
+                <p className="text-xl md:text-2xl font-semibold mb-1 text-white/95">
+                  Get {PROMOTION_CONFIG.discountPercent}% off your first year!
+                </p>
+                <p className="text-2xl md:text-3xl font-bold mt-3">
+                  Starting at just ${PROMOTION_CONFIG.starter.promoPrice}/month
+                </p>
+                <p className="mt-4 text-sm text-white/90">
+                  Choose any plan below to claim your exclusive Black Friday discount
+                </p>
+              </div>
+
+              {/* Decorative elements */}
+              <div className="absolute -top-10 -left-10 w-40 h-40 bg-white/10 rounded-full blur-3xl" />
+              <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl" />
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-6 items-stretch">
           {/* Starter Plan */}
-          <div className="bg-white border rounded-2xl shadow-sm p-6 flex flex-col">
+          <div className="bg-white border rounded-2xl shadow-sm p-6 flex flex-col relative">
+            {PROMOTION_CONFIG.enabled && (
+              <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-pink-600 to-orange-500 text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
+                {PROMOTION_CONFIG.discountPercent}% OFF
+              </div>
+            )}
             <div className="mb-4">
               <h2 className="text-2xl font-bold text-gray-900">Starter</h2>
               <p className="text-gray-600 mt-1">Perfect for individuals</p>
             </div>
-            <div className="text-4xl font-extrabold text-gray-900">$9.99<span className="text-lg font-medium text-gray-500">/mo</span></div>
+            {PROMOTION_CONFIG.enabled ? (
+              <div>
+                <div className="relative inline-block">
+                  <div className="text-3xl font-bold text-gray-400">
+                    ${PROMOTION_CONFIG.starter.originalPrice}<span className="text-base font-medium">/mo</span>
+                  </div>
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t-2 border-black"></div>
+                  </div>
+                </div>
+                <div className="text-4xl font-extrabold text-gray-900 mt-2">
+                  ${PROMOTION_CONFIG.starter.promoPrice}<span className="text-lg font-medium text-gray-500">/mo</span>
+                </div>
+                <div className="text-xs text-pink-600 font-semibold mt-1">First year only</div>
+              </div>
+            ) : (
+              <div className="text-4xl font-extrabold text-gray-900">${PROMOTION_CONFIG.starter.originalPrice}<span className="text-lg font-medium text-gray-500">/mo</span></div>
+            )}
             <ul className="mt-6 space-y-3 text-sm text-gray-700 flex-1">
               <li className="flex items-start gap-2">
                 <svg className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
@@ -74,22 +138,52 @@ export default function PricingPage() {
               </li>
             </ul>
             <div className="mt-6">
-              <Button className="w-full" onClick={() => handlePlanSelect('starter')}>
-                {isAuthed ? 'Get Starter' : 'Sign Up for Starter'}
+              <Button 
+                className="w-full" 
+                onClick={() => handlePlanSelect('starter')}
+                disabled={loadingPlan !== null}
+              >
+                {loadingPlan === 'starter' ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Spinner size={16} />
+                    Loading...
+                  </span>
+                ) : (
+                  isAuthed ? 'Get Starter' : 'Sign Up for Starter'
+                )}
               </Button>
             </div>
           </div>
 
           {/* Growth Plan */}
           <div className="bg-white border-2 border-[#CC7A52] rounded-2xl shadow-lg p-6 flex flex-col relative">
-            <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-[#CC7A52] text-white px-3 py-1 rounded-full text-xs font-semibold">
-              POPULAR
-            </div>
+            {PROMOTION_CONFIG.enabled && (
+              <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-pink-600 to-orange-500 text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
+                {PROMOTION_CONFIG.discountPercent}% OFF
+              </div>
+            )}
             <div className="mb-4">
               <h2 className="text-2xl font-bold text-gray-900">Growth</h2>
               <p className="text-gray-600 mt-1">For growing hosts</p>
             </div>
-            <div className="text-4xl font-extrabold text-gray-900">$19.99<span className="text-lg font-medium text-gray-500">/mo</span></div>
+            {PROMOTION_CONFIG.enabled ? (
+              <div>
+                <div className="relative inline-block">
+                  <div className="text-3xl font-bold text-gray-400">
+                    ${PROMOTION_CONFIG.growth.originalPrice}<span className="text-base font-medium">/mo</span>
+                  </div>
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t-2 border-black"></div>
+                  </div>
+                </div>
+                <div className="text-4xl font-extrabold text-gray-900 mt-2">
+                  ${PROMOTION_CONFIG.growth.promoPrice}<span className="text-lg font-medium text-gray-500">/mo</span>
+                </div>
+                <div className="text-xs text-pink-600 font-semibold mt-1">First year only</div>
+              </div>
+            ) : (
+              <div className="text-4xl font-extrabold text-gray-900">${PROMOTION_CONFIG.growth.originalPrice}<span className="text-lg font-medium text-gray-500">/mo</span></div>
+            )}
             <ul className="mt-6 space-y-3 text-sm text-gray-700 flex-1">
               <li className="flex items-start gap-2">
                 <svg className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
@@ -129,19 +223,55 @@ export default function PricingPage() {
               </li>
             </ul>
             <div className="mt-6">
-              <Button className="w-full bg-[#CC7A52] hover:bg-[#B86B45]" onClick={() => handlePlanSelect('growth')}>
-                {isAuthed ? 'Get Growth' : 'Sign Up for Growth'}
+              <Button 
+                className="w-full bg-[#CC7A52] hover:bg-[#B86B45]" 
+                onClick={() => handlePlanSelect('growth')}
+                disabled={loadingPlan !== null}
+              >
+                {loadingPlan === 'growth' ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Spinner size={16} />
+                    Loading...
+                  </span>
+                ) : (
+                  isAuthed ? 'Get Growth' : 'Sign Up for Growth'
+                )}
               </Button>
+            </div>
+            <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 bg-[#CC7A52] text-white px-3 py-1 rounded-full text-xs font-semibold">
+              POPULAR
             </div>
           </div>
 
           {/* Pro Plan */}
-          <div className="bg-white border rounded-2xl shadow-sm p-6 flex flex-col">
+          <div className="bg-white border rounded-2xl shadow-sm p-6 flex flex-col relative">
+            {PROMOTION_CONFIG.enabled && (
+              <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-pink-600 to-orange-500 text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
+                {PROMOTION_CONFIG.discountPercent}% OFF
+              </div>
+            )}
             <div className="mb-4">
               <h2 className="text-2xl font-bold text-gray-900">Pro</h2>
               <p className="text-gray-600 mt-1">For professionals</p>
             </div>
-            <div className="text-4xl font-extrabold text-gray-900">$29.99<span className="text-lg font-medium text-gray-500">/mo</span></div>
+            {PROMOTION_CONFIG.enabled ? (
+              <div>
+                <div className="relative inline-block">
+                  <div className="text-3xl font-bold text-gray-400">
+                    ${PROMOTION_CONFIG.pro.originalPrice}<span className="text-base font-medium">/mo</span>
+                  </div>
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t-2 border-black"></div>
+                  </div>
+                </div>
+                <div className="text-4xl font-extrabold text-gray-900 mt-2">
+                  ${PROMOTION_CONFIG.pro.promoPrice}<span className="text-lg font-medium text-gray-500">/mo</span>
+                </div>
+                <div className="text-xs text-pink-600 font-semibold mt-1">First year only</div>
+              </div>
+            ) : (
+              <div className="text-4xl font-extrabold text-gray-900">${PROMOTION_CONFIG.pro.originalPrice}<span className="text-lg font-medium text-gray-500">/mo</span></div>
+            )}
             <ul className="mt-6 space-y-3 text-sm text-gray-700 flex-1">
               <li className="flex items-start gap-2">
                 <svg className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
@@ -187,8 +317,19 @@ export default function PricingPage() {
               </li>
             </ul>
             <div className="mt-6">
-              <Button className="w-full" onClick={() => handlePlanSelect('pro')}>
-                {isAuthed ? 'Get Pro' : 'Sign Up for Pro'}
+              <Button 
+                className="w-full" 
+                onClick={() => handlePlanSelect('pro')}
+                disabled={loadingPlan !== null}
+              >
+                {loadingPlan === 'pro' ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Spinner size={16} />
+                    Loading...
+                  </span>
+                ) : (
+                  isAuthed ? 'Get Pro' : 'Sign Up for Pro'
+                )}
               </Button>
             </div>
           </div>

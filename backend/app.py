@@ -108,6 +108,7 @@ stripe.api_key = os.environ.get('STRIPE_SECRET_KEY')
 STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET')
 FRONTEND_ORIGIN = os.environ.get('FRONTEND_ORIGIN', 'http://localhost:3000')
 STRIPE_PORTAL_CONFIGURATION_ID = os.environ.get('STRIPE_PORTAL_CONFIGURATION_ID')  # optional pc_... id
+STRIPE_ACTIVE_COUPON_ID = os.environ.get('STRIPE_ACTIVE_COUPON_ID')  # optional cou_... id for current promo
 
 # Plan configuration for tiered pricing
 PLAN_CONFIGS = {
@@ -290,6 +291,10 @@ def create_checkout_session():
             pass
 
         # Create Stripe checkout session
+        discounts = None
+        if STRIPE_ACTIVE_COUPON_ID:
+            discounts = [{"coupon": STRIPE_ACTIVE_COUPON_ID}]
+
         session = stripe.checkout.Session.create(
             mode='subscription',
             customer_email=email,
@@ -299,7 +304,7 @@ def create_checkout_session():
             }],
             success_url=f"{FRONTEND_ORIGIN}/dashboard?upgraded=1",
             cancel_url=f"{FRONTEND_ORIGIN}/pricing?canceled=1",
-            allow_promotion_codes=True,
+            discounts=discounts,
             metadata={
                 "user_id": user_id,
                 "plan": plan

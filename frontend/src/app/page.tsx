@@ -3,10 +3,29 @@ import GetStartedButton from "@/components/custom/GetStartedButton";
 import Contact from "@/components/custom/Contact";
 import TemplateCarousel from "@/components/custom/TemplateCarousel";
 import { Heart, Clock, RefreshCw, Smartphone, Star, MapPin } from "lucide-react";
+import { PROMOTION_CONFIG } from "@/config/promotion";
 
 export default function Home() {
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-b from-[#F8F5F1] to-white">
+      {/* Promotional Banner */}
+      {PROMOTION_CONFIG.enabled && (
+        <div className="bg-gradient-to-r from-pink-600 to-orange-500 text-white py-3 px-4 text-center">
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4">
+            <span className="font-bold text-lg">{PROMOTION_CONFIG.badge}</span>
+            <span className="hidden sm:inline">•</span>
+            <span className="text-sm sm:text-base">
+              {PROMOTION_CONFIG.discountPercent}% off until December 1st
+            </span>
+            <Link 
+              href="/pricing" 
+              className="mt-2 sm:mt-0 bg-white text-pink-600 px-4 py-1.5 rounded-full text-sm font-semibold hover:bg-gray-100 transition-colors"
+            >
+              View Plans
+            </Link>
+          </div>
+        </div>
+      )}
 
       <main className="flex-1">
         <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48 bg-transparent">
