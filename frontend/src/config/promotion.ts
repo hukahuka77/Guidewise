@@ -12,7 +12,7 @@ export const PROMOTION_CONFIG = {
            process.env.NEXT_PUBLIC_PROMO_ENABLED === undefined,
   
   // Promotion details
-  badge: "🎉 BLACK FRIDAY",
+  badge: "🎉 SUMMER SALE",
   discountPercent: "90",
   
   // Pricing for each plan (promotional prices)
