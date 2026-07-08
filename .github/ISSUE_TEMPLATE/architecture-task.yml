@@ -1,0 +1,28 @@
+name: Architecture Task
+description: Design or technical planning work before implementation
+title: "[Architecture]: "
+labels:
+  - type:architecture
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What design problem needs a decision?
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Current behavior, related files, business constraints, or deployment concerns.
+    validations:
+      required: true
+  - type: textarea
+    id: decision
+    attributes:
+      label: Expected Output
+      description: What artifact should be produced?
+      placeholder: Architecture note, implementation plan, tradeoff analysis, or ADR.
+    validations:
+      required: true
