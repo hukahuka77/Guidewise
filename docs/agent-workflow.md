@@ -13,7 +13,7 @@ Guidewise uses GitHub as the shared operating system for AI-assisted development
 ## Branches
 
 - `main`: default development branch. PRs should pass CI before merge.
-- `prod`: production release branch. PRs or merges into this branch require Andrew approval.
+- `prod`: confirmed production release branch. PRs or merges into this branch require Andrew approval.
 - `agent/<issue-or-task>`: temporary worker branches for AI-agent changes.
 
 If Vercel or Render currently use different branch mappings, document that in `docs/release-process.md` before enabling automation.
