@@ -1,0 +1,32 @@
+name: Story
+description: User-facing product work
+title: "[Story]: "
+labels:
+  - type:story
+body:
+  - type: textarea
+    id: story
+    attributes:
+      label: Story
+      description: Describe the user outcome.
+      placeholder: As a host, I want ...
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: What must be true for this story to be done?
+      placeholder: |
+        - User can ...
+        - Error state handles ...
+        - Mobile layout works ...
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Related designs, links, screenshots, rollout risks, or open questions.
+    validations:
+      required: false
