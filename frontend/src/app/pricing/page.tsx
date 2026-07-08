@@ -64,7 +64,7 @@ export default function PricingPage() {
                   Starting at just ${PROMOTION_CONFIG.starter.promoPrice}/month
                 </p>
                 <p className="mt-4 text-sm text-white/90">
-                  Choose any plan below to claim your exclusive Black Friday discount
+                  Choose any plan below to claim your exclusive Summer Sale discount
                 </p>
               </div>
 
