@@ -1,6 +1,6 @@
 # Release Process
 
-This document describes the intended deployment guardrails for Guidewise. Andrew has confirmed `prod` is the real production branch. The exact dev branch mapping for Vercel and Render should still be confirmed before enabling automation.
+This document describes the intended deployment guardrails for Guidewise. Andrew has confirmed `main` is the dev branch and `prod` is the real production branch.
 
 ## Environments
 
@@ -11,8 +11,8 @@ This document describes the intended deployment guardrails for Guidewise. Andrew
 ## Current Recommendation
 
 - Vercel frontend previews should run for pull requests.
-- Vercel frontend dev deploys should track `main`.
-- Render backend dev deploys should track `main` or a dedicated dev service.
+- Vercel frontend dev deploys track `main`.
+- Render backend dev deploys track `main` or a dedicated dev service.
 - Production frontend/backend deploys track `prod`.
 - GitHub production environments should require Andrew as an approving reviewer before production jobs continue.
 
