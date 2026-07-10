@@ -52,6 +52,38 @@ python3 scripts/agent_issue_picker.py --claim 12 --worktree-root ../Guidewise-wo
 
 The picker reads open issues labeled `agent:ready`, skips anything labeled `agent:blocked` or `agent:in-progress`, sorts by priority label, creates an `agent/<issue-number>-<slug>` branch from `origin/main`, updates labels to `agent:in-progress`, and comments on the issue with the checkout path.
 
+## Worker Handoff
+
+Use `scripts/agent_worker.py` after an issue has been claimed into an `agent/*` branch or worktree. The worker wrapper validates the checkout, fetches the GitHub issue body, writes a prompt with repo context and verification commands, and can optionally invoke OpenClaw.
+
+Generate a worker prompt without running an agent:
+
+```bash
+python3 scripts/agent_worker.py \
+  --issue 12 \
+  --checkout ../Guidewise-worktrees/agent-12-audit-public-pricing-and-promotion-copy-for-stal
+```
+
+Print the prompt while generating it:
+
+```bash
+python3 scripts/agent_worker.py \
+  --issue 12 \
+  --checkout ../Guidewise-worktrees/agent-12-audit-public-pricing-and-promotion-copy-for-stal \
+  --print
+```
+
+Run the handoff through OpenClaw:
+
+```bash
+python3 scripts/agent_worker.py \
+  --issue 12 \
+  --checkout ../Guidewise-worktrees/agent-12-audit-public-pricing-and-promotion-copy-for-stal \
+  --run
+```
+
+Generated prompts are written outside the repo by default under `~/Coding/Guidewise-agent-prompts` so the worker checkout stays clean.
+
 ## Nightly Loop
 
 The overnight automation should run in this order:
