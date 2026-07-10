@@ -84,6 +84,31 @@ python3 scripts/agent_worker.py \
 
 Generated prompts are written outside the repo by default under `~/Coding/Guidewise-agent-prompts` so the worker checkout stays clean.
 
+## Pull Request Helper
+
+Use `scripts/agent_pr.py` after the worker has committed changes on its `agent/*` branch. The PR helper validates the checkout, builds a consistent PR body, pushes the branch, creates or updates the pull request, and can move the issue to `agent:review-needed`.
+
+Preview the PR body without changing GitHub:
+
+```bash
+python3 scripts/agent_pr.py \
+  --issue 14 \
+  --checkout ../Guidewise-worktrees/agent-14-add-deterministic-local-check-script-for-agent-w \
+  --summary "Add scripts/check.sh as the local verification command" \
+  --test "scripts/check.sh"
+```
+
+Create or update the PR and move the issue to review:
+
+```bash
+python3 scripts/agent_pr.py \
+  --issue 14 \
+  --checkout ../Guidewise-worktrees/agent-14-add-deterministic-local-check-script-for-agent-w \
+  --summary "Add scripts/check.sh as the local verification command" \
+  --test "scripts/check.sh" \
+  --apply
+```
+
 ## Nightly Loop
 
 The overnight automation should run in this order:
