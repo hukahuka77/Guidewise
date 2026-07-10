@@ -32,6 +32,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               <div className="text-xs uppercase tracking-wide text-gray-500 mb-3">Dashboard</div>
               <nav className="space-y-1">
                 <NavLink href="/dashboard" label="Guidebooks" />
+                <NavLink href="/dashboard/agent-ops" label="Agent Ops" />
                 <NavLink href="/dashboard/profile" label="Profile" />
                 <NavLink href="/dashboard/billing" label="Billing" />
               </nav>
