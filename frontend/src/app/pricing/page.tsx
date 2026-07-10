@@ -64,7 +64,7 @@ export default function PricingPage() {
                   Starting at just ${PROMOTION_CONFIG.starter.promoPrice}/month
                 </p>
                 <p className="mt-4 text-sm text-white/90">
-                  Choose any plan below to claim your exclusive Summer Sale discount
+                  Choose any plan below to claim your exclusive {PROMOTION_CONFIG.campaignName} discount
                 </p>
               </div>
 
@@ -100,7 +100,7 @@ export default function PricingPage() {
                 <div className="text-4xl font-extrabold text-gray-900 mt-2">
                   ${PROMOTION_CONFIG.starter.promoPrice}<span className="text-lg font-medium text-gray-500">/mo</span>
                 </div>
-                <div className="text-xs text-pink-600 font-semibold mt-1">First year only</div>
+                <div className="text-xs text-pink-600 font-semibold mt-1">{PROMOTION_CONFIG.billingTermNote}</div>
               </div>
             ) : (
               <div className="text-4xl font-extrabold text-gray-900">${PROMOTION_CONFIG.starter.originalPrice}<span className="text-lg font-medium text-gray-500">/mo</span></div>
@@ -179,7 +179,7 @@ export default function PricingPage() {
                 <div className="text-4xl font-extrabold text-gray-900 mt-2">
                   ${PROMOTION_CONFIG.growth.promoPrice}<span className="text-lg font-medium text-gray-500">/mo</span>
                 </div>
-                <div className="text-xs text-pink-600 font-semibold mt-1">First year only</div>
+                <div className="text-xs text-pink-600 font-semibold mt-1">{PROMOTION_CONFIG.billingTermNote}</div>
               </div>
             ) : (
               <div className="text-4xl font-extrabold text-gray-900">${PROMOTION_CONFIG.growth.originalPrice}<span className="text-lg font-medium text-gray-500">/mo</span></div>
@@ -267,7 +267,7 @@ export default function PricingPage() {
                 <div className="text-4xl font-extrabold text-gray-900 mt-2">
                   ${PROMOTION_CONFIG.pro.promoPrice}<span className="text-lg font-medium text-gray-500">/mo</span>
                 </div>
-                <div className="text-xs text-pink-600 font-semibold mt-1">First year only</div>
+                <div className="text-xs text-pink-600 font-semibold mt-1">{PROMOTION_CONFIG.billingTermNote}</div>
               </div>
             ) : (
               <div className="text-4xl font-extrabold text-gray-900">${PROMOTION_CONFIG.pro.originalPrice}<span className="text-lg font-medium text-gray-500">/mo</span></div>

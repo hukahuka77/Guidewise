@@ -15,7 +15,7 @@ export default function Home() {
             <span className="font-bold text-lg">{PROMOTION_CONFIG.badge}</span>
             <span className="hidden sm:inline">•</span>
             <span className="text-sm sm:text-base">
-              {PROMOTION_CONFIG.discountPercent}% off until September 1st
+              {PROMOTION_CONFIG.discountPercent}% off until {PROMOTION_CONFIG.endDateText}
             </span>
             <Link 
               href="/pricing" 
