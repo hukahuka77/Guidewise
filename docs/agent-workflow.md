@@ -28,6 +28,30 @@ Vercel and Render automation should follow the confirmed branch mapping in `docs
 6. Passing, approved PRs can merge to `main` for dev deployment.
 7. Production release PRs target `prod` and wait for Andrew approval.
 
+## Issue Picker
+
+Use `scripts/agent_issue_picker.py` from the repo root to find and claim agent work.
+
+List ready issues without changing GitHub or the local checkout:
+
+```bash
+python3 scripts/agent_issue_picker.py
+```
+
+Claim the highest-priority ready issue and create a branch in the current checkout:
+
+```bash
+python3 scripts/agent_issue_picker.py --claim
+```
+
+Claim a specific issue into an isolated worktree:
+
+```bash
+python3 scripts/agent_issue_picker.py --claim 12 --worktree-root ../Guidewise-worktrees
+```
+
+The picker reads open issues labeled `agent:ready`, skips anything labeled `agent:blocked` or `agent:in-progress`, sorts by priority label, creates an `agent/<issue-number>-<slug>` branch from `origin/main`, updates labels to `agent:in-progress`, and comments on the issue with the checkout path.
+
 ## Nightly Loop
 
 The overnight automation should run in this order:
