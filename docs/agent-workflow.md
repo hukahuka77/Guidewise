@@ -143,6 +143,40 @@ python3 scripts/agent_review.py \
 
 Repair mode validates that the checkout is clean and on the PR head branch, then instructs the elevated agent to make only scoped repairs, run local checks, push the same PR branch, and update the PR with the verification result. Ambiguous or risky repairs should be escalated instead of guessed.
 
+## Dev Auto-Merge Policy
+
+Use `scripts/agent_merge_policy.py` to evaluate whether an agent PR is safe to auto-merge into `main`. The first version is intentionally conservative and dry-runs by default.
+
+Evaluate a PR:
+
+```bash
+python3 scripts/agent_merge_policy.py --pr 17
+```
+
+Print a machine-readable decision:
+
+```bash
+python3 scripts/agent_merge_policy.py --pr 17 --json
+```
+
+Merge only if the PR is eligible:
+
+```bash
+python3 scripts/agent_merge_policy.py --pr 17 --apply
+```
+
+Auto-merge eligibility requires all of the following:
+
+- PR is open, not draft, mergeable, targets `main`, and comes from an `agent/*` branch.
+- PR has the explicit `agent:auto-merge` label.
+- GitHub review decision is `APPROVED`.
+- All reported checks are `SUCCESS`, `SKIPPED`, or `NEUTRAL`.
+- No blocking labels are present, including `agent:blocked`, `env:production`, `priority:high`, `release:candidate`, `type:architecture`, or `type:bug`.
+- Change size is small: no more than 5 files and no more than 250 total added/deleted lines.
+- Changed paths are limited to low-risk allowlisted files such as `docs/`, `.github/ISSUE_TEMPLATE/`, or `README.md`.
+
+The policy blocks app code, backend code, frontend code, production/deployment config, CI workflows, database/supabase files, dependency manifests and lockfiles, env files, and anything that looks like secrets, tokens, or credentials. Production merges are never auto-merged by this policy.
+
 ## Nightly Loop
 
 The overnight automation should run in this order:
