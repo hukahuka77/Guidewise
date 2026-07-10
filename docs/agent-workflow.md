@@ -28,6 +28,22 @@ Vercel and Render automation should follow the confirmed branch mapping in `docs
 6. Passing, approved PRs can merge to `main` for dev deployment.
 7. Production release PRs target `prod` and wait for Andrew approval.
 
+## Local Verification
+
+Before opening or updating a PR, agents should run the local check contract from the repo root:
+
+```bash
+scripts/check.sh
+```
+
+When dependencies are already installed and the agent only needs to rerun checks:
+
+```bash
+scripts/check.sh --skip-install
+```
+
+The script mirrors CI by running frontend install, lint, typecheck, production build with local default public URLs, and backend Python compilation. It exits nonzero on the first failing step.
+
 ## Nightly Loop
 
 The overnight automation should run in this order:
