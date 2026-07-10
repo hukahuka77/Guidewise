@@ -109,6 +109,40 @@ python3 scripts/agent_pr.py \
   --apply
 ```
 
+## Review and Repair Handoff
+
+Use `scripts/agent_review.py` after a worker PR is open. The review helper fetches PR metadata, status checks, changed files, and the diff, then writes a prompt for an elevated reviewer agent. The default reviewer is `main` so lower-cost builders can do implementation later while review stays with the lead agent.
+
+Generate a review prompt without running an agent:
+
+```bash
+python3 scripts/agent_review.py --pr 17
+```
+
+Print the generated review prompt:
+
+```bash
+python3 scripts/agent_review.py --pr 17 --print
+```
+
+Run the elevated review through OpenClaw:
+
+```bash
+python3 scripts/agent_review.py --pr 17 --run
+```
+
+If review finds clear, low-risk fixes, run repair mode against a clean checkout of the PR branch:
+
+```bash
+python3 scripts/agent_review.py \
+  --pr 17 \
+  --mode repair \
+  --checkout ../Guidewise-worktrees/agent-14-add-deterministic-local-check-script-for-agent-w \
+  --run
+```
+
+Repair mode validates that the checkout is clean and on the PR head branch, then instructs the elevated agent to make only scoped repairs, run local checks, push the same PR branch, and update the PR with the verification result. Ambiguous or risky repairs should be escalated instead of guessed.
+
 ## Nightly Loop
 
 The overnight automation should run in this order:
