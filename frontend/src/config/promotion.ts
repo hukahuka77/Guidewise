@@ -13,7 +13,10 @@ export const PROMOTION_CONFIG = {
   
   // Promotion details
   badge: "🎉 SUMMER SALE",
+  campaignName: "Summer Sale",
   discountPercent: "90",
+  endDateText: "September 1st",
+  billingTermNote: "First year only",
   
   // Pricing for each plan (promotional prices)
   starter: {
