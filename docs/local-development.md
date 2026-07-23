@@ -55,9 +55,8 @@ when omitted.
 ### Backend
 
 ```dotenv
-# Required to start the API and accept requests from the local frontend
+# Required to start the API
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DATABASE
-FRONTEND_ORIGIN=http://localhost:3000
 
 # Required for authenticated Supabase requests
 SUPABASE_URL=https://YOUR_PROJECT.supabase.co
@@ -77,6 +76,7 @@ STRIPE_PORTAL_CONFIGURATION_ID=pc_YOUR_CONFIGURATION_ID
 STRIPE_ACTIVE_COUPON_ID=cou_YOUR_COUPON_ID
 
 # Optional auth and operations overrides
+FRONTEND_ORIGIN=http://localhost:3000
 SUPABASE_JWKS_URL=https://YOUR_PROJECT.supabase.co/auth/v1/jwks
 SUPABASE_JWT_AUD=YOUR_EXPECTED_AUDIENCE
 CLEANUP_SECRET=YOUR_MAINTENANCE_ENDPOINT_SECRET
@@ -86,6 +86,10 @@ For Supabase projects issuing asymmetric JWTs, the backend derives the JWKS
 URL from `SUPABASE_URL`; set `SUPABASE_JWKS_URL` only to override it. Projects
 issuing HS256 JWTs require `SUPABASE_JWT_SECRET`. `SUPABASE_JWT_AUD` is
 optional.
+
+`FRONTEND_ORIGIN` defaults to `http://localhost:3000`; set it when the frontend
+uses a different origin. Multiple allowed origins can be provided as a
+comma-separated list.
 
 Stripe variables are only needed for billing flows. The portal configuration
 and active coupon IDs are optional even when Stripe is enabled. The OpenAI and
