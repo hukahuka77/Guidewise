@@ -11,7 +11,7 @@ const benefits = [
     accent: "bg-pink-500",
     wash: "from-pink-50 to-rose-50",
     numberColor: "text-pink-600",
-    offset: "lg:translate-y-6",
+    offset: "xl:translate-y-6",
   },
   {
     number: "02",
@@ -23,7 +23,7 @@ const benefits = [
     accent: "bg-emerald-500",
     wash: "from-emerald-50 to-teal-50",
     numberColor: "text-emerald-600",
-    offset: "lg:-translate-y-3",
+    offset: "xl:-translate-y-3",
   },
   {
     number: "03",
@@ -35,7 +35,7 @@ const benefits = [
     accent: "bg-sky-500",
     wash: "from-sky-50 to-blue-50",
     numberColor: "text-sky-600",
-    offset: "lg:translate-y-10",
+    offset: "xl:translate-y-10",
   },
   {
     number: "04",
@@ -47,7 +47,7 @@ const benefits = [
     accent: "bg-violet-500",
     wash: "from-violet-50 to-purple-50",
     numberColor: "text-violet-600",
-    offset: "lg:translate-y-2",
+    offset: "xl:translate-y-2",
   },
   {
     number: "05",
@@ -59,7 +59,7 @@ const benefits = [
     accent: "bg-amber-500",
     wash: "from-amber-50 to-orange-50",
     numberColor: "text-amber-600",
-    offset: "lg:-translate-y-7",
+    offset: "xl:-translate-y-7",
   },
   {
     number: "06",
@@ -71,7 +71,7 @@ const benefits = [
     accent: "bg-rose-500",
     wash: "from-rose-50 to-pink-50",
     numberColor: "text-rose-600",
-    offset: "lg:translate-y-6",
+    offset: "xl:translate-y-6",
   },
 ];
 
