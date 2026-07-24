@@ -98,7 +98,7 @@ export default function WhyGuidebooksMatter() {
               key={benefit.number}
               tabIndex={0}
               aria-label={`${benefit.title}. Hover or focus to reveal more details.`}
-              className={`group relative min-h-72 overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-[0_20px_60px_-30px_rgba(15,23,42,0.35)] outline-none transition-all duration-500 hover:-translate-y-3 hover:shadow-[0_28px_70px_-24px_rgba(236,72,153,0.3)] focus-visible:-translate-y-3 focus-visible:ring-4 focus-visible:ring-pink-200 md:min-h-[21rem] xl:min-h-80 ${benefit.offset}`}
+              className={`group relative min-h-[21rem] overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-[0_20px_60px_-30px_rgba(15,23,42,0.35)] outline-none transition-all duration-500 hover:-translate-y-3 hover:shadow-[0_28px_70px_-24px_rgba(236,72,153,0.3)] focus-visible:-translate-y-3 focus-visible:ring-4 focus-visible:ring-pink-200 xl:min-h-80 ${benefit.offset}`}
             >
               <div
                 className={`absolute inset-x-0 top-0 h-1.5 ${benefit.accent}`}
