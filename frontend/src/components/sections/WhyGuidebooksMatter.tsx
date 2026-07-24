@@ -92,7 +92,7 @@ export default function WhyGuidebooksMatter() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 pb-10 md:grid-cols-2 lg:grid-cols-3 lg:gap-8">
+        <div className="grid grid-cols-1 gap-6 pb-10 md:grid-cols-2 lg:gap-8 xl:grid-cols-3">
           {benefits.map((benefit) => (
             <article
               key={benefit.number}
