@@ -131,7 +131,8 @@ scripts/check.sh
 ```
 
 It installs frontend dependencies with `npm ci`, then runs lint, TypeScript
-checking, a production frontend build, and backend bytecode compilation.
+checking, a production frontend build, backend bytecode compilation, and the
+backend Flask smoke check.
 After dependencies are installed, rerun without reinstalling:
 
 ```bash
@@ -148,4 +149,12 @@ npm run build
 
 cd ../backend
 python -m compileall .
+python smoke_check.py
 ```
+
+The smoke check imports and initializes the Flask application without starting
+a server, contacting external services, or requiring production secrets. It
+uses an isolated database configuration and skips table creation, then verifies
+that Flask, SQLAlchemy, and application routes initialized successfully. Import
+or startup failures produce a nonzero exit code and an error naming the failed
+exception.
