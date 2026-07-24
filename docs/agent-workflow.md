@@ -66,7 +66,11 @@ When dependencies are already installed and the agent only needs to rerun checks
 scripts/check.sh --skip-install
 ```
 
-The script mirrors CI by running frontend install, lint, typecheck, production build with local default public URLs, and backend Python compilation. It exits nonzero on the first failing step.
+The script extends the CI checks by running frontend install, lint, typecheck,
+production build with local default public URLs, backend Python compilation,
+and `python smoke_check.py` from `backend/`. The smoke check verifies that the
+Flask application imports and initializes without production secrets or
+external services. The script exits nonzero on the first failing step.
 
 ## Nightly Loop
 
