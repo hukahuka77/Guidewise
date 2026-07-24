@@ -18,6 +18,30 @@ Guidewise uses GitHub as the shared operating system for AI-assisted development
 
 Vercel and Render automation should follow the confirmed branch mapping in `docs/release-process.md`.
 
+## Runner Configuration
+
+Coding-loop tooling must read `.agent/guidewise.json` before selecting a base
+branch or spawning a worker. Paths and working directories in the file are
+relative to the repository root, so the runner must discover the checkout or
+worktree root instead of assuming a machine-specific absolute path.
+
+The config is the machine-readable source for development and production
+branches, the default PR base, PR expectations, protected/high-risk paths, and
+the frontend and backend commands mirrored from CI. Before spawning a worker,
+the runner should:
+
+1. Confirm the checkout belongs to the configured repository and use an
+   `agent/**` worker branch based on `main`.
+2. Limit the worker's scope and require explicit review for any matching
+   protected or high-risk path.
+3. Require the listed verification commands (or the equivalent
+   `scripts/check.sh` local contract) before opening a PR.
+4. Open normal work against `main`, link the source issue, and never merge or
+   deploy `prod` without Andrew's approval.
+
+When CI or branch policy changes, update the runner config and this document in
+the same PR so automation does not operate on stale assumptions.
+
 ## Issue Flow
 
 1. Product goals become GitHub issues using the story, bug, architecture, or agent task templates.
