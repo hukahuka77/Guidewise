@@ -73,7 +73,7 @@ export default function GuidebookPdfPage() {
           <div className="flex gap-2">
             <Link href="/dashboard"><Button variant="outline">Back to Dashboard</Button></Link>
             {liveGuidebookUrl && (
-              <Link href={liveGuidebookUrl} target="_blank"><Button variant="outline">View Live Guidebook</Button></Link>
+              <Link href={liveGuidebookUrl} target="_blank" rel="noopener noreferrer"><Button variant="outline">View Live Guidebook</Button></Link>
             )}
           </div>
         </div>

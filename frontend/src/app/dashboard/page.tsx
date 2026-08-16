@@ -457,7 +457,7 @@ export default function DashboardPage() {
                       </Button>
 
                       {/* View Live/Preview as full-width light green button */}
-                      <Link href={viewUrl} target="_blank" className="col-span-2">
+                      <Link href={viewUrl} target="_blank" rel="noopener noreferrer" className="col-span-2">
                         <Button
                           className="w-full whitespace-nowrap text-sm bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100"
                           variant="outline"
@@ -505,7 +505,7 @@ export default function DashboardPage() {
                       className="w-[260px] h-[260px] border rounded-xl p-3 bg-white"
                     />
                     <div className="flex gap-2">
-                      <Link href={getQrTargetUrl(qrModalFor)} target="_blank"><Button variant="outline">Open Live URL</Button></Link>
+                      <Link href={getQrTargetUrl(qrModalFor)} target="_blank" rel="noopener noreferrer"><Button variant="outline">Open Live URL</Button></Link>
                       <QRDownloadButton
                         targetUrl={getQrTargetUrl(qrModalFor)}
                         propertyName={items.find(gb => gb.id === qrModalFor)?.property_name || 'guidebook'}
