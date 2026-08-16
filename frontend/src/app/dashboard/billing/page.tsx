@@ -218,7 +218,7 @@ export default function BillingPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         {inv.hosted_invoice_url ? (
-                          <Link href={inv.hosted_invoice_url} target="_blank">
+                          <Link href={inv.hosted_invoice_url} target="_blank" rel="noopener noreferrer">
                             <Button size="sm">View</Button>
                           </Link>
                         ) : null}
