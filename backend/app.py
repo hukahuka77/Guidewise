@@ -34,8 +34,10 @@ from utils.google_places import (
     google_places_text_search,
     google_places_details,
     google_places_photo_url,
+    google_places_photo_reference,
     google_distance_matrix,
 )
+from utils.place_photos import place_photo_url
 
 # --- Unicode utilities ---
 def _strip_surrogates(s: str) -> str:
@@ -59,6 +61,7 @@ def _slugify(s: str) -> str:
 load_dotenv() # Load environment variables from .env file
 
 app = Flask(__name__)
+app.jinja_env.filters['place_photo_url'] = place_photo_url
 
 # Basic logging setup
 logging.basicConfig(level=logging.INFO)
@@ -774,6 +777,7 @@ ALLOWED_TEMPLATE_KEYS = set(TEMPLATE_REGISTRY.keys())
 ALLOWED_PDF_TEMPLATE_KEYS = {"template_pdf_original", "template_pdf_basic", "template_pdf_mobile", "template_pdf_qr", "template_pdf_modern"}
 
 RENDER_CACHE = {}
+PLACE_PHOTO_SNAPSHOT_MARKER = '<!-- place-photo-v2 -->'
 
 def _render_cache_key(gb: Guidebook, template_key: str, template_file: str) -> str:
     import os
@@ -969,7 +973,11 @@ def _slugify(text: str) -> str:
 def view_live_by_slug(public_slug):
     gb = Guidebook.query.filter_by(public_slug=public_slug, active=True).first_or_404()
     # Serve snapshot if fresh; otherwise render on demand
-    if getattr(gb, 'published_html', None) and getattr(gb, 'published_at', None):
+    if (
+        getattr(gb, 'published_html', None)
+        and PLACE_PHOTO_SNAPSHOT_MARKER in gb.published_html
+        and getattr(gb, 'published_at', None)
+    ):
         try:
             if gb.published_at and gb.last_modified_time and gb.published_at >= gb.last_modified_time:
                 # Validate ETag
@@ -1025,7 +1033,11 @@ def view_guidebook(guidebook_id):
         except Exception:
             return jsonify({"error": "This guidebook is not active. Use preview link to view."}), 403
     # Serve snapshot if fresh; otherwise render on demand
-    if getattr(guidebook, 'published_html', None) and getattr(guidebook, 'published_at', None):
+    if (
+        getattr(guidebook, 'published_html', None)
+        and PLACE_PHOTO_SNAPSHOT_MARKER in guidebook.published_html
+        and getattr(guidebook, 'published_at', None)
+    ):
         try:
             if guidebook.published_at and guidebook.last_modified_time and guidebook.published_at >= guidebook.last_modified_time:
                 incoming = request.headers.get('If-None-Match')
@@ -1368,7 +1380,7 @@ def publish_guidebook(guidebook_id):
             "cover_image_url": (gb.cover_image_url or PLACEHOLDER_COVER_URL),
         }
 
-        html = render_template(
+        html = PLACE_PHOTO_SNAPSHOT_MARKER + render_template(
             template_file,
             ctx=ctx,
             id=gb.id,
@@ -1732,26 +1744,68 @@ def ai_activities_route():
 
 @app.route('/api/place-photo', methods=['GET'])
 def get_place_photo():
-    """Proxy endpoint to serve Google Places photos and bypass CORS restrictions."""
-    photo_reference = request.args.get('photo_reference')
-    maxwidth = request.args.get('maxwidth', 800)
-    
-    if not photo_reference:
-        return jsonify({"error": "photo_reference required"}), 400
-    
+    """Serve a place photo while refreshing Google's temporary references."""
+    photo_reference = (request.args.get('photo_reference') or '').strip()
+    place_id = (request.args.get('place_id') or '').strip()
+    query = (request.args.get('query') or '').strip()[:300]
     try:
-        photo_url = google_places_photo_url(photo_reference, maxwidth=int(maxwidth))
-        resp = requests.get(photo_url, timeout=10)
-        resp.raise_for_status()
-        
-        # Return image with proper CORS headers
-        image_resp = make_response(resp.content)
-        image_resp.headers['Content-Type'] = resp.headers.get('Content-Type', 'image/jpeg')
-        image_resp.headers['Cache-Control'] = 'public, max-age=86400'  # Cache for 24 hours
-        image_resp.headers['Access-Control-Allow-Origin'] = '*'
-        return image_resp
-    except Exception as e:
-        return jsonify({"error": f"Failed to fetch photo: {str(e)}"}), 500
+        maxwidth = max(1, min(int(request.args.get('maxwidth', 800)), 1600))
+    except (TypeError, ValueError):
+        return jsonify({"error": "maxwidth must be an integer"}), 400
+
+    if not photo_reference and not place_id:
+        return jsonify({"error": "place_id or photo_reference required"}), 400
+
+    references = []
+    if place_id:
+        try:
+            current_reference = google_places_photo_reference(place_id)
+            if current_reference:
+                references.append(current_reference)
+        except Exception as exc:
+            log.warning("Could not refresh photo for place_id %s: %s", place_id, exc)
+    if photo_reference and photo_reference not in references:
+        references.append(photo_reference)
+
+    def serve_reference(reference):
+        try:
+            photo_url = google_places_photo_url(reference, maxwidth=maxwidth)
+            upstream = requests.get(photo_url, timeout=10)
+            upstream.raise_for_status()
+            content_type = upstream.headers.get('Content-Type', 'image/jpeg')
+            if not content_type.lower().startswith('image/'):
+                return None
+            image_resp = make_response(upstream.content)
+            image_resp.headers['Content-Type'] = content_type
+            image_resp.headers['Cache-Control'] = 'public, max-age=604800, stale-while-revalidate=86400'
+            image_resp.headers['Access-Control-Allow-Origin'] = '*'
+            return image_resp
+        except requests.RequestException:
+            return None
+
+    for reference in references:
+        image_resp = serve_reference(reference)
+        if image_resp is not None:
+            return image_resp
+
+    # Legacy guidebooks have only an expiring reference. Search only after it
+    # actually fails, avoiding an extra Places request for healthy images.
+    if query and not place_id:
+        try:
+            results = google_places_text_search(query).get('results') or []
+            recovered_place_id = (results[0] or {}).get('place_id') if results else None
+            recovered_reference = (
+                google_places_photo_reference(recovered_place_id)
+                if recovered_place_id else None
+            )
+            if recovered_reference:
+                image_resp = serve_reference(recovered_reference)
+                if image_resp is not None:
+                    return image_resp
+        except Exception as exc:
+            log.warning("Could not recover legacy place photo for %r: %s", query, exc)
+
+    return jsonify({"error": "Place photo is unavailable"}), 404
 
 @app.route('/api/guidebook/<guidebook_id>/template', methods=['POST'])
 def update_template_key(guidebook_id):
@@ -1892,6 +1946,7 @@ def places_enrich():
             'name': name,
             'address': address,
             'description': description,
+            'place_id': place_id,
             'image_url': image_url,
             'driving_minutes': driving_minutes,
         })

@@ -813,7 +813,7 @@
       {% for place in ctx.places_to_eat %}
       <div class="place-card">
         {% if place.image_url %}
-        <img src="/api/place-photo?photo_reference={{ place.image_url | urlencode }}&maxwidth=800"
+        <img src="{{ place | place_photo_url }}"
           alt="{{ place.name }}" class="place-card-image" />
         {% endif %}
         <div class="place-card-content">
@@ -849,7 +849,7 @@
       {% for activity in ctx.things_to_do %}
       <div class="place-card">
         {% if activity.image_url %}
-        <img src="/api/place-photo?photo_reference={{ activity.image_url | urlencode }}&maxwidth=800"
+        <img src="{{ activity | place_photo_url }}"
           alt="{{ activity.name }}" class="place-card-image" />
         {% endif %}
         <div class="place-card-content">

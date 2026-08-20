@@ -13,6 +13,7 @@ export interface DynamicItem {
   address: string;
   description: string;
   image_url?: string;
+  place_id?: string;
   driving_minutes?: number | null;
 }
 
@@ -32,6 +33,31 @@ interface DynamicItemListProps {
 }
 
 const BUCKET_NAME = process.env.NEXT_PUBLIC_SUPABASE_FOOD_ACTIVITIES_BUCKET as string;
+
+function getItemImageUrl(item: DynamicItem): string {
+  const imageUrl = item.image_url || "";
+  if (imageUrl.startsWith("data:")) return imageUrl;
+
+  let photoReference = imageUrl;
+  if (imageUrl.startsWith("http")) {
+    try {
+      const parsed = new URL(imageUrl);
+      if (!parsed.hostname.endsWith("googleapis.com") || !parsed.pathname.includes("/place/photo")) {
+        return imageUrl;
+      }
+      photoReference = parsed.searchParams.get("photo_reference") || "";
+    } catch {
+      return imageUrl;
+    }
+  }
+
+  const params = new URLSearchParams({ maxwidth: "800" });
+  if (item.place_id) params.set("place_id", item.place_id);
+  if (photoReference) params.set("photo_reference", photoReference);
+  const query = [item.name, item.address].filter(Boolean).join(", ");
+  if (query) params.set("query", query);
+  return `${process.env.NEXT_PUBLIC_API_BASE_URL || ""}/api/place-photo?${params.toString()}`;
+}
 
 export default function DynamicItemList({ items, onChange, onAdd, onDelete, label }: DynamicItemListProps) {
   const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
@@ -100,15 +126,7 @@ export default function DynamicItemList({ items, onChange, onAdd, onDelete, labe
                 {item.image_url ? (
                   <div className="relative mb-2">
                     <img
-                      src={
-                        item.image_url.startsWith('http')
-                          ? (
-                              item.image_url.includes('/maps.googleapis.com/maps/api/place/photo') && /[?&]photo_reference=([^&]+)/.test(item.image_url)
-                                ? `${process.env.NEXT_PUBLIC_API_BASE_URL || ''}/api/place-photo?photo_reference=${encodeURIComponent((item.image_url.match(/[?&]photo_reference=([^&]+)/) || [,''])[1])}&maxwidth=800`
-                                : item.image_url
-                            )
-                          : `${process.env.NEXT_PUBLIC_API_BASE_URL || ''}/api/place-photo?photo_reference=${encodeURIComponent(item.image_url)}&maxwidth=800`
-                      }
+                      src={getItemImageUrl(item)}
                       alt={item.name + " image"}
                       className="w-full h-32 object-cover rounded border shadow"
                     />

@@ -368,7 +368,7 @@
         <div class="recommendation-grid">
           {% for place in ctx.places_to_eat %}
           <div class="recommendation-card">
-            {% if place.image_url %}<img src="/api/place-photo?photo_reference={{ place.image_url | urlencode }}&maxwidth=800" alt="{{ place.name }}">{% endif %}
+            {% if place.image_url %}<img src="{{ place | place_photo_url }}" alt="{{ place.name }}">{% endif %}
             <div class="recommendation-card-content">
               {% if place.name %}<h3>{{ place.name }}</h3>{% endif %}
               {% if place.description %}<p>{{ place.description }}</p>{% endif %}
@@ -391,7 +391,7 @@
         <div class="recommendation-grid">
           {% for place in ctx.things_to_do %}
           <div class="recommendation-card">
-            {% if place.image_url %}<img src="/api/place-photo?photo_reference={{ place.image_url | urlencode }}&maxwidth=800" alt="{{ place.name }}">{% endif %}
+            {% if place.image_url %}<img src="{{ place | place_photo_url }}" alt="{{ place.name }}">{% endif %}
             <div class="recommendation-card-content">
               {% if place.name %}<h3>{{ place.name }}</h3>{% endif %}
               {% if place.description %}<p>{{ place.description }}</p>{% endif %}
