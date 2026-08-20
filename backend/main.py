@@ -2,6 +2,12 @@ from dotenv import load_dotenv
 from jinja2 import Environment, FileSystemLoader
 from weasyprint import HTML, default_url_fetcher
 from utils.aifunctions import get_ai_recommendations
+from utils.google_places import (
+    google_places_photo_reference,
+    google_places_photo_url,
+    google_places_text_search,
+)
+from utils.place_photos import google_photo_reference, place_photo_url
 # Import models from models.py to be used in PDF generation
 from models import Guidebook, Host, Property
 import json
@@ -79,12 +85,40 @@ def _normalize_recommendations(items):
             # Fallback to simple text item
             obj = {"name": str(it)}
         # Ensure keys exist
-        normalized.append({
+        normalized_item = {
             "name": obj.get("name") or obj.get("title") or str(obj),
             "description": obj.get("description") or "",
             "address": obj.get("address") or "",
             "image_url": obj.get("image_url") or obj.get("photo") or "",
-        })
+            "place_id": obj.get("place_id") or "",
+        }
+        rendered_url = place_photo_url(normalized_item)
+        if rendered_url.startswith('/api/place-photo'):
+            reference = None
+            if normalized_item["place_id"]:
+                try:
+                    reference = google_places_photo_reference(normalized_item["place_id"])
+                except Exception as exc:
+                    print(f"Failed to refresh PDF place photo: {exc}")
+            elif normalized_item["name"] or normalized_item["address"]:
+                try:
+                    query = ", ".join(filter(None, (
+                        normalized_item["name"],
+                        normalized_item["address"],
+                    )))
+                    results = google_places_text_search(query).get("results") or []
+                    recovered_place_id = (results[0] or {}).get("place_id") if results else None
+                    reference = (
+                        google_places_photo_reference(recovered_place_id)
+                        if recovered_place_id else None
+                    )
+                except Exception as exc:
+                    print(f"Failed to recover legacy PDF place photo: {exc}")
+            reference = reference or google_photo_reference(normalized_item["image_url"])
+            normalized_item["image_url"] = (
+                google_places_photo_url(reference) if reference else ""
+            )
+        normalized.append(normalized_item)
     return normalized
 
 
@@ -160,8 +194,8 @@ def create_print_pdf_from_web_template(guidebook):
         "access_info": getattr(guidebook, 'access_info', None),
         "parking_info": getattr(guidebook, 'parking_info', None),
         "rules": getattr(guidebook, 'rules_json', None) or [],
-        "things_to_do": getattr(guidebook, 'things_to_do', None) or [],
-        "places_to_eat": getattr(guidebook, 'places_to_eat', None) or [],
+        "things_to_do": _normalize_recommendations(getattr(guidebook, 'things_to_do', None) or []),
+        "places_to_eat": _normalize_recommendations(getattr(guidebook, 'places_to_eat', None) or []),
         "checkout_info": getattr(guidebook, 'checkout_info', None) or [],
         "house_manual": getattr(guidebook, 'house_manual', None) or [],
         "included_tabs": included_tabs,
@@ -172,6 +206,7 @@ def create_print_pdf_from_web_template(guidebook):
 
     # Setup Jinja2 environment
     env = Environment(loader=FileSystemLoader(['.', 'templates']))
+    env.filters['place_photo_url'] = place_photo_url
     template = env.get_template(template_file)
 
     # Render the HTML template with context
@@ -280,5 +315,3 @@ def create_guidebook_pdf(guidebook, qr_url: str | None = None):
     # Generate PDF from HTML
     pdf = HTML(string=html_out, base_url='.').write_pdf()
     return pdf
-
-

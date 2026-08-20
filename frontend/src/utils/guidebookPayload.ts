@@ -38,6 +38,7 @@ export function mapDynamicItems(items: DynamicItem[]) {
     name: i.name,
     description: i.description,
     image_url: i.image_url || "",
+    place_id: i.place_id || "",
     address: i.address || "",
     driving_minutes: i.driving_minutes || null
   }));

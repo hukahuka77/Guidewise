@@ -253,12 +253,14 @@ export default function EditGuidebookPage() {
           address: i.address || "",
           description: i.description || "",
           image_url: i.image_url || "",
+          place_id: i.place_id || "",
         })));
         setActivityItems((data.things_to_do || []).map((i: Partial<DynamicItem>) => ({
           name: i.name || "",
           address: i.address || "",
           description: i.description || "",
           image_url: i.image_url || "",
+          place_id: i.place_id || "",
         })));
         setCheckoutItems((data.checkout_info || []).map(i => ({ ...i, checked: true })));
         setHouseManualItems((data.house_manual || []).map(i => ({
@@ -581,7 +583,7 @@ export default function EditGuidebookPage() {
                   setFoodItems(items =>
                     items.length >= LIMITS.maxFoodActivityItems
                       ? items
-                      : [...items, { name: item.name, address: item.address, description: item.description || '', image_url: item.image_url || '' }]
+                      : [...items, { name: item.name, address: item.address, description: item.description || '', image_url: item.image_url || '', place_id: item.place_id || '' }]
                   );
                 }}
               />
@@ -634,7 +636,7 @@ export default function EditGuidebookPage() {
                   setActivityItems(items =>
                     items.length >= LIMITS.maxFoodActivityItems
                       ? items
-                      : [...items, { name: item.name, address: item.address, description: item.description || '', image_url: item.image_url || '' }]
+                      : [...items, { name: item.name, address: item.address, description: item.description || '', image_url: item.image_url || '', place_id: item.place_id || '' }]
                   );
                 }}
               />

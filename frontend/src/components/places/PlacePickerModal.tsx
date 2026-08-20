@@ -15,6 +15,7 @@ export type DynamicItem = {
   address: string;
   description: string;
   image_url?: string;
+  place_id?: string;
   driving_minutes?: number | null;
 };
 
