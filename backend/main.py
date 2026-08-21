@@ -1,6 +1,6 @@
 from dotenv import load_dotenv
 from jinja2 import Environment, FileSystemLoader
-from weasyprint import HTML, default_url_fetcher
+from weasyprint import HTML
 from utils.aifunctions import get_ai_recommendations
 # Import models from models.py to be used in PDF generation
 from models import Guidebook, Host, Property
@@ -9,35 +9,77 @@ import ast
 import urllib.parse
 import ssl
 import urllib.request
+import ipaddress
+import socket
 
 load_dotenv()
 
-# Custom URL fetcher that ignores SSL verification for external images
-def custom_url_fetcher(url):
-    """Fetch URLs with relaxed SSL verification to allow external images."""
+# Allowed hostnames for image fetching (Supabase Storage)
+ALLOWED_IMAGE_HOSTS = {
+    'hojncqasasvvrhdmwwhv.supabase.co',
+}
+
+# Block private/link-local/loopback ranges
+BLOCKED_NETWORKS = [
+    ipaddress.ip_network('10.0.0.0/8'),
+    ipaddress.ip_network('172.16.0.0/12'),
+    ipaddress.ip_network('192.168.0.0/16'),
+    ipaddress.ip_network('127.0.0.0/8'),
+    ipaddress.ip_network('169.254.0.0/16'),
+    ipaddress.ip_network('::1/128'),
+    ipaddress.ip_network('fc00::/7'),
+]
+
+
+def _is_host_blocked(hostname: str) -> bool:
+    """Check if a hostname resolves to a private/link-local address."""
     try:
-        # Create a context that doesn't verify SSL certificates
-        context = ssl.create_default_context()
-        context.check_hostname = False
-        context.verify_mode = ssl.CERT_NONE
+        for info in socket.getaddrinfo(hostname, None):
+            ip = ipaddress.ip_address(info[4][0])
+            for net in BLOCKED_NETWORKS:
+                if ip in net:
+                    return True
+    except (socket.gaierror, ValueError):
+        pass
+    return False
 
-        # Add a user agent to avoid being blocked
-        req = urllib.request.Request(
-            url,
-            headers={'User-Agent': 'Mozilla/5.0 (compatible; GuidewisePDF/1.0)'}
-        )
 
-        with urllib.request.urlopen(req, context=context, timeout=10) as response:
-            return {
-                'string': response.read(),
-                'mime_type': response.headers.get('Content-Type', 'application/octet-stream'),
-                'encoding': response.headers.get_content_charset(),
-                'redirected_url': response.url,
-            }
-    except Exception as e:
-        print(f"Failed to fetch {url}: {e}")
-        # Fall back to default fetcher
-        return default_url_fetcher(url)
+def custom_url_fetcher(url):
+    """Fetch URLs with proper SSL verification and SSRF protection."""
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in ('http', 'https'):
+        raise ValueError(f"Blocked URL scheme: {parsed.scheme}")
+
+    hostname = parsed.hostname or ''
+    if _is_host_blocked(hostname):
+        raise ValueError(f"Blocked URL: resolves to private/internal address")
+
+    context = ssl.create_default_context()
+
+    req = urllib.request.Request(
+        url,
+        headers={'User-Agent': 'Mozilla/5.0 (compatible; GuidewisePDF/1.0)'}
+    )
+
+    class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, headers, newurl):
+            new_parsed = urllib.parse.urlparse(newurl)
+            new_host = new_parsed.hostname or ''
+            if _is_host_blocked(new_host):
+                raise ValueError(f"Blocked redirect to private/internal address: {newurl}")
+            return urllib.request.HTTPRedirectHandler.redirect_request(
+                self, req, fp, code, msg, headers, newurl
+            )
+
+    opener = urllib.request.build_opener(NoRedirectHandler)
+
+    with opener.open(req, context=context, timeout=10) as response:
+        return {
+            'string': response.read(),
+            'mime_type': response.headers.get('Content-Type', 'application/octet-stream'),
+            'encoding': response.headers.get_content_charset(),
+            'redirected_url': response.url,
+        }
 
 # Map template keys to HTML template files for PDF rendering (PDF-only)
 # Canonical PDF keys

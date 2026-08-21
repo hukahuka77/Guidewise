@@ -991,10 +991,20 @@ def view_live_by_slug(public_slug):
 
 @app.route('/preview/<guidebook_id>')
 def preview_guidebook(guidebook_id):
-    """Show guidebook in preview mode (with watermark if not active)."""
+    """Show guidebook in preview mode (with watermark if not active).
+
+    Draft (inactive) guidebooks require authentication and ownership check
+    to prevent leaking unpublished content to anonymous users.
+    """
     gb = Guidebook.query.get_or_404(guidebook_id)
 
-    # Anyone can view preview (no authentication required)
+    # Gate draft (inactive) guidebooks behind authentication
+    if not gb.active:
+        authz = request.headers.get('Authorization')
+        claims = _verify_bearer_jwt(authz)
+        if not claims or claims.get('sub') != gb.user_id:
+            return jsonify({"error": "Guidebook not found"}), 404
+
     # Render with watermark indicator
     resp = _render_guidebook(gb, show_watermark=not gb.active)
 
@@ -1754,8 +1764,12 @@ def get_place_photo():
         return jsonify({"error": f"Failed to fetch photo: {str(e)}"}), 500
 
 @app.route('/api/guidebook/<guidebook_id>/template', methods=['POST'])
+@require_auth
 def update_template_key(guidebook_id):
-    gb = Guidebook.query.get_or_404(guidebook_id)
+    user_id = g.user_id
+    gb = Guidebook.query.filter_by(id=guidebook_id, user_id=user_id).first()
+    if not gb:
+        return jsonify({"error": "Guidebook not found"}), 404
     body = request.json or {}
     new_key = body.get('template_key')
     if new_key not in ALLOWED_TEMPLATE_KEYS:
@@ -1910,8 +1924,12 @@ def _pdf_cache_key(guidebook: Guidebook, template_key: str) -> str:
     return f"{guidebook.id}:{template_key}:{ts_val}"
 
 @app.route('/api/guidebook/<guidebook_id>/pdf', methods=['GET'])
+@require_auth
 def get_pdf_on_demand(guidebook_id):
-    gb = Guidebook.query.get_or_404(guidebook_id)
+    user_id = g.user_id
+    gb = Guidebook.query.filter_by(id=guidebook_id, user_id=user_id).first()
+    if not gb:
+        return jsonify({"error": "Guidebook not found"}), 404
     requested_template = request.args.get('template')
     want_download = str(request.args.get('download', '0')).lower() in ('1', 'true', 'yes')
     include_qr = str(request.args.get('include_qr', '0')).lower() in ('1', 'true', 'yes')
@@ -1997,6 +2015,7 @@ def activate_guidebooks_for_user():
         return jsonify({"error": f"Activation failed: {type(e).__name__}: {e}"}), 500
 
 @app.route('/api/guidebook/<guidebook_id>/print-pdf', methods=['GET'])
+@require_auth
 def get_print_pdf(guidebook_id):
     """Generate print-ready PDF from web template (welcomebook).
 
@@ -2006,7 +2025,10 @@ def get_print_pdf(guidebook_id):
     Query params:
         - download: Set to '1' or 'true' to force download instead of inline display
     """
-    gb = Guidebook.query.get_or_404(guidebook_id)
+    user_id = g.user_id
+    gb = Guidebook.query.filter_by(id=guidebook_id, user_id=user_id).first()
+    if not gb:
+        return jsonify({"error": "Guidebook not found"}), 404
     want_download = str(request.args.get('download', '1')).lower() in ('1', 'true', 'yes')
 
     # Cache key includes template and last modified time
