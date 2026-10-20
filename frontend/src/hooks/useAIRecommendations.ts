@@ -65,6 +65,7 @@ export function useAIRecommendations(options: UseAIRecommendationsOptions) {
             address: item.address || "",
             description: item.description || "",
             image_url: photoRef,
+            place_id: item.place_id,
             driving_minutes: item.driving_minutes || null
           };
         });
@@ -135,6 +136,7 @@ export function useAIRecommendations(options: UseAIRecommendationsOptions) {
             address: item.address || "",
             description: item.description || "",
             image_url: photoRef,
+            place_id: item.place_id,
             driving_minutes: item.driving_minutes || null
           };
         });

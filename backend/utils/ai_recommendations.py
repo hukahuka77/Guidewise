@@ -207,6 +207,7 @@ def _enrich_with_google_places(items: list, location: str) -> list:
                     "name": name,
                     "address": real_address,
                     "description": description,
+                    "place_id": place_id,
                     "photo_reference": photo_reference,
                     "driving_minutes": driving_minutes
                 })
