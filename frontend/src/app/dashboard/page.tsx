@@ -22,6 +22,7 @@ type GuidebookItem = {
   cover_image_url?: string | null;
   active?: boolean;
   public_slug?: string | null;
+  preview_url?: string | null;
 };
 
 // Map internal template keys to human-friendly display names
@@ -361,7 +362,7 @@ export default function DashboardPage() {
               const isActive = gb.active || false;
               const viewUrl = isActive && gb.public_slug
                 ? `${API_BASE}/g/${gb.public_slug}`
-                : `${API_BASE}/preview/${gb.id}`;
+                : (gb.preview_url ? `${API_BASE}${gb.preview_url}` : null);
               const canActivate = guidebookLimit === null || (activeCount < (guidebookLimit || 0));
               const isToggling = toggling === gb.id;
 
@@ -457,7 +458,7 @@ export default function DashboardPage() {
                       </Button>
 
                       {/* View Live/Preview as full-width light green button */}
-                      <Link href={viewUrl} target="_blank" rel="noopener noreferrer" className="col-span-2">
+                      <Link href={viewUrl || '#'} target="_blank" rel="noopener noreferrer" className="col-span-2" aria-disabled={!viewUrl}>
                         <Button
                           className="w-full whitespace-nowrap text-sm bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100"
                           variant="outline"

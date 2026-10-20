@@ -36,11 +36,6 @@ export default function SelectTemplatePage() {
       try {
         sessionStorage.setItem('guidebookId', guidebookId);
         localStorage.setItem('guidebookId', guidebookId);
-        // Also store preview URL
-        const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || '';
-        const previewPath = `${apiBase}/preview/${guidebookId}`;
-        sessionStorage.setItem('previewGuidebookUrl', previewPath);
-        localStorage.setItem('previewGuidebookUrl', previewPath);
       } catch (e) {
         console.error('Failed to store guidebook info:', e);
       }

@@ -6,6 +6,7 @@ from sqlalchemy import text
 import main as pdf_generator
 import io
 import secrets
+import hmac
 import re
 from datetime import datetime, timezone
 import hashlib
@@ -950,29 +951,43 @@ def view_live_by_slug(public_slug):
     return _render_guidebook(gb)
 
 
+def _ensure_preview_token(gb: Guidebook) -> str:
+    """Return the guidebook's preview share token, creating it on first use."""
+    if not gb.preview_token:
+        gb.preview_token = secrets.token_urlsafe(24)
+        db.session.commit()
+    return gb.preview_token
+
+
+def _preview_path(gb: Guidebook) -> str:
+    return f"/preview/{gb.id}?t={_ensure_preview_token(gb)}"
+
+
 @app.route('/preview/<guidebook_id>')
 def preview_guidebook(guidebook_id):
     """Show guidebook in preview mode (with watermark if not active).
 
-    Draft (inactive) guidebooks require authentication and ownership check
-    to prevent leaking unpublished content to anonymous users.
+    Published guidebooks are public. Drafts require the guidebook's preview share
+    token (?t=...) or an Authorization bearer token belonging to the owner.
     """
     gb = Guidebook.query.get_or_404(guidebook_id)
 
-    # Gate draft (inactive) guidebooks behind authentication
     if not gb.active:
-        authz = request.headers.get('Authorization')
-        claims = _verify_bearer_jwt(authz)
-        if not claims or claims.get('sub') != gb.user_id:
-            return jsonify({"error": "Guidebook not found"}), 404
+        supplied = request.args.get('t') or ''
+        token_ok = bool(gb.preview_token) and hmac.compare_digest(supplied, gb.preview_token)
+        if not token_ok:
+            claims = _verify_bearer_jwt(request.headers.get('Authorization'))
+            if not claims or claims.get('sub') != gb.user_id:
+                return jsonify({"error": "Guidebook not found"}), 404
 
     # Render with watermark indicator
     resp = _render_guidebook(gb, show_watermark=not gb.active)
 
-    # Discourage indexing for previews
+    # Discourage indexing for previews and keep the token out of Referer headers
     try:
         resp.headers['X-Robots-Tag'] = 'noindex, nofollow'
         resp.headers['Cache-Control'] = 'private, no-store'
+        resp.headers['Referrer-Policy'] = 'no-referrer'
     except Exception:
         pass
     return resp
@@ -1243,7 +1258,7 @@ def generate_guidebook_route():
     else:
         # Inactive guidebook - preview mode
         resp.headers['X-Guidebook-Url'] = f"/edit/{new_guidebook.id}"
-        resp.headers['X-Guidebook-Preview'] = f"/preview/{new_guidebook.id}"
+        resp.headers['X-Guidebook-Preview'] = _preview_path(new_guidebook)
         resp.headers['Access-Control-Expose-Headers'] = 'X-Guidebook-Url, X-Guidebook-Preview'
 
     return resp, 201
@@ -1264,6 +1279,7 @@ def list_guidebooks():
             "cover_image_url": gb.cover_image_url,
             "active": gb.active,
             "public_slug": gb.public_slug if gb.active else None,
+            "preview_url": None if gb.active else _preview_path(gb),
         }
         for gb in q.all()
     ]
@@ -1393,6 +1409,7 @@ def get_guidebook(guidebook_id):
     # Minimal payload; extend as needed
     payload = {
         "id": gb.id,
+        "preview_url": None if gb.active else _preview_path(gb),
         "template_key": gb.template_key,
         "property": {
             "id": gb.property_id,
@@ -1616,6 +1633,13 @@ def update_guidebook(guidebook_id):
 
 with app.app_context():
     db.create_all()  # Create tables from model definitions
+    # create_all() doesn't add columns to existing tables; keep in sync with supabase/migrations
+    try:
+        db.session.execute(db.text('ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS preview_token VARCHAR(64)'))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        log.warning("Could not ensure guidebook.preview_token column: %s", e)
 
 
 # (Removed) Claim endpoint deprecated: anonymous creation is no longer supported.
@@ -1825,7 +1849,7 @@ def toggle_guidebook(guidebook_id):
         "ok": True,
         "active": gb.active,
         "public_slug": gb.public_slug if gb.active else None,
-        "preview_url": f"/preview/{gb.id}" if not gb.active else None
+        "preview_url": _preview_path(gb) if not gb.active else None
     })
 
 @app.route('/api/places/search', methods=['POST'])
