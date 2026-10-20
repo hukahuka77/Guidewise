@@ -61,6 +61,8 @@ class Guidebook(db.Model):
     # Lifecycle fields: active (published) vs preview mode
     active = db.Column(db.Boolean, nullable=False, default=False)
     public_slug = db.Column(db.String(120), unique=True, nullable=True)
+    # Secret share token that grants read access to /preview/<id> while the guidebook is a draft
+    preview_token = db.Column(db.String(64), nullable=True)
 
     # Foreign Keys
     host_id = db.Column(db.Integer, db.ForeignKey('host.id'), nullable=True)
