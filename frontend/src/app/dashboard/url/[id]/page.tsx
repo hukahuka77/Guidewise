@@ -1,6 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
+import { getAuthHeaders } from "@/lib/authHeaders";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -70,7 +71,7 @@ export default function GuidebookUrlTemplatesPage() {
     try {
       const res = await fetch(`${API_BASE}/api/guidebook/${guidebookId}/template`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
         body: JSON.stringify({ template_key: template }),
       });
       if (!res.ok) throw new Error(`Failed to update template (${res.status})`);
@@ -134,7 +135,7 @@ export default function GuidebookUrlTemplatesPage() {
           <div className="flex gap-2">
             <Link href="/dashboard"><Button variant="outline">Back to Dashboard</Button></Link>
             {liveGuidebookUrl && (
-              <Link href={liveGuidebookUrl} target="_blank"><Button variant="outline">View Live Guidebook</Button></Link>
+              <Link href={liveGuidebookUrl} target="_blank" rel="noopener noreferrer"><Button variant="outline">View Live Guidebook</Button></Link>
             )}
           </div>
         </div>
