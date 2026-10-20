@@ -6,6 +6,7 @@ from sqlalchemy import text
 import main as pdf_generator
 import io
 import secrets
+import hmac
 import re
 from datetime import datetime, timezone
 import hashlib
@@ -437,15 +438,15 @@ def stripe_webhook():
 
     # Debug logging
     log.info(f"Webhook received. Signature header present: {sig_header is not None}")
-    log.info(f"Webhook secret configured: {STRIPE_WEBHOOK_SECRET[:10]}... (first 10 chars)")
     log.info(f"Payload size: {len(payload)} bytes")
+
+    if not STRIPE_WEBHOOK_SECRET:
+        log.error("STRIPE_WEBHOOK_SECRET not configured; rejecting webhook")
+        return jsonify({"error": "Webhook not configured"}), 500
 
     event = None
     try:
-        if STRIPE_WEBHOOK_SECRET:
-            event = stripe.Webhook.construct_event(payload=payload, sig_header=sig_header, secret=STRIPE_WEBHOOK_SECRET)
-        else:
-            event = stripe.Event.construct_from(json.loads(payload), stripe.api_key)
+        event = stripe.Webhook.construct_event(payload=payload, sig_header=sig_header, secret=STRIPE_WEBHOOK_SECRET)
     except Exception as e:
         log.error(f"Webhook signature verification failed: {e}")
         return jsonify({"error": f"Webhook error: {e}"}), 400
@@ -723,45 +724,6 @@ def _verify_bearer_jwt(auth_header: str):
         log.error("JWT verification failed: %s: %s", type(e).__name__, e)
         return None
 
-def require_auth(fn):
-    @functools.wraps(fn)
-    def wrapper(*args, **kwargs):
-        authz = request.headers.get('Authorization')
-        claims = _verify_bearer_jwt(authz)
-        if not claims:
-            log.warning("Unauthorized request to %s %s", request.method, request.path)
-            return jsonify({"error": "Unauthorized"}), 401
-        # Supabase user id lives in sub
-        g.user_id = claims.get('sub')
-        g.user_email = claims.get('email') or claims.get('user_metadata', {}).get('email') if isinstance(claims.get('user_metadata'), dict) else None
-        if not g.user_id:
-            log.warning("JWT missing sub claim")
-            return jsonify({"error": "Unauthorized"}), 401
-        # IMPORTANT: Propagate claims to Postgres session so RLS policies using auth.uid() work
-        try:
-            session_claims = {
-                "sub": g.user_id,
-                # Include email if available; harmless if missing
-                "email": g.user_email,
-            }
-            from sqlalchemy import text as _text
-            # Primary setting used by Supabase's auth.uid()
-            db.session.execute(
-                _text("select set_config('request.jwt.claims', :claims, true)") ,
-                {"claims": json.dumps(session_claims)}
-            )
-            # Back-compat: some helpers read jwt.claims
-            db.session.execute(
-                _text("select set_config('jwt.claims', :claims, true)") ,
-                {"claims": json.dumps(session_claims)}
-            )
-            # Ensure role is authenticated for policies that check current_role
-            db.session.execute(_text("select set_config('role', 'authenticated', true)"))
-        except Exception as e:
-            log.warning("Failed to set request.jwt.claims for RLS: %s: %s", type(e).__name__, e)
-        return fn(*args, **kwargs)
-    return wrapper
-
 # Template registry mapping keys to template files (URL renderer)
 TEMPLATE_REGISTRY = {
     "template_original": "templates_url/template_original.html",
@@ -997,19 +959,43 @@ def view_live_by_slug(public_slug):
     return _render_guidebook(gb)
 
 
+def _ensure_preview_token(gb: Guidebook) -> str:
+    """Return the guidebook's preview share token, creating it on first use."""
+    if not gb.preview_token:
+        gb.preview_token = secrets.token_urlsafe(24)
+        db.session.commit()
+    return gb.preview_token
+
+
+def _preview_path(gb: Guidebook) -> str:
+    return f"/preview/{gb.id}?t={_ensure_preview_token(gb)}"
+
+
 @app.route('/preview/<guidebook_id>')
 def preview_guidebook(guidebook_id):
-    """Show guidebook in preview mode (with watermark if not active)."""
+    """Show guidebook in preview mode (with watermark if not active).
+
+    Published guidebooks are public. Drafts require the guidebook's preview share
+    token (?t=...) or an Authorization bearer token belonging to the owner.
+    """
     gb = Guidebook.query.get_or_404(guidebook_id)
 
-    # Anyone can view preview (no authentication required)
+    if not gb.active:
+        supplied = request.args.get('t') or ''
+        token_ok = bool(gb.preview_token) and hmac.compare_digest(supplied, gb.preview_token)
+        if not token_ok:
+            claims = _verify_bearer_jwt(request.headers.get('Authorization'))
+            if not claims or claims.get('sub') != gb.user_id:
+                return jsonify({"error": "Guidebook not found"}), 404
+
     # Render with watermark indicator
     resp = _render_guidebook(gb, show_watermark=not gb.active)
 
-    # Discourage indexing for previews
+    # Discourage indexing for previews and keep the token out of Referer headers
     try:
         resp.headers['X-Robots-Tag'] = 'noindex, nofollow'
         resp.headers['Cache-Control'] = 'private, no-store'
+        resp.headers['Referrer-Policy'] = 'no-referrer'
     except Exception:
         pass
     return resp
@@ -1058,7 +1044,7 @@ def view_guidebook(guidebook_id):
 @app.route('/api/generate', methods=['POST'])
 @require_auth
 def generate_guidebook_route():
-    data = request.json
+    data = request.json or {}
     # Auth REQUIRED: all guidebooks must be owned by an account
     user_id = g.user_id
 
@@ -1284,7 +1270,7 @@ def generate_guidebook_route():
     else:
         # Inactive guidebook - preview mode
         resp.headers['X-Guidebook-Url'] = f"/edit/{new_guidebook.id}"
-        resp.headers['X-Guidebook-Preview'] = f"/preview/{new_guidebook.id}"
+        resp.headers['X-Guidebook-Preview'] = _preview_path(new_guidebook)
         resp.headers['Access-Control-Expose-Headers'] = 'X-Guidebook-Url, X-Guidebook-Preview'
 
     return resp, 201
@@ -1305,6 +1291,7 @@ def list_guidebooks():
             "cover_image_url": gb.cover_image_url,
             "active": gb.active,
             "public_slug": gb.public_slug if gb.active else None,
+            "preview_url": None if gb.active else _preview_path(gb),
         }
         for gb in q.all()
     ]
@@ -1434,6 +1421,7 @@ def get_guidebook(guidebook_id):
     # Minimal payload; extend as needed
     payload = {
         "id": gb.id,
+        "preview_url": None if gb.active else _preview_path(gb),
         "template_key": gb.template_key,
         "property": {
             "id": gb.property_id,
@@ -1657,6 +1645,13 @@ def update_guidebook(guidebook_id):
 
 with app.app_context():
     db.create_all()  # Create tables from model definitions
+    # create_all() doesn't add columns to existing tables; keep in sync with supabase/migrations
+    try:
+        db.session.execute(db.text('ALTER TABLE guidebook ADD COLUMN IF NOT EXISTS preview_token VARCHAR(64)'))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        log.warning("Could not ensure guidebook.preview_token column: %s", e)
 
 
 # (Removed) Claim endpoint deprecated: anonymous creation is no longer supported.
@@ -1688,7 +1683,35 @@ def cleanup_expired():
     db.session.commit()
     return jsonify({"ok": True, "deleted": count})
 
+# Simple in-process per-user rate limiter for endpoints that spend third-party quota.
+# Per-worker (not shared across gunicorn workers), so effective limit is limit * workers.
+_RATE_BUCKETS = {}
+MAX_AI_ITEMS = 10
+
+def rate_limit(name: str, limit: int, window: int = 60):
+    def decorator(fn):
+        @functools.wraps(fn)
+        def wrapper(*args, **kwargs):
+            now = time.time()
+            key = (name, g.user_id)
+            hits = [t for t in _RATE_BUCKETS.get(key, []) if now - t < window]
+            if len(hits) >= limit:
+                return jsonify({"error": "Too many requests. Please slow down."}), 429
+            hits.append(now)
+            _RATE_BUCKETS[key] = hits
+            return fn(*args, **kwargs)
+        return wrapper
+    return decorator
+
+def _clamp_items(value, default: int = 5) -> int:
+    try:
+        return max(1, min(int(value), MAX_AI_ITEMS))
+    except (TypeError, ValueError):
+        return default
+
 @app.route('/api/ai-recommendations', methods=['POST'])
+@require_auth
+@rate_limit('api_ai-recommendations', 10)
 def ai_recommendations_route():
     """
     Generic AI recommendations endpoint.
@@ -1701,10 +1724,10 @@ def ai_recommendations_route():
         "num_items": 5  # optional, defaults to 5
     }
     """
-    data = request.json
+    data = request.json or {}
     recommendation_type = data.get('type')
     address = data.get('location') or data.get('address')
-    num_items = data.get('num_items', 5)
+    num_items = _clamp_items(data.get('num_items', 5))
 
     if not recommendation_type:
         return jsonify({"error": "Please provide a recommendation type (food, activities, nightlife, etc.)"}), 400
@@ -1721,22 +1744,26 @@ def ai_recommendations_route():
         return jsonify({"error": "Could not get recommendations"}), 500
 
 @app.route('/api/ai-food', methods=['POST'])
+@require_auth
+@rate_limit('api_ai-food', 10)
 def ai_food_route():
     """Legacy endpoint for food recommendations. Use /api/ai-recommendations instead."""
-    data = request.json
+    data = request.json or {}
     address = data.get('location') or data.get('address')
-    num_places_to_eat = data.get('num_places_to_eat', 5)
+    num_places_to_eat = _clamp_items(data.get('num_places_to_eat', 5))
     if not address or not str(address).strip():
         return jsonify({"error": "Please provide a valid location to generate recommendations."}), 400
     recs = get_ai_food_recommendations(address, num_places_to_eat)
     return jsonify(recs or {"error": "Could not get recommendations"})
 
 @app.route('/api/ai-activities', methods=['POST'])
+@require_auth
+@rate_limit('api_ai-activities', 10)
 def ai_activities_route():
     """Legacy endpoint for activity recommendations. Use /api/ai-recommendations instead."""
-    data = request.json
+    data = request.json or {}
     address = data.get('location') or data.get('address')
-    num_things_to_do = data.get('num_things_to_do', 5)
+    num_things_to_do = _clamp_items(data.get('num_things_to_do', 5))
     if not address or not str(address).strip():
         return jsonify({"error": "Please provide a valid location to generate recommendations."}), 400
     recs = get_ai_activity_recommendations(address, num_things_to_do)
@@ -1808,8 +1835,12 @@ def get_place_photo():
     return jsonify({"error": "Place photo is unavailable"}), 404
 
 @app.route('/api/guidebook/<guidebook_id>/template', methods=['POST'])
+@require_auth
 def update_template_key(guidebook_id):
-    gb = Guidebook.query.get_or_404(guidebook_id)
+    user_id = g.user_id
+    gb = Guidebook.query.filter_by(id=guidebook_id, user_id=user_id).first()
+    if not gb:
+        return jsonify({"error": "Guidebook not found"}), 404
     body = request.json or {}
     new_key = body.get('template_key')
     if new_key not in ALLOWED_TEMPLATE_KEYS:
@@ -1872,10 +1903,12 @@ def toggle_guidebook(guidebook_id):
         "ok": True,
         "active": gb.active,
         "public_slug": gb.public_slug if gb.active else None,
-        "preview_url": f"/preview/{gb.id}" if not gb.active else None
+        "preview_url": _preview_path(gb) if not gb.active else None
     })
 
 @app.route('/api/places/search', methods=['POST'])
+@require_auth
+@rate_limit('api_places_search', 60)
 def places_search():
     """Proxy Google Places Text Search. Returns minimal normalized items.
     Body: { "query": string, "near": string|null }
@@ -1901,6 +1934,8 @@ def places_search():
         return jsonify({"error": "Failed to search places"}), 502
 
 @app.route('/api/places/enrich', methods=['GET'])
+@require_auth
+@rate_limit('api_places_enrich', 60)
 def places_enrich():
     """Given a place_id, return a DynamicItem-like normalized object.
     Response: { name, address, description, image_url, driving_minutes }
@@ -1965,8 +2000,12 @@ def _pdf_cache_key(guidebook: Guidebook, template_key: str) -> str:
     return f"{guidebook.id}:{template_key}:{ts_val}"
 
 @app.route('/api/guidebook/<guidebook_id>/pdf', methods=['GET'])
+@require_auth
 def get_pdf_on_demand(guidebook_id):
-    gb = Guidebook.query.get_or_404(guidebook_id)
+    user_id = g.user_id
+    gb = Guidebook.query.filter_by(id=guidebook_id, user_id=user_id).first()
+    if not gb:
+        return jsonify({"error": "Guidebook not found"}), 404
     requested_template = request.args.get('template')
     want_download = str(request.args.get('download', '0')).lower() in ('1', 'true', 'yes')
     include_qr = str(request.args.get('include_qr', '0')).lower() in ('1', 'true', 'yes')
@@ -2052,6 +2091,7 @@ def activate_guidebooks_for_user():
         return jsonify({"error": f"Activation failed: {type(e).__name__}: {e}"}), 500
 
 @app.route('/api/guidebook/<guidebook_id>/print-pdf', methods=['GET'])
+@require_auth
 def get_print_pdf(guidebook_id):
     """Generate print-ready PDF from web template (welcomebook).
 
@@ -2061,7 +2101,10 @@ def get_print_pdf(guidebook_id):
     Query params:
         - download: Set to '1' or 'true' to force download instead of inline display
     """
-    gb = Guidebook.query.get_or_404(guidebook_id)
+    user_id = g.user_id
+    gb = Guidebook.query.filter_by(id=guidebook_id, user_id=user_id).first()
+    if not gb:
+        return jsonify({"error": "Guidebook not found"}), 404
     want_download = str(request.args.get('download', '1')).lower() in ('1', 'true', 'yes')
 
     # Cache key includes template and last modified time
