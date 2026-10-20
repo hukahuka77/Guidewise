@@ -434,15 +434,15 @@ def stripe_webhook():
 
     # Debug logging
     log.info(f"Webhook received. Signature header present: {sig_header is not None}")
-    log.info(f"Webhook secret configured: {STRIPE_WEBHOOK_SECRET[:10]}... (first 10 chars)")
     log.info(f"Payload size: {len(payload)} bytes")
+
+    if not STRIPE_WEBHOOK_SECRET:
+        log.error("STRIPE_WEBHOOK_SECRET not configured; rejecting webhook")
+        return jsonify({"error": "Webhook not configured"}), 500
 
     event = None
     try:
-        if STRIPE_WEBHOOK_SECRET:
-            event = stripe.Webhook.construct_event(payload=payload, sig_header=sig_header, secret=STRIPE_WEBHOOK_SECRET)
-        else:
-            event = stripe.Event.construct_from(json.loads(payload), stripe.api_key)
+        event = stripe.Webhook.construct_event(payload=payload, sig_header=sig_header, secret=STRIPE_WEBHOOK_SECRET)
     except Exception as e:
         log.error(f"Webhook signature verification failed: {e}")
         return jsonify({"error": f"Webhook error: {e}"}), 400
@@ -719,45 +719,6 @@ def _verify_bearer_jwt(auth_header: str):
     except Exception as e:
         log.error("JWT verification failed: %s: %s", type(e).__name__, e)
         return None
-
-def require_auth(fn):
-    @functools.wraps(fn)
-    def wrapper(*args, **kwargs):
-        authz = request.headers.get('Authorization')
-        claims = _verify_bearer_jwt(authz)
-        if not claims:
-            log.warning("Unauthorized request to %s %s", request.method, request.path)
-            return jsonify({"error": "Unauthorized"}), 401
-        # Supabase user id lives in sub
-        g.user_id = claims.get('sub')
-        g.user_email = claims.get('email') or claims.get('user_metadata', {}).get('email') if isinstance(claims.get('user_metadata'), dict) else None
-        if not g.user_id:
-            log.warning("JWT missing sub claim")
-            return jsonify({"error": "Unauthorized"}), 401
-        # IMPORTANT: Propagate claims to Postgres session so RLS policies using auth.uid() work
-        try:
-            session_claims = {
-                "sub": g.user_id,
-                # Include email if available; harmless if missing
-                "email": g.user_email,
-            }
-            from sqlalchemy import text as _text
-            # Primary setting used by Supabase's auth.uid()
-            db.session.execute(
-                _text("select set_config('request.jwt.claims', :claims, true)") ,
-                {"claims": json.dumps(session_claims)}
-            )
-            # Back-compat: some helpers read jwt.claims
-            db.session.execute(
-                _text("select set_config('jwt.claims', :claims, true)") ,
-                {"claims": json.dumps(session_claims)}
-            )
-            # Ensure role is authenticated for policies that check current_role
-            db.session.execute(_text("select set_config('role', 'authenticated', true)"))
-        except Exception as e:
-            log.warning("Failed to set request.jwt.claims for RLS: %s: %s", type(e).__name__, e)
-        return fn(*args, **kwargs)
-    return wrapper
 
 # Template registry mapping keys to template files (URL renderer)
 TEMPLATE_REGISTRY = {
@@ -1056,7 +1017,7 @@ def view_guidebook(guidebook_id):
 @app.route('/api/generate', methods=['POST'])
 @require_auth
 def generate_guidebook_route():
-    data = request.json
+    data = request.json or {}
     # Auth REQUIRED: all guidebooks must be owned by an account
     user_id = g.user_id
 
@@ -1686,7 +1647,35 @@ def cleanup_expired():
     db.session.commit()
     return jsonify({"ok": True, "deleted": count})
 
+# Simple in-process per-user rate limiter for endpoints that spend third-party quota.
+# Per-worker (not shared across gunicorn workers), so effective limit is limit * workers.
+_RATE_BUCKETS = {}
+MAX_AI_ITEMS = 10
+
+def rate_limit(name: str, limit: int, window: int = 60):
+    def decorator(fn):
+        @functools.wraps(fn)
+        def wrapper(*args, **kwargs):
+            now = time.time()
+            key = (name, g.user_id)
+            hits = [t for t in _RATE_BUCKETS.get(key, []) if now - t < window]
+            if len(hits) >= limit:
+                return jsonify({"error": "Too many requests. Please slow down."}), 429
+            hits.append(now)
+            _RATE_BUCKETS[key] = hits
+            return fn(*args, **kwargs)
+        return wrapper
+    return decorator
+
+def _clamp_items(value, default: int = 5) -> int:
+    try:
+        return max(1, min(int(value), MAX_AI_ITEMS))
+    except (TypeError, ValueError):
+        return default
+
 @app.route('/api/ai-recommendations', methods=['POST'])
+@require_auth
+@rate_limit('api_ai-recommendations', 10)
 def ai_recommendations_route():
     """
     Generic AI recommendations endpoint.
@@ -1699,10 +1688,10 @@ def ai_recommendations_route():
         "num_items": 5  # optional, defaults to 5
     }
     """
-    data = request.json
+    data = request.json or {}
     recommendation_type = data.get('type')
     address = data.get('location') or data.get('address')
-    num_items = data.get('num_items', 5)
+    num_items = _clamp_items(data.get('num_items', 5))
 
     if not recommendation_type:
         return jsonify({"error": "Please provide a recommendation type (food, activities, nightlife, etc.)"}), 400
@@ -1719,22 +1708,26 @@ def ai_recommendations_route():
         return jsonify({"error": "Could not get recommendations"}), 500
 
 @app.route('/api/ai-food', methods=['POST'])
+@require_auth
+@rate_limit('api_ai-food', 10)
 def ai_food_route():
     """Legacy endpoint for food recommendations. Use /api/ai-recommendations instead."""
-    data = request.json
+    data = request.json or {}
     address = data.get('location') or data.get('address')
-    num_places_to_eat = data.get('num_places_to_eat', 5)
+    num_places_to_eat = _clamp_items(data.get('num_places_to_eat', 5))
     if not address or not str(address).strip():
         return jsonify({"error": "Please provide a valid location to generate recommendations."}), 400
     recs = get_ai_food_recommendations(address, num_places_to_eat)
     return jsonify(recs or {"error": "Could not get recommendations"})
 
 @app.route('/api/ai-activities', methods=['POST'])
+@require_auth
+@rate_limit('api_ai-activities', 10)
 def ai_activities_route():
     """Legacy endpoint for activity recommendations. Use /api/ai-recommendations instead."""
-    data = request.json
+    data = request.json or {}
     address = data.get('location') or data.get('address')
-    num_things_to_do = data.get('num_things_to_do', 5)
+    num_things_to_do = _clamp_items(data.get('num_things_to_do', 5))
     if not address or not str(address).strip():
         return jsonify({"error": "Please provide a valid location to generate recommendations."}), 400
     recs = get_ai_activity_recommendations(address, num_things_to_do)
@@ -1836,6 +1829,8 @@ def toggle_guidebook(guidebook_id):
     })
 
 @app.route('/api/places/search', methods=['POST'])
+@require_auth
+@rate_limit('api_places_search', 60)
 def places_search():
     """Proxy Google Places Text Search. Returns minimal normalized items.
     Body: { "query": string, "near": string|null }
@@ -1861,6 +1856,8 @@ def places_search():
         return jsonify({"error": "Failed to search places"}), 502
 
 @app.route('/api/places/enrich', methods=['GET'])
+@require_auth
+@rate_limit('api_places_enrich', 60)
 def places_enrich():
     """Given a place_id, return a DynamicItem-like normalized object.
     Response: { name, address, description, image_url, driving_minutes }

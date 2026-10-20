@@ -6,6 +6,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { getAuthHeaders } from "@/lib/authHeaders";
 
 const PdfViewer = dynamic(() => import("@/components/custom/PdfViewer"), { ssr: false });
 
@@ -35,19 +36,32 @@ export default function GuidebookPdfPage() {
 
   const getQrTargetUrl = () => liveGuidebookUrl;
 
-  const handleDownload = (templateKey?: TemplateKey) => {
+  const fetchPdfBlob = async (url: string) => {
+    const res = await fetch(url, { headers: await getAuthHeaders() });
+    if (!res.ok) throw new Error(`Failed to load PDF (${res.status})`);
+    return res.blob();
+  };
+
+  const handleDownload = async (templateKey?: TemplateKey) => {
     if (!guidebookId) return;
     const tplParam = templateKey ? `&template=${templateKey}` : "";
     const forceQr = templateKey === "template_pdf_qr";
     const qr = (forceQr || includeQrInPdf) && getQrTargetUrl() ? getQrTargetUrl() : null;
     const qrParams = qr ? `&include_qr=1&qr_url=${encodeURIComponent(qr)}` : "";
     const url = `${API_BASE}/api/guidebook/${guidebookId}/pdf?download=1${tplParam}${qrParams}`;
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "guidebook.pdf";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      const blobUrl = URL.createObjectURL(await fetchPdfBlob(url));
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = "guidebook.pdf";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+    } catch (e) {
+      console.error(e);
+      alert("Failed to download PDF. Please try again.");
+    }
   };
 
   const buildPdfUrl = async (templateKey?: TemplateKey) => {
@@ -58,8 +72,16 @@ export default function GuidebookPdfPage() {
     const qr = (forceQr || includeQrInPdf) && getQrTargetUrl() ? getQrTargetUrl() : null;
     const qrParams = qr ? `${hasTemplate ? "&" : "?"}include_qr=1&qr_url=${encodeURIComponent(qr)}` : "";
     const url = `${API_BASE}/api/guidebook/${guidebookId}/pdf${tplParam}${qrParams}`;
-    setPdfUrl(url);
-    return url;
+    try {
+      if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+      const blobUrl = URL.createObjectURL(await fetchPdfBlob(url));
+      setPdfUrl(blobUrl);
+      return blobUrl;
+    } catch (e) {
+      console.error(e);
+      setPdfUrl(null);
+      return null;
+    }
   };
 
   return (

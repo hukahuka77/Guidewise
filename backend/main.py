@@ -14,11 +14,6 @@ import socket
 
 load_dotenv()
 
-# Allowed hostnames for image fetching (Supabase Storage)
-ALLOWED_IMAGE_HOSTS = {
-    'hojncqasasvvrhdmwwhv.supabase.co',
-}
-
 # Block private/link-local/loopback ranges
 BLOCKED_NETWORKS = [
     ipaddress.ip_network('10.0.0.0/8'),
@@ -54,14 +49,12 @@ def custom_url_fetcher(url):
     if _is_host_blocked(hostname):
         raise ValueError(f"Blocked URL: resolves to private/internal address")
 
-    context = ssl.create_default_context()
-
     req = urllib.request.Request(
         url,
         headers={'User-Agent': 'Mozilla/5.0 (compatible; GuidewisePDF/1.0)'}
     )
 
-    class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    class _CheckedRedirectHandler(urllib.request.HTTPRedirectHandler):
         def redirect_request(self, req, fp, code, msg, headers, newurl):
             new_parsed = urllib.parse.urlparse(newurl)
             new_host = new_parsed.hostname or ''
@@ -71,9 +64,12 @@ def custom_url_fetcher(url):
                 self, req, fp, code, msg, headers, newurl
             )
 
-    opener = urllib.request.build_opener(NoRedirectHandler)
+    opener = urllib.request.build_opener(
+        _CheckedRedirectHandler,
+        urllib.request.HTTPSHandler(context=ssl.create_default_context()),
+    )
 
-    with opener.open(req, context=context, timeout=10) as response:
+    with opener.open(req, timeout=10) as response:
         return {
             'string': response.read(),
             'mime_type': response.headers.get('Content-Type', 'application/octet-stream'),
