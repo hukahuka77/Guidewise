@@ -1,10 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
-import { getTemplatesHash, renderGuidebookHtml } from "@/lib/guidebook/render";
+import { PLACE_PHOTO_SNAPSHOT_MARKER, getTemplatesHash, renderGuidebookHtml } from "@/lib/guidebook/render";
 import type { GuidebookRow } from "@/lib/guidebook/types";
 import { SITE_ORIGIN } from "./env";
-
-/** Snapshots stored by publish carry this marker once they use durable place-photo URLs. */
-export const PLACE_PHOTO_SNAPSHOT_MARKER = "<!-- place-photo-v2 -->";
 
 const PUBLIC_CACHE = "public, max-age=300, s-maxage=300, stale-while-revalidate=86400";
 

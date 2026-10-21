@@ -18,10 +18,12 @@ ROWS = {p.stem: json.loads(p.read_text()) for p in FIXTURES.glob("*.json")}
 # An active guidebook, a draft with a share token, and one that makes the lookup fail.
 ACTIVE = dict(ROWS["full_original"], public_slug="cozy-cabin-abc123", active=True)
 DRAFT = dict(ROWS["minimal_original"], id="draft-1", active=False, public_slug=None,
-             preview_token="s3cret-token", user_id="owner-1",
+             preview_token="s3cret-token", user_id="11111111-1111-4111-8111-aaaaaaaaaaaa",
              property={"id": 9, "name": "Draft House", "address_street": None, "address_city_state": None, "address_zip": None})
 BROKEN = dict(ACTIVE, id="broken-1", public_slug="broken-slug")
-TOKENS = {"owner-token": "owner-1", "other-token": "someone-else"}
+OWNER_ID = "11111111-1111-4111-8111-aaaaaaaaaaaa"
+OTHER_ID = "22222222-2222-4222-8222-bbbbbbbbbbbb"
+TOKENS = {"owner-token": OWNER_ID, "other-token": OTHER_ID}
 
 
 class Flask(BaseHTTPRequestHandler):

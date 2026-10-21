@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import nunjucks from "nunjucks";
-import { buildGuidebookContext } from "./context";
+import { buildGuidebookContext, sanitizeCustomTabsMeta } from "./context";
 import { placePhotoUrl } from "./placePhotos";
 import { jinjaEscape, jinjaTitle, jinjaUrlencode, withPythonTruthiness } from "./pyCompat";
 import type { GuidebookRow } from "./types";
@@ -16,6 +16,9 @@ export const TEMPLATE_REGISTRY: Record<string, string> = {
 };
 
 export const DEFAULT_TEMPLATE_KEY = "template_original";
+
+/** Snapshots stored by publish carry this marker once they use durable place-photo URLs. */
+export const PLACE_PHOTO_SNAPSHOT_MARKER = "<!-- place-photo-v2 -->";
 
 const TEMPLATE_DIR = path.join(process.cwd(), "src", "templates", "guidebook");
 
@@ -70,5 +73,44 @@ export function renderGuidebookHtml(gb: GuidebookRow, options: RenderOptions = {
     show_watermark: Boolean(options.showWatermark),
     upgrade_url: options.upgradeUrl ?? "/pricing",
   });
+  return { html, templateKey };
+}
+
+/**
+ * Render the HTML snapshot stored by "publish". Flask passed the guidebook fields to the template
+ * both inside `ctx` and as top-level variables, and one template (welcomebook) reads the top-level
+ * `property_name`, so the same variables are passed here to produce identical snapshots.
+ */
+export function renderPublishSnapshot(gb: GuidebookRow): { html: string; templateKey: string } {
+  const templateKey = resolveTemplateKey(gb.template_key);
+  const ctx = buildGuidebookContext(gb);
+  const legacy = {
+    id: gb.id,
+    host_name: gb.host?.name ?? null,
+    host_bio: gb.host?.bio ?? null,
+    host_contact: gb.host?.contact ?? null,
+    host_photo_url: gb.host?.host_image_url ?? null,
+    property_name: gb.property?.name ?? null,
+    check_in_time: gb.check_in_time,
+    check_out_time: gb.check_out_time,
+    address_street: gb.property?.address_street ?? null,
+    address_city_state: gb.property?.address_city_state ?? null,
+    address_zip: gb.property?.address_zip ?? null,
+    access_info: gb.access_info,
+    welcome_message: gb.welcome_info,
+    parking_info: gb.parking_info,
+    rules: gb.rules_json || [],
+    things_to_do: gb.things_to_do,
+    places_to_eat: gb.places_to_eat,
+    checkout_info: gb.checkout_info,
+    house_manual: gb.house_manual,
+    included_tabs: ctx.included_tabs,
+    custom_sections: gb.custom_sections,
+    custom_tabs_meta: sanitizeCustomTabsMeta(gb.custom_tabs_meta),
+    cover_image_url: gb.cover_image_url,
+  };
+  const html =
+    PLACE_PHOTO_SNAPSHOT_MARKER +
+    getEnv().render(TEMPLATE_REGISTRY[templateKey], { ctx: withPythonTruthiness(ctx), ...withPythonTruthiness(legacy) });
   return { html, templateKey };
 }

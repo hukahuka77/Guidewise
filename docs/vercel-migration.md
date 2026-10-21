@@ -18,7 +18,7 @@ same request to Flask (`src/lib/server/proxy.ts`).
 | --- | --- | --- |
 | 1 | Vercel in front of Render (rewrites, edge caching, same-origin API) | on `main` |
 | 2 | Public guidebook pages: `/g/[slug]`, `/preview/[id]`, `/guidebook/[id]` | on `main`, activates when `SUPABASE_SERVICE_ROLE_KEY` is set |
-| 3 | Logged-in CRUD (create/edit/list/delete/publish/toggle/template) | pending |
+| 3 | Logged-in CRUD (create/edit/list/get/delete/publish/toggle/template, hosts) | on `main`, activates when `DATABASE_URL` is set in Vercel |
 | 4 | Integrations (Stripe, Places, AI recommendations, listing import) | pending |
 | 5 | PDFs, then retire Render | pending |
 
@@ -53,3 +53,42 @@ python3 frontend/tests/parity/generate_goldens.py
 python3 frontend/tests/parity/generate_unit_expectations.py
 python3 frontend/scripts/port-jinja-templates.py
 ```
+
+## Step 3 details
+
+Routes now native in Next.js (all require a Supabase access token, 401 otherwise):
+`POST /api/generate`, `GET /api/guidebooks`, `GET|PUT|PATCH|DELETE /api/guidebooks/:id`,
+`POST /api/guidebooks/:id/publish`, `POST /api/guidebooks/:id/toggle`, `POST /api/guidebook/:id/template`,
+`GET /api/hosts`.
+
+- `src/lib/server/guidebookService.ts` is a port of the Flask logic. Anything touching several tables
+  (create, update, toggle) runs in one Postgres transaction, like the SQLAlchemy session it replaces.
+  Data access is direct SQL (`postgres` package) through the Supabase pooler, so ownership checks are in
+  the SQL/service code exactly as in Flask (the service connection bypasses RLS).
+- Tokens are verified with Supabase Auth (`auth.getUser`), so no JWT secret is needed in Vercel.
+- Tests run against a real Postgres engine (PGlite) loaded with a copy of the production schema
+  (`tests/helpers/schema.sql`): service logic, plan limits, atomicity (a failed create/update leaves no
+  partial rows), ownership, publish freshness, and the HTTP handlers. `tests/integration/native-routes.sh`
+  also exercises the running Next.js server end to end.
+- Routes fall back to Flask when `DATABASE_URL` (or Supabase auth) is not configured. Writes never retry on
+  Flask after an error (they would risk duplicates); reads do.
+- `POST /api/guidebooks/activate_for_user` is NOT migrated: the Flask route calls a helper that does not exist
+  and always errors. An explicit pass-through route keeps it reaching Flask instead of being captured by
+  `/api/guidebooks/[id]` (which would answer 405). `/api/maintenance/cleanup-expired` is also left behind
+  (it references columns that do not exist).
+
+### Intentional differences from Flask
+
+- Creating a guidebook without `property_name` returns 400 (Flask crashed with a 500).
+- Updating with a non-string `template_key` ignores it (Flask raised on the NOT NULL column).
+- Creating a draft preview token no longer bumps `last_modified_time` (it made the dashboard order jump
+  and marked fresh snapshots stale).
+- Publish renders `ctx.rules` through the same normaliser as the live page (Flask's snapshot used the raw
+  value, one of the drift bugs from issue #35). Everything else in the snapshot is byte-identical (golden-tested).
+- Timestamps are ISO strings with milliseconds and a `Z`; `GET /api/hosts` is ordered by id.
+
+### Enabling step 3 (Vercel dashboard, Production and Preview)
+
+Add `DATABASE_URL` (the same value as on Render; the Supabase pooler URL) as a server-side variable and
+redeploy. Remove it to return these routes to Flask instantly.
+

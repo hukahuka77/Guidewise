@@ -20,7 +20,7 @@ export function resolveIncludedTabs(raw: unknown): string[] {
 }
 
 /** Custom tab labels/icons with unpaired surrogates stripped (broken emoji halves break rendering). */
-function sanitizeCustomTabsMeta(meta: unknown): Record<string, { label: string; icon: string }> | null {
+export function sanitizeCustomTabsMeta(meta: unknown): Record<string, { label: string; icon: string }> | null {
   if (!isDict(meta)) return null;
   const out: Record<string, { label: string; icon: string }> = {};
   for (const [key, value] of Object.entries(meta)) {
