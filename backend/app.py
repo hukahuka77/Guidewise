@@ -12,7 +12,6 @@ from datetime import datetime, timezone
 import hashlib
 from dotenv import load_dotenv
 import os
-import ast
 import time
 import functools
 import logging
@@ -39,6 +38,8 @@ from utils.google_places import (
     google_distance_matrix,
 )
 from utils.place_photos import place_photo_url
+from utils.rules import normalize_rules
+from utils.listing_import import import_listing, ListingImportError
 
 # --- Unicode utilities ---
 def _strip_surrogates(s: str) -> str:
@@ -820,62 +821,6 @@ def _render_guidebook(gb: Guidebook, show_watermark: bool = False):
         "https://hojncqasasvvrhdmwwhv.supabase.co/storage/v1/object/public/my_images/home_placeholder.jpg"
     )
 
-    def _normalize_rules(raw_rules):
-        """Normalize rules from various legacy formats into [{name, description}] for rendering.
-
-        Supports:
-        - Proper dicts: {"name": str, "description": str}
-        - Nested dicts from older bug: {"name": {"name": str, "description": str}, "description": ""}
-        - Strings like "No Smoking: Details" or "No Smoking"
-        - Strings that look like python dicts: "{'name': 'No Smoking', 'description': '...'}"
-        """
-        rules_out = []
-        if not raw_rules:
-            return []
-        for r in raw_rules:
-            if not r:
-                continue
-            # Dict formats
-            if isinstance(r, dict):
-                name_val = r.get('name')
-                desc_val = r.get('description')
-                # Handle nested dict in name field
-                if isinstance(name_val, dict) and ('name' in name_val or 'description' in name_val):
-                    inner = name_val
-                    name = str(inner.get('name') or '').strip()
-                    # Prefer inner description, fall back to outer description
-                    desc = str(inner.get('description') or desc_val or '').strip()
-                else:
-                    name = str(name_val or '').strip()
-                    desc = str(desc_val or '').strip()
-                if name or desc:
-                    rules_out.append({'name': name, 'description': desc})
-                continue
-            # String forms
-            if isinstance(r, str):
-                s = r.strip()
-                # Try to parse legacy python-dict-style strings
-                if s.startswith('{') and s.endswith('}'):
-                    try:
-                        parsed = ast.literal_eval(s)
-                        if isinstance(parsed, dict):
-                            name = str(parsed.get('name') or '').strip()
-                            desc = str(parsed.get('description') or '').strip()
-                            if name or desc:
-                                rules_out.append({'name': name, 'description': desc})
-                                continue
-                    except Exception:
-                        pass
-                # Fallback: split on first colon
-                if ':' in s:
-                    name_part, desc_part = s.split(':', 1)
-                    name = name_part.strip()
-                    desc = desc_part.strip()
-                    rules_out.append({'name': name or s, 'description': desc})
-                else:
-                    rules_out.append({'name': s, 'description': ''})
-        return rules_out
-
     def _build_ctx(g: Guidebook) -> dict:
         # Prefer structured rules_json, but fall back to legacy rules if needed
         raw_rules = getattr(g, 'rules_json', None)
@@ -904,7 +849,7 @@ def _render_guidebook(gb: Guidebook, show_watermark: bool = False):
             "check_out_time": g.check_out_time,
             "access_info": g.access_info,
             "parking_info": g.parking_info,
-            "rules": _normalize_rules(raw_rules),
+            "rules": normalize_rules(raw_rules),
             "things_to_do": g.things_to_do or [],
             "places_to_eat": g.places_to_eat or [],
             "checkout_info": getattr(g, 'checkout_info', None) or [],
@@ -1287,6 +1232,79 @@ def generate_guidebook_route():
         resp.headers['Access-Control-Expose-Headers'] = 'X-Guidebook-Url, X-Guidebook-Preview'
 
     return resp, 201
+
+@app.route('/api/import-listing', methods=['POST'])
+@require_auth
+@rate_limit('api_import_listing', 5)
+def import_listing_route():
+    """Create a draft guidebook from a public Airbnb/VRBO listing URL.
+
+    Body: { "url": string }
+    Response: { ok, guidebook_id, imported: [field names that were filled], missing: [...] }
+    The guidebook is always created as a draft so the host can review it before publishing.
+    """
+    data = request.json or {}
+    try:
+        fields = import_listing(data.get('url'))
+    except ListingImportError as e:
+        return jsonify({"error": e.user_message, "code": e.code}), e.status
+
+    user_id = g.user_id
+    property_name = fields['property_name'] or 'My Property'
+
+    host = None
+    if fields['host_name']:
+        host = Host.query.filter_by(name=fields['host_name'], user_id=user_id).first()
+        if not host:
+            host = Host(name=fields['host_name'], user_id=user_id)
+            db.session.add(host)
+
+    prop = Property.query.filter_by(name=property_name, user_id=user_id).first()
+    if not prop:
+        prop = Property(
+            name=property_name,
+            address_city_state=fields['address_city_state'] or None,
+            user_id=user_id,
+        )
+        db.session.add(prop)
+    elif fields['address_city_state'] and not prop.address_city_state:
+        prop.address_city_state = fields['address_city_state']
+    db.session.flush()
+
+    guidebook = Guidebook(
+        check_in_time=fields['check_in_time'] or '15:00',
+        check_out_time=fields['check_out_time'] or '11:00',
+        welcome_info=fields['welcome_message'] or None,
+        parking_info=fields['parking_info'] or None,
+        house_manual=fields['house_manual'] or None,
+        checkout_info=fields['checkout_info'] or None,
+        rules_json=fields['house_rules'] or None,
+        included_tabs=['welcome', 'checkin', 'property', 'food', 'activities', 'rules', 'checkout'],
+        template_key='template_original',
+        host_id=host.id if host else None,
+        property_id=prop.id,
+        user_id=user_id,
+        active=False,
+        public_slug=None,
+    )
+    db.session.add(guidebook)
+    db.session.commit()
+
+    labels = {
+        'property_name': 'property name', 'host_name': 'host name',
+        'welcome_message': 'welcome message', 'address_city_state': 'city',
+        'check_in_time': 'check-in time', 'check_out_time': 'check-out time',
+        'parking_info': 'parking info', 'house_rules': 'house rules',
+        'house_manual': 'house manual', 'checkout_info': 'checkout instructions',
+    }
+    imported = [label for key, label in labels.items() if fields.get(key)]
+    missing = [label for key, label in labels.items() if not fields.get(key)]
+    return jsonify({
+        "ok": True,
+        "guidebook_id": guidebook.id,
+        "imported": imported,
+        "missing": missing,
+    }), 201
 
 # --- User-scoped Guidebooks API ---
 @app.route('/api/guidebooks', methods=['GET'])

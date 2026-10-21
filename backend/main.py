@@ -8,6 +8,7 @@ from utils.google_places import (
     google_places_text_search,
 )
 from utils.place_photos import google_photo_reference, place_photo_url
+from utils.rules import rules_as_text
 # Import models from models.py to be used in PDF generation
 from models import Guidebook, Host, Property
 import json
@@ -290,7 +291,7 @@ def create_guidebook_pdf(guidebook, qr_url: str | None = None):
         'address_city_state': guidebook.property.address_city_state if getattr(guidebook, 'property', None) else '',
         'address_zip': guidebook.property.address_zip if getattr(guidebook, 'property', None) else '',
         'access_info': guidebook.access_info,
-        'rules': [rule.text for rule in getattr(guidebook, 'rules', [])],
+        'rules': rules_as_text(getattr(guidebook, 'rules_json', None)),
         'things_to_do': _normalize_recommendations(getattr(guidebook, 'things_to_do', []) or []),
         'places_to_eat': _normalize_recommendations(getattr(guidebook, 'places_to_eat', []) or []),
         'cover_image_url': getattr(guidebook, 'cover_image_url', None),
