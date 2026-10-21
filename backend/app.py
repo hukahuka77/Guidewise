@@ -91,16 +91,16 @@ CORS(
 
 # Configure the database using the DATABASE_URL from .env
 def _normalize_database_url(url):
-    """Map DATABASE_URL onto the installed driver (psycopg2).
+    """Pin DATABASE_URL to the installed psycopg2 driver.
 
-    Managed Postgres/Supabase URLs are sometimes issued as postgres:// or
-    postgresql+psycopg://, which makes SQLAlchemy look for a driver that isn't installed.
+    SQLAlchemy 2.1 defaults plain postgresql:// URLs to psycopg (v3), which isn't installed,
+    and managed Postgres URLs are sometimes issued as postgres:// or postgresql+psycopg://.
     """
     if not url:
         return url
-    for prefix in ('postgresql+psycopg://', 'postgres://'):
+    for prefix in ('postgresql+psycopg://', 'postgresql://', 'postgres://'):
         if url.startswith(prefix):
-            return 'postgresql://' + url[len(prefix):]
+            return 'postgresql+psycopg2://' + url[len(prefix):]
     return url
 
 app.config['SQLALCHEMY_DATABASE_URI'] = _normalize_database_url(os.environ.get('DATABASE_URL'))
