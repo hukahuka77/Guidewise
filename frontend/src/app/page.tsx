@@ -95,6 +95,8 @@ export default function Home() {
 
             {/* QR code + link under demo */}
             <div className="mt-8 flex items-center justify-center gap-5">
+              {/* Plain anchor on purpose: /g/[slug] is an HTML route handler, not a client-routed page. */}
+              {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
               <a
                 href="/g/the-white-house"
                 className="inline-flex items-center px-3 py-2 rounded-xl text-pink-600 font-medium whitespace-nowrap no-underline hover:no-underline border border-transparent hover:border-pink-200 hover:bg-pink-50 hover:text-pink-700 transition-colors duration-200"

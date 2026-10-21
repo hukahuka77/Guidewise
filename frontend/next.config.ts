@@ -4,7 +4,15 @@ import type { NextConfig } from "next";
 // anything else falls through to Flask until it has been migrated.
 const BACKEND_URL = (process.env.BACKEND_URL || "https://guidewise.onrender.com").replace(/\/$/, "");
 
+const GUIDEBOOK_TEMPLATES = ["./src/templates/guidebook/**/*"];
+
 const nextConfig: NextConfig = {
+  // The guidebook templates are read from disk at runtime, so make sure they ship with the functions.
+  outputFileTracingIncludes: {
+    "/g/[slug]": GUIDEBOOK_TEMPLATES,
+    "/guidebook/[id]": GUIDEBOOK_TEMPLATES,
+    "/preview/[id]": GUIDEBOOK_TEMPLATES,
+  },
   async rewrites() {
     return {
       // `fallback` rewrites only apply when no page or route handler matched,
