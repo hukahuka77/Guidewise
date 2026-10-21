@@ -1,3 +1,4 @@
+import { getAuthHeaders } from "@/lib/authHeaders";
 import { useState } from 'react';
 import type { DynamicItem } from '@/components/sections/DynamicItemList';
 
@@ -30,7 +31,7 @@ export function useAIRecommendations(options: UseAIRecommendationsOptions) {
 
       const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
         body: JSON.stringify({ address: location, num_places_to_eat: count })
       });
 
@@ -64,6 +65,7 @@ export function useAIRecommendations(options: UseAIRecommendationsOptions) {
             address: item.address || "",
             description: item.description || "",
             image_url: photoRef,
+            place_id: item.place_id,
             driving_minutes: item.driving_minutes || null
           };
         });
@@ -100,7 +102,7 @@ export function useAIRecommendations(options: UseAIRecommendationsOptions) {
 
       const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
         body: JSON.stringify({ address: location, num_things_to_do: count })
       });
 
@@ -134,6 +136,7 @@ export function useAIRecommendations(options: UseAIRecommendationsOptions) {
             address: item.address || "",
             description: item.description || "",
             image_url: photoRef,
+            place_id: item.place_id,
             driving_minutes: item.driving_minutes || null
           };
         });

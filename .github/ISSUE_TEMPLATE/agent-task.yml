@@ -1,0 +1,33 @@
+name: Agent Task
+description: Scoped work item ready for an AI agent
+title: "[Agent]: "
+labels:
+  - agent:ready
+  - type:task
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What should change when this task is complete?
+      placeholder: Describe the concrete outcome.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: Conditions that must be true before this can merge.
+      placeholder: |
+        - CI passes
+        - Behavior is covered by tests or a clear manual check
+        - Docs are updated if behavior changes
+    validations:
+      required: true
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints and Notes
+      description: Files, patterns, risks, or decisions the agent should respect.
+    validations:
+      required: false

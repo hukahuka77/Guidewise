@@ -36,6 +36,14 @@ def google_places_details(place_id):
 def google_places_photo_url(photo_reference, maxwidth=800):
     return f"{PLACES_PHOTO_URL}?maxwidth={maxwidth}&photo_reference={photo_reference}&key={GOOGLE_API_KEY}"
 
+def google_places_photo_reference(place_id):
+    """Return the current photo reference for a durable Google Place ID."""
+    details = google_places_details(place_id)
+    photos = (details.get("result") or {}).get("photos") or []
+    if not photos:
+        return None
+    return (photos[0] or {}).get("photo_reference")
+
 def google_distance_matrix(origin, destination):
     """
     Calculate driving distance and time between origin and destination using Routes API (new).

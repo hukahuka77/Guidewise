@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "repository": {
+    "slug": "hukahuka77/Guidewise",
+    "root": ".",
+    "pathAssumption": "Run commands from the repository root; resolve all relative paths from this file's parent repository."
+  },
+  "branches": {
+    "development": "main",
+    "production": "prod",
+    "workerPattern": "agent/**",
+    "defaultPullRequestBase": "main"
+  },
+  "pullRequests": {
+    "required": true,
+    "linkIssue": true,
+    "requirePassingVerification": true,
+    "productionRequiresAndrewApproval": true
+  },
+  "protectedAreas": [
+    {
+      "path": ".github/workflows/**",
+      "risk": "high",
+      "reason": "Changes alter CI and deployment automation."
+    },
+    {
+      "path": "supabase/migrations/**",
+      "risk": "high",
+      "reason": "Database migrations can irreversibly affect persisted data."
+    },
+    {
+      "path": "backend/app.py",
+      "risk": "high",
+      "reason": "The API entry point contains authentication, billing, webhook, and maintenance behavior."
+    },
+    {
+      "path": "**/.env*",
+      "risk": "protected",
+      "reason": "Environment files may contain secrets and must not be committed."
+    }
+  ],
+  "verification": {
+    "frontend": {
+      "workingDirectory": "frontend",
+      "runtime": "node 20",
+      "commands": [
+        "npm ci",
+        "npm run lint",
+        "npm run typecheck",
+        "NEXT_PUBLIC_API_BASE_URL=http://localhost:5001 NEXT_PUBLIC_SITE_URL=http://localhost:3000 npm run build"
+      ]
+    },
+    "backend": {
+      "workingDirectory": "backend",
+      "runtime": "python 3.12",
+      "commands": [
+        "python -m pip install --upgrade pip",
+        "pip install -r requirements.txt",
+        "python -m compileall ."
+      ]
+    },
+    "localContract": "scripts/check.sh"
+  }
+}

@@ -1,0 +1,38 @@
+name: Bug
+description: Report a defect or regression
+title: "[Bug]: "
+labels:
+  - type:bug
+body:
+  - type: textarea
+    id: current
+    attributes:
+      label: Current Behavior
+      description: What is happening now?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What should happen instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Include URLs, accounts, inputs, screenshots, logs, or environment details when useful.
+      placeholder: |
+        1. Go to ...
+        2. Click ...
+        3. See ...
+    validations:
+      required: false
+  - type: textarea
+    id: checks
+    attributes:
+      label: Verification
+      description: How should the fix be verified?
+    validations:
+      required: false

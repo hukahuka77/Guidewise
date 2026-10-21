@@ -123,13 +123,15 @@ export default function SuccessPage() {
           } else {
             // If not active, clear any old live URL and ensure preview URL is set
             setLiveGuidebookUrl(null);
-            const preview = `${apiBase}/preview/${guidebookId}`;
+            const preview = data.preview_url ? `${apiBase}${data.preview_url}` : null;
             setPreviewUrl(preview);
             try {
               sessionStorage.removeItem('liveGuidebookUrl');
               localStorage.removeItem('liveGuidebookUrl');
-              sessionStorage.setItem('previewGuidebookUrl', preview);
-              localStorage.setItem('previewGuidebookUrl', preview);
+              if (preview) {
+                sessionStorage.setItem('previewGuidebookUrl', preview);
+                localStorage.setItem('previewGuidebookUrl', preview);
+              }
             } catch { }
           }
         }

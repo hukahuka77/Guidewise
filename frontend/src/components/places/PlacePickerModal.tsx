@@ -1,4 +1,5 @@
 "use client";
+import { getAuthHeaders } from "@/lib/authHeaders";
 
 import React, { useState } from "react";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,7 @@ export type DynamicItem = {
   address: string;
   description: string;
   image_url?: string;
+  place_id?: string;
   driving_minutes?: number | null;
 };
 
@@ -43,7 +45,7 @@ export default function PlacePickerModal({ open, onClose, onSelect, near, apiBas
     try {
       const res = await fetch(`${apiBase}/api/places/search`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
         body: JSON.stringify({ query, near: near || null }),
       });
       if (!res.ok) throw new Error(`Search failed (${res.status})`);
@@ -65,7 +67,7 @@ export default function PlacePickerModal({ open, onClose, onSelect, near, apiBas
       if (near) {
         url.searchParams.set('origin', near);
       }
-      const res = await fetch(url.toString());
+      const res = await fetch(url.toString(), { headers: await getAuthHeaders() });
       if (!res.ok) throw new Error(`Enrich failed (${res.status})`);
       const item = (await res.json()) as DynamicItem;
       onSelect(item);

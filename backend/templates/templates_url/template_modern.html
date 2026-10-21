@@ -522,7 +522,7 @@
     <div class="items-grid">
       {% for item in ctx.places_to_eat %}
       <div class="item">
-        {% if item.image_url %}<img src="{{ item.image_url }}" alt="{{ item.name }}" class="item-image">{% endif %}
+        {% if item.image_url %}<img src="{{ item | place_photo_url }}" alt="{{ item.name }}" class="item-image">{% endif %}
         <div class="item-name">{{ item.name }}</div>
         {% if item.description %}<div class="item-desc">{{ item.description }}</div>{% endif %}
         {% if item.address %}<a href="https://maps.google.com/maps?q={{ item.address | urlencode }}" target="_blank" rel="noopener noreferrer" class="item-address" style="text-decoration: none; color: inherit; display: block;">📍 {{ item.address }}</a>{% endif %}
@@ -543,7 +543,7 @@
     <div class="items-grid">
       {% for item in ctx.things_to_do %}
       <div class="item">
-        {% if item.image_url %}<img src="{{ item.image_url }}" alt="{{ item.name }}" class="item-image">{% endif %}
+        {% if item.image_url %}<img src="{{ item | place_photo_url }}" alt="{{ item.name }}" class="item-image">{% endif %}
         <div class="item-name">{{ item.name }}</div>
         {% if item.description %}<div class="item-desc">{{ item.description }}</div>{% endif %}
         {% if item.address %}<a href="https://maps.google.com/maps?q={{ item.address | urlencode }}" target="_blank" rel="noopener noreferrer" class="item-address" style="text-decoration: none; color: inherit; display: block;">📍 {{ item.address }}</a>{% endif %}

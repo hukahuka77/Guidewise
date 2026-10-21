@@ -1,7 +1,13 @@
 from dotenv import load_dotenv
 from jinja2 import Environment, FileSystemLoader
-from weasyprint import HTML, default_url_fetcher
+from weasyprint import HTML
 from utils.aifunctions import get_ai_recommendations
+from utils.google_places import (
+    google_places_photo_reference,
+    google_places_photo_url,
+    google_places_text_search,
+)
+from utils.place_photos import google_photo_reference, place_photo_url
 # Import models from models.py to be used in PDF generation
 from models import Guidebook, Host, Property
 import json
@@ -9,35 +15,73 @@ import ast
 import urllib.parse
 import ssl
 import urllib.request
+import ipaddress
+import socket
 
 load_dotenv()
 
-# Custom URL fetcher that ignores SSL verification for external images
-def custom_url_fetcher(url):
-    """Fetch URLs with relaxed SSL verification to allow external images."""
+# Block private/link-local/loopback ranges
+BLOCKED_NETWORKS = [
+    ipaddress.ip_network('10.0.0.0/8'),
+    ipaddress.ip_network('172.16.0.0/12'),
+    ipaddress.ip_network('192.168.0.0/16'),
+    ipaddress.ip_network('127.0.0.0/8'),
+    ipaddress.ip_network('169.254.0.0/16'),
+    ipaddress.ip_network('::1/128'),
+    ipaddress.ip_network('fc00::/7'),
+]
+
+
+def _is_host_blocked(hostname: str) -> bool:
+    """Check if a hostname resolves to a private/link-local address."""
     try:
-        # Create a context that doesn't verify SSL certificates
-        context = ssl.create_default_context()
-        context.check_hostname = False
-        context.verify_mode = ssl.CERT_NONE
+        for info in socket.getaddrinfo(hostname, None):
+            ip = ipaddress.ip_address(info[4][0])
+            for net in BLOCKED_NETWORKS:
+                if ip in net:
+                    return True
+    except (socket.gaierror, ValueError):
+        pass
+    return False
 
-        # Add a user agent to avoid being blocked
-        req = urllib.request.Request(
-            url,
-            headers={'User-Agent': 'Mozilla/5.0 (compatible; GuidewisePDF/1.0)'}
-        )
 
-        with urllib.request.urlopen(req, context=context, timeout=10) as response:
-            return {
-                'string': response.read(),
-                'mime_type': response.headers.get('Content-Type', 'application/octet-stream'),
-                'encoding': response.headers.get_content_charset(),
-                'redirected_url': response.url,
-            }
-    except Exception as e:
-        print(f"Failed to fetch {url}: {e}")
-        # Fall back to default fetcher
-        return default_url_fetcher(url)
+def custom_url_fetcher(url):
+    """Fetch URLs with proper SSL verification and SSRF protection."""
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in ('http', 'https'):
+        raise ValueError(f"Blocked URL scheme: {parsed.scheme}")
+
+    hostname = parsed.hostname or ''
+    if _is_host_blocked(hostname):
+        raise ValueError(f"Blocked URL: resolves to private/internal address")
+
+    req = urllib.request.Request(
+        url,
+        headers={'User-Agent': 'Mozilla/5.0 (compatible; GuidewisePDF/1.0)'}
+    )
+
+    class _CheckedRedirectHandler(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, headers, newurl):
+            new_parsed = urllib.parse.urlparse(newurl)
+            new_host = new_parsed.hostname or ''
+            if _is_host_blocked(new_host):
+                raise ValueError(f"Blocked redirect to private/internal address: {newurl}")
+            return urllib.request.HTTPRedirectHandler.redirect_request(
+                self, req, fp, code, msg, headers, newurl
+            )
+
+    opener = urllib.request.build_opener(
+        _CheckedRedirectHandler,
+        urllib.request.HTTPSHandler(context=ssl.create_default_context()),
+    )
+
+    with opener.open(req, timeout=10) as response:
+        return {
+            'string': response.read(),
+            'mime_type': response.headers.get('Content-Type', 'application/octet-stream'),
+            'encoding': response.headers.get_content_charset(),
+            'redirected_url': response.url,
+        }
 
 # Map template keys to HTML template files for PDF rendering (PDF-only)
 # Canonical PDF keys
@@ -79,12 +123,40 @@ def _normalize_recommendations(items):
             # Fallback to simple text item
             obj = {"name": str(it)}
         # Ensure keys exist
-        normalized.append({
+        normalized_item = {
             "name": obj.get("name") or obj.get("title") or str(obj),
             "description": obj.get("description") or "",
             "address": obj.get("address") or "",
             "image_url": obj.get("image_url") or obj.get("photo") or "",
-        })
+            "place_id": obj.get("place_id") or "",
+        }
+        rendered_url = place_photo_url(normalized_item)
+        if rendered_url.startswith('/api/place-photo'):
+            reference = None
+            if normalized_item["place_id"]:
+                try:
+                    reference = google_places_photo_reference(normalized_item["place_id"])
+                except Exception as exc:
+                    print(f"Failed to refresh PDF place photo: {exc}")
+            elif normalized_item["name"] or normalized_item["address"]:
+                try:
+                    query = ", ".join(filter(None, (
+                        normalized_item["name"],
+                        normalized_item["address"],
+                    )))
+                    results = google_places_text_search(query).get("results") or []
+                    recovered_place_id = (results[0] or {}).get("place_id") if results else None
+                    reference = (
+                        google_places_photo_reference(recovered_place_id)
+                        if recovered_place_id else None
+                    )
+                except Exception as exc:
+                    print(f"Failed to recover legacy PDF place photo: {exc}")
+            reference = reference or google_photo_reference(normalized_item["image_url"])
+            normalized_item["image_url"] = (
+                google_places_photo_url(reference) if reference else ""
+            )
+        normalized.append(normalized_item)
     return normalized
 
 
@@ -160,8 +232,8 @@ def create_print_pdf_from_web_template(guidebook):
         "access_info": getattr(guidebook, 'access_info', None),
         "parking_info": getattr(guidebook, 'parking_info', None),
         "rules": getattr(guidebook, 'rules_json', None) or [],
-        "things_to_do": getattr(guidebook, 'things_to_do', None) or [],
-        "places_to_eat": getattr(guidebook, 'places_to_eat', None) or [],
+        "things_to_do": _normalize_recommendations(getattr(guidebook, 'things_to_do', None) or []),
+        "places_to_eat": _normalize_recommendations(getattr(guidebook, 'places_to_eat', None) or []),
         "checkout_info": getattr(guidebook, 'checkout_info', None) or [],
         "house_manual": getattr(guidebook, 'house_manual', None) or [],
         "included_tabs": included_tabs,
@@ -172,6 +244,7 @@ def create_print_pdf_from_web_template(guidebook):
 
     # Setup Jinja2 environment
     env = Environment(loader=FileSystemLoader(['.', 'templates']))
+    env.filters['place_photo_url'] = place_photo_url
     template = env.get_template(template_file)
 
     # Render the HTML template with context
@@ -280,5 +353,3 @@ def create_guidebook_pdf(guidebook, qr_url: str | None = None):
     # Generate PDF from HTML
     pdf = HTML(string=html_out, base_url='.').write_pdf()
     return pdf
-
-
