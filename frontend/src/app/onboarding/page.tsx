@@ -16,7 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import Spinner from "@/components/ui/spinner";
 import PlacesAutocomplete from "@/components/PlacesAutocomplete";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL as string;
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 const BUCKET_NAME = process.env.NEXT_PUBLIC_SUPABASE_FOOD_ACTIVITIES_BUCKET as string;
 
 // Wizard steps
