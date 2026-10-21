@@ -216,7 +216,9 @@ export default function OnboardingPage() {
                     exit={{ opacity: 0, x: -20 }}
                     transition={{ duration: 0.3, ease: "easeInOut" }}
                   >
-                  {currentStepData.id === "intro" && <IntroSlide />}
+                  {currentStepData.id === "intro" && (
+                    <IntroSlide accessToken={accessToken} onImported={(id) => router.push(`/edit/${id}`)} />
+                  )}
                   {currentStepData.id === "location" && (
                     <LocationSlide
                       location={formData.location}
@@ -351,7 +353,41 @@ export default function OnboardingPage() {
 }
 
 // Slide Components
-function IntroSlide() {
+function IntroSlide({
+  accessToken,
+  onImported,
+}: {
+  accessToken: string | null;
+  onImported: (guidebookId: string) => void;
+}) {
+  const [listingUrl, setListingUrl] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+
+  const handleImport = async () => {
+    if (!listingUrl.trim() || importing) return;
+    setImporting(true);
+    setImportError(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/import-listing`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify({ url: listingUrl.trim() }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.guidebook_id) {
+        throw new Error(json.error || "We couldn't import that listing. You can fill in the details below instead.");
+      }
+      onImported(json.guidebook_id);
+    } catch (e) {
+      setImportError(e instanceof Error ? e.message : "We couldn't import that listing.");
+      setImporting(false);
+    }
+  };
+
   return (
     <div className="text-center py-12">
       <h1 className="text-4xl font-bold text-gray-800 mb-4">
@@ -360,6 +396,36 @@ function IntroSlide() {
       <p className="text-lg text-gray-600 max-w-2xl mx-auto">
         We&apos;ll gather the essentials now. You can add finishing touches later.
       </p>
+
+      <div className="mt-10 max-w-xl mx-auto rounded-xl border border-gray-200 bg-gray-50 p-5 text-left">
+        <Label htmlFor="listing-url" className="text-base font-semibold text-gray-800">
+          Already have an Airbnb or VRBO listing?
+        </Label>
+        <p className="text-sm text-gray-600 mt-1 mb-3">
+          Paste the link and we&apos;ll build a draft guidebook from it, then take you straight to the editor.
+        </p>
+        <div className="flex gap-2">
+          <Input
+            id="listing-url"
+            type="url"
+            placeholder="https://www.airbnb.com/rooms/..."
+            value={listingUrl}
+            onChange={(e) => setListingUrl(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleImport(); }}
+            disabled={importing}
+          />
+          <Button type="button" onClick={handleImport} disabled={importing || !listingUrl.trim()}>
+            {importing ? <Spinner /> : "Import"}
+          </Button>
+        </div>
+        {importing && (
+          <p className="text-sm text-gray-500 mt-2">Reading your listing — this can take up to a minute.</p>
+        )}
+        {importError && <p className="text-sm text-red-600 mt-2">{importError}</p>}
+        <p className="text-xs text-gray-500 mt-3">
+          Or continue below to enter your details manually.
+        </p>
+      </div>
     </div>
   );
 }
