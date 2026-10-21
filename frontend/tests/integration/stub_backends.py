@@ -31,6 +31,8 @@ class Flask(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(f"FLASK-STUB {self.path}".encode())
 
+    do_POST = do_GET
+
     def log_message(self, *a):
         pass
 
