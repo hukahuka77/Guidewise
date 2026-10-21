@@ -2,6 +2,7 @@ import { getAuthedUser, isAuthConfigured, type AuthedUser } from "./auth";
 import { getSql, type Sql } from "./db";
 import { ServiceError } from "./guidebookService";
 import { proxyToBackend } from "./proxy";
+import { rateLimited } from "./rateLimit";
 
 export interface ApiContext {
   sql: Sql;
@@ -22,6 +23,10 @@ export async function readJson(request: Request): Promise<Record<string, unknown
 interface Options {
   /** Reads are safe to retry on Flask if something unexpected throws; writes are not. */
   fallbackOnError?: boolean;
+  /** Extra configuration the route needs (e.g. Stripe); when it returns false Flask handles the request. */
+  needs?: () => boolean;
+  /** Per-user sliding-window limit (requests per minute). */
+  rateLimit?: { name: string; limit: number };
 }
 
 /**
@@ -36,7 +41,7 @@ export async function withUser(
   options: Options = {},
 ): Promise<Response> {
   const sql = getSql();
-  if (!sql || !isAuthConfigured()) return proxyToBackend(request);
+  if (!sql || !isAuthConfigured() || (options.needs && !options.needs())) return proxyToBackend(request);
 
   const user = await getAuthedUser(request);
   if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -51,5 +56,31 @@ export async function withUser(
     if (options.fallbackOnError) return proxyToBackend(request);
     const detail = error instanceof Error ? `${error.name}: ${error.message}` : "unexpected error";
     return Response.json({ error: `Request failed: ${detail}` }, { status: 500 });
+  }
+}
+
+/**
+ * Like `withUser` for routes that need auth but not the database (Places, AI, listing import).
+ * Not configured (no Supabase auth, or `needs` is false) -> Flask handles it.
+ */
+export async function withAuth(
+  request: Request,
+  handler: (user: AuthedUser) => Promise<Response>,
+  options: Pick<Options, "needs" | "rateLimit"> = {},
+): Promise<Response> {
+  if (!isAuthConfigured() || (options.needs && !options.needs())) return proxyToBackend(request);
+  const user = await getAuthedUser(request);
+  if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if (options.rateLimit && rateLimited(`${options.rateLimit.name}:${user.id}`, options.rateLimit.limit)) {
+    return Response.json({ error: "Too many requests. Please slow down." }, { status: 429 });
+  }
+  try {
+    return await handler(user);
+  } catch (error) {
+    if (error instanceof ServiceError) {
+      return Response.json({ error: error.message, ...error.extra }, { status: error.status });
+    }
+    console.error(`${request.method} ${new URL(request.url).pathname} failed`, error);
+    return Response.json({ error: "Request failed" }, { status: 500 });
   }
 }
