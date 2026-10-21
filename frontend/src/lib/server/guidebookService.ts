@@ -537,17 +537,23 @@ export async function toggleGuidebook(sql: Sql, userId: string, id: string): Pro
 }
 
 /** POST /api/guidebooks/:id/publish: render and store the static HTML snapshot. */
-export async function publishGuidebook(sql: Sql, userId: string, id: string): Promise<{ etag: string; publishedAt: string }> {
+/** A guidebook with its property and host in the shape the renderers expect; null if it is not the user's. */
+export async function loadOwnedGuidebookRow(sql: Sql, userId: string, id: string): Promise<GuidebookRow | null> {
   const [row] = await GUIDEBOOK_WITH_RELATIONS(sql, sql`g.id = ${id}`);
-  if (!row || row.user_id !== userId) throw new ServiceError(404, "Not found");
-
-  const gb = {
+  if (!row || row.user_id !== userId) return null;
+  return {
     ...row,
     property: row.property_id
       ? { id: row.property_id, name: row.p_name, address_street: row.p_street, address_city_state: row.p_city, address_zip: row.p_zip }
       : null,
     host: row.host_id ? { id: row.host_id, name: row.h_name, bio: row.h_bio, contact: row.h_contact, host_image_url: row.h_photo } : null,
   } as unknown as GuidebookRow;
+}
+
+export async function publishGuidebook(sql: Sql, userId: string, id: string): Promise<{ etag: string; publishedAt: string }> {
+  const gb = await loadOwnedGuidebookRow(sql, userId, id);
+  if (!gb) throw new ServiceError(404, "Not found");
+  const row = gb as unknown as Row;
 
   const { html, templateKey } = renderPublishSnapshot(gb);
   const etag = createHash("sha256")

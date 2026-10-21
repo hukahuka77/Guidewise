@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Bare Bones - Guidebook</title>
+  <style>
+    /* Page Setup - Letter size with proper margins for binding */
+    @page {
+      size: letter;
+      margin: 0.4in 0.3in 0.4in 0.5in; /* Extra left margin for binding */
+    }
+
+    /* Base Styles */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Georgia', 'Times New Roman', serif;
+      color: #1A1A1A;
+      background: white;
+      line-height: 1.6;
+    }
+
+    /* Cover Page */
+    .cover-page {
+      page-break-after: always;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      background: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.5)), url('https://hojncqasasvvrhdmwwhv.supabase.co/storage/v1/object/public/my_images/home_placeholder.jpg') center/cover;
+      padding: 2in;
+      position: relative;
+    }
+
+    .cover-content {
+      background: rgba(255, 255, 255, 0.95);
+      padding: 3rem 4rem;
+      border-radius: 4px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    }
+
+    .cover-title {
+      font-size: 48pt;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #1A1A1A;
+      margin-bottom: 0.5rem;
+      line-height: 1.1;
+    }
+
+    .cover-subtitle {
+      font-size: 14pt;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #6B6B6B;
+      font-weight: 500;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      margin-bottom: 1.5rem;
+    }
+
+    .cover-property {
+      font-size: 20pt;
+      color: #D4A574;
+      font-style: italic;
+      margin-top: 1rem;
+      font-family: Georgia, serif;
+    }
+
+    /* Table of Contents */
+    .toc-page {
+      page-break-after: always;
+      background: #F5F1ED;
+      border-radius: 12px;
+      padding: 1.25in 0.75in;
+    }
+
+    .toc-title {
+      font-size: 32pt;
+      font-weight: 700;
+      color: #1A1A1A;
+      margin-bottom: 2rem;
+      border-bottom: 3px solid #D4A574;
+      padding-bottom: 0.5rem;
+    }
+
+    .toc-list {
+      list-style: none;
+      padding: 0;
+    }
+
+    .toc-item {
+      font-size: 14pt;
+      padding: 0.75rem 0 0.75rem 2rem;
+      border-bottom: 1px solid #E5E1DC;
+      display: block;
+      position: relative;
+    }
+
+    .toc-item:before {
+      content: "▸";
+      color: #D4A574;
+      font-size: 14pt;
+      position: absolute;
+      left: 0;
+      top: 0.75rem;
+    }
+
+    /* Content Pages */
+    .content-page {
+      page-break-after: always;
+      background: #F5F1ED;
+      border-radius: 12px;
+      padding: 1.25in 0.75in;
+      min-height: calc(100vh - 0.8in);
+    }
+
+    .content-page:last-of-type {
+      page-break-after: auto;
+    }
+
+    /* Page Headers */
+    .page-header {
+      font-size: 9pt;
+      color: #999;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid #E5E1DC;
+      margin-bottom: 1.5rem;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    /* Section Titles */
+    .section-title {
+      font-size: 28pt;
+      font-weight: 700;
+      color: #1A1A1A;
+      margin-bottom: 1.5rem;
+      padding-left: 3rem;
+      position: relative;
+    }
+
+    .section-title:before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 2rem;
+      height: 2rem;
+      background: #D4A574;
+      border-radius: 4px;
+    }
+
+    .section-title:after {
+      content: "";
+      position: absolute;
+      left: 0;
+      bottom: -0.5rem;
+      width: 100%;
+      height: 2px;
+      background: #E5E1DC;
+    }
+
+    /* Info Boxes */
+    .info-box {
+      background: white;
+      border: 2px solid #E5E1DC;
+      border-radius: 8px;
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .info-box-title {
+      font-size: 11pt;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #6B6B6B;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    .info-box-value {
+      font-size: 13pt;
+      color: #1A1A1A;
+      font-weight: 500;
+    }
+
+    /* Grid Layouts */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    /* Host Card */
+    .host-card {
+      background: #F5F1ED;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+      display: flex;
+      gap: 1.5rem;
+      align-items: flex-start;
+    }
+
+    .host-photo {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid white;
+      flex-shrink: 0;
+    }
+
+    .host-info h3 {
+      font-size: 16pt;
+      margin-bottom: 0.5rem;
+      color: #1A1A1A;
+    }
+
+    .host-info p {
+      font-size: 11pt;
+      color: #6B6B6B;
+      line-height: 1.6;
+    }
+
+    /* Items List (Restaurants, Activities) */
+    .items-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+      margin-top: 1.5rem;
+    }
+
+    .item-card {
+      background: white;
+      border: 1px solid #E5E1DC;
+      border-radius: 8px;
+      overflow: hidden;
+      break-inside: avoid;
+    }
+
+    .item-image {
+      width: 100%;
+      height: 120px;
+      object-fit: cover;
+      display: block;
+      background: linear-gradient(135deg, #E5E1DC 0%, #D4A574 100%);
+    }
+
+    .item-image-placeholder {
+      width: 100%;
+      height: 120px;
+      background: linear-gradient(135deg, #E5E1DC 0%, #D4A574 100%);
+      position: relative;
+    }
+
+    .item-image-placeholder:after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 50px;
+      height: 50px;
+      border: 3px solid white;
+      border-radius: 50%;
+      opacity: 0.5;
+    }
+
+    .item-content {
+      padding: 1rem;
+    }
+
+    .item-name {
+      font-size: 12pt;
+      font-weight: 600;
+      color: #1A1A1A;
+      margin-bottom: 0.25rem;
+    }
+
+    .item-description {
+      font-size: 9pt;
+      color: #6B6B6B;
+      margin-bottom: 0.5rem;
+      line-height: 1.4;
+    }
+
+    .item-address {
+      font-size: 8pt;
+      color: #999;
+    }
+
+    .item-address:before {
+      content: "◉ ";
+      color: #D4A574;
+      margin-right: 0.25rem;
+    }
+
+    /* Rules */
+    .rules-list {
+      list-style: none;
+      padding: 0;
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .rule-item {
+      background: #F5F1ED;
+      border-radius: 6px;
+      padding: 1rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+    }
+
+    .rule-item:before {
+      content: "•";
+      color: #D4A574;
+      font-size: 18pt;
+      font-weight: bold;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+
+    .rule-text {
+      font-size: 11pt;
+      color: #1A1A1A;
+      line-height: 1.5;
+    }
+
+    /* House Manual */
+    .manual-item {
+      background: white;
+      border-left: 4px solid #D4A574;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1rem;
+      break-inside: avoid;
+    }
+
+    .manual-title {
+      font-size: 12pt;
+      font-weight: 600;
+      color: #1A1A1A;
+      margin-bottom: 0.5rem;
+    }
+
+    .manual-description {
+      font-size: 10pt;
+      color: #6B6B6B;
+      line-height: 1.6;
+      white-space: pre-line;
+    }
+
+    /* Checkout Items */
+    .checkout-list {
+      list-style: none;
+      padding: 0;
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .checkout-item {
+      background: white;
+      border: 1px solid #E5E1DC;
+      border-radius: 6px;
+      padding: 1rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+    }
+
+    .checkout-item:before {
+      content: "☐";
+      color: #D4A574;
+      font-size: 16pt;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+
+    .checkout-content h4 {
+      font-size: 11pt;
+      font-weight: 600;
+      color: #1A1A1A;
+      margin-bottom: 0.25rem;
+    }
+
+    .checkout-content p {
+      font-size: 9pt;
+      color: #6B6B6B;
+      line-height: 1.5;
+    }
+
+    /* Utilities */
+    .text-center { text-align: center; }
+    .mb-1 { margin-bottom: 1rem; }
+    .mb-2 { margin-bottom: 2rem; }
+    .mt-2 { margin-top: 2rem; }
+
+    /* Print-specific */
+    @media print {
+      body {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- COVER PAGE -->
+  <div class="cover-page">
+    <div class="cover-content">
+      <div class="cover-title">Welcome Book</div>
+      <div class="cover-subtitle">Short Term Rental Guide</div>
+      
+      <div class="cover-property">Bare Bones</div>
+      
+    </div>
+  </div>
+
+  <!-- TABLE OF CONTENTS -->
+  <div class="content-page toc-page">
+    <h1 class="toc-title">Contents</h1>
+    <ul class="toc-list">
+      
+      <li class="toc-item">Welcome</li>
+      
+      
+      <li class="toc-item">Check-in Information</li>
+      
+      
+      
+      
+      
+      
+      
+      <li class="toc-item">Before You Go</li>
+      
+    </ul>
+  </div>
+
+  <!-- WELCOME PAGE -->
+  
+  <div class="content-page">
+    <div class="page-header">Bare Bones</div>
+
+    <h2 class="section-title">Welcome</h2>
+
+    
+
+    <!-- Property Location -->
+    
+
+    <!-- Safety Information -->
+    
+
+    <!-- Host Information -->
+    
+  </div>
+  
+
+  <!-- CHECK-IN PAGE -->
+  
+  <div class="content-page">
+    <div class="page-header">Bare Bones</div>
+
+    <h2 class="section-title">Check-in Information</h2>
+
+    <div class="grid-2">
+      
+
+      
+    </div>
+
+    
+
+    
+
+    <!-- Wi-Fi Information -->
+    
+  </div>
+  
+
+  <!-- HOUSE GUIDE PAGE -->
+  
+
+  <!-- HOUSE RULES PAGE -->
+  
+
+  <!-- DINING PAGE -->
+  
+
+  <!-- ACTIVITIES PAGE -->
+  
+
+  <!-- CHECKOUT PAGE -->
+  
+  <div class="content-page">
+    <div class="page-header">Bare Bones</div>
+
+    <h2 class="section-title">Before You Go</h2>
+
+    
+
+    
+
+    <div class="text-center mt-2" style="padding: 2rem; background: #F5F1ED; border-radius: 8px;">
+      <p style="font-size: 14pt; font-weight: 600; color: #1A1A1A; margin-bottom: 0.5rem;">
+        Thank You for Staying!
+      </p>
+      <p style="font-size: 10pt; color: #6B6B6B;">
+        We hope you enjoyed your visit and look forward to hosting you again soon.
+      </p>
+    </div>
+  </div>
+  
+
+  <!-- CUSTOM SECTIONS -->
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+
+</body>
+</html>
