@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { renderGuidebookHtml } from "../../src/lib/guidebook/render";
+import { renderGuidebookHtml, renderPublishSnapshot } from "../../src/lib/guidebook/render";
 import type { GuidebookRow } from "../../src/lib/guidebook/types";
 
 const FIXTURES = path.join(__dirname, "fixtures");
@@ -38,3 +38,27 @@ describe("Nunjucks guidebook pages match the Flask/Jinja output", () => {
     }
   }
 });
+
+describe("Published snapshots match what Flask's publish stored", () => {
+  const stems = fs
+    .readdirSync(GOLDEN)
+    .filter((f) => f.endsWith("__publish.html"))
+    .map((f) => f.replace("__publish.html", ""))
+    .sort();
+
+  it("has publish goldens to compare", () => {
+    expect(stems.length).toBeGreaterThan(0);
+  });
+
+  for (const stem of stems) {
+    it(stem, () => {
+      const row = JSON.parse(fs.readFileSync(path.join(FIXTURES, `${stem}.json`), "utf8")) as GuidebookRow;
+      const golden = fs.readFileSync(path.join(GOLDEN, `${stem}__publish.html`), "utf8");
+      const { html } = renderPublishSnapshot(row);
+      if (norm(html) !== norm(golden)) {
+        throw new Error(`${stem} publish snapshot differs from Flask: ${firstDiff(norm(golden), norm(html))}`);
+      }
+    });
+  }
+});
+
