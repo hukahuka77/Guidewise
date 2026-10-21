@@ -1233,6 +1233,32 @@ def generate_guidebook_route():
 
     return resp, 201
 
+# Simple in-process per-user rate limiter for endpoints that spend third-party quota.
+# Per-worker (not shared across gunicorn workers), so effective limit is limit * workers.
+_RATE_BUCKETS = {}
+MAX_AI_ITEMS = 10
+
+def rate_limit(name: str, limit: int, window: int = 60):
+    def decorator(fn):
+        @functools.wraps(fn)
+        def wrapper(*args, **kwargs):
+            now = time.time()
+            key = (name, g.user_id)
+            hits = [t for t in _RATE_BUCKETS.get(key, []) if now - t < window]
+            if len(hits) >= limit:
+                return jsonify({"error": "Too many requests. Please slow down."}), 429
+            hits.append(now)
+            _RATE_BUCKETS[key] = hits
+            return fn(*args, **kwargs)
+        return wrapper
+    return decorator
+
+def _clamp_items(value, default: int = 5) -> int:
+    try:
+        return max(1, min(int(value), MAX_AI_ITEMS))
+    except (TypeError, ValueError):
+        return default
+
 @app.route('/api/import-listing', methods=['POST'])
 @require_auth
 @rate_limit('api_import_listing', 5)
@@ -1713,32 +1739,6 @@ def cleanup_expired():
         count += 1
     db.session.commit()
     return jsonify({"ok": True, "deleted": count})
-
-# Simple in-process per-user rate limiter for endpoints that spend third-party quota.
-# Per-worker (not shared across gunicorn workers), so effective limit is limit * workers.
-_RATE_BUCKETS = {}
-MAX_AI_ITEMS = 10
-
-def rate_limit(name: str, limit: int, window: int = 60):
-    def decorator(fn):
-        @functools.wraps(fn)
-        def wrapper(*args, **kwargs):
-            now = time.time()
-            key = (name, g.user_id)
-            hits = [t for t in _RATE_BUCKETS.get(key, []) if now - t < window]
-            if len(hits) >= limit:
-                return jsonify({"error": "Too many requests. Please slow down."}), 429
-            hits.append(now)
-            _RATE_BUCKETS[key] = hits
-            return fn(*args, **kwargs)
-        return wrapper
-    return decorator
-
-def _clamp_items(value, default: int = 5) -> int:
-    try:
-        return max(1, min(int(value), MAX_AI_ITEMS))
-    except (TypeError, ValueError):
-        return default
 
 @app.route('/api/ai-recommendations', methods=['POST'])
 @require_auth
