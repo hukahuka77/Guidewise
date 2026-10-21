@@ -910,7 +910,7 @@ def view_live_by_slug(public_slug):
                 resp = make_response(gb.published_html)
                 resp.headers['Content-Type'] = 'text/html; charset=utf-8'
                 resp.headers['ETag'] = etag
-                resp.headers['Cache-Control'] = 'public, max-age=300, stale-while-revalidate=86400'
+                resp.headers['Cache-Control'] = 'public, max-age=300, s-maxage=300, stale-while-revalidate=86400'
                 return resp
         except Exception:
             pass
@@ -993,7 +993,7 @@ def view_guidebook(guidebook_id):
                 resp = make_response(guidebook.published_html)
                 resp.headers['Content-Type'] = 'text/html; charset=utf-8'
                 resp.headers['ETag'] = etag
-                resp.headers['Cache-Control'] = 'public, max-age=300, stale-while-revalidate=86400'
+                resp.headers['Cache-Control'] = 'public, max-age=300, s-maxage=300, stale-while-revalidate=86400'
                 return resp
         except Exception:
             pass
@@ -1835,7 +1835,7 @@ def get_place_photo():
                 return None
             image_resp = make_response(upstream.content)
             image_resp.headers['Content-Type'] = content_type
-            image_resp.headers['Cache-Control'] = 'public, max-age=604800, stale-while-revalidate=86400'
+            image_resp.headers['Cache-Control'] = 'public, max-age=604800, s-maxage=604800, stale-while-revalidate=86400'
             image_resp.headers['Access-Control-Allow-Origin'] = '*'
             return image_resp
         except requests.RequestException:
