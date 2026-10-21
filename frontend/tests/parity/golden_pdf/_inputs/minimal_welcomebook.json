@@ -1,0 +1,43 @@
+{
+ "id": "11111111-1111-4111-8111-000000000006",
+ "template_key": "template_welcomebook",
+ "included_tabs": [],
+ "check_in_time": null,
+ "check_out_time": null,
+ "access_info": null,
+ "parking_info": null,
+ "welcome_info": null,
+ "cover_image_url": null,
+ "safety_info": {},
+ "things_to_do": [],
+ "places_to_eat": [],
+ "checkout_info": [],
+ "house_manual": [],
+ "rules_json": [],
+ "wifi_json": {},
+ "custom_sections": {},
+ "custom_tabs_meta": {},
+ "created_time": null,
+ "last_modified_time": "2026-02-03T04:05:06+00:00",
+ "user_id": "u",
+ "active": false,
+ "public_slug": null,
+ "preview_token": null,
+ "published_html": null,
+ "published_etag": null,
+ "published_at": null,
+ "property": {
+  "id": 3,
+  "name": "Bare Bones",
+  "address_street": null,
+  "address_city_state": null,
+  "address_zip": null
+ },
+ "host": {
+  "id": 2,
+  "name": null,
+  "bio": null,
+  "contact": null,
+  "host_image_url": null
+ }
+}

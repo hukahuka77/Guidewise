@@ -6,7 +6,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     @page { size: letter; margin: 0.5in; }
-    html, body { height: 100%; }
     body {
       /* Classier serif stack for print */
       font-family: Georgia, 'Times New Roman', Times, serif;
@@ -14,7 +13,8 @@
       background: #ffffff;
     }
     .page-frame {
-      height: 100%;
+      /* letter (11in) minus the 0.5in @page margins, with a little slack so browsers do not spill a 2nd page */
+      height: 9.95in;
       box-sizing: border-box;
       border: 2pt solid #e5e7eb; /* subtle light gray border */
       border-radius: 10pt;

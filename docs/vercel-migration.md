@@ -20,7 +20,8 @@ same request to Flask (`src/lib/server/proxy.ts`).
 | 2 | Public guidebook pages: `/g/[slug]`, `/preview/[id]`, `/guidebook/[id]` | on `main`, activates when `SUPABASE_SERVICE_ROLE_KEY` is set |
 | 3 | Logged-in CRUD (create/edit/list/get/delete/publish/toggle/template, hosts) | on `main`, activates when `DATABASE_URL` is set in Vercel |
 | 4 | Integrations (Stripe billing + webhook, Places, place photos, AI recommendations, listing import) | code complete; each route activates when its keys are set in Vercel (see below) |
-| 5 | PDFs, then retire Render | pending |
+| 5 | PDFs (`/api/guidebook/[id]/pdf`, `/print-pdf`) with headless Chromium | code complete; always native (falls back to Flask only if it throws) |
+| 6 | Retire Render | after the cutover checklist below, on your go-ahead |
 
 ## Step 2 details
 
@@ -114,3 +115,43 @@ integration at a time and removed again to roll back instantly.
 - **AI recommendations** enrich items in parallel (Flask did it one by one), so they return faster.
 - **Listing import** now also reads the JSON state embedded in the page and stores `og:image` as the cover image.
   It is best effort: Airbnb may still serve a bot wall, in which case the user gets the same "blocked" message.
+
+## Step 5 details: PDFs
+
+- WeasyPrint is replaced by headless Chromium (`@sparticuz/chromium` + `puppeteer-core`) inside the two PDF
+  route handlers. Templates are the same Jinja files ported to Nunjucks (`frontend/src/templates/pdf`);
+  the generated HTML is golden-tested against what Flask handed to WeasyPrint.
+- Chromium and WeasyPrint lay text out differently (fonts, rounding), so PDFs are not pixel identical. Page counts
+  match for all templates except the welcomebook print, whose check-in page can spill a few boxes onto an extra page.
+- The headless browser can only load public http(s) images and data URIs (private/loopback hosts and other
+  schemes are blocked) and runs with JavaScript disabled.
+- Routes are rate limited to 10 PDFs/min per user. Function config: `maxDuration` 60s; make sure the Vercel plan
+  allows at least 1 GB of function memory.
+- Both `/pdf` and `/print-pdf` responses are `Cache-Control: private` (Flask said `public`, which let shared caches
+  store an authenticated PDF).
+
+### Deliberate differences from Flask (all bug fixes; the Flask copy of each was fixed too so the goldens agree)
+
+- PDF templates are now HTML-escaped (Flask rendered guidebook text into the HTML verbatim).
+- The PDF context now includes `wifi` and `house_manual` and keeps `driving_minutes` on items; the templates
+  already read these but Flask never supplied them, so Wi-Fi details, the House Manual page and drive times never
+  appeared in those PDFs.
+- Print PDFs on the original/basic layouts print rules as text instead of a Python dict repr.
+- The mobile and QR templates got small CSS changes so Chromium does not emit blank pages.
+
+## Cutover checklist (production)
+
+Do these in order; each step can be undone by removing the variable / redeploying the previous deployment.
+
+1. Take a Supabase backup (Database > Backups). Code backups already exist (`docs/pre-migration-backup.md`).
+2. In Vercel (Production + Preview) add: `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, `OPENAI_API_KEY`,
+   `GOOGLE_API_KEY` (already present), `STRIPE_SECRET_KEY`, `STRIPE_*_PRICE_ID`, `STRIPE_ACTIVE_COUPON_ID`,
+   `STRIPE_PORTAL_CONFIGURATION_ID`, `STRIPE_WEBHOOK_SECRET` (the new endpoint's secret, see Step 4).
+3. Remove `NEXT_PUBLIC_API_BASE_URL` so the browser calls the same origin, then redeploy.
+4. Merge `main` into `prod` and smoke test on the production URL: log in, dashboard, edit and publish a guidebook,
+   open its public link, download both PDFs, add a place (search, photo), generate AI recommendations, import an
+   Airbnb listing, open the billing page and (in Stripe test mode) run checkout.
+5. In Stripe, add the `https://<site>/webhooks/stripe` endpoint (done before step 4 if you want live events handled
+   by Vercel immediately) and send a test event.
+6. Watch Vercel runtime logs for a few days. When satisfied: scale the Render service to zero (or suspend), wait a
+   week, then delete it and remove `BACKEND_URL`, the `rewrites().fallback` entries and `backend/`.

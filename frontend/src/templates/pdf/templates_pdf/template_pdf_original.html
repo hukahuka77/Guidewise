@@ -1,0 +1,123 @@
+{% extends "base_pdf.html" %}
+{% import "_pdf_macros.html" as pm %}
+
+{% block body %}
+  <!-- Cover -->
+  {% if ctx.cover_image_url %}
+  <div class="page cover">
+    <div class="cover-overlay">
+      <h1 class="cover-title">{{ ctx.property_name or 'My Guidebook' }}</h1>
+    </div>
+  </div>
+  {% else %}
+  <div class="page" style="display:flex; align-items:center; justify-content:center; text-align:center;">
+    <h1 class="title" style="border:none; margin:0; font-size:40px;">{{ ctx.property_name or 'My Guidebook' }}</h1>
+  </div>
+  {% endif %}
+
+  <!-- Welcome & Info -->
+  <div class="page">
+    {% if ctx.qr_img_src %}
+    <div class="qr">
+      <img src="{{ ctx.qr_img_src }}" alt="Scan to view guidebook" />
+      <div class="cap">Scan to view online</div>
+    </div>
+    {% endif %}
+
+    <h1 class="title">Welcome</h1>
+    {% if ctx.welcome_message %}<p>{{ ctx.welcome_message }}</p>{% endif %}
+
+    <div class="grid-2" style="margin-top: 18px;">
+      <div>
+        {{ pm.address_block(ctx.address, ctx.access_info, ctx.parking_info) }}
+      </div>
+      <div>
+        {{ pm.wifi_block(ctx.wifi) }}
+        <h2 style="margin:12px 0 6px 0;">Timings</h2>
+        {% if ctx.check_in_time %}<p class="kv"><span class="label">Check-in:</span> {{ ctx.check_in_time }}</p>{% endif %}
+        {% if ctx.check_out_time %}<p class="kv"><span class="label">Check-out:</span> {{ ctx.check_out_time }}</p>{% endif %}
+      </div>
+    </div>
+
+    {{ pm.safety_block(ctx.safety_info, 'margin-top: 14px;') }}
+    {{ pm.host_block(ctx.host, style_class='margin-top: 14px;') }}
+  </div>
+
+  {% if 'activities' in ctx.included_tabs and ctx.things_to_do and ctx.things_to_do|length > 0 %}
+  <div class="page">
+    <h1 class="title">Things to Do Nearby</h1>
+    {{ pm.items_list(ctx.things_to_do) }}
+  </div>
+  {% endif %}
+
+  {% if 'property' in ctx.included_tabs and ctx.house_manual and ctx.house_manual|length > 0 %}
+  <div class="page">
+    <h1 class="title">House Manual</h1>
+    <div>
+      {% for item in ctx.house_manual %}
+        <div style="margin: 8px 0;">
+          {% if item.name %}<div style="font-weight: 600;">{{ item.name }}</div>{% endif %}
+          {% if item.description %}<div style="white-space: pre-line;">{{ item.description }}</div>{% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if 'food' in ctx.included_tabs and ctx.places_to_eat and ctx.places_to_eat|length > 0 %}
+  <div class="page">
+    <h1 class="title">Places to Eat Nearby</h1>
+    {{ pm.items_list(ctx.places_to_eat) }}
+  </div>
+  {% endif %}
+
+  {% if 'rules' in ctx.included_tabs and ctx.rules and ctx.rules|length > 0 %}
+  <div class="page">
+    <h1 class="title">House Rules & Notes</h1>
+    <ul class="rules">
+      {% for rule in ctx.rules %}
+        {% if rule %}<li>{{ rule }}</li>{% endif %}
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {% for tab in ctx.included_tabs %}
+    {% if tab.startsWith('custom_') and ctx.custom_sections[tab] %}
+    {% set meta = (ctx.custom_tabs_meta[tab] if ctx.custom_tabs_meta else null) %}
+    {% set blocks = ctx.custom_sections[tab] %}
+    {% if blocks and blocks|length > 0 %}
+    <div class="page">
+      <h1 class="title">{{ (meta.label if meta and meta.label) or (tab | replace('custom_', '') | replace('_', ' ') | title) }}</h1>
+      <div>
+        {% for text in blocks %}
+          {% if text %}<p style="margin: 8px 0;">{{ text }}</p>{% endif %}
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+    {% endif %}
+  {% endfor %}
+
+  {% if ctx.checkout_info and ctx.checkout_info|length > 0 %}
+  <div class="page">
+    <h1 class="title">Checkout</h1>
+    <ul>
+      {% for item in ctx.checkout_info %}
+        {% if item is string %}
+          <li>{{ item }}</li>
+        {% elif item.text %}
+          <li>{{ item.text }}</li>
+        {% elif item.name or item.description %}
+          <li>
+            {% if item.name %}<span class="label">{{ item.name }}:</span>{% endif %}
+            {% if item.description %} <span>{{ item.description }}</span>{% endif %}
+          </li>
+        {% else %}
+          <li>{{ item|string }}</li>
+        {% endif %}
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+{% endblock %}
