@@ -90,7 +90,20 @@ CORS(
 )
 
 # Configure the database using the DATABASE_URL from .env
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+def _normalize_database_url(url):
+    """Pin DATABASE_URL to the installed psycopg2 driver.
+
+    SQLAlchemy 2.1 defaults plain postgresql:// URLs to psycopg (v3), which isn't installed,
+    and managed Postgres URLs are sometimes issued as postgres:// or postgresql+psycopg://.
+    """
+    if not url:
+        return url
+    for prefix in ('postgresql+psycopg://', 'postgresql://', 'postgres://'):
+        if url.startswith(prefix):
+            return 'postgresql+psycopg2://' + url[len(prefix):]
+    return url
+
+app.config['SQLALCHEMY_DATABASE_URI'] = _normalize_database_url(os.environ.get('DATABASE_URL'))
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Prevent stale connections (common with managed Postgres like Supabase)
 # - pool_pre_ping: checks connection liveness before using it
