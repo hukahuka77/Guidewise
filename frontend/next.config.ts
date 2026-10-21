@@ -22,6 +22,7 @@ const nextConfig: NextConfig = {
         { source: "/g/:slug", destination: `${BACKEND_URL}/g/:slug` },
         { source: "/preview/:id", destination: `${BACKEND_URL}/preview/:id` },
         { source: "/guidebook/:id", destination: `${BACKEND_URL}/guidebook/:id` },
+        { source: "/webhooks/:path*", destination: `${BACKEND_URL}/webhooks/:path*` },
       ],
     };
   },

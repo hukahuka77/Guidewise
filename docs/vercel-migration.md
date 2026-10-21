@@ -19,7 +19,7 @@ same request to Flask (`src/lib/server/proxy.ts`).
 | 1 | Vercel in front of Render (rewrites, edge caching, same-origin API) | on `main` |
 | 2 | Public guidebook pages: `/g/[slug]`, `/preview/[id]`, `/guidebook/[id]` | on `main`, activates when `SUPABASE_SERVICE_ROLE_KEY` is set |
 | 3 | Logged-in CRUD (create/edit/list/get/delete/publish/toggle/template, hosts) | on `main`, activates when `DATABASE_URL` is set in Vercel |
-| 4 | Integrations (Stripe, Places, AI recommendations, listing import) | pending |
+| 4 | Integrations (Stripe billing + webhook, Places, place photos, AI recommendations, listing import) | code complete; each route activates when its keys are set in Vercel (see below) |
 | 5 | PDFs, then retire Render | pending |
 
 ## Step 2 details
@@ -92,3 +92,25 @@ Routes now native in Next.js (all require a Supabase access token, 401 otherwise
 Add `DATABASE_URL` (the same value as on Render; the Supabase pooler URL) as a server-side variable and
 redeploy. Remove it to return these routes to Flask instantly.
 
+
+## Step 4 details
+
+Each integration route proxies to Flask until the keys it needs exist in Vercel, so keys can be added one
+integration at a time and removed again to roll back instantly.
+
+| Routes | Needs in Vercel |
+| --- | --- |
+| `/api/billing/*`, `/webhooks/stripe` | `DATABASE_URL`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_*_PRICE_ID` (+ optional coupon / portal config ids) |
+| `/api/places/search`, `/api/places/enrich`, `/api/place-photo` | `GOOGLE_API_KEY` (+ Supabase auth for the first two) |
+| `/api/ai-recommendations`, `/api/ai-food`, `/api/ai-activities` | `OPENAI_API_KEY`, `GOOGLE_API_KEY` |
+| `/api/import-listing` | `OPENAI_API_KEY`, `DATABASE_URL` |
+
+- **Stripe webhook**: create a second webhook endpoint in Stripe pointing at `https://<site>/webhooks/stripe`
+  (it gets its own signing secret, used as `STRIPE_WEBHOOK_SECRET` in Vercel). Keep the Render endpoint until
+  cutover, then delete it. The API version is pinned to the one Flask used.
+- **Rate limits** (AI 10/min, Places 60/min, import 5/min per user) and the 10-item cap match Flask. The limiter is
+  per server instance, like Flask's was per worker; add a Vercel firewall rule for a hard global limit.
+- **Place photos** are public and cached for a week at the CDN (`s-maxage=604800`).
+- **AI recommendations** enrich items in parallel (Flask did it one by one), so they return faster.
+- **Listing import** now also reads the JSON state embedded in the page and stores `og:image` as the cover image.
+  It is best effort: Airbnb may still serve a bot wall, in which case the user gets the same "blocked" message.
