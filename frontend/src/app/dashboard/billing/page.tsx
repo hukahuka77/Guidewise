@@ -73,7 +73,8 @@ export default function BillingPage() {
         const res = await fetch(`${API_BASE}/api/billing/summary`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        const json = (await res.json()) as BillingSummary;
+        const json = (await res.json().catch(() => null)) as (BillingSummary & { error?: string }) | null;
+        if (!res.ok || !json || !json.plan) throw new Error(json?.error || "We couldn't load your billing details. Please try again.");
         if (!cancelled) setSummary(json);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load billing");

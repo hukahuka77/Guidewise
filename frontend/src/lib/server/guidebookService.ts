@@ -32,6 +32,15 @@ const trimmedString = (v: unknown) => (typeof v === "string" ? v.trim() : "");
 const truthy = (v: unknown) => v !== undefined && v !== null && v !== false && v !== 0 && v !== "";
 
 /** Slug used for public URLs (the `_slugify` that is in effect in Flask). */
+export const MAX_PROPERTY_NAME = 120;
+
+/** A property name that would make an unusable page title and URL is refused rather than silently cut. */
+export function assertNameLength(name: unknown): void {
+  if (typeof name === "string" && name.trim().length > MAX_PROPERTY_NAME) {
+    throw new ServiceError(400, `The property name is too long (${MAX_PROPERTY_NAME} characters at most).`);
+  }
+}
+
 export function slugify(text: string | null | undefined): string {
   const s = (text || "")
     .replace(/[^a-zA-Z0-9\s-]/g, "")
@@ -53,7 +62,7 @@ const tokenHex = (bytes: number) => randomBytes(bytes).toString("hex");
 
 /** A slug for `/g/<slug>` that no other guidebook uses. */
 export async function uniqueSlug(tx: Sql, propertyName: string | null | undefined, guidebookId: string): Promise<string> {
-  const base = slugify(propertyName);
+  const base = slugify(propertyName).slice(0, 40).replace(/-+$/, "") || "guidebook";
   for (let attempt = 0; attempt < 20; attempt++) {
     const slug = `${base}-${tokenHex(3)}`;
     const taken = await tx`select 1 from guidebook where public_slug = ${slug} and id != ${guidebookId} limit 1`;
@@ -148,6 +157,7 @@ export interface CreateResult {
 export async function createGuidebook(sql: Sql, userId: string, data: Dict): Promise<CreateResult> {
   const propertyName = typeof data.property_name === "string" ? data.property_name : "";
   if (!propertyName.trim()) throw new ServiceError(400, "property_name is required");
+  assertNameLength(propertyName);
 
   const templateKey =
     typeof data.template_key === "string" && ALLOWED_TEMPLATE_KEYS.includes(data.template_key)
@@ -396,6 +406,7 @@ export async function updateGuidebook(sql: Sql, userId: string, id: string, inpu
 
     // Property
     const sent = (v: unknown) => v !== undefined && v !== null;
+    if (sent(data.property_name)) assertNameLength(data.property_name);
     if ([data.property_name, data.address_street, data.address_city_state, data.address_zip].some(sent)) {
       let propertyId: number | null = gb.property_id ?? null;
       if (propertyId !== null) {

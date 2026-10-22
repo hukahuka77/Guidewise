@@ -39,7 +39,7 @@ const STYLES: { key: string; label: string; hint: string }[] = [
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { accessToken } = useAuth({ requireAuth: true });
+  const { accessToken } = useAuth({ requireAuth: true, redirectTo: "/login" });
 
   const [mode, setMode] = useState<Mode>("link");
   const [listingUrl, setListingUrl] = useState("");
