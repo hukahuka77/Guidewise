@@ -22,6 +22,8 @@ import { DELETE, GET as getOne, PATCH, PUT } from "../src/app/api/guidebooks/[id
 import { GET as previewHtml } from "../src/app/api/guidebooks/[id]/html/route";
 import { POST as template } from "../src/app/api/guidebook/[id]/template/route";
 import { GET as hosts } from "../src/app/api/hosts/route";
+import { GET as billingSummaryRoute } from "../src/app/api/billing/summary/route";
+import robots from "../src/app/robots";
 import { setSqlForTests } from "../src/lib/server/db";
 import { guidebookResponse } from "../src/lib/server/guidebookResponse";
 import { proxyToBackend } from "../src/lib/server/proxy";
@@ -205,6 +207,7 @@ describe("template and public page over HTTP", () => {
     const html = await edited.text();
     expect(html).toContain("Edited welcome");
     expect(html).not.toMatch(/Preview Mode|preview-watermark/);
+    expect(edited.headers.get("X-Robots-Tag")).toBe("noindex, nofollow"); // door codes and Wi-Fi passwords must not be indexed
     expect(edited.headers.get("ETag")).not.toBe(etag);
   });
 
@@ -240,6 +243,20 @@ describe("template and public page over HTTP", () => {
     expect((await json(await listRoute(req("GET", "/api/guidebooks")))).items[0].public_slug).toBe(slug);
     const one = await json(await getOne(req("GET", `/api/guidebooks/${id}`), ctx(id)));
     expect(one.public_slug).toBe(slug);
+  });
+});
+
+describe("billing summary and robots.txt", () => {
+  it("the billing summary loads the plan and usage without any Stripe configuration", async () => {
+    await setPlan(db.sql, OWNER, "starter");
+    const res = await billingSummaryRoute(req("GET", "/api/billing/summary"));
+    expect(res.status).toBe(200);
+    expect(await json(res)).toMatchObject({ plan: "starter", plan_display: "Starter", views_limit: null, stripe: { customer_id: null, invoices: [] } });
+  });
+
+  it("robots.txt keeps guidebooks, the app and the API out of search engines", () => {
+    const rules = robots().rules as { disallow: string[] };
+    for (const path of ["/g/", "/guidebook/", "/api/", "/dashboard", "/edit/", "/onboarding"]) expect(rules.disallow).toContain(path);
   });
 });
 

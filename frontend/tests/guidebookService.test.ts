@@ -158,6 +158,15 @@ describe("createGuidebook", () => {
     expect(h).toMatchObject({ name: "Andrew", bio: "Hi", contact: "a@x.com", host_image_url: "https://x/h.jpg", user_id: OWNER });
   });
 
+  it("refuses a property name that would make an unusable page title and URL, and keeps slugs short", async () => {
+    await rejects(createGuidebook(db.sql, OWNER, base({ property_name: "x".repeat(121) })), 400);
+    const ok = await createGuidebook(db.sql, OWNER, base({ property_name: "A really wonderful cottage by the lake with a great view and a big garden" }));
+    expect(ok.publicSlug.length).toBeLessThanOrEqual(40 + 7);
+    expect(ok.publicSlug).toMatch(/^[a-z0-9-]+-[0-9a-f]{6}$/);
+    const { guidebookId } = await createGuidebook(db.sql, OWNER, base());
+    await rejects(updateGuidebook(db.sql, OWNER, guidebookId, { property_name: "y".repeat(500) }), 400);
+  });
+
   it("defaults the template and tabs, and ignores unknown template keys", async () => {
     const r = await createGuidebook(db.sql, OWNER, base({ template_key: "template_nope" }));
     expect(r.templateKey).toBe("template_original");
