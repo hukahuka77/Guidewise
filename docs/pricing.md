@@ -6,7 +6,7 @@ Guidebooks are free to create. Plans differ in guest views, guidebook count and 
 | --- | --- | --- | --- | --- |
 | Guest views / month (all guidebooks combined) | 30 | unlimited | unlimited | unlimited |
 | Guidebooks (cap is fine print, not advertised for Starter) | unlimited | 5 | 100 | unlimited |
-| AI recommendation runs / month | 3 | 30 | 150 | 500 (fair use) |
+| AI recommendation runs / month (a listing import that pre-fills things to do and places to eat uses 1) | 3 | 30 | 150 | 500 (fair use) |
 | PDF layouts | standard only | all + QR poster + print PDF | all | all |
 | View analytics (daily charts) | no | no | yes | yes |
 
