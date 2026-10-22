@@ -12,6 +12,7 @@ vi.mock("@/lib/server/auth", () => ({
   },
 }));
 vi.mock("@/lib/server/proxy", () => ({
+  backendFallbackDisabled: () => false,
   proxyToBackend: vi.fn(async (request: Request) => new Response(`PROXIED ${request.method} ${new URL(request.url).pathname}`, { status: 200 })),
 }));
 
