@@ -19,6 +19,7 @@ vi.mock("@/lib/server/proxy", () => ({
 import { POST as generate } from "../src/app/api/generate/route";
 import { GET as listRoute } from "../src/app/api/guidebooks/route";
 import { DELETE, GET as getOne, PATCH, PUT } from "../src/app/api/guidebooks/[id]/route";
+import { GET as previewHtml } from "../src/app/api/guidebooks/[id]/html/route";
 import { POST as template } from "../src/app/api/guidebook/[id]/template/route";
 import { GET as hosts } from "../src/app/api/hosts/route";
 import { setSqlForTests } from "../src/lib/server/db";
@@ -66,6 +67,7 @@ describe("authentication and configuration", () => {
       PUT(req("PUT", "/api/guidebooks/x", null, {}), ctx(id)),
       PATCH(req("PATCH", "/api/guidebooks/x", null, {}), ctx(id)),
       DELETE(req("DELETE", "/api/guidebooks/x", null), ctx(id)),
+      previewHtml(req("GET", "/api/guidebooks/x/html", null), ctx(id)),
       template(req("POST", "/api/guidebook/x/template", null, {}), ctx(id)),
       hosts(req("GET", "/api/hosts", null)),
     ];
@@ -204,6 +206,26 @@ describe("template and public page over HTTP", () => {
     expect(html).toContain("Edited welcome");
     expect(html).not.toMatch(/Preview Mode|preview-watermark/);
     expect(edited.headers.get("ETag")).not.toBe(etag);
+  });
+
+  it("the editor preview: owner-only, rendered fresh with the latest edits, never cached and not counted as a view", async () => {
+    await setPlan(db.sql, OWNER, "pro");
+    const { body } = await createVia({ property_name: "Preview House", welcome_message: "First words", template_key: "template_welcomebook" });
+    const id = body.guidebook_id as string;
+    const first = await previewHtml(req("GET", `/api/guidebooks/${id}/html`), ctx(id));
+    expect(first.status).toBe(200);
+    expect(first.headers.get("Content-Type")).toContain("text/html");
+    expect(first.headers.get("Cache-Control")).toBe("private, no-store");
+    const html = await first.text();
+    expect(html).toContain("Preview House");
+    expect(html).toContain("First words");
+    expect(html).not.toContain("sendBeacon"); // no view beacon
+
+    await PATCH(req("PATCH", `/api/guidebooks/${id}`, "owner", { welcome_message: "Second words" }), ctx(id));
+    expect(await (await previewHtml(req("GET", `/api/guidebooks/${id}/html`), ctx(id))).text()).toContain("Second words");
+
+    expect((await previewHtml(req("GET", `/api/guidebooks/${id}/html`, "other"), ctx(id))).status).toBe(404);
+    expect((await db.sql`select count(*)::int as n from guidebook_view_daily`)[0].n).toBe(0);
   });
 
   it("a guidebook created before every guidebook was live gets its public URL the first time it is listed", async () => {
