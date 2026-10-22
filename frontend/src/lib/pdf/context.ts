@@ -1,4 +1,4 @@
-import { PLACEHOLDER_COVER_URL, resolveIncludedTabs, sanitizeCustomTabsMeta } from "@/lib/guidebook/context";
+import { resolveIncludedTabs } from "@/lib/guidebook/context";
 import { pyTruthy } from "@/lib/guidebook/pyCompat";
 import { rulesAsText } from "@/lib/guidebook/rules";
 import type { GuidebookRow } from "@/lib/guidebook/types";
@@ -64,54 +64,5 @@ export async function buildPdfContext(
     custom_tabs_meta: orDefault(gb.custom_tabs_meta, {}),
     cover_image_url: gb.cover_image_url,
     qr_img_src: qrImageSrc(options.qrUrl),
-  };
-}
-
-/**
- * Context for the print PDF. `rawRules` keeps the stored rules for the welcomebook template (it reads
- * `rule.name`); the other print templates print each rule as text, where Flask printed the dict's repr.
- */
-export async function buildPrintContext(
-  gb: GuidebookRow,
-  resolver: PhotoResolver,
-  options: { rawRules: boolean },
-): Promise<Dict> {
-  const [thingsToDo, placesToEat] = await Promise.all([
-    normalizeRecommendations(gb.things_to_do, resolver),
-    normalizeRecommendations(gb.places_to_eat, resolver),
-  ]);
-  const wifi = orDefault<Dict>(gb.wifi_json, {});
-  return {
-    schema_version: 1,
-    id: gb.id,
-    property_name: (gb.property && gb.property.name) || "My Guidebook",
-    host: {
-      name: gb.host?.name ?? null,
-      bio: gb.host?.bio ?? null,
-      contact: gb.host?.contact ?? null,
-      photo_url: gb.host?.host_image_url ?? null,
-    },
-    welcome_message: gb.welcome_info,
-    safety_info: orDefault(gb.safety_info, {}),
-    address: {
-      street: gb.property?.address_street ?? null,
-      city_state: gb.property?.address_city_state ?? null,
-      zip: gb.property?.address_zip ?? null,
-    },
-    wifi_json: wifi,
-    wifi,
-    check_in_time: gb.check_in_time,
-    check_out_time: gb.check_out_time,
-    access_info: gb.access_info,
-    parking_info: gb.parking_info,
-    rules: options.rawRules ? orDefault(gb.rules_json, []) : rulesAsText(gb.rules_json),
-    things_to_do: thingsToDo,
-    places_to_eat: placesToEat,
-    checkout_info: orDefault(gb.checkout_info, []),
-    house_manual: orDefault(gb.house_manual, []),
-    included_tabs: resolveIncludedTabs(gb.included_tabs),
-    custom_sections: orDefault(gb.custom_sections, {}),
-    custom_tabs_meta: sanitizeCustomTabsMeta(gb.custom_tabs_meta) ?? orDefault(gb.custom_tabs_meta, {}),
-    cover_image_url: gb.cover_image_url || PLACEHOLDER_COVER_URL,
   };
 }

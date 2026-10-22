@@ -10,15 +10,22 @@ const GUIDEBOOK_TEMPLATES = ["./src/templates/guidebook/**/*"];
 const PDF_TEMPLATES = ["./src/templates/pdf/**/*"];
 // @sparticuz/chromium keeps the (brotli-compressed) browser in its package's bin directory
 const CHROMIUM_BIN = ["./node_modules/@sparticuz/chromium/bin/**/*"];
+// Bundled PDF fonts are read from disk at runtime
+const PDF_FONTS = [
+  "./node_modules/@fontsource/inter/files/inter-latin-*-normal.woff2",
+  "./node_modules/@fontsource/playfair-display/files/playfair-display-latin-*-normal.woff2",
+];
 const PDF_ROUTES = {
   "/api/guidebook/[id]/pdf": [
     ...PDF_TEMPLATES,
     ...GUIDEBOOK_TEMPLATES,
+    ...PDF_FONTS,
     ...CHROMIUM_BIN,
   ],
   "/api/guidebook/[id]/print-pdf": [
     ...PDF_TEMPLATES,
     ...GUIDEBOOK_TEMPLATES,
+    ...PDF_FONTS,
     ...CHROMIUM_BIN,
   ],
 };

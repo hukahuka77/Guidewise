@@ -9,9 +9,12 @@ import {
 import { ServiceError } from "@/lib/server/guidebookService";
 import { PDF_UPGRADE_PLAN, PLAN_CONFIGS, type PlanConfig } from "@/lib/server/plans";
 import { htmlToPdf } from "./browser";
-import { buildPdfContext, buildPrintContext } from "./context";
+import { buildPdfContext } from "./context";
+import { buildGuideModel } from "./guide/model";
+import { renderGuide } from "./guide/render";
+import type { ThemeKey } from "./guide/themes";
 import type { PhotoResolver } from "./recommendations";
-import { PDF_TEMPLATE_REGISTRY, renderPdfHtml, renderPrintHtml, resolvePdfTemplate, resolvePrintTemplate } from "./render";
+import { renderPdfHtml, resolvePdfTemplate } from "./render";
 
 export const defaultResolver: PhotoResolver = {
   photoReference: googlePlacesPhotoReference,
@@ -23,6 +26,30 @@ export const defaultResolver: PhotoResolver = {
   photoUrl: (ref) => googlePlacesPhotoUrl(ref),
 };
 
+/** Bump when the PDF design changes so browsers do not keep serving old downloads. */
+export const GUIDE_RENDER_VERSION = 1;
+
+/** PDF layouts drawn by the new design system, and the theme each one uses. The rest (mobile, QR poster) keep their own templates. */
+export const GUIDE_THEME_FOR_PDF: Record<string, ThemeKey> = {
+  template_pdf_original: "welcomebook",
+  template_pdf_modern: "welcomebook",
+  template_pdf_basic: "minimal",
+};
+
+/** Print PDF theme by the guidebook's web template. */
+export const GUIDE_THEME_FOR_PRINT: Record<string, ThemeKey> = {
+  template_welcomebook: "welcomebook",
+  template_original: "classic",
+  template_generic: "minimal",
+  template_lifestyle: "minimal",
+};
+
+export function printThemeFor(webTemplateKey: string | null | undefined): ThemeKey {
+  return (webTemplateKey && GUIDE_THEME_FOR_PRINT[webTemplateKey]) || "welcomebook";
+}
+
+const ALL_PDF_KEYS = ["template_pdf_original", "template_pdf_basic", "template_pdf_mobile", "template_pdf_qr"];
+
 export interface PdfRequest {
   template: string | null;
   qrUrl: string | null;
@@ -32,7 +59,7 @@ export interface PdfRequest {
 export function pdfEtag(gb: GuidebookRow, templateKey: string, extra = ""): string {
   const modified = gb.last_modified_time ?? "";
   return createHash("sha256")
-    .update(`${gb.id}:${templateKey}:${modified}:${getTemplatesHash()}${extra}`)
+    .update(`${gb.id}:${templateKey}:${modified}:${getTemplatesHash()}:r${GUIDE_RENDER_VERSION}${extra}`)
     .digest("hex");
 }
 
@@ -46,14 +73,18 @@ export function pdfTemplateFor(request: PdfRequest): string {
 
 export async function generateGuidebookPdf(gb: GuidebookRow, request: PdfRequest, resolver = defaultResolver) {
   const templateKey = pdfTemplateFor(request);
+  const theme = GUIDE_THEME_FOR_PDF[templateKey];
+  if (theme) {
+    const model = await buildGuideModel(gb, resolver, { qrUrl: request.qrUrl });
+    return htmlToPdf(renderGuide(model, { theme }).html);
+  }
   const ctx = await buildPdfContext(gb, resolver, { qrUrl: request.qrUrl });
   return htmlToPdf(renderPdfHtml(templateKey, ctx));
 }
 
 export async function generatePrintPdf(gb: GuidebookRow, resolver = defaultResolver) {
-  const key = resolvePrintTemplate(gb.template_key);
-  const ctx = await buildPrintContext(gb, resolver, { rawRules: key === "template_welcomebook" });
-  return htmlToPdf(renderPrintHtml(key, ctx));
+  const model = await buildGuideModel(gb, resolver);
+  return htmlToPdf(renderGuide(model, { theme: printThemeFor(gb.template_key) }).html);
 }
 
 /** 403 (with an upgrade hint) when the plan does not include this PDF; otherwise returns normally. */
@@ -68,7 +99,7 @@ export function assertPdfAllowed(plan: PlanConfig, kind: { print: true } | { tem
     return;
   }
   // Keys without their own layout (template_pdf_modern) print with the original one
-  const effective = kind.template in PDF_TEMPLATE_REGISTRY ? kind.template : "template_pdf_original";
+  const effective = ALL_PDF_KEYS.includes(kind.template) ? kind.template : "template_pdf_original";
   if (plan.pdfTemplates !== null && !plan.pdfTemplates.includes(effective)) {
     throw new ServiceError(403, `This PDF layout is included with the ${PLAN_CONFIGS[PDF_UPGRADE_PLAN].name} plan and above.`, {
       upgrade: true,
