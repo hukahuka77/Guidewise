@@ -12,66 +12,6 @@
     <style>
       body{ font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
       .gw-logo{ font-family: 'Marcellus', serif; letter-spacing: 0.15em; text-transform: uppercase; }
-
-      /* Preview Mode Watermark */
-      .preview-watermark {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%) rotate(-45deg);
-        font-size: 8rem;
-        font-weight: 900;
-        color: rgba(0, 0, 0, 0.08);
-        pointer-events: none;
-        z-index: 9998;
-        user-select: none;
-        white-space: nowrap;
-        letter-spacing: 0.1em;
-      }
-
-      @media (max-width: 768px) {
-        .preview-watermark {
-          font-size: 4rem;
-        }
-      }
-
-      @media print {
-        .preview-watermark {
-          color: rgba(0, 0, 0, 0.15);
-          font-size: 10rem;
-        }
-      }
-
-      /* Preview Banner */
-      .preview-banner {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        z-index: 9999;
-        background: linear-gradient(135deg, #FFA726 0%, #FB8C00 100%);
-        color: white;
-        padding: 0.75rem 1rem;
-        text-align: center;
-        font-weight: 600;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-      }
-
-      .preview-banner a {
-        color: white;
-        text-decoration: underline;
-        font-weight: 700;
-      }
-
-      .preview-banner a:hover {
-        color: rgba(255, 255, 255, 0.9);
-      }
-
-      @media print {
-        .preview-banner {
-          display: none;
-        }
-      }
     </style>
     
 <!-- Lucide Icons -->
@@ -613,18 +553,6 @@
       </div>
     </div>
 
-    
-    <!-- Preview Mode Banner -->
-    <div class="preview-banner">
-      <span>📋 Preview Mode</span>
-      <span class="hidden sm:inline"> — This guidebook is not published yet. </span>
-      <a href="https://www.example.com/pricing" target="_blank">Upgrade to publish</a>
-    </div>
-
-    <!-- Watermark Overlay -->
-    <div class="preview-watermark" aria-hidden="true">PREVIEW</div>
-    
-
     <div class="flex items-center justify-center min-h-screen w-full">
       <div class="flex h-[90vh] w-[90vw] max-w-[1800px] rounded-2xl shadow-lg overflow-hidden bg-white/60">
         <aside class="w-14 md:w-56 flex-shrink-0 rounded-l-2xl shadow-lg bg-[oklch(0.6923_0.22_21.05)] text-white">
@@ -634,7 +562,7 @@
           
 <!-- Header -->
 <div class="header">
-  <h1 class="header-title">Welcome Book</h1>
+  <h1 class="header-title">Cozy Cabin &lt;Deluxe&gt;</h1>
   <p class="header-subtitle">Short Term Rental Guide</p>
 </div>
 
@@ -671,6 +599,11 @@
       <span>Rules</span>
     </a>
     
+    
+    <a href="#food" class="nav-link">
+      <i data-lucide="utensils" class="nav-icon"></i>
+      <span>Dining</span>
+    </a>
     
     
     <a href="#activities" class="nav-link">
@@ -923,7 +856,7 @@ Street parking is free after 6pm.</div>
           </h5>
           
           <div class="expandable-content">
-            <p>Anywhere</p>
+            <p>Anywhere on the property</p>
           </div>
           
         </div>
@@ -933,43 +866,15 @@ Street parking is free after 6pm.</div>
         <i data-lucide="shield-check" class="info-item-icon"></i>
         <div class="info-item-content">
           <h5>
-            Quiet
+            Quiet hours
             
             <i data-lucide="chevron-down" class="chevron-icon"></i>
             
           </h5>
           
           <div class="expandable-content">
-            <p>after 10</p>
+            <p>10pm - 8am</p>
           </div>
-          
-        </div>
-      </li>
-      
-      <li class="info-item" onclick="this.classList.toggle('expanded')">
-        <i data-lucide="shield-check" class="info-item-icon"></i>
-        <div class="info-item-content">
-          <h5>
-            Legacy
-            
-            <i data-lucide="chevron-down" class="chevron-icon"></i>
-            
-          </h5>
-          
-          <div class="expandable-content">
-            <p>dict str</p>
-          </div>
-          
-        </div>
-      </li>
-      
-      <li class="info-item" onclick="this.classList.toggle('expanded')">
-        <i data-lucide="shield-check" class="info-item-icon"></i>
-        <div class="info-item-content">
-          <h5>
-            Plain rule
-            
-          </h5>
           
         </div>
       </li>
@@ -979,6 +884,62 @@ Street parking is free after 6pm.</div>
   
 
   <!-- Places to Eat -->
+  
+  <div id="food" class="section-card">
+    <h2 class="section-title">
+      <i data-lucide="utensils" class="section-icon"></i>
+      Places to Eat
+    </h2>
+    <div class="places-grid">
+      
+      <div class="place-card">
+        
+        <img src="/api/place-photo?maxwidth=800&amp;place_id=ChIJbbq&amp;photo_reference=RAWREF%2Bwith%2Fchars%3D%26&amp;query=Franklin+BBQ%2C+12+Main+St%2C+Austin%2C+TX"
+          alt="Franklin BBQ" class="place-card-image" />
+        
+        <div class="place-card-content">
+          <h5>Franklin BBQ</h5>
+          
+          <p>Great coffee &amp; pastries</p>
+          
+          
+          <a href="https://maps.google.com/maps?q=12%20Main%20St%2C%20Austin%2C%20TX" target="_blank"
+            rel="noopener noreferrer" class="place-address" style="text-decoration: none; color: inherit;">
+            <i data-lucide="map-pin" class="place-address-icon"></i>
+            <span>12 Main St, Austin, TX</span>
+          </a>
+          
+          
+          <div class="place-distance" style="font-size: 0.875rem; color: #6b7280; margin-top: 4px; margin-left: 22px;">🚗 7 min drive</div>
+          
+        </div>
+      </div>
+      
+      <div class="place-card">
+        
+        <img src="https://example.com/p.jpg"
+          alt="Taco Spot (best!)" class="place-card-image" />
+        
+        <div class="place-card-content">
+          <h5>Taco Spot (best!)</h5>
+          
+          <p>Great coffee &amp; pastries</p>
+          
+          
+          <a href="https://maps.google.com/maps?q=55%20Elm%20St%20%26%203rd%2C%20Austin%2C%20TX%2078701" target="_blank"
+            rel="noopener noreferrer" class="place-address" style="text-decoration: none; color: inherit;">
+            <i data-lucide="map-pin" class="place-address-icon"></i>
+            <span>55 Elm St &amp; 3rd, Austin, TX 78701</span>
+          </a>
+          
+          
+          <div class="place-distance" style="font-size: 0.875rem; color: #6b7280; margin-top: 4px; margin-left: 22px;">🚗 7 min drive</div>
+          
+        </div>
+      </div>
+      
+    </div>
+  </div>
   
 
   <!-- Activities -->
@@ -992,124 +953,83 @@ Street parking is free after 6pm.</div>
       
       <div class="place-card">
         
-        <img src="/api/place-photo?maxwidth=800&amp;place_id=ChIJnone&amp;photo_reference=SAFEREF123&amp;query=Safe+Ref+Raw%2C+1+A+St"
-          alt="Safe Ref Raw" class="place-card-image" />
+        <img src="/api/place-photo?maxwidth=800&amp;place_id=ChIJplace1&amp;photo_reference=CmRaAAAAtemporaryRef123&amp;query=Zilker+Park%2C+12+Main+St%2C+Austin%2C+TX"
+          alt="Zilker Park" class="place-card-image" />
         
         <div class="place-card-content">
-          <h5>Safe Ref Raw</h5>
+          <h5>Zilker Park</h5>
           
-          <p>d</p>
+          <p>Big park</p>
           
           
-          <a href="https://maps.google.com/maps?q=1%20A%20St" target="_blank"
+          <a href="https://maps.google.com/maps?q=12%20Main%20St%2C%20Austin%2C%20TX" target="_blank"
             rel="noopener noreferrer" class="place-address" style="text-decoration: none; color: inherit;">
             <i data-lucide="map-pin" class="place-address-icon"></i>
-            <span>1 A St</span>
+            <span>12 Main St, Austin, TX</span>
           </a>
           
           
+          <div class="place-distance" style="font-size: 0.875rem; color: #6b7280; margin-top: 4px; margin-left: 22px;">🚗 7 min drive</div>
+          
         </div>
       </div>
       
       <div class="place-card">
         
-        <img src="/api/place-photo?maxwidth=800&amp;place_id=ChIJfail&amp;photo_reference=GOOGREFABC&amp;query=Lookup+Fails%2C+2+B+St"
-          alt="Lookup Fails" class="place-card-image" />
+        <img src="https://example.supabase.co/storage/v1/object/public/food-and-activities/a b.jpg"
+          alt="Hosted Photo Place" class="place-card-image" />
         
         <div class="place-card-content">
-          <h5>Lookup Fails</h5>
+          <h5>Hosted Photo Place</h5>
           
-          <p>d</p>
+          <p>Great coffee &amp; pastries</p>
           
           
-          <a href="https://maps.google.com/maps?q=2%20B%20St" target="_blank"
+          <a href="https://maps.google.com/maps?q=12%20Main%20St%2C%20Austin%2C%20TX" target="_blank"
             rel="noopener noreferrer" class="place-address" style="text-decoration: none; color: inherit;">
             <i data-lucide="map-pin" class="place-address-icon"></i>
-            <span>2 B St</span>
+            <span>12 Main St, Austin, TX</span>
           </a>
           
           
-        </div>
-      </div>
-      
-      <div class="place-card">
-        
-        <div class="place-card-content">
-          <h5></h5>
-          
-          
+          <div class="place-distance" style="font-size: 0.875rem; color: #6b7280; margin-top: 4px; margin-left: 22px;">🚗 7 min drive</div>
           
         </div>
       </div>
       
       <div class="place-card">
         
-        <div class="place-card-content">
-          <h5></h5>
-          
-          
-          
-        </div>
-      </div>
-      
-      <div class="place-card">
+        <img src="/api/place-photo?maxwidth=800&amp;photo_reference=LEGACYREF%2Fabc&amp;query=Legacy+Google+URL%2C+12+Main+St%2C+Austin%2C+TX"
+          alt="Legacy Google URL" class="place-card-image" />
         
         <div class="place-card-content">
-          <h5></h5>
+          <h5>Legacy Google URL</h5>
+          
+          <p>Great coffee &amp; pastries</p>
           
           
-          
-        </div>
-      </div>
-      
-      <div class="place-card">
-        
-        <div class="place-card-content">
-          <h5></h5>
-          
-          
-          
-        </div>
-      </div>
-      
-      <div class="place-card">
-        
-        <img src="/api/place-photo?maxwidth=800&amp;photo_reference=OLDREF_xyz&amp;query=Legacy+No+Match%2C+9+Nowhere+NoMatch"
-          alt="Legacy No Match" class="place-card-image" />
-        
-        <div class="place-card-content">
-          <h5>Legacy No Match</h5>
-          
-          
-          <a href="https://maps.google.com/maps?q=9%20Nowhere%20NoMatch" target="_blank"
+          <a href="https://maps.google.com/maps?q=12%20Main%20St%2C%20Austin%2C%20TX" target="_blank"
             rel="noopener noreferrer" class="place-address" style="text-decoration: none; color: inherit;">
             <i data-lucide="map-pin" class="place-address-icon"></i>
-            <span>9 Nowhere NoMatch</span>
+            <span>12 Main St, Austin, TX</span>
           </a>
           
           
+          <div class="place-distance" style="font-size: 0.875rem; color: #6b7280; margin-top: 4px; margin-left: 22px;">🚗 7 min drive</div>
+          
         </div>
       </div>
       
       <div class="place-card">
         
-        <img src="https://example.supabase.co/a.jpg"
-          alt="Hosted &amp; Escaped &lt;b&gt;" class="place-card-image" />
-        
         <div class="place-card-content">
-          <h5>Hosted &amp; Escaped &lt;b&gt;</h5>
+          <h5>No Photo</h5>
           
-          <p>a &amp; b</p>
-          
-          
-          <a href="https://maps.google.com/maps?q=x" target="_blank"
-            rel="noopener noreferrer" class="place-address" style="text-decoration: none; color: inherit;">
-            <i data-lucide="map-pin" class="place-address-icon"></i>
-            <span>x</span>
-          </a>
+          <p>Great coffee &amp; pastries</p>
           
           
-          <div class="place-distance" style="font-size: 0.875rem; color: #6b7280; margin-top: 4px; margin-left: 22px;">🚗 12 min drive</div>
+          
+          <div class="place-distance" style="font-size: 0.875rem; color: #6b7280; margin-top: 4px; margin-left: 22px;">🚗 7 min drive</div>
           
         </div>
       </div>
@@ -1138,10 +1058,12 @@ Street parking is free after 6pm.</div>
           <i data-lucide="check-circle" class="info-item-icon"></i>
           <div class="info-item-content">
             <h5>
-              
+              Trash
               <i data-lucide="chevron-down" class="chevron-icon"></i>
             </h5>
             <div class="expandable-content">
+              
+              <p>Take the bins to the curb</p>
               
             </div>
           </div>
@@ -1151,40 +1073,12 @@ Street parking is free after 6pm.</div>
           <i data-lucide="check-circle" class="info-item-icon"></i>
           <div class="info-item-content">
             <h5>
-              
+              Keys
               <i data-lucide="chevron-down" class="chevron-icon"></i>
             </h5>
             <div class="expandable-content">
               
-            </div>
-          </div>
-        </li>
-        
-        <li class="info-item" onclick="this.classList.toggle('expanded')">
-          <i data-lucide="check-circle" class="info-item-icon"></i>
-          <div class="info-item-content">
-            <h5>
-              Named
-              <i data-lucide="chevron-down" class="chevron-icon"></i>
-            </h5>
-            <div class="expandable-content">
-              
-              <p>Described</p>
-              
-            </div>
-          </div>
-        </li>
-        
-        <li class="info-item" onclick="this.classList.toggle('expanded')">
-          <i data-lucide="check-circle" class="info-item-icon"></i>
-          <div class="info-item-content">
-            <h5>
-              
-              <i data-lucide="chevron-down" class="chevron-icon"></i>
-            </h5>
-            <div class="expandable-content">
-              
-              <p>Only desc</p>
+              <p>Leave on the counter</p>
               
             </div>
           </div>
@@ -1226,17 +1120,12 @@ Street parking is free after 6pm.</div>
       
         
           
-          <p style="white-space: pre-line; margin-bottom: 1rem;">Pets welcome</p>
+          <p style="white-space: pre-line; margin-bottom: 1rem;">Dogs welcome</p>
         
       
         
           
-          <p style="white-space: pre-line; margin-bottom: 1rem;"></p>
-        
-      
-        
-          
-          <p style="white-space: pre-line; margin-bottom: 1rem;">Second block</p>
+          <p style="white-space: pre-line; margin-bottom: 1rem;">Please clean up after them</p>
         
       
       
@@ -1256,8 +1145,10 @@ Street parking is free after 6pm.</div>
       
       
         
+      
+        
           
-          <p style="white-space: pre-line; margin-bottom: 1rem;">Tip one</p>
+          <p style="white-space: pre-line; margin-bottom: 1rem;">A plain string tip</p>
         
       
       

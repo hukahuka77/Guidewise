@@ -15,12 +15,8 @@ from urllib.parse import parse_qs, urlparse
 FIXTURES = Path(__file__).resolve().parents[1] / "parity" / "fixtures"
 ROWS = {p.stem: json.loads(p.read_text()) for p in FIXTURES.glob("*.json")}
 
-# An active guidebook, a draft with a share token, and one that makes the lookup fail.
-ACTIVE = dict(ROWS["full_original"], public_slug="cozy-cabin-abc123", active=True)
-DRAFT = dict(ROWS["minimal_original"], id="draft-1", active=False, public_slug=None,
-             preview_token="s3cret-token", user_id="11111111-1111-4111-8111-aaaaaaaaaaaa",
-             property={"id": 9, "name": "Draft House", "address_street": None, "address_city_state": None, "address_zip": None})
-BROKEN = dict(ACTIVE, id="broken-1", public_slug="broken-slug")
+# A guidebook, and a slug that makes the lookup fail.
+ACTIVE = dict(ROWS["full_original"], public_slug="cozy-cabin-abc123")
 OWNER_ID = "11111111-1111-4111-8111-aaaaaaaaaaaa"
 OTHER_ID = "22222222-2222-4222-8222-bbbbbbbbbbbb"
 TOKENS = {"owner-token": OWNER_ID, "other-token": OTHER_ID}
@@ -61,12 +57,12 @@ class Supabase(BaseHTTPRequestHandler):
         if url.path == "/rest/v1/guidebook":
             if "broken" in json.dumps(qs):
                 return self._send(500, {"message": "boom"})
-            rows = [ACTIVE, DRAFT]
+            rows = [ACTIVE]
             for key, cond in qs.items():
                 if not cond.startswith("eq."):
                     continue
                 want = cond[3:]
-                rows = [r for r in rows if str(r.get(key)).lower() == want.lower()] if key in ("public_slug", "id", "active") else rows
+                rows = [r for r in rows if str(r.get(key)).lower() == want.lower()] if key in ("public_slug", "id") else rows
             return self._send(200, rows[:1])
         return self._send(404, {"message": "not found"})
 

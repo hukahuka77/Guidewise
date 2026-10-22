@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { Sql } from "./db";
+import { uniqueSlug } from "./guidebookService";
 import type { Recommendations } from "./importPopulate";
 import type { ImportedFields } from "./listingImport";
 import { assertCanCreateGuidebook } from "./usage";
 
-// DB half of `/api/import-listing` (backend/app.py): always a draft, never auto-activated.
+// DB half of `/api/import-listing` (backend/app.py): the imported guidebook is live at its slug straight away.
 
 const LABELS: [keyof ImportedFields | "cover_image_url" | "things_to_do" | "places_to_eat", string][] = [
   ["property_name", "property name"],
@@ -68,6 +69,7 @@ export async function createImportedGuidebook(
     }
 
     const id = randomUUID();
+    const publicSlug = await uniqueSlug(tx as unknown as Sql, propertyName, id);
     const json = (v: unknown[]) => (v.length ? tx.json(v as never) : null);
     const hasNeighborhood = fields.neighborhood.length > 0;
     const tabs = ["welcome", "checkin", "property", "food", "activities", "rules", "checkout", ...(hasNeighborhood ? ["custom_neighborhood"] : [])];
@@ -78,7 +80,7 @@ export async function createImportedGuidebook(
       insert into guidebook (
         id, check_in_time, check_out_time, access_info, welcome_info, parking_info, cover_image_url, house_manual,
         checkout_info, rules_json, things_to_do, places_to_eat, wifi_json, custom_sections, custom_tabs_meta,
-        included_tabs, template_key, host_id, property_id, user_id, active, public_slug
+        included_tabs, template_key, host_id, property_id, user_id, public_slug
       ) values (
         ${id}, ${fields.check_in_time || "15:00"}, ${fields.check_out_time || "11:00"}, ${fields.access_info || null},
         ${fields.welcome_message || null}, ${fields.parking_info || null}, ${fields.cover_image_url || null},
@@ -87,7 +89,7 @@ export async function createImportedGuidebook(
         ${wifi ? tx.json(wifi as never) : null}, ${tx.json(customSections as never)},
         ${customTabsMeta ? tx.json(customTabsMeta as never) : null},
         ${tx.json(tabs as never)},
-        'template_original', ${hostId}, ${propertyId}, ${userId}, false, null
+        'template_original', ${hostId}, ${propertyId}, ${userId}, ${publicSlug}
       )`;
     return id;
   });

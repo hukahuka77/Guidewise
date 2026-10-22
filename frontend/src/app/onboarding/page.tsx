@@ -149,7 +149,7 @@ export default function OnboardingPage() {
         hostPhotoUrl,
       });
 
-      // Create draft guidebook
+      // Create the guidebook
       const res = await fetch(`${API_BASE}/api/generate`, {
         method: "POST",
         headers: {
@@ -170,19 +170,6 @@ export default function OnboardingPage() {
 
       const data = await res.json();
       const guidebookId = data.guidebook_id || data.id;
-
-      // Publish snapshot
-      try {
-        await fetch(`${API_BASE}/api/guidebooks/${guidebookId}/publish`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-          },
-        });
-      } catch (e) {
-        console.warn("Snapshot publish failed:", e);
-      }
 
       // Redirect to edit page with new flag
       router.push(`/edit/${guidebookId}?new=true`);
@@ -405,7 +392,7 @@ function IntroSlide({
           Already have an Airbnb or VRBO listing?
         </Label>
         <p className="text-sm text-gray-600 mt-1 mb-3">
-          Paste the link and we&apos;ll build a draft guidebook from it, then take you straight to the editor.
+          Paste the link and we&apos;ll build a guidebook from it, then take you straight to the editor.
         </p>
         <div className="flex gap-2">
           <Input

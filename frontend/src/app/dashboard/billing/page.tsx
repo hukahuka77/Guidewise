@@ -24,7 +24,6 @@ type BillingSummary = {
   plan: "free" | "starter" | "power" | "pro" | string;
   guidebook_limit: number | null;
   guidebook_count?: number;
-  active_guidebooks: number;
   can_create_more?: boolean;
   plan_display: string;
   views_used?: number;

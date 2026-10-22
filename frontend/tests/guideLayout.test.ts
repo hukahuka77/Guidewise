@@ -5,6 +5,7 @@ import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { htmlToPdf } from "../src/lib/pdf/browser";
 import { buildGuideModel, stripEmoji } from "../src/lib/pdf/guide/model";
 import { renderGuide, type PageSize } from "../src/lib/pdf/guide/render";
+import type { GuidePlan } from "../src/lib/pdf/guide/compose";
 import type { ThemeKey } from "../src/lib/pdf/guide/themes";
 import type { GuidebookRow } from "../src/lib/guidebook/types";
 
@@ -107,6 +108,45 @@ describe("guide PDF layout", () => {
       }
     }
   }
+
+  const plan: GuidePlan = {
+    theme: "classic",
+    tagline: "A calm place to land",
+    welcome: "Welcome, and thank you for choosing our home for your stay.",
+    highlights: ["Self check-in keeps arrival easy", "Quiet hours keep the neighbors happy", "Great food is a short drive away"],
+    order: ["eat", "do", "rules", "manual", "arrival", "welcome", "checkout"],
+    sections: {
+      rules: { title: "Ground Rules", blurb: "A few simple things that keep everyone comfortable." },
+      eat: { title: "Where to Eat", blurb: "Our favorite spots nearby." },
+    },
+  };
+
+  for (const name of ["full_welcomebook", "stress"] as const) {
+    it(`an AI plan (${name}): renames, reorders and adds intros without breaking the layout`, async () => {
+      const row = name === "stress" ? stress() : fixture(name);
+      const model = await buildGuideModel(row, resolver);
+      const { html, keepTogether, sections } = renderGuide(model, { theme: plan.theme, plan });
+      const pages = await pageTexts(await htmlToPdf(html));
+      const all = pages.join(" ");
+      expect(sections[0]).toBe("Welcome"); // Welcome stays first even though the plan put it later
+      expect(sections[sections.length - 1]).toBe("Checkout"); // and Checkout stays last
+      expect(sections).toContain("Where to Eat");
+      expect(sections).toContain("Ground Rules");
+      expect(sections).not.toContain("House Rules");
+      expect(sections.indexOf("Where to Eat")).toBeLessThan(sections.indexOf("Ground Rules"));
+      for (const text of [plan.tagline!, plan.welcome!, ...plan.highlights, plan.sections.rules.blurb!, "Good to know"]) {
+        expect(all).toContain(norm(text));
+      }
+      expect(lintLayout(pages, keepTogether, model.title)).toEqual([]);
+    }, 120000);
+  }
+
+  it("a plan that is null or empty renders exactly like no plan", async () => {
+    const model = await buildGuideModel(fixture("full_welcomebook"), resolver);
+    const base = renderGuide(model, { theme: "welcomebook" }).html;
+    expect(renderGuide(model, { theme: "welcomebook", plan: null }).html).toBe(base);
+    expect(renderGuide(model, { theme: "welcomebook", plan: { theme: "welcomebook", highlights: [], order: [], sections: {} } }).html).toBe(base);
+  });
 
   it("an empty guidebook still gets a content page", async () => {
     const empty = { ...fixture("minimal_original"), included_tabs: ["welcome"], welcome_info: null, host: null } as unknown as GuidebookRow;

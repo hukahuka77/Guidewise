@@ -120,7 +120,7 @@ export async function billingSummary(sql: Sql, stripe: Stripe | null, user: Bill
   const plan = PLAN_CONFIGS[planKey];
 
   const [counts] = await sql`
-    select count(*)::int as total, count(*) filter (where active)::int as active from guidebook where user_id = ${user.id}`;
+    select count(*)::int as total from guidebook where user_id = ${user.id}`;
   const viewsUsed = await monthlyViews(sql, user.id).catch(() => 0);
   const aiUsed = await aiUsage(sql, user.id).catch(() => 0);
 
@@ -163,9 +163,7 @@ export async function billingSummary(sql: Sql, stripe: Stripe | null, user: Bill
     price_usd: plan.priceUsd,
     guidebook_limit: plan.guidebookLimit,
     guidebook_count: counts.total,
-    active_guidebooks: counts.active,
     can_create_more: plan.guidebookLimit === null || counts.total < plan.guidebookLimit,
-    can_activate_more: true,
     views_used: viewsUsed,
     views_limit: plan.viewsPerMonth,
     ai_used: aiUsed,
@@ -298,7 +296,7 @@ export async function handleStripeEvent(sql: Sql, stripe: Stripe | null, event: 
       if (!subscriptionId) return;
 
       if (event.type === "customer.subscription.deleted" || (status && ["canceled", "unpaid", "past_due"].includes(status))) {
-        // Back to the free plan. Guidebooks stay published (free hosts get a monthly view allowance).
+        // Back to the free plan. Guidebooks stay live (free hosts get a monthly view allowance).
         await sql`update public.profiles set plan = 'free', guidebook_limit = null where stripe_subscription_id = ${subscriptionId}`;
         return;
       }

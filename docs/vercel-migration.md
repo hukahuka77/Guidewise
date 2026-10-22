@@ -5,7 +5,7 @@ route has a native Next.js replacement. Backup and rollback notes: `pre-migratio
 
 ## How the transition works
 
-`frontend/next.config.ts` has *fallback* rewrites: any `/api/*`, `/g/*`, `/preview/*`, `/guidebook/*`
+`frontend/next.config.ts` has *fallback* rewrites: any `/api/*`, `/g/*`, `/guidebook/*`
 request that no Next.js page or route handler claims is proxied to Flask (`BACKEND_URL`). So a route
 is "migrated" simply by adding a Next.js route handler for it, and "rolled back" by deleting it.
 
@@ -17,8 +17,8 @@ same request to Flask (`src/lib/server/proxy.ts`).
 | Step | Scope | State |
 | --- | --- | --- |
 | 1 | Vercel in front of Render (rewrites, edge caching, same-origin API) | on `main` |
-| 2 | Public guidebook pages: `/g/[slug]`, `/preview/[id]`, `/guidebook/[id]` | on `main`, activates when `SUPABASE_SERVICE_ROLE_KEY` is set |
-| 3 | Logged-in CRUD (create/edit/list/get/delete/publish/toggle/template, hosts) | on `main`, activates when `DATABASE_URL` is set in Vercel |
+| 2 | Public guidebook pages: `/g/[slug]`, `/guidebook/[id]` | on `main`, activates when `SUPABASE_SERVICE_ROLE_KEY` is set |
+| 3 | Logged-in CRUD (create/edit/list/get/delete/template, hosts) | on `main`, activates when `DATABASE_URL` is set in Vercel |
 | 4 | Integrations (Stripe billing + webhook, Places, place photos, AI recommendations, listing import) | code complete; each route activates when its keys are set in Vercel (see below) |
 | 5 | PDFs (`/api/guidebook/[id]/pdf`, `/print-pdf`) with headless Chromium | code complete; always native (falls back to Flask only if it throws) |
 | 6 | Retire Render | after the cutover checklist below, on your go-ahead |
@@ -30,19 +30,19 @@ same request to Flask (`src/lib/server/proxy.ts`).
   rewritten by `frontend/scripts/port-jinja-templates.py`; the helpers Jinja/Python provided
   (`place_photo_url`, `urlencode`, `title`, rule normalisation, empty-list truthiness) live in
   `frontend/src/lib/guidebook`.
-- Parity is proven, not assumed. `frontend/tests/parity/golden/*.html` are pages rendered by the real
-  Flask code (`generate_goldens.py`); `guidebook.parity.test.ts` requires the Next.js output to match
-  byte for byte. `helpers.parity.test.ts` does the same for the helper functions against Python's output.
+- Parity was proven, not assumed: the first goldens were pages rendered by the real Flask code. They are now
+  plain snapshots of the Next.js output (`UPDATE_GOLDEN=1 npx vitest run tests/parity/guidebook.parity.test.ts`
+  regenerates them; review the diff). `guidebook.parity.test.ts` fails when a page changes. `helpers.parity.test.ts` does the same for the helper functions against Python's output.
   `npm run build` runs these tests, so a regression blocks the deploy.
 - `frontend/tests/integration/` has local stand-ins for Flask and Supabase for exercising the routes
-  (found / missing / draft token / owner login / fallback).
-- Reads use the Supabase service-role key (server only, bypasses RLS), so the routes enforce access
-  themselves: drafts need the share token or the owner's access token, everything else 404s.
+  (found / missing / owner login / fallback).
+- Reads use the Supabase service-role key (server only, bypasses RLS). Every guidebook is public at its slug
+  (there are no drafts or previews), so unknown slugs are the only 404.
 
 ### Enabling step 2 (Vercel dashboard, Production and Preview)
 
 Add `SUPABASE_SERVICE_ROLE_KEY` (Supabase dashboard > Project Settings > API > `service_role`). Do not
-prefix it with `NEXT_PUBLIC_`. Redeploy. `/g/*`, `/preview/*` and `/guidebook/*` are then rendered by
+prefix it with `NEXT_PUBLIC_`. Redeploy. `/g/*` and `/guidebook/*` are then rendered by
 Next.js; remove the variable to return to Flask instantly.
 
 Optional: `SUPABASE_URL` (defaults to `NEXT_PUBLIC_SUPABASE_URL`), `BACKEND_URL` (defaults to the Render URL).
@@ -73,19 +73,14 @@ Routes now native in Next.js (all require a Supabase access token, 401 otherwise
   also exercises the running Next.js server end to end.
 - Routes fall back to Flask when `DATABASE_URL` (or Supabase auth) is not configured. Writes never retry on
   Flask after an error (they would risk duplicates); reads do.
-- `POST /api/guidebooks/activate_for_user` is NOT migrated: the Flask route calls a helper that does not exist
-  and always errors. An explicit pass-through route keeps it reaching Flask instead of being captured by
-  `/api/guidebooks/[id]` (which would answer 405). `/api/maintenance/cleanup-expired` is also left behind
-  (it references columns that do not exist).
+- `/api/maintenance/cleanup-expired` is left behind in Flask (it references columns that do not exist).
 
 ### Intentional differences from Flask
 
 - Creating a guidebook without `property_name` returns 400 (Flask crashed with a 500).
 - Updating with a non-string `template_key` ignores it (Flask raised on the NOT NULL column).
-- Creating a draft preview token no longer bumps `last_modified_time` (it made the dashboard order jump
-  and marked fresh snapshots stale).
-- Publish renders `ctx.rules` through the same normaliser as the live page (Flask's snapshot used the raw
-  value, one of the drift bugs from issue #35). Everything else in the snapshot is byte-identical (golden-tested).
+- There is no publish step, draft state, preview link or activate/deactivate toggle: a guidebook is live at
+  `/g/<slug>` from the moment it is created and pages are rendered on demand (see `pricing.md`).
 - Timestamps are ISO strings with milliseconds and a `Z`; `GET /api/hosts` is ordered by id.
 
 ### Enabling step 3 (Vercel dashboard, Production and Preview)

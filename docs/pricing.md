@@ -13,6 +13,19 @@ Guidebooks are free to create. Plans differ in guest views, guidebook count and 
 Limits live in `frontend/src/lib/server/plans.ts`; the marketing copy in `frontend/src/config/plans.ts`.
 Old plan names map forward: `trial` -> free, `growth` -> power, `enterprise` -> pro.
 
+## Publishing
+There is no draft, preview, publish or activate/deactivate step. A guidebook is live at `/g/<slug>` the moment it is
+created (the slug is assigned at creation; older guidebooks get theirs the first time they are listed) and stays live
+until it is deleted. `/guidebook/<id>` (printed QR codes) serves the same page. Saving an edit is the publish: pages
+are rendered on demand and the CDN copy (paid plans) refreshes within five minutes. Access is limited only by the
+view allowance below.
+
+Leftover database columns, unused by the Next.js code: `guidebook.active`, `preview_token`, `published_html`,
+`published_etag`, `published_at` (and the unused `claimed_at`, `expires_at`, `claim_token`). They are kept only because
+the old Flask backend on Render still reads them. Once Render is retired, drop them in a migration (needs approval):
+`alter table public.guidebook drop column active, drop column preview_token, drop column published_html,
+drop column published_etag, drop column published_at;`
+
 ## How views work
 - A view is a guest page load of a published guidebook, counted once per visitor per guidebook per 30 minutes
   (salted hash of IP + user agent; no IPs stored). Crawlers, link previews, prefetches and HEAD requests are not counted.

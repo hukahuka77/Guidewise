@@ -5,14 +5,11 @@ import {
   compileRulesInput,
   createGuidebook,
   deleteGuidebook,
-  ensurePreviewToken,
   getGuidebookPayload,
   listGuidebooks,
   listHosts,
-  publishGuidebook,
   setTemplateKey,
   slugify,
-  toggleGuidebook,
   updateGuidebook,
 } from "../src/lib/server/guidebookService";
 import { assertCanCreateGuidebook, getUserPlan } from "../src/lib/server/usage";
@@ -123,7 +120,7 @@ describe("createGuidebook", () => {
     await rejects(createGuidebook(db.sql, OWNER, { property_name: "   " }), 400);
   });
 
-  it("creates a published guidebook on the free plan, storing everything", async () => {
+  it("creates a live guidebook on the free plan, storing everything", async () => {
     const result = await createGuidebook(
       db.sql,
       OWNER,
@@ -140,14 +137,12 @@ describe("createGuidebook", () => {
         template_key: "template_welcomebook", cover_image_url: "data:image/png;base64,AAAA",
       }),
     );
-    expect(result.active).toBe(true); // guidebooks are free: published straight away
     expect(result.publicSlug).toMatch(/^cozy-cabin-[0-9a-f]{6}$/);
     expect(result.templateKey).toBe("template_welcomebook");
 
     const [g] = await db.sql`select * from guidebook where id = ${result.guidebookId}`;
     expect(g.user_id).toBe(OWNER);
-    expect(g.active).toBe(true);
-    expect(g.public_slug).toBe(result.publicSlug);
+    expect(g.public_slug).toBe(result.publicSlug); // live straight away: guidebooks are free
     expect(g.cover_image_url).toBeNull(); // data URLs are rejected
     expect(g.wifi_json).toEqual({ network: "Net", password: "pw" });
     expect(g.rules_json).toEqual([{ name: "No smoking", description: "Anywhere" }, { name: "Quiet", description: "10pm" }]);
@@ -170,13 +165,15 @@ describe("createGuidebook", () => {
     expect(g.included_tabs).toEqual(["welcome", "checkin", "property", "food", "activities", "rules", "checkout"]);
   });
 
-  it("always activates with a unique slug", async () => {
+  it("gives every guidebook its own slug, even for the same property name", async () => {
     await setPlan(db.sql, OWNER, "pro");
-    const r = await createGuidebook(db.sql, OWNER, base());
-    expect(r.active).toBe(true);
-    expect(r.publicSlug).toMatch(/^cozy-cabin-[0-9a-f]{6}$/);
-    const [g] = await db.sql`select active, public_slug from guidebook where id = ${r.guidebookId}`;
-    expect(g).toMatchObject({ active: true, public_slug: r.publicSlug });
+    const a = await createGuidebook(db.sql, OWNER, base());
+    const b = await createGuidebook(db.sql, OWNER, base());
+    expect(a.publicSlug).toMatch(/^cozy-cabin-[0-9a-f]{6}$/);
+    expect(b.publicSlug).toMatch(/^cozy-cabin-[0-9a-f]{6}$/);
+    expect(b.publicSlug).not.toBe(a.publicSlug);
+    const [g] = await db.sql`select public_slug from guidebook where id = ${a.guidebookId}`;
+    expect(g.public_slug).toBe(a.publicSlug);
   });
 
   it("reuses an existing property and host by name for the same user, not across users", async () => {
@@ -206,43 +203,33 @@ describe("createGuidebook", () => {
 });
 
 describe("read", () => {
-  it("returns the editor payload for the owner only and creates a stable preview link for drafts", async () => {
+  it("returns the editor payload (with the public slug) for the owner only", async () => {
     const { guidebookId } = await createGuidebook(db.sql, OWNER, base({ host_name: "Andrew", rules: [{ name: "A", description: "b" }], wifi_network: "N" }));
-    await db.sql`update guidebook set active = false, public_slug = null where id = ${guidebookId}`;
     const a = await getGuidebookPayload(db.sql, OWNER, guidebookId);
     expect(a).toMatchObject({
       id: guidebookId, template_key: "template_original",
       property: { name: "Cozy Cabin", address_street: null }, host: { name: "Andrew" },
       rules: [{ name: "A", description: "b" }], wifi_json: { network: "N" },
     });
-    expect(a.preview_url).toMatch(new RegExp(`^/preview/${guidebookId}\\?t=[A-Za-z0-9_-]{32}$`));
-    const b = await getGuidebookPayload(db.sql, OWNER, guidebookId);
-    expect(b.preview_url).toBe(a.preview_url);
+    expect(a.public_slug).toMatch(/^cozy-cabin-[0-9a-f]{6}$/);
+    expect(a).not.toHaveProperty("preview_url");
+    expect(a).not.toHaveProperty("active");
     await rejects(getGuidebookPayload(db.sql, OTHER, guidebookId), 404);
     await rejects(getGuidebookPayload(db.sql, OWNER, "does-not-exist"), 404);
   });
 
-  it("does not bump last_modified_time when it creates a preview token", async () => {
-    const { guidebookId } = await createGuidebook(db.sql, OWNER, base());
-    const [before] = await db.sql`select last_modified_time from guidebook where id = ${guidebookId}`;
-    await ensurePreviewToken(db.sql, guidebookId);
-    const [after] = await db.sql`select last_modified_time from guidebook where id = ${guidebookId}`;
-    expect(after.last_modified_time.getTime()).toBe(before.last_modified_time.getTime());
-  });
-
-  it("lists only the user's guidebooks, newest edit first, with the right links", async () => {
-    const live = await createGuidebook(db.sql, OWNER, base({ property_name: "Live One" }));
-    const draft = await createGuidebook(db.sql, OWNER, base({ property_name: "Draft One" }));
-    await db.sql`update guidebook set active = false, public_slug = null where id = ${draft.guidebookId}`;
+  it("lists only the user's guidebooks, newest edit first, each with its public slug", async () => {
+    const first = await createGuidebook(db.sql, OWNER, base({ property_name: "First One" }));
+    const second = await createGuidebook(db.sql, OWNER, base({ property_name: "Second One" }));
     await createGuidebook(db.sql, OTHER, base({ property_name: "Not Mine" }));
-    await updateGuidebook(db.sql, OWNER, draft.guidebookId, { welcome_message: "edited" });
+    await updateGuidebook(db.sql, OWNER, second.guidebookId, { welcome_message: "edited" });
     const items = await listGuidebooks(db.sql, OWNER);
-    expect(items.map((i) => i.property_name)).toEqual(["Draft One", "Live One"]);
-    const [d, l] = items;
-    expect(d).toMatchObject({ active: false, public_slug: null });
-    expect(d.preview_url).toMatch(/^\/preview\/.+\?t=/);
-    expect(l).toMatchObject({ active: true, public_slug: live.publicSlug, preview_url: null });
-    expect(typeof d.last_modified_time).toBe("string");
+    expect(items.map((i) => i.property_name)).toEqual(["Second One", "First One"]);
+    const [s2, f1] = items;
+    expect(s2.public_slug).toBe(second.publicSlug);
+    expect(f1.public_slug).toBe(first.publicSlug);
+    expect(s2).not.toHaveProperty("active");
+    expect(typeof s2.last_modified_time).toBe("string");
   });
 
   it("lists hosts for the user", async () => {
@@ -328,7 +315,7 @@ describe("updateGuidebook", () => {
   });
 });
 
-describe("delete, template, toggle, publish", () => {
+describe("delete and template", () => {
   it("deletes only the owner's guidebook", async () => {
     const { guidebookId } = await createGuidebook(db.sql, OWNER, base());
     await rejects(deleteGuidebook(db.sql, OTHER, guidebookId), 404);
@@ -345,49 +332,5 @@ describe("delete, template, toggle, publish", () => {
     await rejects(setTemplateKey(db.sql, OTHER, guidebookId, "template_generic"), 404);
     await rejects(setTemplateKey(db.sql, OWNER, "nope", "template_generic"), 404);
     expect((await db.sql`select template_key from guidebook where id = ${guidebookId}`)[0].template_key).toBe("template_lifestyle");
-  });
-
-  it("toggle: unpublishes with a preview link and republishes on any plan (publishing is not limited)", async () => {
-    const gb = await createGuidebook(db.sql, OWNER, base({ property_name: "One" }));
-    expect(gb.active).toBe(true);
-
-    const off = await toggleGuidebook(db.sql, OWNER, gb.guidebookId);
-    expect(off.active).toBe(false);
-    expect(off.publicSlug).toBeNull();
-    expect(off.previewUrl).toMatch(/^\/preview\/.+\?t=/);
-
-    const on = await toggleGuidebook(db.sql, OWNER, gb.guidebookId);
-    expect(on).toMatchObject({ active: true, previewUrl: null });
-    expect(on.publicSlug).toMatch(/^one/);
-    await rejects(toggleGuidebook(db.sql, OTHER, gb.guidebookId), 404);
-  });
-
-  it("toggle: avoids slug collisions", async () => {
-    await setPlan(db.sql, OWNER, "pro");
-    await setPlan(db.sql, OTHER, "pro");
-    const a = await createGuidebook(db.sql, OWNER, base({ property_name: "Same Name" }));
-    await db.sql`update guidebook set public_slug = 'same-name' where id = ${a.guidebookId}`;
-    const b = await createGuidebook(db.sql, OTHER, base({ property_name: "Same Name" }));
-    await db.sql`update guidebook set active = false, public_slug = null where id = ${b.guidebookId}`;
-    const on = await toggleGuidebook(db.sql, OTHER, b.guidebookId);
-    expect(on.publicSlug).toMatch(/^same-name-[0-9a-f]{6}$/);
-  });
-
-  it("publish stores a fresh snapshot with the marker and refuses other users", async () => {
-    const { guidebookId } = await createGuidebook(db.sql, OWNER, base({ welcome_message: "Hello guests", template_key: "template_welcomebook" }));
-    const result = await publishGuidebook(db.sql, OWNER, guidebookId);
-    expect(result.etag).toMatch(/^[0-9a-f]{64}$/);
-    const [g] = await db.sql`select published_html, published_etag, published_at, last_modified_time from guidebook where id = ${guidebookId}`;
-    expect(g.published_html.startsWith("<!-- place-photo-v2 -->")).toBe(true);
-    expect(g.published_html).toContain("Hello guests");
-    expect(g.published_etag).toBe(result.etag);
-    expect(g.published_at.getTime()).toBeGreaterThanOrEqual(g.last_modified_time.getTime());
-    await rejects(publishGuidebook(db.sql, OTHER, guidebookId), 404);
-
-    // editing afterwards makes the snapshot stale again until the next publish
-    await new Promise((r) => setTimeout(r, 20));
-    await updateGuidebook(db.sql, OWNER, guidebookId, { welcome_message: "Changed" });
-    const [stale] = await db.sql`select published_at, last_modified_time from guidebook where id = ${guidebookId}`;
-    expect(stale.published_at.getTime()).toBeLessThan(stale.last_modified_time.getTime());
   });
 });
