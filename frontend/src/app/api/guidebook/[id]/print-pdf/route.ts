@@ -1,7 +1,8 @@
 import { withUser } from "@/lib/server/apiRoute";
 import { loadOwnedGuidebookRow } from "@/lib/server/guidebookService";
 import { rateLimited } from "@/lib/server/rateLimit";
-import { generatePrintPdf, pdfEtag } from "@/lib/pdf/service";
+import { assertPdfAllowed, generatePrintPdf, pdfEtag } from "@/lib/pdf/service";
+import { getUserPlan } from "@/lib/server/usage";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -16,6 +17,7 @@ export function GET(request: Request, { params }: { params: Promise<{ id: string
       const gb = await loadOwnedGuidebookRow(sql, user.id, id);
       if (!gb) return Response.json({ error: "Guidebook not found" }, { status: 404 });
 
+      assertPdfAllowed(await getUserPlan(sql, user.id), { print: true });
       const download = ["1", "true", "yes"].includes((new URL(request.url).searchParams.get("download") ?? "1").toLowerCase());
       const safeName = (gb.property?.name || "guidebook").replace(/ /g, "_").replace(/\//g, "_");
       // Header values must be latin-1; keep a safe ASCII fallback plus the real name as filename*

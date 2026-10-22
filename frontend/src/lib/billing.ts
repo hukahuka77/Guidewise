@@ -4,9 +4,11 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
 /**
  * Start Stripe checkout for a subscription plan.
- * @param plan - The plan tier: 'starter', 'growth', or 'pro' (default: 'growth')
+ * @param plan - The plan tier: 'starter', 'power', or 'pro' (default: 'starter')
  */
-export async function startStripeCheckout(plan: 'starter' | 'growth' | 'pro' = 'growth'): Promise<void> {
+export type PaidPlan = 'starter' | 'power' | 'pro';
+
+export async function startStripeCheckout(plan: PaidPlan = 'starter'): Promise<void> {
   if (!API_BASE) throw new Error("API base not configured");
   if (!supabase) throw new Error("Supabase client not initialized");
   const sess = await supabase.auth.getSession();

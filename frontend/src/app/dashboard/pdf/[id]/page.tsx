@@ -7,6 +7,7 @@ import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { getAuthHeaders } from "@/lib/authHeaders";
+import { offerUpgrade, throwApiError } from "@/lib/upgrade";
 
 const PdfViewer = dynamic(() => import("@/components/custom/PdfViewer"), { ssr: false });
 
@@ -38,7 +39,7 @@ export default function GuidebookPdfPage() {
 
   const fetchPdfBlob = async (url: string) => {
     const res = await fetch(url, { headers: await getAuthHeaders() });
-    if (!res.ok) throw new Error(`Failed to load PDF (${res.status})`);
+    if (!res.ok) await throwApiError(res, `Failed to load PDF (${res.status})`);
     return res.blob();
   };
 
@@ -60,7 +61,7 @@ export default function GuidebookPdfPage() {
       URL.revokeObjectURL(blobUrl);
     } catch (e) {
       console.error(e);
-      alert("Failed to download PDF. Please try again.");
+      if (!offerUpgrade(e)) alert("Failed to download PDF. Please try again.");
     }
   };
 
@@ -80,6 +81,7 @@ export default function GuidebookPdfPage() {
     } catch (e) {
       console.error(e);
       setPdfUrl(null);
+      offerUpgrade(e);
       return null;
     }
   };

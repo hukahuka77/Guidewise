@@ -1,7 +1,8 @@
 import { withUser } from "@/lib/server/apiRoute";
 import { loadOwnedGuidebookRow } from "@/lib/server/guidebookService";
 import { rateLimited } from "@/lib/server/rateLimit";
-import { generateGuidebookPdf, pdfEtag, pdfTemplateFor, qrExtra } from "@/lib/pdf/service";
+import { assertPdfAllowed, generateGuidebookPdf, pdfEtag, pdfTemplateFor, qrExtra } from "@/lib/pdf/service";
+import { getUserPlan } from "@/lib/server/usage";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -23,6 +24,7 @@ export function GET(request: Request, { params }: { params: Promise<{ id: string
       const includeQr = truthy(search.get("include_qr"), "0");
       const qrUrl = includeQr ? search.get("qr_url") || null : null;
       const templateKey = pdfTemplateFor({ template: search.get("template"), qrUrl });
+      assertPdfAllowed(await getUserPlan(sql, user.id), { template: templateKey });
       const headers = {
         ETag: `"${pdfEtag(gb, templateKey, qrExtra(qrUrl))}"`,
         // Private: this is an authenticated response and must not be stored by shared caches

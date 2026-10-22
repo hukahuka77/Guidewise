@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Sql } from "./db";
 import type { ImportedFields } from "./listingImport";
+import { assertCanCreateGuidebook } from "./usage";
 
 // DB half of `/api/import-listing` (backend/app.py): always a draft, never auto-activated.
 
@@ -25,6 +26,7 @@ export async function createImportedGuidebook(
   userId: string,
   fields: ImportedFields & { cover_image_url: string | null },
 ) {
+  await assertCanCreateGuidebook(sql, userId);
   const propertyName = fields.property_name || "My Property";
 
   const guidebookId = await sql.begin(async (tx) => {

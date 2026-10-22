@@ -163,7 +163,10 @@ export default function OnboardingPage() {
         router.push("/login");
         return;
       }
-      if (!res.ok) throw new Error(`Failed to create guidebook (${res.status})`);
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error || `Failed to create guidebook (${res.status})`);
+      }
 
       const data = await res.json();
       const guidebookId = data.guidebook_id || data.id;

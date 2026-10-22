@@ -6,7 +6,7 @@ import { resolvesToPublicIp } from "./ssrf";
 // executed or followed, and model output is sanitized before use.
 
 const MAX_HTML_BYTES = 3 * 1024 * 1024;
-const MAX_CONTEXT_CHARS = 30_000;
+const MAX_CONTEXT_CHARS = 40_000;
 const MAX_REDIRECTS = 4;
 const FETCH_TIMEOUT_MS = 15_000;
 
@@ -140,17 +140,36 @@ function scriptBlocks(html: string): { attrs: string; body: string }[] {
   return out;
 }
 
-const INTERESTING_KEY = /title|name|description|subtitle|rule|amenit|check_?in|check_?out|checkin|checkout|house|parking|wifi|location|host|guest|arrival|manual|summary|about/i;
+const INTERESTING_KEY = /title|name|description|subtitle|rule|amenit|check_?in|check_?out|checkin|checkout|house|parking|wifi|location|host|guest|arrival|manual|summary|about|bedroom|bathroom|sleep|policy|pet|smok|quiet|party|space|neighborhood|transit/i;
 const IMAGE_URL = /^https:\/\/[^\s"']+\.(?:jpe?g|png|webp)(?:\?[^\s"']*)?$/i;
 
+/** Lower bucket = more useful to a guidebook, so it survives truncation of huge embedded state. */
+function keyBucket(key: string): number {
+  if (/rule|check_?in|check_?out|checkin|checkout|arrival|parking|wifi|policy|quiet|smok|pet|party/i.test(key)) return 0;
+  if (/amenit|manual|bedroom|bathroom|sleep|space/i.test(key)) return 1;
+  if (/description|summary|title|subtitle|about|neighborhood|transit|location/i.test(key)) return 2;
+  return 3;
+}
+
+interface Harvest {
+  text: { bucket: number; line: string }[];
+  images: string[];
+  counts: number[];
+}
+
 /** Walk embedded JSON, collecting readable strings under informative keys and image URLs. */
-function harvest(node: unknown, out: { text: string[]; images: string[] }, key = "", depth = 0, seen = new Set<unknown>()) {
-  if (depth > 40 || out.text.length > 800) return;
+function harvest(node: unknown, out: Harvest, key = "", depth = 0, seen = new Set<unknown>()) {
+  if (depth > 60) return;
   if (typeof node === "string") {
     if (IMAGE_URL.test(node)) {
-      if (out.images.length < 40) out.images.push(node);
+      if (out.images.length < 80) out.images.push(node);
     } else if (INTERESTING_KEY.test(key) && node.length > 2 && node.length < 2000 && !/^[A-Za-z0-9+/=_-]{40,}$/.test(node)) {
-      out.text.push(`${key}: ${node}`);
+      // Generic strings are capped so a huge page cannot crowd out rules and amenities
+      const bucket = keyBucket(key);
+      if (out.counts[bucket] < (bucket === 3 ? 600 : 2500)) {
+        out.counts[bucket]++;
+        out.text.push({ bucket, line: `${key}: ${node}` });
+      }
     }
     return;
   }
@@ -167,7 +186,66 @@ function harvest(node: unknown, out: { text: string[]; images: string[] }, key =
 
 export interface ListingContext {
   context: string;
+  /** Best guess at the cover photo (first candidate). */
   coverImage: string | null;
+  /** Possible cover photos, best first; the importer verifies them in order. */
+  coverCandidates: string[];
+}
+
+const IMAGE_HOSTS = /(?:muscache\.com|trvl-media\.com|vrbo\.com|homeaway\.com|expedia\.com|airbnb\.[a-z.]+)$/i;
+const NOT_A_LISTING_PHOTO = /\/user\/|\/profile|userprofile|avatar|\/icons?\/|logo|sprite|\.svg|\/misc\/|\/airbnb-platform-assets\//i;
+
+/** Photos of the listing itself rank above anything else on the page. */
+function photoScore(url: string): number {
+  if (/\/im\/pictures\/miso\/|hosting-|\/pictures\/[0-9a-f-]{20,}/i.test(url)) return 0;
+  if (/muscache\.com\/im\/pictures\//i.test(url)) return 1;
+  return 2;
+}
+
+/** Ask the CDN for a larger rendition where it supports that (Airbnb's `im_w`). */
+function enlarge(url: string): string {
+  try {
+    const u = new URL(url);
+    if (/muscache\.com$/i.test(u.hostname) && u.pathname.startsWith("/im/")) u.searchParams.set("im_w", "1200");
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
+/** Image URLs written anywhere in the page, including inside script text with escaped slashes. */
+function scanImageUrls(html: string): string[] {
+  const text = html.replace(/\\u002F/gi, "/").replace(/\\\//g, "/").replace(/&amp;/g, "&");
+  const re = /https:\/\/[a-z0-9.-]+\/[^"'\s<>\\)]*?\.(?:jpe?g|png|webp)(?:\?[^"'\s<>\\)]*)?/gi;
+  const found: string[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) && found.length < 200) found.push(m[0]);
+  return found;
+}
+
+export function rankCoverCandidates(primary: (string | null)[], others: string[]): string[] {
+  const clean = (u: string | null) => (u ? cleanUrl(u) : null);
+  const explicit = primary.map(clean).filter((u): u is string => !!u);
+  const rest = [...new Set(others.map(clean).filter((u): u is string => !!u))]
+    .filter((u) => {
+      try {
+        return IMAGE_HOSTS.test(new URL(u).hostname) && !NOT_A_LISTING_PHOTO.test(u);
+      } catch {
+        return false;
+      }
+    })
+    .map((u, i) => ({ u, i, score: photoScore(u) }))
+    .sort((a, b) => a.score - b.score || a.i - b.i)
+    .map((x) => x.u);
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const u of [...explicit, ...rest]) {
+    const key = u.split("?")[0];
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(enlarge(u));
+  }
+  return out;
 }
 
 function cleanUrl(value: unknown): string | null {
@@ -188,7 +266,7 @@ export function extractListingContext(html: string): ListingContext {
   if (title) parts.push(`TITLE: ${title}`);
   for (const [k, v] of Object.entries(meta)) parts.push(`META ${k}: ${v}`);
 
-  const harvested = { text: [] as string[], images: [] as string[] };
+  const harvested: Harvest = { text: [], images: [], counts: [0, 0, 0, 0] };
   let jsonLdImage: string | null = null;
   for (const { attrs, body } of scriptBlocks(html)) {
     const isLd = /type\s*=\s*["']application\/ld\+json["']/i.test(attrs);
@@ -204,14 +282,20 @@ export function extractListingContext(html: string): ListingContext {
       parts.push(`JSON-LD: ${JSON.stringify(data).slice(0, 6000)}`);
       const first = Array.isArray(data) ? data[0] : data;
       const img = (first as { image?: unknown } | null)?.image;
-      jsonLdImage = cleanUrl(Array.isArray(img) ? img[0] : img);
+      const firstImg = Array.isArray(img) ? img[0] : img;
+      jsonLdImage = cleanUrl(typeof firstImg === "object" && firstImg ? (firstImg as { url?: unknown }).url : firstImg);
     } else {
       harvest(data, harvested);
     }
   }
   if (harvested.text.length > 0) {
-    const unique = [...new Set(harvested.text)];
-    parts.push(`EMBEDDED DATA:\n${unique.join("\n").slice(0, 14_000)}`);
+    const seenLines = new Set<string>();
+    const lines = harvested.text
+      .map((t, i) => ({ ...t, i }))
+      .sort((a, b) => a.bucket - b.bucket || a.i - b.i)
+      .filter((t) => (seenLines.has(t.line) ? false : (seenLines.add(t.line), true)))
+      .map((t) => t.line);
+    parts.push(`EMBEDDED DATA:\n${lines.join("\n").slice(0, 20_000)}`);
   }
 
   const visible = decodeEntities(
@@ -225,9 +309,11 @@ export function extractListingContext(html: string): ListingContext {
     .trim();
   parts.push(`PAGE TEXT: ${visible}`);
 
-  const coverImage =
-    cleanUrl(meta["og:image"]) ?? cleanUrl(meta["twitter:image"]) ?? jsonLdImage ?? cleanUrl(harvested.images[0]) ?? null;
-  return { context: parts.join("\n").slice(0, MAX_CONTEXT_CHARS), coverImage };
+  const coverCandidates = rankCoverCandidates(
+    [meta["og:image"] ?? null, meta["og:image:secure_url"] ?? null, meta["twitter:image"] ?? null, jsonLdImage],
+    [...harvested.images, ...scanImageUrls(html)],
+  );
+  return { context: parts.join("\n").slice(0, MAX_CONTEXT_CHARS), coverImage: coverCandidates[0] ?? null, coverCandidates };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -325,21 +411,73 @@ async function extractGuidebookFields(context: string): Promise<ImportedFields> 
   }
 }
 
+/** True if the URL serves an image to a plain request (a dead or blocked link makes a broken cover). */
+export async function imageIsReachable(url: string): Promise<boolean> {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:" || !(await resolvesToPublicIp(parsed.hostname))) return false;
+    const res = await fetch(url, {
+      headers: { "User-Agent": USER_AGENT, Range: "bytes=0-1023", Accept: "image/*" },
+      redirect: "follow",
+      signal: AbortSignal.timeout(8000),
+    });
+    const ok = (res.status === 200 || res.status === 206) && (res.headers.get("content-type") || "").toLowerCase().startsWith("image/");
+    await res.body?.cancel();
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
+async function pickCover(candidates: string[]): Promise<string | null> {
+  for (const url of candidates.slice(0, 5)) {
+    if (await imageIsReachable(url)) return url;
+  }
+  return null;
+}
+
+/** Airbnb listing pages are the same without the search/date parameters, which sometimes change what is served. */
+export function canonicalListingUrl(url: string): string {
+  try {
+    const u = new URL(validateListingUrl(url));
+    const m = /^\/(?:[a-z]{2}(?:-[a-z]+)?\/)?rooms\/(?:plus\/)?(\d+)/i.exec(u.pathname);
+    if (m && /(^|\.)airbnb\./i.test(u.hostname)) return `https://${u.hostname}/rooms/${m[1]}`;
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
+async function fetchBestHtml(url: string): Promise<string> {
+  const canonical = canonicalListingUrl(url);
+  try {
+    return await fetchListingHtml(canonical);
+  } catch (error) {
+    if (canonical === url || !(error instanceof ListingImportError) || error.code === "invalid_url") throw error;
+    return fetchListingHtml(url);
+  }
+}
+
 export async function importListing(url: unknown): Promise<ImportedFields & { cover_image_url: string | null }> {
-  const html = await fetchListingHtml(url as string);
-  const { context, coverImage } = extractListingContext(html);
-  console.info(`listing import: fetched ${html.length} bytes, context ${context.length} chars, cover ${coverImage ? "yes" : "no"}`);
+  const html = await fetchBestHtml(url as string);
+  const { context, coverCandidates } = extractListingContext(html);
   // Pages that are only a bot wall or login prompt have almost no usable text.
-  if (context.length < 400) {
+  if (context.length < 400 && coverCandidates.length === 0) {
     throw new ListingImportError(
       "We couldn't read any details from that listing. It may be private or blocked.",
       "no_content",
       422,
     );
   }
-  const fields = await extractGuidebookFields(context);
-  if (!(fields.property_name || fields.house_rules.length || fields.welcome_message)) {
+  const [cover, fields] = await Promise.all([
+    pickCover(coverCandidates),
+    context.length >= 400 ? extractGuidebookFields(context) : Promise.resolve(sanitizeExtractedFields({})),
+  ]);
+  console.info(
+    `listing import: fetched ${html.length} bytes, context ${context.length} chars, ${coverCandidates.length} photo candidates, cover ${cover ? "found" : "none"}`,
+  );
+  if (!(fields.property_name || fields.house_rules.length || fields.welcome_message || cover)) {
     throw new ListingImportError("We couldn't find usable details on that page.", "no_content", 422);
   }
-  return { ...fields, cover_image_url: coverImage };
+  return { ...fields, cover_image_url: cover };
 }

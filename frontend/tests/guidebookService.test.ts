@@ -2,13 +2,11 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   ALLOWED_TEMPLATE_KEYS,
   ServiceError,
-  canActivateGuidebook,
   compileRulesInput,
   createGuidebook,
   deleteGuidebook,
   ensurePreviewToken,
   getGuidebookPayload,
-  getUserGuidebookLimit,
   listGuidebooks,
   listHosts,
   publishGuidebook,
@@ -17,6 +15,7 @@ import {
   toggleGuidebook,
   updateGuidebook,
 } from "../src/lib/server/guidebookService";
+import { assertCanCreateGuidebook, getUserPlan } from "../src/lib/server/usage";
 import { OTHER, OWNER, setPlan, startTestDb, type TestDb } from "./helpers/testDb";
 
 let db: TestDb;
@@ -60,21 +59,61 @@ describe("slugify and rules input", () => {
   });
 });
 
-describe("plans", () => {
-  it("resolves limits like Flask", async () => {
-    expect(await getUserGuidebookLimit(db.sql, OWNER)).toBe(0); // no profile
+describe("plans, caps and creation limits", () => {
+  it("resolves the plan, treating missing, legacy and unknown names sensibly", async () => {
+    expect((await getUserPlan(db.sql, OWNER)).key).toBe("free"); // no profile
+    for (const [stored, expected] of [["starter", "starter"], ["power", "power"], ["growth", "power"], ["pro", "pro"], ["enterprise", "pro"], ["trial", "free"], ["???", "free"]]) {
+      await setPlan(db.sql, OWNER, stored);
+      expect((await getUserPlan(db.sql, OWNER)).key).toBe(expected);
+    }
+    expect((await getUserPlan(db.sql, "not-a-uuid")).key).toBe("free");
+  });
+
+  it("caps total guidebooks per plan (free unlimited, starter 5, power 100, pro unlimited)", async () => {
+    const [{ id: pid }] = await db.sql`insert into property (name, user_id) values ('P', ${OWNER}) returning id`;
+    const fill = async (n: number) => {
+      await db.sql`delete from guidebook where user_id = ${OWNER}`;
+      for (let i = 0; i < n; i++) await db.sql`insert into guidebook (id, property_id, user_id, template_key, created_time) values (${`g${i}`}, ${pid}, ${OWNER}, 'template_original', now() - interval '2 days')`;
+    };
     await setPlan(db.sql, OWNER, "starter");
-    expect(await getUserGuidebookLimit(db.sql, OWNER)).toBe(1);
+    await fill(4);
+    await expect(assertCanCreateGuidebook(db.sql, OWNER)).resolves.toBeUndefined();
+    await fill(5);
+    const err = await rejects(assertCanCreateGuidebook(db.sql, OWNER), 403);
+    expect(err.message).toBe("Your Starter plan includes up to 5 guidebooks. Upgrade your plan to create more.");
+    expect(err.extra).toMatchObject({ upgrade: true, quota: "guidebooks" });
+    await rejects(createGuidebook(db.sql, OWNER, base()), 403);
+
+    await setPlan(db.sql, OWNER, "power");
+    await fill(99);
+    await expect(assertCanCreateGuidebook(db.sql, OWNER)).resolves.toBeUndefined();
+    await fill(100);
+    await rejects(assertCanCreateGuidebook(db.sql, OWNER), 403);
+
+    for (const plan of ["pro", "free"]) {
+      await setPlan(db.sql, OWNER, plan);
+      await fill(150);
+      await expect(assertCanCreateGuidebook(db.sql, OWNER)).resolves.toBeUndefined();
+    }
+  });
+
+  it("rate limits creation per hour and per day on every plan to stop automation", async () => {
+    const [{ id: pid }] = await db.sql`insert into property (name, user_id) values ('P', ${OWNER}) returning id`;
     await setPlan(db.sql, OWNER, "pro");
-    expect(await getUserGuidebookLimit(db.sql, OWNER)).toBe(10);
-    await setPlan(db.sql, OWNER, "enterprise");
-    expect(await getUserGuidebookLimit(db.sql, OWNER)).toBeNull();
-    await setPlan(db.sql, OWNER, "legacy-plan", 5);
-    expect(await getUserGuidebookLimit(db.sql, OWNER)).toBe(5);
-    await setPlan(db.sql, OWNER, "free");
-    expect(await getUserGuidebookLimit(db.sql, OWNER)).toBe(0);
-    expect(await getUserGuidebookLimit(db.sql, "not-a-uuid")).toBe(0);
-    expect((await canActivateGuidebook(db.sql, OWNER)).ok).toBe(false);
+    for (let i = 0; i < 19; i++) await db.sql`insert into guidebook (id, property_id, user_id, template_key) values (${`h${i}`}, ${pid}, ${OWNER}, 'template_original')`;
+    await expect(assertCanCreateGuidebook(db.sql, OWNER)).resolves.toBeUndefined();
+    await db.sql`insert into guidebook (id, property_id, user_id, template_key) values ('h19', ${pid}, ${OWNER}, 'template_original')`;
+    const hourly = await rejects(assertCanCreateGuidebook(db.sql, OWNER), 429);
+    expect(hourly.message).toContain("very quickly");
+    await rejects(createGuidebook(db.sql, OWNER, base()), 429);
+    expect((await db.sql`select count(*)::int as n from guidebook where user_id = ${OWNER}`)[0].n).toBe(20);
+
+    // spread over the day instead: 100 in the last 24h trips the daily limit
+    await db.sql`update guidebook set created_time = now() - interval '5 hours'`;
+    for (let i = 0; i < 80; i++) await db.sql`insert into guidebook (id, property_id, user_id, template_key, created_time) values (${`d${i}`}, ${pid}, ${OWNER}, 'template_original', now() - interval '6 hours')`;
+    await rejects(assertCanCreateGuidebook(db.sql, OWNER), 429);
+    // another user is unaffected
+    await expect(assertCanCreateGuidebook(db.sql, OTHER)).resolves.toBeUndefined();
   });
 });
 
@@ -84,7 +123,7 @@ describe("createGuidebook", () => {
     await rejects(createGuidebook(db.sql, OWNER, { property_name: "   " }), 400);
   });
 
-  it("creates a draft on a plan without slots, storing everything", async () => {
+  it("creates a published guidebook on the free plan, storing everything", async () => {
     const result = await createGuidebook(
       db.sql,
       OWNER,
@@ -101,14 +140,14 @@ describe("createGuidebook", () => {
         template_key: "template_welcomebook", cover_image_url: "data:image/png;base64,AAAA",
       }),
     );
-    expect(result.active).toBe(false);
-    expect(result.publicSlug).toBeNull();
+    expect(result.active).toBe(true); // guidebooks are free: published straight away
+    expect(result.publicSlug).toMatch(/^cozy-cabin-[0-9a-f]{6}$/);
     expect(result.templateKey).toBe("template_welcomebook");
 
     const [g] = await db.sql`select * from guidebook where id = ${result.guidebookId}`;
     expect(g.user_id).toBe(OWNER);
-    expect(g.active).toBe(false);
-    expect(g.public_slug).toBeNull();
+    expect(g.active).toBe(true);
+    expect(g.public_slug).toBe(result.publicSlug);
     expect(g.cover_image_url).toBeNull(); // data URLs are rejected
     expect(g.wifi_json).toEqual({ network: "Net", password: "pw" });
     expect(g.rules_json).toEqual([{ name: "No smoking", description: "Anywhere" }, { name: "Quiet", description: "10pm" }]);
@@ -131,21 +170,13 @@ describe("createGuidebook", () => {
     expect(g.included_tabs).toEqual(["welcome", "checkin", "property", "food", "activities", "rules", "checkout"]);
   });
 
-  it("auto-activates with a unique slug when the plan has a free slot", async () => {
+  it("always activates with a unique slug", async () => {
     await setPlan(db.sql, OWNER, "pro");
     const r = await createGuidebook(db.sql, OWNER, base());
     expect(r.active).toBe(true);
     expect(r.publicSlug).toMatch(/^cozy-cabin-[0-9a-f]{6}$/);
     const [g] = await db.sql`select active, public_slug from guidebook where id = ${r.guidebookId}`;
     expect(g).toMatchObject({ active: true, public_slug: r.publicSlug });
-  });
-
-  it("stops activating once the plan limit is reached", async () => {
-    await setPlan(db.sql, OWNER, "starter"); // 1 slot
-    const first = await createGuidebook(db.sql, OWNER, base({ property_name: "One" }));
-    const second = await createGuidebook(db.sql, OWNER, base({ property_name: "Two" }));
-    expect(first.active).toBe(true);
-    expect(second.active).toBe(false);
   });
 
   it("reuses an existing property and host by name for the same user, not across users", async () => {
@@ -177,6 +208,7 @@ describe("createGuidebook", () => {
 describe("read", () => {
   it("returns the editor payload for the owner only and creates a stable preview link for drafts", async () => {
     const { guidebookId } = await createGuidebook(db.sql, OWNER, base({ host_name: "Andrew", rules: [{ name: "A", description: "b" }], wifi_network: "N" }));
+    await db.sql`update guidebook set active = false, public_slug = null where id = ${guidebookId}`;
     const a = await getGuidebookPayload(db.sql, OWNER, guidebookId);
     expect(a).toMatchObject({
       id: guidebookId, template_key: "template_original",
@@ -199,9 +231,9 @@ describe("read", () => {
   });
 
   it("lists only the user's guidebooks, newest edit first, with the right links", async () => {
-    await setPlan(db.sql, OWNER, "starter");
     const live = await createGuidebook(db.sql, OWNER, base({ property_name: "Live One" }));
     const draft = await createGuidebook(db.sql, OWNER, base({ property_name: "Draft One" }));
+    await db.sql`update guidebook set active = false, public_slug = null where id = ${draft.guidebookId}`;
     await createGuidebook(db.sql, OTHER, base({ property_name: "Not Mine" }));
     await updateGuidebook(db.sql, OWNER, draft.guidebookId, { welcome_message: "edited" });
     const items = await listGuidebooks(db.sql, OWNER);
@@ -315,24 +347,19 @@ describe("delete, template, toggle, publish", () => {
     expect((await db.sql`select template_key from guidebook where id = ${guidebookId}`)[0].template_key).toBe("template_lifestyle");
   });
 
-  it("toggle: refuses without a plan, enforces the limit, then unpublishes with a preview link", async () => {
-    const free = await createGuidebook(db.sql, OWNER, base({ property_name: "One" }));
-    const noPlan = await rejects(toggleGuidebook(db.sql, OWNER, free.guidebookId), 403);
-    expect(noPlan.message).toBe("Please upgrade to a paid plan to publish guidebooks");
+  it("toggle: unpublishes with a preview link and republishes on any plan (publishing is not limited)", async () => {
+    const gb = await createGuidebook(db.sql, OWNER, base({ property_name: "One" }));
+    expect(gb.active).toBe(true);
 
-    await setPlan(db.sql, OWNER, "starter");
-    const on = await toggleGuidebook(db.sql, OWNER, free.guidebookId);
-    expect(on).toMatchObject({ active: true, publicSlug: "one", previewUrl: null });
-
-    const second = await createGuidebook(db.sql, OWNER, base({ property_name: "Two" }));
-    const full = await rejects(toggleGuidebook(db.sql, OWNER, second.guidebookId), 403);
-    expect(full.message).toContain("reached your limit of 1 guidebooks");
-
-    const off = await toggleGuidebook(db.sql, OWNER, free.guidebookId);
+    const off = await toggleGuidebook(db.sql, OWNER, gb.guidebookId);
     expect(off.active).toBe(false);
     expect(off.publicSlug).toBeNull();
     expect(off.previewUrl).toMatch(/^\/preview\/.+\?t=/);
-    await rejects(toggleGuidebook(db.sql, OTHER, free.guidebookId), 404);
+
+    const on = await toggleGuidebook(db.sql, OWNER, gb.guidebookId);
+    expect(on).toMatchObject({ active: true, previewUrl: null });
+    expect(on.publicSlug).toMatch(/^one/);
+    await rejects(toggleGuidebook(db.sql, OTHER, gb.guidebookId), 404);
   });
 
   it("toggle: avoids slug collisions", async () => {
