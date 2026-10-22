@@ -14,7 +14,7 @@ import { offerUpgrade, throwApiError } from "@/lib/upgrade";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
-type Mode = "link" | "template";
+type Mode = "link" | "manual";
 
 interface Created {
   id: string;
@@ -26,9 +26,9 @@ interface Created {
 
 const IMPORT_STEPS = [
   "Reading your listing…",
-  "Picking your cover photo…",
+  "Choosing your cover photo…",
   "Writing your welcome and house rules…",
-  "Finding places to eat and things to do nearby…",
+  "Finding the best places nearby…",
 ];
 
 const STYLES: { key: string; label: string; hint: string }[] = [
@@ -168,7 +168,7 @@ export default function OnboardingPage() {
     }
   };
 
-  const message = busy && mode === "link" ? IMPORT_STEPS[stepIndex] : busy ? "Creating your guidebook…" : null;
+  const message = busy && mode === "link" ? IMPORT_STEPS[stepIndex] : busy ? "Setting up your guidebook…" : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#F8F5F1] via-white to-[#F8F5F1] px-4 py-8 sm:px-8 sm:py-12">
@@ -177,31 +177,31 @@ export default function OnboardingPage() {
           {!created ? (
             <>
               <h1 className="text-3xl font-bold leading-tight text-gray-900 sm:text-5xl">
-                Get your guidebook in under 3 minutes, it&apos;s FREE!
+                Welcome your guests with a guidebook they&apos;ll love. Free.
               </h1>
               <p className="mt-5 text-lg text-gray-600">
-                Share your listing link and our smart AI ✨ will personalise your guidebook. Watch it come together on the phone.
+                Paste your listing and Guidewise writes the check-in steps, house rules and local favorites for you. Watch your guidebook take shape on the phone.
               </p>
 
               <div className="mt-8 flex flex-wrap gap-3" role="radiogroup" aria-label="How do you want to start?">
                 <ModeButton selected={mode === "link"} onClick={() => setMode("link")} disabled={busy}>
-                  Start with a listing link
+                  Start with a link
                 </ModeButton>
-                <ModeButton selected={mode === "template"} onClick={() => setMode("template")} disabled={busy}>
-                  Start with a template
+                <ModeButton selected={mode === "manual"} onClick={() => setMode("manual")} disabled={busy}>
+                  Manual setup
                 </ModeButton>
               </div>
 
               {mode === "link" ? (
                 <div className="mt-8">
                   <Label htmlFor="listing-url" className="text-lg font-semibold text-gray-900">
-                    Provide your Airbnb or VRBO link
+                    Paste your Airbnb or VRBO link
                   </Label>
                   <div className="mt-3 flex flex-col gap-3 sm:flex-row">
                     <Input
                       id="listing-url"
                       type="url"
-                      placeholder="e.g. https://airbnb.com/rooms/123456…"
+                      placeholder="https://www.airbnb.com/rooms/…"
                       value={listingUrl}
                       onChange={(e) => setListingUrl(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter") importListing(); }}
@@ -212,16 +212,16 @@ export default function OnboardingPage() {
                       {busy ? <Spinner /> : "Build my guidebook"}
                     </Button>
                   </div>
-                  {busy && <p className="mt-3 text-sm text-gray-500">This can take up to a minute. Your guidebook appears on the phone when it&apos;s ready.</p>}
-                  <p className="mt-4 text-sm text-gray-500">Supported platforms: Airbnb, VRBO</p>
+                  {busy && <p className="mt-3 text-sm text-gray-500">This can take up to a minute. Your guidebook appears on the phone as soon as it&apos;s ready.</p>}
+                  <p className="mt-4 text-sm text-gray-500">Works with Airbnb and VRBO listings. No listing yet? Choose Manual setup.</p>
                 </div>
               ) : (
                 <div className="mt-8 space-y-5">
                   <div>
-                    <Label htmlFor="property-name" className="text-lg font-semibold text-gray-900">Name of your place</Label>
+                    <Label htmlFor="property-name" className="text-lg font-semibold text-gray-900">What&apos;s your place called?</Label>
                     <Input
                       id="property-name"
-                      placeholder="e.g. Lakeside Cabin"
+                      placeholder="e.g. Willow Cottage"
                       value={propertyName}
                       onChange={(e) => setPropertyName(e.target.value)}
                       disabled={busy}
@@ -229,11 +229,11 @@ export default function OnboardingPage() {
                     />
                   </div>
                   <div>
-                    <Label className="text-lg font-semibold text-gray-900">Address <span className="text-sm font-normal text-gray-500">(helps us suggest nearby places)</span></Label>
+                    <Label className="text-lg font-semibold text-gray-900">Where is it? <span className="text-sm font-normal text-gray-500">(so we can suggest places nearby)</span></Label>
                     <PlacesAutocomplete value={address} onChange={setAddress} placeholder="Start typing an address…" className="mt-3 h-14 rounded-2xl" />
                   </div>
                   <div>
-                    <Label className="text-lg font-semibold text-gray-900">Style</Label>
+                    <Label className="text-lg font-semibold text-gray-900">Pick a look</Label>
                     <div className="mt-3 grid grid-cols-3 gap-3">
                       {STYLES.map((s) => (
                         <button
@@ -250,7 +250,7 @@ export default function OnboardingPage() {
                     </div>
                   </div>
                   <Button type="button" onClick={startFromTemplate} disabled={busy || !propertyName.trim()} className="h-14 rounded-2xl px-8 text-base">
-                    {busy ? <Spinner /> : "Create my guidebook"}
+                    {busy ? <Spinner /> : "Start my guidebook"}
                   </Button>
                 </div>
               )}
@@ -266,7 +266,7 @@ export default function OnboardingPage() {
 
               {created.imported.length > 0 && (
                 <div className="mt-6">
-                  <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">We filled in</h2>
+                  <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Guidewise filled in</h2>
                   <ul className="mt-2 flex flex-wrap gap-2">
                     {created.imported.map((item) => (
                       <li key={item} className="rounded-full bg-emerald-50 px-3 py-1 text-sm text-emerald-800">✓ {item}</li>
@@ -281,7 +281,7 @@ export default function OnboardingPage() {
               )}
               {created.missing.length > 0 && (
                 <div className="mt-5">
-                  <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Worth adding next</h2>
+                  <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Make it yours</h2>
                   <ul className="mt-2 flex flex-wrap gap-2">
                     {created.missing.map((item) => (
                       <li key={item} className="rounded-full bg-amber-50 px-3 py-1 text-sm text-amber-800">{item}</li>
@@ -291,7 +291,7 @@ export default function OnboardingPage() {
               )}
 
               <div className="mt-6">
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Style</h2>
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Look</h2>
                 <div className="mt-2 grid grid-cols-3 gap-3">
                   {STYLES.map((s) => (
                     <button
@@ -325,7 +325,7 @@ export default function OnboardingPage() {
         </section>
 
         <aside className="order-first lg:order-none lg:sticky lg:top-8">
-          <PhonePreview guidebookId={created?.id} accessToken={accessToken} refreshKey={previewKey} message={message} />
+          <PhonePreview guidebookId={created?.id} accessToken={accessToken} refreshKey={previewKey} message={message} sampleTemplate={style} />
         </aside>
       </div>
     </div>

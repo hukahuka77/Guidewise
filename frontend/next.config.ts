@@ -37,6 +37,7 @@ const nextConfig: NextConfig = {
     ...PDF_ROUTES,
     // the editor's live preview renders the guidebook templates inside an API route
     "/api/guidebooks/[id]/html": GUIDEBOOK_TEMPLATES,
+    "/sample-guidebook": GUIDEBOOK_TEMPLATES,
     "/g/[slug]": GUIDEBOOK_TEMPLATES,
     "/guidebook/[id]": GUIDEBOOK_TEMPLATES,
   },

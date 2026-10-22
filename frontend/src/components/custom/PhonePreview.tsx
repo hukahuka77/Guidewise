@@ -11,8 +11,10 @@ interface Props {
   accessToken?: string | null;
   /** Change this to re-render the guidebook (after an edit was saved). */
   refreshKey?: number;
-  /** Shown over the placeholder while something is being prepared ("Reading your listing…"). */
+  /** Shown over the sample while something is being prepared ("Reading your listing…"). */
   message?: string | null;
+  /** Style of the sample guidebook shown before the host has one. */
+  sampleTemplate?: string;
   className?: string;
 }
 
@@ -20,7 +22,7 @@ interface Props {
  * The guidebook in a phone, exactly as guests see it and fully interactive. It renders the owner's copy
  * (`/api/guidebooks/<id>/html`), so previewing never counts as a guest view.
  */
-export default function PhonePreview({ guidebookId, accessToken, refreshKey = 0, message, className = "" }: Props) {
+export default function PhonePreview({ guidebookId, accessToken, refreshKey = 0, message, sampleTemplate, className = "" }: Props) {
   const [html, setHtml] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -62,7 +64,23 @@ export default function PhonePreview({ guidebookId, accessToken, refreshKey = 0,
             className="h-full w-full border-0 bg-white"
           />
         ) : (
-          <Placeholder message={message} failed={failed} />
+          <iframe
+            title="Sample guidebook"
+            src={`/sample-guidebook${sampleTemplate ? `?template=${encodeURIComponent(sampleTemplate)}` : ""}`}
+            sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+            className="h-full w-full border-0 bg-white"
+          />
+        )}
+        {!html && (message || (guidebookId && refreshing && !failed)) && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/55 px-8 text-center text-white backdrop-blur-[2px]">
+            <Spinner size={28} colorClass="text-white" />
+            <span className="text-base font-medium">{message || "Loading your guidebook…"}</span>
+          </div>
+        )}
+        {!html && !message && failed && (
+          <div className="absolute inset-x-3 bottom-3 rounded-xl bg-black/70 px-3 py-2 text-center text-xs text-white">
+            Preview unavailable. It will appear once saved.
+          </div>
         )}
         {refreshing && html && (
           <div className="pointer-events-none absolute inset-x-0 top-0 h-1 overflow-hidden bg-black/10">
@@ -70,30 +88,6 @@ export default function PhonePreview({ guidebookId, accessToken, refreshKey = 0,
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-function Placeholder({ message, failed }: { message?: string | null; failed: boolean }) {
-  return (
-    <div className="flex h-full w-full flex-col items-center bg-gradient-to-b from-neutral-800 via-neutral-900 to-black px-6 pt-[34%] text-center text-white">
-      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-teal-900/80 ring-4 ring-teal-400/20">
-        <svg viewBox="0 0 24 24" className="h-10 w-10 text-teal-300" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z" />
-          <path d="M9 21v-7h6v7" />
-        </svg>
-      </div>
-      <div className="mt-4 h-3 w-40 rounded-full bg-white/20" />
-      <div className="mt-10 text-2xl font-semibold">Hello!</div>
-      {message ? (
-        <div className="mt-6 flex items-center gap-2 text-sm text-white/80">
-          <Spinner size={16} colorClass="text-teal-300" />
-          <span>{message}</span>
-        </div>
-      ) : (
-        <div className="mt-6 h-10 w-36 rounded-xl bg-teal-900/70" />
-      )}
-      {failed && <div className="mt-4 text-xs text-red-300">Preview unavailable. It will appear once saved.</div>}
     </div>
   );
 }
