@@ -8,13 +8,27 @@ import { resolvesToPublicIp } from "@/lib/server/ssrf";
 const IMAGE_WAIT_MS = 15_000;
 const RENDER_TIMEOUT_MS = 25_000;
 
-async function launch(): Promise<Browser> {
+async function launchOnce(): Promise<Browser> {
   const local = process.env.PDF_CHROMIUM_PATH;
   return puppeteer.launch({
     args: local ? ["--no-sandbox", "--disable-gpu"] : chromium.args,
     executablePath: local || (await chromium.executablePath()),
     headless: "shell",
   });
+}
+
+// Several processes may unpack the bundled binary into /tmp at once; spawning it while another is still
+// writing it fails with ETXTBSY, which clears up within moments.
+async function launch(): Promise<Browser> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await launchOnce();
+    } catch (error) {
+      const busy = error instanceof Error && /ETXTBSY/.test(`${error.message} ${(error as { code?: string }).code ?? ""}`);
+      if (!busy || attempt >= 5) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 300 * (attempt + 1)));
+    }
+  }
 }
 
 const hostSafety = new Map<string, boolean>();

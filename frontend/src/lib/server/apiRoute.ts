@@ -1,7 +1,7 @@
 import { getAuthedUser, isAuthConfigured, type AuthedUser } from "./auth";
 import { getSql, type Sql } from "./db";
 import { ServiceError } from "./guidebookService";
-import { proxyToBackend } from "./proxy";
+import { backendFallbackDisabled, proxyToBackend } from "./proxy";
 import { rateLimited } from "./rateLimit";
 
 export interface ApiContext {
@@ -53,7 +53,7 @@ export async function withUser(
       return Response.json({ error: error.message, ...error.extra }, { status: error.status });
     }
     console.error(`${request.method} ${new URL(request.url).pathname} failed`, error);
-    if (options.fallbackOnError) return proxyToBackend(request);
+    if (options.fallbackOnError && !backendFallbackDisabled()) return proxyToBackend(request);
     const detail = error instanceof Error ? `${error.name}: ${error.message}` : "unexpected error";
     return Response.json({ error: `Request failed: ${detail}` }, { status: 500 });
   }
