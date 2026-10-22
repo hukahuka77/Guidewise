@@ -21,9 +21,7 @@ type GuidebookItem = {
   created_time?: string | null;
   last_modified_time?: string | null;
   cover_image_url?: string | null;
-  active?: boolean;
   public_slug?: string | null;
-  preview_url?: string | null;
 };
 
 // Map internal template keys to human-friendly display names
@@ -98,7 +96,6 @@ export default function DashboardPage() {
   const [usage, setUsage] = useState<{ viewsUsed: number; viewsLimit: number | null; analytics: boolean }>({ viewsUsed: 0, viewsLimit: null, analytics: false });
   const [viewsByGuidebook, setViewsByGuidebook] = useState<Record<string, number>>({});
   const [dailyByGuidebook, setDailyByGuidebook] = useState<Record<string, { day: string; views: number }[]>>({});
-  const [toggling, setToggling] = useState<string | null>(null); // guidebook id being toggled
 
   // UI state
   const [qrModalFor, setQrModalFor] = useState<string | null>(null); // guidebook id
@@ -108,7 +105,6 @@ export default function DashboardPage() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [visibleCount, setVisibleCount] = useState(6);
   const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null); // guidebook id being downloaded
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   // Check for update success message
   useEffect(() => {
@@ -267,51 +263,6 @@ export default function DashboardPage() {
     }
   };
 
-  // Toggle guidebook active state
-  const toggleGuidebook = async (id: string) => {
-    setToggling(id);
-    try {
-      const token = (await supabase?.auth.getSession())?.data.session?.access_token || null;
-      if (!token) {
-        alert('Please log in to continue');
-        return;
-      }
-
-      const res = await fetch(`${API_BASE}/api/guidebooks/${id}/toggle`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!res.ok) {
-        const error = await res.json();
-        // Check if it's an upgrade-related error
-        if (error.error && (error.error.toLowerCase().includes('upgrade') || error.error.toLowerCase().includes('limit') || error.error.toLowerCase().includes('plan'))) {
-          setShowUpgradeModal(true);
-        } else {
-          alert(error.error || 'Failed to toggle guidebook');
-        }
-        return;
-      }
-
-      const result = await res.json();
-
-      // Update local state
-      setItems(prev => prev.map(item =>
-        item.id === id
-          ? { ...item, active: result.active, public_slug: result.public_slug }
-          : item
-      ));
-
-      // Clear cache
-      cacheSet("dashboard:guidebooks", null, 0);
-    } catch (e) {
-      alert('Failed to toggle guidebook. Please try again.');
-      console.error(e);
-    } finally {
-      setToggling(null);
-    }
-  };
-
   // No direct PDF building here; navigate to per-guidebook PDF page
 
   return (
@@ -404,28 +355,10 @@ export default function DashboardPage() {
         {!loading && !error && items.length > 0 && (
           <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {items.slice(0, visibleCount).map((gb) => {
-              const isActive = gb.active || false;
-              const viewUrl = isActive && gb.public_slug
-                ? `${API_BASE}/g/${gb.public_slug}`
-                : (gb.preview_url ? `${API_BASE}${gb.preview_url}` : null);
-              const canActivate = true; // publishing is not limited; plans cap how many guidebooks you can create
-              const isToggling = toggling === gb.id;
+              const viewUrl = gb.public_slug ? `${API_BASE}/g/${gb.public_slug}` : null;
 
               return (
                 <li key={gb.id} className="group bg-white rounded-2xl border shadow-sm hover:shadow-md transition min-h-[360px] relative">
-                  {/* Status Badge */}
-                  <div className="absolute top-3 right-3 z-10">
-                    {isActive ? (
-                      <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full border border-green-200">
-                        ● Live
-                      </span>
-                    ) : (
-                      <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-semibold rounded-full border border-gray-200">
-                        Preview
-                      </span>
-                    )}
-                  </div>
-
                   <div className="aspect-[16/9] w-full overflow-hidden rounded-t-2xl bg-gray-100">
                     {gb.cover_image_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -451,25 +384,6 @@ export default function DashboardPage() {
                     </div>
 
                     <div className="mt-4 grid grid-cols-2 gap-2">
-                      {/* Toggle Button */}
-                      <Button
-                        className={`col-span-2 ${isActive ? 'bg-gray-600 hover:bg-gray-700' : 'bg-green-600 hover:bg-green-700'}`}
-                        onClick={() => toggleGuidebook(gb.id)}
-                        disabled={isToggling || (!isActive && !canActivate)}
-                      >
-                        {isToggling ? (
-                          <span className="flex items-center gap-2">
-                            <Spinner size={14} colorClass="text-white" /> Updating...
-                          </span>
-                        ) : isActive ? (
-                          '🔓 Deactivate (Make Preview)'
-                        ) : !canActivate ? (
-                          '🔒 Upgrade to Activate'
-                        ) : (
-                          '✓ Activate (Publish)'
-                        )}
-                      </Button>
-
                       {/* Delete in small outline slot */}
                       <Button
                         variant="outline"
@@ -504,13 +418,13 @@ export default function DashboardPage() {
                         )}
                       </Button>
 
-                      {/* View Live/Preview as full-width light green button */}
+                      {/* View the guidebook */}
                       <Link href={viewUrl || '#'} target="_blank" rel="noopener noreferrer" className="col-span-2" aria-disabled={!viewUrl}>
                         <Button
                           className="w-full whitespace-nowrap text-sm bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100"
                           variant="outline"
                         >
-                          {isActive ? 'View Live' : 'Preview'}
+                          View Guidebook
                         </Button>
                       </Link>
                     </div>
@@ -610,56 +524,6 @@ export default function DashboardPage() {
             }
           }}
         />
-
-        {/* Upgrade Modal */}
-        {showUpgradeModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setShowUpgradeModal(false)}>
-            <div
-              className="bg-white rounded-xl shadow-2xl w-[90vw] max-w-md overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-6 border-b flex items-center justify-between bg-gradient-to-r from-pink-50 to-orange-50">
-                <h3 className="font-bold text-xl text-gray-800">
-                  Upgrade Required
-                </h3>
-                <Button size="sm" variant="outline" onClick={() => setShowUpgradeModal(false)}>
-                  ✕
-                </Button>
-              </div>
-              <div className="p-6 space-y-4">
-                <p className="text-gray-700">
-                  This needs a higher plan. Upgrade to unlock unlimited guest views, more guidebooks and more features.
-                </p>
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <p className="text-sm text-blue-800 font-medium">
-                    ✨ Upgrade benefits:
-                  </p>
-                  <ul className="text-sm text-blue-700 mt-2 space-y-1 ml-4 list-disc">
-                    <li>Unlimited guest views</li>
-                    <li>All PDF layouts and print-ready PDFs</li>
-                    <li>More AI recommendations</li>
-                  </ul>
-                </div>
-                <div className="flex gap-3 pt-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowUpgradeModal(false)}
-                    className="flex-1"
-                  >
-                    Maybe Later
-                  </Button>
-                  <Link href="/pricing" className="flex-1">
-                    <Button
-                      className="w-full bg-[oklch(0.6923_0.22_21.05)] hover:opacity-90 text-white"
-                    >
-                      View Plans
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

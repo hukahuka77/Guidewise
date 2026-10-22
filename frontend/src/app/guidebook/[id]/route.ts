@@ -1,5 +1,5 @@
 import { notFoundResponse } from "@/lib/server/guidebookResponse";
-import { serveLiveGuidebook } from "@/lib/server/liveGuidebook";
+import { serveGuidebook } from "@/lib/server/liveGuidebook";
 import { fetchGuidebookById } from "@/lib/server/guidebooks";
 import { proxyToBackend } from "@/lib/server/proxy";
 import { getSupabaseAdmin } from "@/lib/server/supabaseAdmin";
@@ -7,17 +7,13 @@ import { getSupabaseAdmin } from "@/lib/server/supabaseAdmin";
 export const dynamic = "force-dynamic";
 export const preferredRegion = "iad1";
 
-/** Legacy direct-by-id URL. Active guidebooks are served; inactive ones go to the upgrade page. */
+/** Direct-by-id URL (printed QR codes point here); same page as /g/<slug>. */
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!getSupabaseAdmin()) return proxyToBackend(request);
   try {
     const { id } = await params;
     const gb = await fetchGuidebookById(id);
-    if (!gb) return notFoundResponse();
-    if (!gb.active) {
-      return new Response(null, { status: 302, headers: { Location: `/upgrade?gb=${encodeURIComponent(gb.id)}` } });
-    }
-    return await serveLiveGuidebook(request, gb);
+    return gb ? await serveGuidebook(request, gb) : notFoundResponse();
   } catch (error) {
     console.error("native /guidebook render failed; falling back to Flask", error);
     return proxyToBackend(request);

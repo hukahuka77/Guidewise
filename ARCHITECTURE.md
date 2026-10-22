@@ -135,14 +135,10 @@ erDiagram
         json included_tabs
         json custom_sections
         json custom_tabs_meta
-        boolean active
         datetime claimed_at
         datetime expires_at
         string claim_token
         string public_slug
-        text published_html
-        string published_etag
-        datetime published_at
         datetime created_time
         datetime last_modified_time
     }
@@ -376,14 +372,11 @@ graph TB
         GET_List[GET /api/guidebooks]
         GET_Detail[GET /api/guidebooks/:id]
         PUT_Update[PUT /api/guidebooks/:id]
-        POST_Publish[POST /api/guidebooks/:id/publish]
-        GET_Activate[GET /api/guidebooks/activate_for_user]
     end
 
     subgraph "Rendering"
         GET_Direct[GET /guidebook/:id]
         GET_Slug[GET /g/:slug]
-        GET_Preview[GET /preview/:id]
     end
 
     subgraph "Billing"

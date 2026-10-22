@@ -34,12 +34,9 @@ const nextConfig: NextConfig = {
   // The guidebook templates are read from disk at runtime, so make sure they ship with the functions.
   serverExternalPackages: ["@sparticuz/chromium", "puppeteer-core"],
   outputFileTracingIncludes: {
-    // publish renders the guidebook templates inside an API route
-    "/api/guidebooks/[id]/publish": GUIDEBOOK_TEMPLATES,
     ...PDF_ROUTES,
     "/g/[slug]": GUIDEBOOK_TEMPLATES,
     "/guidebook/[id]": GUIDEBOOK_TEMPLATES,
-    "/preview/[id]": GUIDEBOOK_TEMPLATES,
   },
   async rewrites() {
     return {
@@ -48,7 +45,6 @@ const nextConfig: NextConfig = {
       fallback: [
         { source: "/api/:path*", destination: `${BACKEND_URL}/api/:path*` },
         { source: "/g/:slug", destination: `${BACKEND_URL}/g/:slug` },
-        { source: "/preview/:id", destination: `${BACKEND_URL}/preview/:id` },
         {
           source: "/guidebook/:id",
           destination: `${BACKEND_URL}/guidebook/:id`,

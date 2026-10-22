@@ -29,23 +29,23 @@ import { createGuidebook } from "../src/lib/server/guidebookService";
 // The page routes read guidebooks through Supabase's REST client; serve them from the test database instead.
 vi.mock("@/lib/server/guidebooks", async () => {
   const { getSql } = await import("../src/lib/server/db");
-  const load = async (column: "public_slug" | "id", value: string, activeOnly: boolean) => {
+  const load = async (column: "public_slug" | "id", value: string) => {
     const sql = getSql()!;
     const rows = await sql`
       select g.*, to_jsonb(p) as property, to_jsonb(h) as host from guidebook g
         left join property p on p.id = g.property_id left join host h on h.id = g.host_id
-       where ${sql(column === "id" ? "g.id" : "g.public_slug")} = ${value} ${activeOnly ? sql`and g.active = true` : sql``} limit 1`.catch(async () => {
+       where ${sql(column === "id" ? "g.id" : "g.public_slug")} = ${value} limit 1`.catch(async () => {
       // postgres.js cannot parameterise identifiers inside this fragment shape; fall back to two explicit queries
       return column === "id"
         ? await sql`select g.*, to_jsonb(p) as property, to_jsonb(h) as host from guidebook g left join property p on p.id = g.property_id left join host h on h.id = g.host_id where g.id = ${value} limit 1`
-        : await sql`select g.*, to_jsonb(p) as property, to_jsonb(h) as host from guidebook g left join property p on p.id = g.property_id left join host h on h.id = g.host_id where g.public_slug = ${value} and g.active = true limit 1`;
+        : await sql`select g.*, to_jsonb(p) as property, to_jsonb(h) as host from guidebook g left join property p on p.id = g.property_id left join host h on h.id = g.host_id where g.public_slug = ${value} limit 1`;
     });
     const r = rows[0];
-    return r ? { ...r, created_time: r.created_time?.toISOString?.() ?? null, last_modified_time: r.last_modified_time?.toISOString?.() ?? null, published_at: r.published_at?.toISOString?.() ?? null } : null;
+    return r ? { ...r, created_time: r.created_time?.toISOString?.() ?? null, last_modified_time: r.last_modified_time?.toISOString?.() ?? null } : null;
   };
   return {
-    fetchActiveGuidebookBySlug: (slug: string) => load("public_slug", slug, true),
-    fetchGuidebookById: (id: string) => load("id", id, false),
+    fetchGuidebookBySlug: (slug: string) => load("public_slug", slug),
+    fetchGuidebookById: (id: string) => load("id", id),
   };
 });
 vi.mock("@/lib/server/supabaseAdmin", () => ({ getSupabaseAdmin: () => ({}) }));

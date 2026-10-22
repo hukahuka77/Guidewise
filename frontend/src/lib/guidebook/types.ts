@@ -21,12 +21,7 @@ export interface GuidebookRow {
   created_time: string | null;
   last_modified_time: string | null;
   user_id: string | null;
-  active: boolean | null;
   public_slug: string | null;
-  preview_token: string | null;
-  published_html: string | null;
-  published_etag: string | null;
-  published_at: string | null;
   property: {
     id: number;
     name: string | null;

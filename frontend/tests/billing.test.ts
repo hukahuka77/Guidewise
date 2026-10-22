@@ -194,8 +194,8 @@ describe("billingSummary", () => {
   it("defaults to the free plan for users without a profile", async () => {
     const out = await billingSummary(db.sql, null, user);
     expect(out).toMatchObject({
-      plan: "free", plan_display: "Free", guidebook_limit: null, guidebook_count: 0, active_guidebooks: 0,
-      can_create_more: true, can_activate_more: true, views_used: 0, views_limit: 30, ai_used: 0, ai_limit: 3,
+      plan: "free", plan_display: "Free", guidebook_limit: null, guidebook_count: 0,
+      can_create_more: true, views_used: 0, views_limit: 30, ai_used: 0, ai_limit: 3,
       features: { all_pdf_templates: false, print_pdf: false, analytics: false },
       stripe: { customer_id: null, subscription: null, invoices: [] },
     });
@@ -204,7 +204,7 @@ describe("billingSummary", () => {
   it("reports limits, usage and Stripe details (including basil-style period dates)", async () => {
     await setPlan(db.sql, OWNER, "power");
     const [{ id: propertyId }] = await db.sql`insert into property (name, user_id) values ('P', ${OWNER}) returning id`;
-    await db.sql`insert into guidebook (id, property_id, user_id, active, template_key) values ('g1', ${propertyId}, ${OWNER}, true, 'template_original'), ('g2', ${propertyId}, ${OWNER}, false, 'template_original')`;
+    await db.sql`insert into guidebook (id, property_id, user_id, template_key) values ('g1', ${propertyId}, ${OWNER}, 'template_original'), ('g2', ${propertyId}, ${OWNER}, 'template_original')`;
     const stripe = fakeStripe({
       customers: { list: vi.fn(async () => ({ data: [{ id: "cus_9" }] })) },
       subscriptions: { list: vi.fn(async () => ({ data: [{ id: "sub_9", status: "active", items: { data: [{ current_period_end: 1900000000 }] } }] })), retrieve: vi.fn() },
@@ -212,7 +212,7 @@ describe("billingSummary", () => {
     });
     const out = await billingSummary(db.sql, stripe, user);
     expect(out).toMatchObject({
-      plan: "power", guidebook_limit: 100, guidebook_count: 2, active_guidebooks: 1, can_create_more: true, plan_display: "Power",
+      plan: "power", guidebook_limit: 100, guidebook_count: 2, can_create_more: true, plan_display: "Power",
       price_usd: 15, views_limit: null, ai_limit: 150, features: { all_pdf_templates: true, print_pdf: true, analytics: true },
     });
     expect(out.stripe).toEqual({
@@ -326,16 +326,16 @@ describe("handleStripeEvent", () => {
     expect((await db.sql`select plan from profiles`)[0].plan).toBe("pro");
   });
 
-  it("subscription deleted, or canceled/unpaid/past_due, returns to the free plan and leaves guidebooks published", async () => {
+  it("subscription deleted, or canceled/unpaid/past_due, returns to the free plan and leaves guidebooks untouched", async () => {
     for (const [type, status] of [["customer.subscription.deleted", "canceled"], ["customer.subscription.updated", "past_due"], ["customer.subscription.updated", "unpaid"], ["customer.subscription.updated", "canceled"]]) {
       await db.reset();
       await db.sql`insert into profiles (user_id, plan, guidebook_limit, stripe_subscription_id) values (${OWNER}::uuid, 'pro', 10, 'sub_1'), (${OTHER}::uuid, 'pro', 10, 'sub_other')`;
       const [{ id: pid }] = await db.sql`insert into property (name, user_id) values ('P', ${OWNER}) returning id`;
-      await db.sql`insert into guidebook (id, property_id, user_id, active, template_key) values ('mine1', ${pid}, ${OWNER}, true, 'template_original'), ('mine2', ${pid}, ${OWNER}, true, 'template_original'), ('theirs', ${pid}, ${OTHER}, true, 'template_original')`;
+      await db.sql`insert into guidebook (id, property_id, user_id, template_key) values ('mine1', ${pid}, ${OWNER}, 'template_original'), ('mine2', ${pid}, ${OWNER}, 'template_original'), ('theirs', ${pid}, ${OTHER}, 'template_original')`;
       await handleStripeEvent(db.sql, null, ev(type, sub({ status })));
       expect((await db.sql`select plan, guidebook_limit from profiles where user_id = ${OWNER}::uuid`)[0]).toEqual({ plan: "free", guidebook_limit: null });
       expect((await db.sql`select plan from profiles where user_id = ${OTHER}::uuid`)[0].plan).toBe("pro");
-      expect((await db.sql`select id from guidebook where active = true order by id`).map((r) => r.id)).toEqual(["mine1", "mine2", "theirs"]);
+      expect((await db.sql`select id from guidebook order by id`).map((r) => r.id)).toEqual(["mine1", "mine2", "theirs"]);
     }
   });
 

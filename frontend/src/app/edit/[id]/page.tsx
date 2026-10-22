@@ -365,19 +365,6 @@ export default function EditGuidebookPage() {
       }
       if (!res.ok) throw new Error(`Update failed (${res.status})`);
 
-      // After update, render and store the HTML snapshot so next view is instant
-      try {
-        await fetch(`${API_BASE}/api/guidebooks/${guidebookId}/publish`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-          },
-        });
-      } catch (e) {
-        console.warn('Snapshot publish failed (edit):', e);
-      }
-
       // Redirect based on whether this is a new guidebook or an edit
       if (isNewGuidebook) {
         router.push(`/select-template/${guidebookId}`);
@@ -717,11 +704,11 @@ export default function EditGuidebookPage() {
             />
           )}
 
-          {/* Publish button at bottom right */}
+          {/* Save button at bottom right */}
           <div className="flex justify-end mt-8">
             <Button
               type="button"
-              data-tutorial="publish-button"
+              data-tutorial="save-button"
               className="px-10 py-4 font-semibold rounded-lg shadow-lg hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed text-lg md:text-xl"
               onClick={(e) => handleSubmit(e as unknown as React.FormEvent)}
               disabled={isLoading}
@@ -732,7 +719,7 @@ export default function EditGuidebookPage() {
                   Updating…
                 </span>
               ) : (
-                "Publish Changes"
+                "Save Changes"
               )}
             </Button>
           </div>

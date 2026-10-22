@@ -400,7 +400,7 @@ describe("listing import route", () => {
     expect((await res.json()).code).toBe("invalid_url");
   });
 
-  it("creates a draft guidebook with a verified, enlarged cover image and reports imported/missing fields", async () => {
+  it("creates a live guidebook with a verified, enlarged cover image and reports imported/missing fields", async () => {
     serve({});
     modelReturns(extraction);
     const res = await run();
@@ -409,8 +409,7 @@ describe("listing import route", () => {
     expect(body.imported).toEqual(expect.arrayContaining(["property name", "host name", "house rules", "cover image"]));
     expect(body.missing).toEqual(expect.arrayContaining(["house manual", "checkout instructions"]));
     const [gb] = await db.sql`select * from guidebook where id = ${body.guidebook_id}`;
-    expect(gb.active).toBe(false);
-    expect(gb.public_slug).toBeNull();
+    expect(gb.public_slug).toMatch(/^lake-cabin-[0-9a-f]{6}$/);
     expect(gb.user_id).toBe(OWNER);
     expect(gb.cover_image_url).toBe(`${COVER}?im_w=1200`);
     expect(gb.check_in_time).toBe("16:00");

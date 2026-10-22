@@ -34,20 +34,14 @@ echo "== configured (service-role key present)"
 B=http://127.0.0.1:3056
 start_next 3056 SUPABASE_URL=http://127.0.0.1:5056 SUPABASE_SERVICE_ROLE_KEY=test-key NEXT_PUBLIC_SITE_URL=https://www.example.com
 expect "native /api/health"                    "$(curl -s $B/api/health | head -c 11)" '{"ok":true,'
-expect "active guidebook page"                 "$(code $B/g/cozy-cabin-abc123)" 200
+expect "guidebook page"                        "$(code $B/g/cozy-cabin-abc123)" 200
 curl -s $B/g/cozy-cabin-abc123 > /tmp/native_g.html
-if [ "$(python3 -c "print(open('/tmp/native_g.html').read().rstrip('\n')==open('tests/parity/golden/full_original__wm0.html').read().rstrip('\n'))")" = "True" ]; then ok "page identical to Flask golden"; else bad "page identical to Flask golden" differs; fi
+if [ "$(python3 -c "print(open('/tmp/native_g.html').read().rstrip('\n')==open('tests/parity/golden/full_original.html').read().rstrip('\n'))")" = "True" ]; then ok "page identical to its golden snapshot"; else bad "page identical to its golden snapshot" differs; fi
+expect "direct-by-id page (printed QR codes)"   "$(code $B/guidebook/$(python3 -c "import json;print(json.load(open('tests/parity/fixtures/full_original.json'))['id'])"))" 200
 expect "unknown slug"                          "$(code $B/g/nope)" 404
 ETAG=$(curl -s -D - -o /dev/null $B/g/cozy-cabin-abc123 | tr -d '\r' | awk -F': ' 'tolower($1)=="etag"{print $2}')
 expect "If-None-Match -> 304"                  "$(code -H "If-None-Match: $ETAG" $B/g/cozy-cabin-abc123)" 304
-expect "draft preview, no token"               "$(code $B/preview/draft-1)" 404
-expect "draft preview, wrong token"            "$(code "$B/preview/draft-1?t=wrong")" 404
-expect "draft preview, right token"            "$(code "$B/preview/draft-1?t=s3cret-token")" 200
-expect "draft preview, owner bearer"           "$(code -H 'Authorization: Bearer owner-token' $B/preview/draft-1)" 200
-expect "draft preview, other user's bearer"    "$(code -H 'Authorization: Bearer other-token' $B/preview/draft-1)" 404
-expect "legacy /guidebook inactive redirects"  "$(curl -s -o /dev/null -w '%{http_code}' $B/guidebook/draft-1)" 302
 expect "lookup error falls back to Flask"      "$(curl -s $B/g/broken-slug | head -c 11)" "FLASK-STUB "
-expect "unmigrated API proxied to Flask"       "$(curl -s $B/api/guidebooks/activate_for_user -X POST | head -c 11)" "FLASK-STUB "
 expect "unmigrated nested API proxied"         "$(curl -s $B/api/billing/summary | head -c 11)" "FLASK-STUB "
 stop_next
 
@@ -62,19 +56,16 @@ expect "bad token -> 401"                      "$(code -H 'Authorization: Bearer
 CREATED=$(curl -s -D /tmp/gen.hdr -X POST $B/api/generate -H "$O" -H "$J" -d '{"property_name":"E2E Cabin","host_name":"Andrew","welcome_message":"hello","rules":["No pets: ask"]}')
 GID=$(echo "$CREATED" | pyjson "d.get('guidebook_id','')")
 expect "POST /api/generate -> 201"             "$(head -1 /tmp/gen.hdr | tr -d '\r' | awk '{print $2}')" 201
-expect "owner is on pro: auto-published URL"   "$(grep -i '^x-guidebook-url' /tmp/gen.hdr | tr -d '\r' | sed -E 's/.*: (\/g\/e2e-cabin)-.*/\1/')" "/g/e2e-cabin"
+expect "new guidebook is live at its URL"   "$(grep -i '^x-guidebook-url' /tmp/gen.hdr | tr -d '\r' | sed -E 's/.*: (\/g\/e2e-cabin)-.*/\1/')" "/g/e2e-cabin"
 expect "GET /api/guidebooks lists it"          "$(curl -s $B/api/guidebooks -H "$O" | pyjson "[i['property_name'] for i in d['items']]")" "['E2E Cabin']"
 expect "other user's list is empty"            "$(curl -s $B/api/guidebooks -H "$X" | pyjson "d['items']")" "[]"
 expect "GET /api/guidebooks/:id"               "$(curl -s $B/api/guidebooks/$GID -H "$O" | pyjson "d['welcome_message'] + ' ' + d['rules'][0]['name']")" "hello No pets"
 expect "other user GET -> 404"                 "$(code $B/api/guidebooks/$GID -H "$X")" 404
 expect "PATCH /api/guidebooks/:id"             "$(curl -s -X PATCH $B/api/guidebooks/$GID -H "$O" -H "$J" -d '{"welcome_message":"patched"}')" "{\"ok\":true,\"guidebook_id\":\"$GID\"}"
 expect "PUT works too"                         "$(code -X PUT $B/api/guidebooks/$GID -H "$O" -H "$J" -d '{"parking_info":"garage"}')" 200
-expect "POST .../publish"                      "$(curl -s -X POST $B/api/guidebooks/$GID/publish -H "$O" | pyjson "d['ok']")" "True"
-expect "POST .../toggle (unpublish)"           "$(curl -s -X POST $B/api/guidebooks/$GID/toggle -H "$O" | pyjson "(d['active'], d['preview_url'] is not None)")" "(False, True)"
 expect "POST /api/guidebook/:id/template"      "$(curl -s -X POST $B/api/guidebook/$GID/template -H "$O" -H "$J" -d '{"template_key":"template_generic"}')" '{"ok":true,"template_key":"template_generic"}'
 expect "invalid template -> 400"               "$(code -X POST $B/api/guidebook/$GID/template -H "$O" -H "$J" -d '{"template_key":"zzz"}')" 400
 expect "GET /api/hosts"                        "$(curl -s $B/api/hosts -H "$O" | pyjson "[h['name'] for h in d['hosts']]")" "['Andrew']"
-expect "activate_for_user reaches Flask (not [id] 405)" "$(curl -s -X POST $B/api/guidebooks/activate_for_user -H "$O" | head -c 11)" "FLASK-STUB "
 expect "other user DELETE -> 404"              "$(code -X DELETE $B/api/guidebooks/$GID -H "$X")" 404
 expect "owner DELETE -> 200"                   "$(code -X DELETE $B/api/guidebooks/$GID -H "$O")" 200
 expect "deleted -> 404"                        "$(code $B/api/guidebooks/$GID -H "$O")" 404
@@ -93,7 +84,6 @@ echo "== nothing configured at all"
 B=http://127.0.0.1:3058
 start_next 3058
 expect "/g falls back to Flask"                "$(curl -s $B/g/cozy-cabin-abc123 | head -c 11)" "FLASK-STUB "
-expect "/preview falls back to Flask"          "$(curl -s "$B/preview/draft-1?t=x" | head -c 11)" "FLASK-STUB "
 
 echo; echo "passed: $PASS  failed: $FAIL"
 [ "$FAIL" = 0 ]

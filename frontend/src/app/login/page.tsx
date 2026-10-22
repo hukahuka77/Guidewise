@@ -27,15 +27,7 @@ export default function LoginPage() {
       setLoading(true);
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-      // If there's a pending preview, go to success to auto-claim; else proceed
-      const hasPendingPreview = (() => {
-        try {
-          const url = sessionStorage.getItem('liveGuidebookUrl') || localStorage.getItem('liveGuidebookUrl');
-          const id = sessionStorage.getItem('guidebookId') || localStorage.getItem('guidebookId');
-          return !!(url && url.includes('/preview/') && id);
-        } catch { return false; }
-      })();
-      router.push(hasPendingPreview ? "/success" : "/dashboard");
+      router.push("/dashboard");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Login failed";
       setError(msg);

@@ -1,9 +1,9 @@
-<!-- place-photo-v2 --><!doctype html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Cozy Cabin &lt;Deluxe&gt; • Guidebook</title>
+    <title>Bare Bones • Guidebook</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,66 +12,6 @@
     <style>
       body{ font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
       .gw-logo{ font-family: 'Marcellus', serif; letter-spacing: 0.15em; text-transform: uppercase; }
-
-      /* Preview Mode Watermark */
-      .preview-watermark {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%) rotate(-45deg);
-        font-size: 8rem;
-        font-weight: 900;
-        color: rgba(0, 0, 0, 0.08);
-        pointer-events: none;
-        z-index: 9998;
-        user-select: none;
-        white-space: nowrap;
-        letter-spacing: 0.1em;
-      }
-
-      @media (max-width: 768px) {
-        .preview-watermark {
-          font-size: 4rem;
-        }
-      }
-
-      @media print {
-        .preview-watermark {
-          color: rgba(0, 0, 0, 0.15);
-          font-size: 10rem;
-        }
-      }
-
-      /* Preview Banner */
-      .preview-banner {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        z-index: 9999;
-        background: linear-gradient(135deg, #FFA726 0%, #FB8C00 100%);
-        color: white;
-        padding: 0.75rem 1rem;
-        text-align: center;
-        font-weight: 600;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-      }
-
-      .preview-banner a {
-        color: white;
-        text-decoration: underline;
-        font-weight: 700;
-      }
-
-      .preview-banner a:hover {
-        color: rgba(255, 255, 255, 0.9);
-      }
-
-      @media print {
-        .preview-banner {
-          display: none;
-        }
-      }
     </style>
     
 <!-- Lucide Icons -->
@@ -613,8 +553,6 @@
       </div>
     </div>
 
-    
-
     <div class="flex items-center justify-center min-h-screen w-full">
       <div class="flex h-[90vh] w-[90vw] max-w-[1800px] rounded-2xl shadow-lg overflow-hidden bg-white/60">
         <aside class="w-14 md:w-56 flex-shrink-0 rounded-l-2xl shadow-lg bg-[oklch(0.6923_0.22_21.05)] text-white">
@@ -624,7 +562,7 @@
           
 <!-- Header -->
 <div class="header">
-  <h1 class="header-title">Cozy Cabin &lt;Deluxe&gt;</h1>
+  <h1 class="header-title">Bare Bones</h1>
   <p class="header-subtitle">Short Term Rental Guide</p>
 </div>
 
@@ -644,34 +582,9 @@
     </a>
     
     
-    <a href="#wifi" class="nav-link">
-      <i data-lucide="wifi" class="nav-icon"></i>
-      <span>Wi-Fi</span>
-    </a>
     
     
-    <a href="#property" class="nav-link">
-      <i data-lucide="book-open" class="nav-icon"></i>
-      <span>House Guide</span>
-    </a>
     
-    
-    <a href="#rules" class="nav-link">
-      <i data-lucide="clipboard-list" class="nav-icon"></i>
-      <span>Rules</span>
-    </a>
-    
-    
-    <a href="#food" class="nav-link">
-      <i data-lucide="utensils" class="nav-icon"></i>
-      <span>Dining</span>
-    </a>
-    
-    
-    <a href="#activities" class="nav-link">
-      <i data-lucide="compass" class="nav-icon"></i>
-      <span>Activities</span>
-    </a>
     
     
     <a href="#checkout" class="nav-link">
@@ -694,22 +607,6 @@
     
     
     
-    
-    
-    <a href="#custom_pets" class="nav-link">
-      <i data-lucide="puzzle" class="nav-icon"></i>
-      <span>Pets 🐶</span>
-    </a>
-    
-    
-    
-    
-    <a href="#custom_local_tips" class="nav-link">
-      <i data-lucide="puzzle" class="nav-icon"></i>
-      <span>Local Tips</span>
-    </a>
-    
-    
   </div>
   <div class="nav-toggle" id="navToggle">
     <i data-lucide="chevron-down" class="toggle-icon"></i>
@@ -719,7 +616,7 @@
 <div style="max-width: none; width: 100%; padding: 0; margin: 0;">
   <!-- Cover Image -->
   
-  <img src="https://example.supabase.co/storage/v1/object/public/my_images/cover.jpg" alt="Property" class="cover-image" />
+  <img src="https://hojncqasasvvrhdmwwhv.supabase.co/storage/v1/object/public/my_images/home_placeholder.jpg" alt="Property" class="cover-image" />
   
 
   <!-- Welcome Section -->
@@ -731,63 +628,11 @@
     </h2>
     <div class="section-content">
       
-      <p>Welcome to our home! We hope you love it.
-Second paragraph with &lt;b&gt;tags&lt;/b&gt; &amp; &#34;quotes&#34; and &#39;apostrophes&#39;.</p>
+
       
 
       
-      <div style="margin-top: 1.5rem;">
-        <div class="section-label">Property Location</div>
-        <div class="section-value">
-          <a href="https://maps.google.com/maps?q=123%20Pine%20Rd%2C%20Austin%2C%20TX%2078701"
-            target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: none;">
-            123 Pine Rd, Austin, TX 78701
-          </a>
-        </div>
-      </div>
-      
 
-      
-      <ul class="info-list" style="margin-top: 1.5rem;">
-        
-        <li class="info-item">
-          <i data-lucide="phone" class="info-item-icon"></i>
-          <div class="info-item-content">
-            <h5>Emergency Contact</h5>
-            <p>Call 911. Host: 555-0100</p>
-          </div>
-        </li>
-        
-        
-        <li class="info-item">
-          <i data-lucide="flame" class="info-item-icon"></i>
-          <div class="info-item-content">
-            <h5>Fire Extinguisher</h5>
-            <p>Under the kitchen sink</p>
-          </div>
-        </li>
-        
-      </ul>
-      
-
-      
-      <div class="host-card">
-        
-        <img src="https://example.supabase.co/storage/v1/object/public/my_images/host.jpg" alt="Andrew" class="host-photo" />
-        
-        <div class="host-info">
-          
-          <h4>Andrew</h4>
-          
-          
-          <p>Host since 2019.
-Love hosting!</p>
-          
-          
-          <p style="white-space: pre-line;">andrew@example.com</p>
-          
-        </div>
-      </div>
       
     </div>
   </div>
@@ -802,19 +647,9 @@ Love hosting!</p>
     </h2>
     <div class="section-content">
       
-      <div class="section-label">Check-in Time</div>
-      <div class="section-value">15:00</div>
-      
 
       
-      <div class="section-label">Access Instructions</div>
-      <div class="section-value" style="white-space: pre-line;">Lockbox on the left of the door. Code is sent the morning of arrival.</div>
-      
 
-      
-      <div class="section-label">Parking</div>
-      <div class="section-value" style="white-space: pre-line;">Two spots in the driveway.
-Street parking is free after 6pm.</div>
       
     </div>
   </div>
@@ -822,282 +657,17 @@ Street parking is free after 6pm.</div>
 
   <!-- Wi-Fi -->
   
-  <div id="wifi" class="section-card">
-    <h2 class="section-title">
-      <i data-lucide="wifi" class="section-icon"></i>
-      Wi-Fi
-    </h2>
-    <div class="section-content">
-      
-      <div style="margin-bottom: 1rem;">
-        <div class="section-label">Network Name</div>
-        <div class="section-value">HomeNet</div>
-      </div>
-      
-      
-      <div>
-        <div class="section-label">Password</div>
-        <div class="section-value">p@ss word!</div>
-      </div>
-      
-    </div>
-  </div>
-  
 
   <!-- House Manual -->
-  
-  <div id="property" class="section-card">
-    <h2 class="section-title">
-      <i data-lucide="book-open" class="section-icon"></i>
-      House Guide
-    </h2>
-    <ul class="info-list">
-      
-      <li class="info-item" onclick="this.classList.toggle('expanded')">
-        <i data-lucide="info" class="info-item-icon"></i>
-        <div class="info-item-content">
-          <h5>
-            Thermostat
-            <i data-lucide="chevron-down" class="chevron-icon"></i>
-          </h5>
-          <div class="expandable-content">
-            
-            <p>Keep between 68 and 76</p>
-            
-            
-          </div>
-        </div>
-      </li>
-      
-      <li class="info-item" onclick="this.classList.toggle('expanded')">
-        <i data-lucide="info" class="info-item-icon"></i>
-        <div class="info-item-content">
-          <h5>
-            TV
-            <i data-lucide="chevron-down" class="chevron-icon"></i>
-          </h5>
-          <div class="expandable-content">
-            
-            <p>Use the black remote</p>
-            
-            
-            <div class="media-container">
-              
-              <video controls style="width: 100%; max-width: 100%; max-height: 260px; border-radius: 10px; display: block; margin: 0 auto;">
-                <source src="https://example.com/tv.mp4" type="video/mp4" />
-                Your browser does not support the video tag.
-              </video>
-              
-            </div>
-            
-          </div>
-        </div>
-      </li>
-      
-    </ul>
-  </div>
   
 
   <!-- House Rules -->
   
-  <div id="rules" class="section-card">
-    <h2 class="section-title">
-      <i data-lucide="clipboard-list" class="section-icon"></i>
-      House Rules
-    </h2>
-    <ul class="info-list">
-      
-      <li class="info-item" onclick="this.classList.toggle('expanded')">
-        <i data-lucide="shield-check" class="info-item-icon"></i>
-        <div class="info-item-content">
-          <h5>
-            No smoking
-            
-            <i data-lucide="chevron-down" class="chevron-icon"></i>
-            
-          </h5>
-          
-          <div class="expandable-content">
-            <p>Anywhere on the property</p>
-          </div>
-          
-        </div>
-      </li>
-      
-      <li class="info-item" onclick="this.classList.toggle('expanded')">
-        <i data-lucide="shield-check" class="info-item-icon"></i>
-        <div class="info-item-content">
-          <h5>
-            Quiet hours
-            
-            <i data-lucide="chevron-down" class="chevron-icon"></i>
-            
-          </h5>
-          
-          <div class="expandable-content">
-            <p>10pm - 8am</p>
-          </div>
-          
-        </div>
-      </li>
-      
-    </ul>
-  </div>
-  
 
   <!-- Places to Eat -->
   
-  <div id="food" class="section-card">
-    <h2 class="section-title">
-      <i data-lucide="utensils" class="section-icon"></i>
-      Places to Eat
-    </h2>
-    <div class="places-grid">
-      
-      <div class="place-card">
-        
-        <img src="/api/place-photo?maxwidth=800&amp;place_id=ChIJbbq&amp;photo_reference=RAWREF%2Bwith%2Fchars%3D%26&amp;query=Franklin+BBQ%2C+12+Main+St%2C+Austin%2C+TX"
-          alt="Franklin BBQ" class="place-card-image" />
-        
-        <div class="place-card-content">
-          <h5>Franklin BBQ</h5>
-          
-          <p>Great coffee &amp; pastries</p>
-          
-          
-          <a href="https://maps.google.com/maps?q=12%20Main%20St%2C%20Austin%2C%20TX" target="_blank"
-            rel="noopener noreferrer" class="place-address" style="text-decoration: none; color: inherit;">
-            <i data-lucide="map-pin" class="place-address-icon"></i>
-            <span>12 Main St, Austin, TX</span>
-          </a>
-          
-          
-          <div class="place-distance" style="font-size: 0.875rem; color: #6b7280; margin-top: 4px; margin-left: 22px;">🚗 7 min drive</div>
-          
-        </div>
-      </div>
-      
-      <div class="place-card">
-        
-        <img src="https://example.com/p.jpg"
-          alt="Taco Spot (best!)" class="place-card-image" />
-        
-        <div class="place-card-content">
-          <h5>Taco Spot (best!)</h5>
-          
-          <p>Great coffee &amp; pastries</p>
-          
-          
-          <a href="https://maps.google.com/maps?q=55%20Elm%20St%20%26%203rd%2C%20Austin%2C%20TX%2078701" target="_blank"
-            rel="noopener noreferrer" class="place-address" style="text-decoration: none; color: inherit;">
-            <i data-lucide="map-pin" class="place-address-icon"></i>
-            <span>55 Elm St &amp; 3rd, Austin, TX 78701</span>
-          </a>
-          
-          
-          <div class="place-distance" style="font-size: 0.875rem; color: #6b7280; margin-top: 4px; margin-left: 22px;">🚗 7 min drive</div>
-          
-        </div>
-      </div>
-      
-    </div>
-  </div>
-  
 
   <!-- Activities -->
-  
-  <div id="activities" class="section-card">
-    <h2 class="section-title">
-      <i data-lucide="compass" class="section-icon"></i>
-      Things to Do
-    </h2>
-    <div class="places-grid">
-      
-      <div class="place-card">
-        
-        <img src="/api/place-photo?maxwidth=800&amp;place_id=ChIJplace1&amp;photo_reference=CmRaAAAAtemporaryRef123&amp;query=Zilker+Park%2C+12+Main+St%2C+Austin%2C+TX"
-          alt="Zilker Park" class="place-card-image" />
-        
-        <div class="place-card-content">
-          <h5>Zilker Park</h5>
-          
-          <p>Big park</p>
-          
-          
-          <a href="https://maps.google.com/maps?q=12%20Main%20St%2C%20Austin%2C%20TX" target="_blank"
-            rel="noopener noreferrer" class="place-address" style="text-decoration: none; color: inherit;">
-            <i data-lucide="map-pin" class="place-address-icon"></i>
-            <span>12 Main St, Austin, TX</span>
-          </a>
-          
-          
-          <div class="place-distance" style="font-size: 0.875rem; color: #6b7280; margin-top: 4px; margin-left: 22px;">🚗 7 min drive</div>
-          
-        </div>
-      </div>
-      
-      <div class="place-card">
-        
-        <img src="https://example.supabase.co/storage/v1/object/public/food-and-activities/a b.jpg"
-          alt="Hosted Photo Place" class="place-card-image" />
-        
-        <div class="place-card-content">
-          <h5>Hosted Photo Place</h5>
-          
-          <p>Great coffee &amp; pastries</p>
-          
-          
-          <a href="https://maps.google.com/maps?q=12%20Main%20St%2C%20Austin%2C%20TX" target="_blank"
-            rel="noopener noreferrer" class="place-address" style="text-decoration: none; color: inherit;">
-            <i data-lucide="map-pin" class="place-address-icon"></i>
-            <span>12 Main St, Austin, TX</span>
-          </a>
-          
-          
-          <div class="place-distance" style="font-size: 0.875rem; color: #6b7280; margin-top: 4px; margin-left: 22px;">🚗 7 min drive</div>
-          
-        </div>
-      </div>
-      
-      <div class="place-card">
-        
-        <img src="/api/place-photo?maxwidth=800&amp;photo_reference=LEGACYREF%2Fabc&amp;query=Legacy+Google+URL%2C+12+Main+St%2C+Austin%2C+TX"
-          alt="Legacy Google URL" class="place-card-image" />
-        
-        <div class="place-card-content">
-          <h5>Legacy Google URL</h5>
-          
-          <p>Great coffee &amp; pastries</p>
-          
-          
-          <a href="https://maps.google.com/maps?q=12%20Main%20St%2C%20Austin%2C%20TX" target="_blank"
-            rel="noopener noreferrer" class="place-address" style="text-decoration: none; color: inherit;">
-            <i data-lucide="map-pin" class="place-address-icon"></i>
-            <span>12 Main St, Austin, TX</span>
-          </a>
-          
-          
-          <div class="place-distance" style="font-size: 0.875rem; color: #6b7280; margin-top: 4px; margin-left: 22px;">🚗 7 min drive</div>
-          
-        </div>
-      </div>
-      
-      <div class="place-card">
-        
-        <div class="place-card-content">
-          <h5>No Photo</h5>
-          
-          <p>Great coffee &amp; pastries</p>
-          
-          
-          
-          <div class="place-distance" style="font-size: 0.875rem; color: #6b7280; margin-top: 4px; margin-left: 22px;">🚗 7 min drive</div>
-          
-        </div>
-      </div>
-      
-    </div>
-  </div>
   
 
   <!-- Checkout -->
@@ -1109,115 +679,13 @@ Street parking is free after 6pm.</div>
     </h2>
     <div class="section-content">
       
-      <div class="section-label">Checkout Time</div>
-      <div class="section-value">11:00</div>
-      
 
-      
-      <ul class="info-list">
-        
-        <li class="info-item" onclick="this.classList.toggle('expanded')">
-          <i data-lucide="check-circle" class="info-item-icon"></i>
-          <div class="info-item-content">
-            <h5>
-              Trash
-              <i data-lucide="chevron-down" class="chevron-icon"></i>
-            </h5>
-            <div class="expandable-content">
-              
-              <p>Take the bins to the curb</p>
-              
-            </div>
-          </div>
-        </li>
-        
-        <li class="info-item" onclick="this.classList.toggle('expanded')">
-          <i data-lucide="check-circle" class="info-item-icon"></i>
-          <div class="info-item-content">
-            <h5>
-              Keys
-              <i data-lucide="chevron-down" class="chevron-icon"></i>
-            </h5>
-            <div class="expandable-content">
-              
-              <p>Leave on the counter</p>
-              
-            </div>
-          </div>
-        </li>
-        
-      </ul>
       
     </div>
   </div>
   
 
   <!-- Custom Sections -->
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  <div id="custom_pets" class="section-card">
-    <h2 class="section-title">
-      <i data-lucide="puzzle" class="section-icon"></i>
-      Pets 🐶
-    </h2>
-    <div class="section-content">
-      
-      
-        
-          
-          <p style="white-space: pre-line; margin-bottom: 1rem;">Dogs welcome</p>
-        
-      
-        
-          
-          <p style="white-space: pre-line; margin-bottom: 1rem;">Please clean up after them</p>
-        
-      
-      
-    </div>
-  </div>
-  
-  
-  
-  
-  
-  <div id="custom_local_tips" class="section-card">
-    <h2 class="section-title">
-      <i data-lucide="puzzle" class="section-icon"></i>
-      Local Tips
-    </h2>
-    <div class="section-content">
-      
-      
-        
-      
-        
-          
-          <p style="white-space: pre-line; margin-bottom: 1rem;">A plain string tip</p>
-        
-      
-      
-    </div>
-  </div>
-  
-  
   
 </div>
 

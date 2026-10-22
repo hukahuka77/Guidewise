@@ -20,12 +20,7 @@
  "created_time": null,
  "last_modified_time": "2026-02-03T04:05:06+00:00",
  "user_id": "u",
- "active": false,
  "public_slug": null,
- "preview_token": null,
- "published_html": null,
- "published_etag": null,
- "published_at": null,
  "property": {
   "id": 3,
   "name": "Bare Bones",
