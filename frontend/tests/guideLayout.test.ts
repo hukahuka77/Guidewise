@@ -11,6 +11,16 @@ import type { GuidebookRow } from "../src/lib/guidebook/types";
 // Renders real PDFs in headless Chromium and checks the layout from the extracted text of each page:
 // no blank pages, headings never stranded from their first card, cards never split across pages.
 
+// pdfjs needs Promise.withResolvers (Node 22+); CI runs Node 20.
+if (typeof (Promise as { withResolvers?: unknown }).withResolvers !== "function") {
+  (Promise as unknown as { withResolvers: () => unknown }).withResolvers = function () {
+    let resolve!: (v: unknown) => void;
+    let reject!: (e: unknown) => void;
+    const promise = new Promise((res, rej) => { resolve = res; reject = rej; });
+    return { promise, resolve, reject };
+  };
+}
+
 const resolver = { photoReference: async () => null, findPlaceId: async () => null, photoUrl: (r: string) => r };
 const FIXTURES = path.join(__dirname, "parity", "fixtures");
 const fixture = (name: string) => JSON.parse(fs.readFileSync(path.join(FIXTURES, `${name}.json`), "utf8")) as GuidebookRow;
