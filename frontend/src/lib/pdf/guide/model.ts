@@ -40,6 +40,30 @@ export interface GuideModel {
   custom: { key: string; title: string; paragraphs: string[] }[];
 }
 
+/**
+ * Emoji are dropped from PDF text: servers have no emoji font, so they would print as empty boxes.
+ * (Also removes the joiners and variation selectors that travel with them.)
+ */
+export function stripEmoji(text: string): string {
+  return text
+    .replace(/[\p{Extended_Pictographic}\p{Regional_Indicator}\u{FE0F}\u{200D}\u{20E3}\u{1F3FB}-\u{1F3FF}]/gu, "")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/^[ \t]+|[ \t]+$/gm, "")
+    .trim();
+}
+
+/** Keys that hold URLs or ids and must be left untouched. */
+const RAW_KEYS = new Set(["coverUrl", "qrSrc", "image_url", "place_id", "key"]);
+
+function scrub<T>(value: T, key = ""): T {
+  if (typeof value === "string") return (RAW_KEYS.has(key) ? value : stripEmoji(value)) as T;
+  if (Array.isArray(value)) return value.map((v) => scrub(v, key)) as T;
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, scrub(v, k)])) as T;
+  }
+  return value;
+}
+
 /** "15:00" -> "3:00 PM"; anything else is shown as typed. */
 export function formatTime(value: string): string {
   const m = /^([01]?\d|2[0-3]):([0-5]\d)$/.exec(value.trim());
@@ -101,7 +125,7 @@ export async function buildGuideModel(
   const zip = str(gb.property?.address_zip);
   const cityLine = [cityState, zip].filter(Boolean).join(cityState && zip ? ", " : "");
 
-  return {
+  return scrub({
     title: str(gb.property?.name) || "My Guidebook",
     city: cityState,
     coverUrl: gb.cover_image_url || null,
@@ -123,5 +147,5 @@ export async function buildGuideModel(
     todo,
     checkout: textItems(gb.checkout_info),
     custom,
-  };
+  });
 }

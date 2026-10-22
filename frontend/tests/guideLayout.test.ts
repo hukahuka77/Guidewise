@@ -3,7 +3,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { htmlToPdf } from "../src/lib/pdf/browser";
-import { buildGuideModel } from "../src/lib/pdf/guide/model";
+import { buildGuideModel, stripEmoji } from "../src/lib/pdf/guide/model";
 import { renderGuide, type PageSize } from "../src/lib/pdf/guide/render";
 import type { ThemeKey } from "../src/lib/pdf/guide/themes";
 import type { GuidebookRow } from "../src/lib/guidebook/types";
@@ -106,6 +106,16 @@ describe("guide PDF layout", () => {
     expect(pages.join(" ")).toContain(norm("We hope you have a wonderful stay"));
     expect(lintLayout(pages, [], model.title)).toEqual([]);
   }, 60000);
+
+  it("emoji are removed from PDF text (no emoji font on the server) but ordinary text and URLs are untouched", async () => {
+    expect(stripEmoji("Pets 🐶 welcome 👨‍👩‍👧 ❤️ 🇺🇸 ok")).toBe("Pets welcome ok");
+    expect(stripEmoji("Café – 7 min drive")).toBe("Café – 7 min drive");
+    const row = { ...fixture("full_original"), cover_image_url: "https://example.com/a🐶.jpg" } as unknown as GuidebookRow;
+    const model = await buildGuideModel(row, resolver);
+    expect(model.custom.map((c) => c.title)).toContain("Pets");
+    expect(model.coverUrl).toBe("https://example.com/a🐶.jpg");
+    expect(JSON.stringify(model.custom)).not.toMatch(/\p{Extended_Pictographic}/u);
+  });
 
   it("the linter itself catches a stranded heading and a blank page", () => {
     const pages = ["cover title", "contents house guide", "house guide", "first card text more", "  "].map(norm);
