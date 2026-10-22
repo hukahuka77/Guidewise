@@ -10,7 +10,8 @@ import { ServiceError } from "@/lib/server/guidebookService";
 import { PDF_UPGRADE_PLAN, PLAN_CONFIGS, type PlanConfig } from "@/lib/server/plans";
 import { htmlToPdf } from "./browser";
 import { buildPdfContext } from "./context";
-import { buildGuideModel } from "./guide/model";
+import type { GuidePlan } from "./guide/compose";
+import { buildGuideModel, type GuideModel } from "./guide/model";
 import { renderGuide } from "./guide/render";
 import type { ThemeKey } from "./guide/themes";
 import type { PhotoResolver } from "./recommendations";
@@ -55,6 +56,9 @@ export interface PdfRequest {
   qrUrl: string | null;
 }
 
+/** Decides how the guide is presented; `null` keeps the standard design. Only called for layouts drawn by the design system. */
+export type Composer = (model: GuideModel) => Promise<GuidePlan | null>;
+
 /** Stable per-content identifier used for ETags: changes when the guidebook, template choice or templates change. */
 export function pdfEtag(gb: GuidebookRow, templateKey: string, extra = ""): string {
   const modified = gb.last_modified_time ?? "";
@@ -71,20 +75,32 @@ export function pdfTemplateFor(request: PdfRequest): string {
   return resolvePdfTemplate(request.template);
 }
 
-export async function generateGuidebookPdf(gb: GuidebookRow, request: PdfRequest, resolver = defaultResolver) {
+export async function generateGuidebookPdf(gb: GuidebookRow, request: PdfRequest, resolver = defaultResolver, compose?: Composer) {
   const templateKey = pdfTemplateFor(request);
   const theme = GUIDE_THEME_FOR_PDF[templateKey];
   if (theme) {
     const model = await buildGuideModel(gb, resolver, { qrUrl: request.qrUrl });
-    return htmlToPdf(renderGuide(model, { theme }).html);
+    const plan = compose ? await compose(model) : null;
+    return htmlToPdf(renderGuide(model, { theme: plan?.theme ?? theme, plan }).html);
   }
   const ctx = await buildPdfContext(gb, resolver, { qrUrl: request.qrUrl });
   return htmlToPdf(renderPdfHtml(templateKey, ctx));
 }
 
-export async function generatePrintPdf(gb: GuidebookRow, resolver = defaultResolver) {
+export async function generatePrintPdf(gb: GuidebookRow, resolver = defaultResolver, compose?: Composer) {
   const model = await buildGuideModel(gb, resolver);
-  return htmlToPdf(renderGuide(model, { theme: printThemeFor(gb.template_key) }).html);
+  const plan = compose ? await compose(model) : null;
+  return htmlToPdf(renderGuide(model, { theme: plan?.theme ?? printThemeFor(gb.template_key), plan }).html);
+}
+
+/** 403 (with an upgrade hint) unless the plan can use AI-designed PDFs: the paid plans that have the print-ready PDF. */
+export function assertAiPdfAllowed(plan: PlanConfig): void {
+  if (!plan.printPdf) {
+    throw new ServiceError(403, `AI-designed PDFs are included with the ${PLAN_CONFIGS[PDF_UPGRADE_PLAN].name} plan and above.`, {
+      upgrade: true,
+      feature: "ai_pdf",
+    });
+  }
 }
 
 /** 403 (with an upgrade hint) when the plan does not include this PDF; otherwise returns normally. */

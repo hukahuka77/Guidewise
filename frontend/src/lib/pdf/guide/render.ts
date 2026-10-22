@@ -1,5 +1,6 @@
 import { fontFaceCss } from "./fonts";
 import { icon } from "./icons";
+import type { GuidePlan } from "./compose";
 import type { GuideModel } from "./model";
 import { THEMES, themeVars, type ThemeKey } from "./themes";
 import type { NormalizedItem } from "../recommendations";
@@ -74,6 +75,7 @@ h1,h2,h3{font-family:var(--head-font);font-weight:var(--head-weight);margin:0;co
 .cover .kicker{font-size:9pt;letter-spacing:.28em;text-transform:uppercase;opacity:.9;margin-bottom:10pt}
 .cover h1{font-size:40pt;line-height:1.1;color:#fff;margin-bottom:10pt;max-width:6.2in}
 .cover .where{font-size:13pt;opacity:.95}
+.cover .tagline{font-family:var(--head-font);font-size:15pt;font-style:italic;opacity:.95;margin-bottom:8pt;max-width:5.6in}
 .cover .host{margin-top:22pt;padding-top:12pt;border-top:1px solid rgba(255,255,255,.45);font-size:10pt;opacity:.95;max-width:4in}
 
 /* contents */
@@ -91,6 +93,9 @@ h1,h2,h3{font-family:var(--head-font);font-weight:var(--head-weight);margin:0;co
 .sec-head{display:flex;align-items:center;gap:10pt;margin-bottom:12pt;padding-bottom:8pt;border-bottom:2px solid var(--accent);break-after:avoid}
 .sec-head .badge{display:inline-flex;align-items:center;justify-content:center;width:26pt;height:26pt;border-radius:50%;background:var(--accent);color:var(--on-accent)}
 .sec-head h2{font-size:20pt;line-height:1.15}
+.blurb{color:var(--muted);font-size:10.5pt;margin:-4pt 0 12pt;break-after:avoid}
+.good ul{margin:0;padding-left:14pt}
+.good li{margin:0 0 3pt;font-size:10.5pt}
 .stack>*+*{margin-top:10pt}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10pt}
 .span2{grid-column:span 2}
@@ -143,20 +148,41 @@ function placeCard(p: NormalizedItem, ico: string): string {
   }${p.description ? `<div class="desc">${esc(p.description)}</div>` : ""}</div></article>`;
 }
 
-function section(id: string, title: string, ico: string, body: string, newPage = false): string {
-  return `<section class="sec${newPage ? " new-page" : ""}" id="${esc(id)}"><header class="sec-head"><span class="badge">${icon(ico, 14)}</span><h2>${esc(title)}</h2></header>${body}</section>`;
+function section(id: string, title: string, ico: string, body: string, blurb = ""): string {
+  return `<section class="sec" id="${esc(id)}"><header class="sec-head"><span class="badge">${icon(ico, 14)}</span><h2>${esc(title)}</h2></header>${
+    blurb ? `<p class="blurb">${esc(blurb)}</p>` : ""
+  }${body}</section>`;
 }
 
-export function renderGuide(model: GuideModel, options: { theme: ThemeKey; pageSize?: PageSize }): GuideRender {
+export function renderGuide(
+  model: GuideModel,
+  options: { theme: ThemeKey; pageSize?: PageSize; plan?: GuidePlan | null },
+): GuideRender {
+  const plan = options.plan ?? null;
   const keep: [string, string][] = [];
-  const titles: { title: string; ico: string }[] = [];
-  const out: string[] = [];
+  const titles: { id: string; title: string; ico: string }[] = [];
+  const out: { id: string; html: string }[] = [];
   const has = (tab: string) => model.tabs.includes(tab);
+  /** Adds a section and returns the heading actually used (a composed plan may rename it). */
+  const addSection = (id: string, defaultTitle: string, ico: string, body: string): string => {
+    const title = plan?.sections[id]?.title || defaultTitle;
+    out.push({ id, html: section(id, title, ico, body, plan?.sections[id]?.blurb) });
+    titles.push({ id, title, ico });
+    return title;
+  };
+  const welcomeText = plan?.welcome || model.welcome;
 
   // ---- Welcome (+ host)
-  if (has("welcome") && (model.welcome || model.host.name || model.qrSrc)) {
+  if (has("welcome") && (welcomeText || model.host.name || model.qrSrc)) {
     const body: string[] = [];
-    if (model.welcome) body.push(`<div class="prose lead">${paras(model.welcome)}</div>`);
+    if (welcomeText) body.push(`<div class="prose lead">${paras(welcomeText)}</div>`);
+    if (plan?.highlights.length) {
+      body.push(
+        `<div class="card good" style="margin-top:14pt"><div class="label">${icon("sparkles", 11)}Good to know</div><ul>${plan.highlights
+          .map((h) => `<li>${esc(h)}</li>`)
+          .join("")}</ul></div>`,
+      );
+    }
     const stack: string[] = [];
     if (model.host.name || model.host.bio || model.host.contact) {
       stack.push(
@@ -173,10 +199,9 @@ export function renderGuide(model: GuideModel, options: { theme: ThemeKey; pageS
       );
     }
     if (stack.length) body.push(`<div class="stack" style="margin-top:14pt">${stack.join("")}</div>`);
-    out.push(section("welcome", "Welcome", "home", body.join("")));
-    titles.push({ title: "Welcome", ico: "home" });
-    if (model.welcome) keep.push(["Welcome", probe(model.welcome.split(/\n+/)[0])]);
-    else if (model.host.name) keep.push(["Welcome", probe(`Your host, ${model.host.name}`)]);
+    const title = addSection("welcome", "Welcome", "home", body.join(""));
+    if (welcomeText) keep.push([title, probe(welcomeText.split(/\n+/)[0])]);
+    else if (model.host.name) keep.push([title, probe(`Your host, ${model.host.name}`)]);
   }
 
   // ---- Arrival
@@ -197,9 +222,8 @@ export function renderGuide(model: GuideModel, options: { theme: ThemeKey; pageS
     if (model.emergencyContact) cards.push(infoCard("Emergency contact", "phone", model.emergencyContact, !model.fireExtinguisher));
     if (model.fireExtinguisher) cards.push(infoCard("Fire extinguisher", "shield", model.fireExtinguisher, !model.emergencyContact));
     if (cards.length) {
-      out.push(section("arrival", "Arriving & Getting Settled", "door", `<div class="grid2">${cards.join("")}</div>`));
-      titles.push({ title: "Arriving & Getting Settled", ico: "door" });
-      keep.push(["Arriving & Getting Settled", exp[0] ?? "ADDRESS"]);
+      const title = addSection("arrival", "Arriving & Getting Settled", "door", `<div class="grid2">${cards.join("")}</div>`);
+      keep.push([title, exp[0] ?? "ADDRESS"]);
       if (model.wifi?.network && model.wifi?.password) keep.push(["WI-FI NETWORK", "WI-FI PASSWORD"]);
     }
   }
@@ -209,9 +233,8 @@ export function renderGuide(model: GuideModel, options: { theme: ThemeKey; pageS
     const cards = model.manual
       .map((m) => `<div class="card">${m.name ? `<h3>${esc(m.name)}</h3>` : ""}${m.description ? paras(m.description) : ""}</div>`)
       .join("");
-    out.push(section("manual", "House Guide", "book", `<div class="stack">${cards}</div>`));
-    titles.push({ title: "House Guide", ico: "book" });
-    keep.push(["House Guide", probe(model.manual[0].name || model.manual[0].description)]);
+    const title = addSection("manual", "House Guide", "book", `<div class="stack">${cards}</div>`);
+    keep.push([title, probe(model.manual[0].name || model.manual[0].description)]);
     for (const m of model.manual) if (m.name && m.description) keep.push([probe(m.name), lastProbe(m.description)]);
   }
 
@@ -225,16 +248,14 @@ export function renderGuide(model: GuideModel, options: { theme: ThemeKey; pageS
           }</div></div>`,
       )
       .join("");
-    out.push(section("rules", "House Rules", "shield", `<div class="card list">${rows}</div>`));
-    titles.push({ title: "House Rules", ico: "shield" });
-    keep.push(["House Rules", probe(model.rules[0].name || model.rules[0].description)]);
+    const heading = addSection("rules", "House Rules", "shield", `<div class="card list">${rows}</div>`);
+    keep.push([heading, probe(model.rules[0].name || model.rules[0].description)]);
   }
 
   // ---- Places
   const placesSection = (id: string, title: string, ico: string, items: NormalizedItem[]) => {
-    out.push(section(id, title, ico, `<div class="places">${items.map((p) => placeCard(p, ico)).join("")}</div>`));
-    titles.push({ title, ico });
-    keep.push([title, probe(items[0].name)]);
+    const heading = addSection(id, title, ico, `<div class="places">${items.map((p) => placeCard(p, ico)).join("")}</div>`);
+    keep.push([heading, probe(items[0].name)]);
     for (const p of items) if (p.description) keep.push([probe(p.name), lastProbe(p.description)]);
   };
   if (has("food") && model.eat.length) placesSection("eat", "Places to Eat", "utensils", model.eat);
@@ -242,9 +263,8 @@ export function renderGuide(model: GuideModel, options: { theme: ThemeKey; pageS
 
   // ---- Custom tabs
   for (const c of model.custom) {
-    out.push(section(c.key, c.title, "sparkles", `<div class="prose">${c.paragraphs.map((p) => `<p>${esc(p)}</p>`).join("")}</div>`));
-    titles.push({ title: c.title, ico: "sparkles" });
-    keep.push([c.title, probe(c.paragraphs[0])]);
+    const title = addSection(c.key, c.title, "sparkles", `<div class="prose">${c.paragraphs.map((p) => `<p>${esc(p)}</p>`).join("")}</div>`);
+    keep.push([title, probe(c.paragraphs[0])]);
   }
 
   // ---- Checkout
@@ -264,29 +284,38 @@ export function renderGuide(model: GuideModel, options: { theme: ThemeKey; pageS
       );
     }
     parts.push(`<div class="closing"><div class="big">Thank you for staying with us!</div><div class="small">We hope you had a wonderful visit.</div></div>`);
-    out.push(section("checkout", "Checkout", "door", parts.join("")));
-    titles.push({ title: "Checkout", ico: "door" });
-    keep.push(["Checkout", model.checkOut ? "CHECK-OUT TIME" : probe(model.checkout[0].name || model.checkout[0].description)]);
+    const title = addSection("checkout", "Checkout", "door", parts.join(""));
+    keep.push([title, model.checkOut ? "CHECK-OUT TIME" : probe(model.checkout[0].name || model.checkout[0].description)]);
   }
 
   // A guidebook with nothing filled in yet still gets a real page instead of a blank one
   if (out.length === 0) {
-    out.push(
-      section(
-        "welcome",
-        "Welcome",
-        "home",
-        `<div class="prose lead"><p>Welcome to ${esc(model.title)}! We hope you have a wonderful stay.</p></div>`,
-      ),
+    addSection(
+      "welcome",
+      "Welcome",
+      "home",
+      `<div class="prose lead"><p>Welcome to ${esc(model.title)}! We hope you have a wonderful stay.</p></div>`,
     );
-    titles.push({ title: "Welcome", ico: "home" });
+  }
+
+  // ---- Order: a composed plan may reorder sections, but the Welcome stays first and Checkout (with the thank-you) last
+  if (plan?.order.length) {
+    const rank = (id: string) => {
+      if (id === "welcome") return -1;
+      if (id === "checkout") return Number.MAX_SAFE_INTEGER;
+      const i = plan.order.indexOf(id);
+      return i === -1 ? plan.order.length : i;
+    };
+    const byRank = (a: { id: string }, b: { id: string }) => rank(a.id) - rank(b.id);
+    out.sort(byRank);
+    titles.sort(byRank);
   }
 
   // ---- Cover and contents
   const coverStyle = model.coverUrl && cssUrl(model.coverUrl) ? ` style="background-image:url('${cssUrl(model.coverUrl)}')"` : "";
   const cover = `<section class="cover"${coverStyle}><div class="kicker">Guest Guide</div><h1>${esc(model.title)}</h1>${
-    model.city ? `<div class="where">${esc(model.city)}</div>` : ""
-  }${model.host.name ? `<div class="host">Welcome! Your host is ${esc(model.host.name)}.</div>` : ""}</section>`;
+    plan?.tagline ? `<div class="tagline">${esc(plan.tagline)}</div>` : ""
+  }${model.city ? `<div class="where">${esc(model.city)}</div>` : ""}${model.host.name ? `<div class="host">Welcome! Your host is ${esc(model.host.name)}.</div>` : ""}</section>`;
 
   const toc =
     titles.length > 3
@@ -299,7 +328,7 @@ export function renderGuide(model: GuideModel, options: { theme: ThemeKey; pageS
     options.theme,
     options.pageSize ?? "letter",
     model.title,
-  )}</style></head><body>${cover}${toc}<main>${out.join("")}</main></body></html>`;
+  )}</style></head><body>${cover}${toc}<main>${out.map((o) => o.html).join("")}</main></body></html>`;
 
   return { html, keepTogether: keep, sections: titles.map((t) => t.title) };
 }
