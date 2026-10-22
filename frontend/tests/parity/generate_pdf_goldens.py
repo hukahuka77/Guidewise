@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Render every fixture through the REAL Flask PDF code path (backend/main.py) and save the HTML that
-WeasyPrint would have been given. The Next.js renderer must produce the same HTML (pdf.parity.test.ts).
+WeasyPrint would have been given, for the layouts that still use their Flask-era templates (mobile, QR poster).
+The Next.js renderer must produce the same HTML (pdf.parity.test.ts).
 
 Run from the repository root with the backend dependencies and WeasyPrint installed:
     python3 frontend/tests/parity/generate_pdf_goldens.py
@@ -66,7 +67,7 @@ class FakeHTML:
         return b"%PDF-stub"
 pdf_main.HTML = FakeHTML
 
-PDF_KEYS = ["template_pdf_original", "template_pdf_basic", "template_pdf_mobile", "template_pdf_qr", "template_pdf_modern"]
+PDF_KEYS = ["template_pdf_mobile", "template_pdf_qr"]
 QR_URL = "https://www.example.com/g/my-place?x=1&y=(2)"
 
 out_dir = HERE / "golden_pdf"
@@ -115,7 +116,4 @@ for path in sorted((HERE / "fixtures").glob("*.json")):
             name = f"{path.stem}__{key}{'__qr' if qr else ''}.html"
             if not write(name):
                 continue
-    gb = make_gb(row)
-    pdf_main.create_print_pdf_from_web_template(gb)
-    write(f"{path.stem}__print.html")
 print(len(list(out_dir.glob("*.html"))), "goldens written")

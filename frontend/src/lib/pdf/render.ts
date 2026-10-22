@@ -13,20 +13,11 @@ export const ALLOWED_PDF_TEMPLATE_KEYS = [
   "template_pdf_qr",
   "template_pdf_modern",
 ];
+/** Layouts still drawn from their own templates (the others use the guide design system, see ./guide). */
 export const PDF_TEMPLATE_REGISTRY: Record<string, string> = {
-  template_pdf_original: "templates_pdf/template_pdf_original.html",
-  template_pdf_basic: "templates_pdf/template_pdf_basic.html",
   template_pdf_mobile: "templates_pdf/template_pdf_mobile.html",
   template_pdf_qr: "templates_pdf/template_pdf_qr.html",
 };
-/** Web template key -> print template (anything else prints with the welcomebook layout). */
-export const PRINT_TEMPLATE_REGISTRY: Record<string, string> = {
-  template_welcomebook: "templates_pdf/template_pdf_welcomebook.html",
-  template_generic: "templates_pdf/template_pdf_basic.html",
-  template_lifestyle: "templates_pdf/template_pdf_basic.html",
-  template_original: "templates_pdf/template_pdf_original.html",
-};
-
 (nunjucks as unknown as { lib: { escape: (s: string) => string } }).lib.escape = jinjaEscape;
 
 /** Port of `_css_url` in backend/main.py: a URL made safe for CSS `url('...')` inside a <style> block. */
@@ -56,14 +47,7 @@ export function resolvePdfTemplate(requested: string | null | undefined): string
 
 /** Template file for the stored web template key's *PDF* rendering (`create_guidebook_pdf`). */
 export function renderPdfHtml(templateKey: string, ctx: Record<string, unknown>): string {
-  const file = PDF_TEMPLATE_REGISTRY[templateKey] ?? PDF_TEMPLATE_REGISTRY.template_pdf_original;
+  const file = PDF_TEMPLATE_REGISTRY[templateKey];
+  if (!file) throw new Error(`No legacy PDF template for ${templateKey}`);
   return getEnv().render(file, { ctx: withPythonTruthiness(ctx) });
-}
-
-export function resolvePrintTemplate(webTemplateKey: string | null | undefined): string {
-  return webTemplateKey && webTemplateKey in PRINT_TEMPLATE_REGISTRY ? webTemplateKey : "template_welcomebook";
-}
-
-export function renderPrintHtml(webTemplateKey: string, ctx: Record<string, unknown>): string {
-  return getEnv().render(PRINT_TEMPLATE_REGISTRY[webTemplateKey], { ctx: withPythonTruthiness(ctx), show_watermark: false });
 }
