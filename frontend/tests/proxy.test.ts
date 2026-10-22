@@ -18,6 +18,7 @@ describe("proxyToBackend", () => {
   });
 
   it("marks proxied responses so they can be told apart from Next.js ones", async () => {
+    vi.stubEnv("DISABLE_BACKEND_FALLBACK", ""); // Preview builds run this suite with the switch on
     vi.stubGlobal("fetch", vi.fn(async () => new Response("ok")));
     const response = await proxyToBackend(new Request("https://example.com/api/guidebooks"));
     expect(response.headers.get("x-guidewise-served-by")).toBe("flask");
