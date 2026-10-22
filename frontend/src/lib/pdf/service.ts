@@ -6,10 +6,12 @@ import {
   googlePlacesPhotoUrl,
   googlePlacesTextSearch,
 } from "@/lib/server/googlePlaces";
+import { ServiceError } from "@/lib/server/guidebookService";
+import { PDF_UPGRADE_PLAN, PLAN_CONFIGS, type PlanConfig } from "@/lib/server/plans";
 import { htmlToPdf } from "./browser";
 import { buildPdfContext, buildPrintContext } from "./context";
 import type { PhotoResolver } from "./recommendations";
-import { renderPdfHtml, renderPrintHtml, resolvePdfTemplate, resolvePrintTemplate } from "./render";
+import { PDF_TEMPLATE_REGISTRY, renderPdfHtml, renderPrintHtml, resolvePdfTemplate, resolvePrintTemplate } from "./render";
 
 export const defaultResolver: PhotoResolver = {
   photoReference: googlePlacesPhotoReference,
@@ -52,4 +54,25 @@ export async function generatePrintPdf(gb: GuidebookRow, resolver = defaultResol
   const key = resolvePrintTemplate(gb.template_key);
   const ctx = await buildPrintContext(gb, resolver, { rawRules: key === "template_welcomebook" });
   return htmlToPdf(renderPrintHtml(key, ctx));
+}
+
+/** 403 (with an upgrade hint) when the plan does not include this PDF; otherwise returns normally. */
+export function assertPdfAllowed(plan: PlanConfig, kind: { print: true } | { template: string }): void {
+  if ("print" in kind) {
+    if (!plan.printPdf) {
+      throw new ServiceError(403, `The print-ready PDF is included with the ${PLAN_CONFIGS[PDF_UPGRADE_PLAN].name} plan and above.`, {
+        upgrade: true,
+        feature: "print_pdf",
+      });
+    }
+    return;
+  }
+  // Keys without their own layout (template_pdf_modern) print with the original one
+  const effective = kind.template in PDF_TEMPLATE_REGISTRY ? kind.template : "template_pdf_original";
+  if (plan.pdfTemplates !== null && !plan.pdfTemplates.includes(effective)) {
+    throw new ServiceError(403, `This PDF layout is included with the ${PLAN_CONFIGS[PDF_UPGRADE_PLAN].name} plan and above.`, {
+      upgrade: true,
+      feature: "pdf_template",
+    });
+  }
 }

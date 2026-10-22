@@ -97,14 +97,23 @@ describe("authentication and configuration", () => {
 });
 
 describe("create, read, update, delete over HTTP", () => {
-  it("POST /api/generate: 201 with ids and the draft headers", async () => {
+  it("POST /api/generate: 201 with ids and the public url on the free plan", async () => {
     const { res, body } = await createVia({ property_name: "Cozy Cabin", host_name: "Andrew" });
     expect(res.status).toBe(201);
     expect(body).toMatchObject({ ok: true, template_key: "template_original" });
     expect(body.guidebook_id).toMatch(/^[0-9a-f-]{36}$/);
-    expect(res.headers.get("X-Guidebook-Url")).toBe(`/edit/${body.guidebook_id}`);
-    expect(res.headers.get("X-Guidebook-Preview")).toMatch(new RegExp(`^/preview/${body.guidebook_id}\\?t=`));
-    expect(res.headers.get("Access-Control-Expose-Headers")).toContain("X-Guidebook-Preview");
+    expect(res.headers.get("X-Guidebook-Url")).toMatch(/^\/g\/cozy-cabin-[0-9a-f]{6}$/);
+    expect(res.headers.get("X-Guidebook-Preview")).toBeNull();
+    expect(res.headers.get("Access-Control-Expose-Headers")).toContain("X-Guidebook-Url");
+  });
+
+  it("POST /api/generate: 403 with an upgrade hint once the plan's guidebook cap is reached", async () => {
+    await setPlan(db.sql, OWNER, "starter");
+    for (let i = 0; i < 5; i++) expect((await createVia({ property_name: `House ${i}` })).res.status).toBe(201);
+    const { res, body } = await createVia({ property_name: "One too many" });
+    expect(res.status).toBe(403);
+    expect(body).toMatchObject({ upgrade: true, quota: "guidebooks" });
+    expect(body.error).toContain("up to 5 guidebooks");
   });
 
   it("POST /api/generate: active guidebooks return their public URL; bad input is a 400", async () => {
@@ -128,7 +137,7 @@ describe("create, read, update, delete over HTTP", () => {
     const list = await json(await listRoute(req("GET", "/api/guidebooks")));
     expect(list.ok).toBe(true);
     expect(list.items).toHaveLength(1);
-    expect(list.items[0]).toMatchObject({ id, property_name: "Lifecycle", active: false });
+    expect(list.items[0]).toMatchObject({ id, property_name: "Lifecycle", active: true });
     expect((await json(await listRoute(req("GET", "/api/guidebooks", "other")))).items).toEqual([]);
 
     const one = await json(await getOne(req("GET", `/api/guidebooks/${id}`), ctx(id)));
@@ -174,19 +183,15 @@ describe("template, toggle, publish over HTTP", () => {
     expect((await template(req("POST", `/api/guidebook/${id}/template`, "other", { template_key: "template_generic" }), ctx(id))).status).toBe(404);
   });
 
-  it("toggle: 403 with the plan message, then publishes and unpublishes", async () => {
+  it("toggle: unpublishes with a preview link, then republishes (no plan needed)", async () => {
     const { body } = await createVia({ property_name: "Toggle Me" });
     const id = body.guidebook_id as string;
-    const denied = await toggle(req("POST", `/api/guidebooks/${id}/toggle`), ctx(id));
-    expect(denied.status).toBe(403);
-    expect(await json(denied)).toEqual({ error: "Please upgrade to a paid plan to publish guidebooks" });
-
-    await setPlan(db.sql, OWNER, "starter");
-    const on = await json(await toggle(req("POST", `/api/guidebooks/${id}/toggle`), ctx(id)));
-    expect(on).toEqual({ ok: true, active: true, public_slug: "toggle-me", preview_url: null });
     const off = await json(await toggle(req("POST", `/api/guidebooks/${id}/toggle`), ctx(id)));
     expect(off).toMatchObject({ ok: true, active: false, public_slug: null });
     expect(off.preview_url).toMatch(/^\/preview\/.+\?t=/);
+    const on = await json(await toggle(req("POST", `/api/guidebooks/${id}/toggle`), ctx(id)));
+    expect(on).toMatchObject({ ok: true, active: true, preview_url: null });
+    expect(on.public_slug).toMatch(/^toggle-me/);
   });
 
   it("publish stores a snapshot that /g serves while fresh and replaces once edited", async () => {

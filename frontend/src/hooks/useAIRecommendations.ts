@@ -1,4 +1,5 @@
 import { getAuthHeaders } from "@/lib/authHeaders";
+import { throwApiError } from "@/lib/upgrade";
 import { useState } from 'react';
 import type { DynamicItem } from '@/components/sections/DynamicItemList';
 
@@ -36,7 +37,7 @@ export function useAIRecommendations(options: UseAIRecommendationsOptions) {
       });
 
       if (!res.ok) {
-        throw new Error("Failed to fetch food recommendations");
+        await throwApiError(res, "Failed to fetch food recommendations");
       }
 
       const data = await res.json();
@@ -107,7 +108,7 @@ export function useAIRecommendations(options: UseAIRecommendationsOptions) {
       });
 
       if (!res.ok) {
-        throw new Error("Failed to fetch activities recommendations");
+        await throwApiError(res, "Failed to fetch activities recommendations");
       }
 
       const data = await res.json();

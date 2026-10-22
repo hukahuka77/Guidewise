@@ -27,12 +27,12 @@ import {
   periodSeconds,
 } from "../src/lib/server/billingService";
 import { setSqlForTests } from "../src/lib/server/db";
-import { PLAN_CONFIGS, planForPriceId, planPriceId } from "../src/lib/server/plans";
+import { normalizePlan, PLAN_CONFIGS, planForPriceId, planPriceId } from "../src/lib/server/plans";
 import { ServiceError } from "../src/lib/server/guidebookService";
 import { proxyToBackend } from "../src/lib/server/proxy";
 import { setStripeForTests } from "../src/lib/server/stripeClient";
 
-const ENV_KEYS = ["STRIPE_STARTER_PRICE_ID", "STRIPE_GROWTH_PRICE_ID", "STRIPE_PRO_PRICE_ID", "STRIPE_ACTIVE_COUPON_ID", "STRIPE_PORTAL_CONFIGURATION_ID", "STRIPE_WEBHOOK_SECRET"];
+const ENV_KEYS = ["STRIPE_STARTER_PRICE_ID", "STRIPE_POWER_PRICE_ID", "STRIPE_PRO_PRICE_ID", "STRIPE_ACTIVE_COUPON_ID", "STRIPE_PORTAL_CONFIGURATION_ID", "STRIPE_WEBHOOK_SECRET"];
 const savedEnv: Record<string, string | undefined> = {};
 
 let db: TestDb;
@@ -47,7 +47,7 @@ afterAll(async () => {
 beforeEach(async () => {
   for (const k of ENV_KEYS) savedEnv[k] = process.env[k];
   process.env.STRIPE_STARTER_PRICE_ID = "price_starter";
-  process.env.STRIPE_GROWTH_PRICE_ID = "price_growth";
+  process.env.STRIPE_POWER_PRICE_ID = "price_power";
   process.env.STRIPE_PRO_PRICE_ID = "price_pro";
   setSqlForTests(db.sql);
   vi.mocked(proxyToBackend).mockClear();
@@ -71,6 +71,7 @@ function fakeStripe(overrides: Record<string, unknown> = {}) {
     subscriptions: { list: vi.fn(async () => ({ data: [] })), retrieve: vi.fn(async () => ({ id: "sub_1", items: { data: [] } })) },
     invoices: { list: vi.fn(async () => ({ data: [] })) },
     checkout: { sessions: { create: vi.fn(async () => ({ url: "https://checkout.stripe.test/s1" })) } },
+    coupons: { retrieve: vi.fn(async () => ({ valid: true })) },
     billingPortal: { sessions: { create: vi.fn(async () => ({ url: "https://portal.stripe.test/p1" })) } },
     ...overrides,
   };
@@ -91,13 +92,20 @@ const rejects = async (p: Promise<unknown>, status: number) => {
 describe("plans and period dates", () => {
   it("maps price ids to plans and back", () => {
     expect(planPriceId("starter")).toBe("price_starter");
-    expect(planPriceId("trial")).toBeNull();
+    expect(planPriceId("free")).toBeNull();
     expect(planPriceId("enterprise")).toBeNull();
     expect(planPriceId("nope")).toBeNull();
-    expect(planForPriceId("price_growth")).toBe("growth");
+    expect(planForPriceId("price_power")).toBe("power");
     expect(planForPriceId("price_unknown")).toBeNull();
     expect(planForPriceId(undefined)).toBeNull();
-    expect(PLAN_CONFIGS.pro.guidebookLimit).toBe(10);
+    expect(PLAN_CONFIGS.starter.guidebookLimit).toBe(5);
+    expect(PLAN_CONFIGS.power.guidebookLimit).toBe(100);
+    expect(PLAN_CONFIGS.pro.guidebookLimit).toBeNull();
+    expect(PLAN_CONFIGS.free.viewsPerMonth).toBe(30);
+    expect(PLAN_CONFIGS.starter.viewsPerMonth).toBeNull();
+    expect([5, 15, 30]).toEqual([PLAN_CONFIGS.starter.priceUsd, PLAN_CONFIGS.power.priceUsd, PLAN_CONFIGS.pro.priceUsd]);
+    // old stored names keep working
+    expect([normalizePlan("trial"), normalizePlan("growth"), normalizePlan("enterprise"), normalizePlan(null), normalizePlan("weird")]).toEqual(["free", "power", "pro", "free", "free"]);
   });
 
   it("reads billing periods from the subscription (old API) or its items (basil+)", () => {
@@ -109,9 +117,9 @@ describe("plans and period dates", () => {
 });
 
 describe("createCheckoutSession", () => {
-  it("rejects unknown, unpriced and enterprise plans", async () => {
+  it("rejects unknown, unpriced, free and enterprise plans", async () => {
     const stripe = fakeStripe();
-    for (const plan of ["nope", "enterprise", "trial", 5]) {
+    for (const plan of ["nope", "enterprise", "trial", "free", 5]) {
       const err = await rejects(createCheckoutSession(db.sql, stripe, user, { plan }, origin), 400);
       expect(err.message).toBe(`Invalid plan: ${plan}`);
     }
@@ -123,17 +131,30 @@ describe("createCheckoutSession", () => {
   it("creates a subscription checkout with metadata, return urls and the coupon", async () => {
     process.env.STRIPE_ACTIVE_COUPON_ID = "coupon_sale";
     const stripe = fakeStripe();
+    // "growth" is accepted as the old name of Power
     const result = await createCheckoutSession(db.sql, stripe, user, { plan: "growth" }, origin);
     expect(result).toEqual({ url: "https://checkout.stripe.test/s1" });
     expect(stripe.checkout.sessions.create).toHaveBeenCalledWith({
       mode: "subscription",
       customer_email: "owner@example.com",
-      line_items: [{ price: "price_growth", quantity: 1 }],
+      line_items: [{ price: "price_power", quantity: 1 }],
       success_url: "https://app.example.com/dashboard?upgraded=1",
       cancel_url: "https://app.example.com/pricing?canceled=1",
       discounts: [{ coupon: "coupon_sale" }],
-      metadata: { user_id: OWNER, plan: "growth" },
+      metadata: { user_id: OWNER, plan: "power" },
     });
+  });
+
+  it("drops a configured coupon that is expired or unknown instead of failing the checkout", async () => {
+    process.env.STRIPE_ACTIVE_COUPON_ID = "coupon_old";
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const expired = fakeStripe({ coupons: { retrieve: vi.fn(async () => ({ valid: false })) } });
+    await createCheckoutSession(db.sql, expired, user, { plan: "starter" }, origin);
+    expect(expired.checkout.sessions.create).toHaveBeenCalledWith(expect.objectContaining({ discounts: undefined }));
+    const missing = fakeStripe({ coupons: { retrieve: vi.fn(async () => { throw new Error("No such coupon"); }) } });
+    await createCheckoutSession(db.sql, missing, user, { plan: "starter" }, origin);
+    expect(missing.checkout.sessions.create).toHaveBeenCalledWith(expect.objectContaining({ discounts: undefined }));
+    warn.mockRestore();
   });
 
   it("defaults to starter and omits discounts without a coupon", async () => {
@@ -170,16 +191,18 @@ describe("createCheckoutSession", () => {
 });
 
 describe("billingSummary", () => {
-  it("defaults to the trial plan for users without a profile", async () => {
+  it("defaults to the free plan for users without a profile", async () => {
     const out = await billingSummary(db.sql, null, user);
     expect(out).toMatchObject({
-      plan: "trial", guidebook_limit: 0, active_guidebooks: 0, can_activate_more: false, plan_display: "Trial",
+      plan: "free", plan_display: "Free", guidebook_limit: null, guidebook_count: 0, active_guidebooks: 0,
+      can_create_more: true, can_activate_more: true, views_used: 0, views_limit: 30, ai_used: 0, ai_limit: 3,
+      features: { all_pdf_templates: false, print_pdf: false, analytics: false },
       stripe: { customer_id: null, subscription: null, invoices: [] },
     });
   });
 
   it("reports limits, usage and Stripe details (including basil-style period dates)", async () => {
-    await setPlan(db.sql, OWNER, "growth");
+    await setPlan(db.sql, OWNER, "power");
     const [{ id: propertyId }] = await db.sql`insert into property (name, user_id) values ('P', ${OWNER}) returning id`;
     await db.sql`insert into guidebook (id, property_id, user_id, active, template_key) values ('g1', ${propertyId}, ${OWNER}, true, 'template_original'), ('g2', ${propertyId}, ${OWNER}, false, 'template_original')`;
     const stripe = fakeStripe({
@@ -188,7 +211,10 @@ describe("billingSummary", () => {
       invoices: { list: vi.fn(async () => ({ data: [{ id: "in_1", status: "paid", amount_paid: 1999, created: 1700000000, hosted_invoice_url: "https://inv" }] })) },
     });
     const out = await billingSummary(db.sql, stripe, user);
-    expect(out).toMatchObject({ plan: "growth", guidebook_limit: 3, active_guidebooks: 1, can_activate_more: true, plan_display: "Growth" });
+    expect(out).toMatchObject({
+      plan: "power", guidebook_limit: 100, guidebook_count: 2, active_guidebooks: 1, can_create_more: true, plan_display: "Power",
+      price_usd: 15, views_limit: null, ai_limit: 150, features: { all_pdf_templates: true, print_pdf: true, analytics: true },
+    });
     expect(out.stripe).toEqual({
       customer_id: "cus_9",
       subscription: { id: "sub_9", status: "active", current_period_end: 1900000000 },
@@ -196,14 +222,24 @@ describe("billingSummary", () => {
     });
   });
 
-  it("handles enterprise (unlimited), grandfathered limits and Stripe failures", async () => {
+  it("maps old plan names, reports caps and usage, and survives Stripe failures", async () => {
     await setPlan(db.sql, OWNER, "enterprise");
-    expect(await billingSummary(db.sql, null, user)).toMatchObject({ plan: "enterprise", guidebook_limit: null, can_activate_more: true });
+    expect(await billingSummary(db.sql, null, user)).toMatchObject({ plan: "pro", guidebook_limit: null, can_create_more: true });
+    await setPlan(db.sql, OWNER, "growth");
+    expect(await billingSummary(db.sql, null, user)).toMatchObject({ plan: "power", guidebook_limit: 100 });
+    await setPlan(db.sql, OWNER, "starter");
+    const [{ id: propertyId }] = await db.sql`insert into property (name, user_id) values ('P', ${OWNER}) returning id`;
+    for (let i = 0; i < 5; i++) await db.sql`insert into guidebook (id, property_id, user_id, template_key) values (${`c${i}`}, ${propertyId}, ${OWNER}, 'template_original')`;
+    await db.sql`insert into guidebook_view_daily (guidebook_id, user_id, day, views) values ('c0', ${OWNER}, (now() at time zone 'utc')::date, 7)`;
+    await db.sql`insert into ai_usage_monthly (user_id, month, used) values (${OWNER}, date_trunc('month', now() at time zone 'utc')::date, 4)`;
+    expect(await billingSummary(db.sql, null, user)).toMatchObject({
+      plan: "starter", guidebook_limit: 5, guidebook_count: 5, can_create_more: false, views_used: 7, views_limit: null, ai_used: 4, ai_limit: 30,
+    });
     await setPlan(db.sql, OWNER, "legacy", 7);
-    expect(await billingSummary(db.sql, null, user)).toMatchObject({ plan: "legacy", guidebook_limit: 7, plan_display: "Trial" });
+    expect(await billingSummary(db.sql, null, user)).toMatchObject({ plan: "free", plan_display: "Free" });
     const broken = fakeStripe({ customers: { list: vi.fn(async () => { throw new Error("nope"); }) } });
     const out = await billingSummary(db.sql, broken, user);
-    expect(out.plan).toBe("legacy");
+    expect(out.plan).toBe("free");
     expect(out.stripe).toEqual({ customer_id: null, subscription: null, invoices: [] });
   });
 });
@@ -238,7 +274,7 @@ describe("handleStripeEvent", () => {
     const stripe = fakeStripe({ subscriptions: { retrieve: vi.fn(async () => sub()), list: vi.fn() } });
     await handleStripeEvent(db.sql, stripe, ev("checkout.session.completed", { metadata: { user_id: OWNER, plan: "pro" }, subscription: "sub_1", customer: "cus_1" }));
     const [p] = await db.sql`select * from profiles where user_id = ${OWNER}::uuid`;
-    expect(p).toMatchObject({ plan: "pro", guidebook_limit: 10, stripe_customer_id: "cus_1", stripe_subscription_id: "sub_1" });
+    expect(p).toMatchObject({ plan: "pro", guidebook_limit: null, stripe_customer_id: "cus_1", stripe_subscription_id: "sub_1" });
     expect(p.pro_starts_at.toISOString()).toBe("2023-11-14T22:13:20.000Z");
     expect(p.pro_expires_at.toISOString()).toBe("2023-12-14T22:13:20.000Z");
   });
@@ -248,7 +284,7 @@ describe("handleStripeEvent", () => {
     const stripe = fakeStripe({ subscriptions: { retrieve: vi.fn(async () => { throw new Error("No such subscription"); }), list: vi.fn() } });
     await handleStripeEvent(db.sql, stripe, ev("checkout.session.completed", { metadata: { user_id: OWNER, plan: "starter" }, subscription: "sub_x", customer: "cus_x" }));
     const [p] = await db.sql`select * from profiles where user_id = ${OWNER}::uuid`;
-    expect(p).toMatchObject({ plan: "starter", guidebook_limit: 1, stripe_subscription_id: "sub_x", pro_starts_at: null });
+    expect(p).toMatchObject({ plan: "starter", guidebook_limit: 5, stripe_subscription_id: "sub_x", pro_starts_at: null });
     expect((await db.sql`select count(*)::int as n from profiles`)[0].n).toBe(1);
   });
 
@@ -290,16 +326,16 @@ describe("handleStripeEvent", () => {
     expect((await db.sql`select plan from profiles`)[0].plan).toBe("pro");
   });
 
-  it("subscription deleted, or canceled/unpaid/past_due, downgrades to trial and unpublishes every guidebook", async () => {
+  it("subscription deleted, or canceled/unpaid/past_due, returns to the free plan and leaves guidebooks published", async () => {
     for (const [type, status] of [["customer.subscription.deleted", "canceled"], ["customer.subscription.updated", "past_due"], ["customer.subscription.updated", "unpaid"], ["customer.subscription.updated", "canceled"]]) {
       await db.reset();
       await db.sql`insert into profiles (user_id, plan, guidebook_limit, stripe_subscription_id) values (${OWNER}::uuid, 'pro', 10, 'sub_1'), (${OTHER}::uuid, 'pro', 10, 'sub_other')`;
       const [{ id: pid }] = await db.sql`insert into property (name, user_id) values ('P', ${OWNER}) returning id`;
       await db.sql`insert into guidebook (id, property_id, user_id, active, template_key) values ('mine1', ${pid}, ${OWNER}, true, 'template_original'), ('mine2', ${pid}, ${OWNER}, true, 'template_original'), ('theirs', ${pid}, ${OTHER}, true, 'template_original')`;
       await handleStripeEvent(db.sql, null, ev(type, sub({ status })));
-      expect((await db.sql`select plan, guidebook_limit from profiles where user_id = ${OWNER}::uuid`)[0]).toEqual({ plan: "trial", guidebook_limit: 0 });
+      expect((await db.sql`select plan, guidebook_limit from profiles where user_id = ${OWNER}::uuid`)[0]).toEqual({ plan: "free", guidebook_limit: null });
       expect((await db.sql`select plan from profiles where user_id = ${OTHER}::uuid`)[0].plan).toBe("pro");
-      expect((await db.sql`select id from guidebook where active = true order by id`).map((r) => r.id)).toEqual(["theirs"]);
+      expect((await db.sql`select id from guidebook where active = true order by id`).map((r) => r.id)).toEqual(["mine1", "mine2", "theirs"]);
     }
   });
 
@@ -311,14 +347,14 @@ describe("handleStripeEvent", () => {
 
   it("subscription.updated (active) switches the plan by price id and keeps existing dates when none are sent", async () => {
     await db.sql`insert into profiles (user_id, plan, guidebook_limit, stripe_subscription_id, pro_starts_at, pro_expires_at)
-                 values (${OWNER}::uuid, 'starter', 1, 'sub_1', '2023-01-01T00:00:00Z', '2023-02-01T00:00:00Z')`;
-    await handleStripeEvent(db.sql, null, ev("customer.subscription.updated", sub({ items: { data: [{ price: { id: "price_growth" } }] } })));
+                 values (${OWNER}::uuid, 'starter', 5, 'sub_1', '2023-01-01T00:00:00Z', '2023-02-01T00:00:00Z')`;
+    await handleStripeEvent(db.sql, null, ev("customer.subscription.updated", sub({ items: { data: [{ price: { id: "price_power" } }] } })));
     let [p] = await db.sql`select * from profiles`;
-    expect(p).toMatchObject({ plan: "growth", guidebook_limit: 3 });
+    expect(p).toMatchObject({ plan: "power", guidebook_limit: 100 });
     expect(p.pro_expires_at.toISOString()).toBe("2023-02-01T00:00:00.000Z"); // no dates in the event: kept
     await handleStripeEvent(db.sql, null, ev("customer.subscription.updated", sub()));
     [p] = await db.sql`select * from profiles`;
-    expect(p).toMatchObject({ plan: "pro", guidebook_limit: 10 });
+    expect(p).toMatchObject({ plan: "pro", guidebook_limit: null });
     expect(p.pro_expires_at.toISOString()).toBe("2023-12-14T22:13:20.000Z");
   });
 
@@ -428,7 +464,7 @@ describe("billing routes", () => {
   it("summary and portal respond with the service results", async () => {
     setStripeForTests(fakeStripe({ customers: { list: vi.fn(async () => ({ data: [{ id: "cus_1" }] })) } }));
     const summary = await (await call(summaryRoute, "GET", "/api/billing/summary")).json() as Record<string, unknown>;
-    expect(summary).toMatchObject({ plan: "trial", guidebook_limit: 0, stripe: { customer_id: "cus_1" } });
+    expect(summary).toMatchObject({ plan: "free", guidebook_limit: null, views_limit: 30, stripe: { customer_id: "cus_1" } });
     const portal = await call(portalRoute, "POST", "/api/billing/create-portal-session");
     expect(await portal.json()).toEqual({ url: "https://portal.stripe.test/p1" });
     const noEmail = await call(portalRoute, "POST", "/api/billing/create-portal-session", "noemail");

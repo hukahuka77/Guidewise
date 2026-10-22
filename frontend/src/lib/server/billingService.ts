@@ -1,7 +1,8 @@
 import type Stripe from "stripe";
 import type { Sql } from "./db";
 import { ServiceError } from "./guidebookService";
-import { PLAN_CONFIGS, planForPriceId, planPriceId } from "./plans";
+import { normalizePlan, PLAN_CONFIGS, planForPriceId, planPriceId, PURCHASABLE_PLANS } from "./plans";
+import { aiUsage, monthlyViews } from "./usage";
 
 // Port of the billing routes and the Stripe webhook in backend/app.py.
 
@@ -42,17 +43,19 @@ export async function createCheckoutSession(
   body: Dict,
   origin: string,
 ): Promise<{ url: string | null }> {
-  const plan = body.plan === undefined ? "starter" : body.plan;
-  const priceId = typeof plan === "string" && plan in PLAN_CONFIGS ? planPriceId(plan) : null;
-  if (typeof plan !== "string" || !(plan in PLAN_CONFIGS) || !priceId) {
-    throw new ServiceError(400, `Invalid plan: ${String(plan)}`);
+  const requested = body.plan === undefined ? "starter" : body.plan;
+  // "growth" is the old name of the Power plan
+  const plan = typeof requested === "string" ? normalizePlan(requested) : "";
+  const priceId = PURCHASABLE_PLANS.includes(plan) ? planPriceId(plan) : null;
+  if (typeof requested !== "string" || !PURCHASABLE_PLANS.includes(plan) || (requested.toLowerCase() !== "growth" && requested.toLowerCase() !== plan) || !priceId) {
+    throw new ServiceError(400, `Invalid plan: ${String(requested)}`);
   }
 
   // Already subscribed according to our database?
   try {
     const rows = await sql`select plan from public.profiles where user_id = ${user.id}::uuid`;
     const current = rows[0]?.plan as string | undefined;
-    if (current && current in PLAN_CONFIGS) {
+    if (current && PURCHASABLE_PLANS.includes(normalizePlan(current))) {
       throw new ServiceError(409, "You already have a subscription. Use the billing portal to change plans.", {
         redirect: "/dashboard/billing",
       });
@@ -77,7 +80,16 @@ export async function createCheckoutSession(
   }
 
   try {
-    const coupon = process.env.STRIPE_ACTIVE_COUPON_ID;
+    // A coupon left configured after its campaign ended would make Stripe reject every checkout
+    let coupon = process.env.STRIPE_ACTIVE_COUPON_ID;
+    if (coupon) {
+      try {
+        if (!(await stripe.coupons.retrieve(coupon)).valid) coupon = undefined;
+      } catch {
+        coupon = undefined;
+      }
+      if (!coupon) console.warn("STRIPE_ACTIVE_COUPON_ID is not a valid coupon; creating checkout without a discount");
+    }
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer_email: user.email ?? undefined,
@@ -98,20 +110,19 @@ export async function createCheckoutSession(
 // ---------------------------------------------------------------------------------------------
 
 export async function billingSummary(sql: Sql, stripe: Stripe | null, user: BillingUser): Promise<Dict> {
-  let plan = "trial";
-  let limit: number | null = 0;
+  let planKey = "free";
   try {
-    const rows = await sql`select plan, guidebook_limit from public.profiles where user_id = ${user.id}::uuid`;
-    const row = rows[0];
-    plan = (row?.plan as string | undefined) || "trial";
-    limit = plan in PLAN_CONFIGS ? PLAN_CONFIGS[plan].guidebookLimit : (row?.guidebook_limit ?? 0);
+    const rows = await sql`select plan from public.profiles where user_id = ${user.id}::uuid`;
+    planKey = normalizePlan(rows[0]?.plan);
   } catch {
-    plan = "trial";
-    limit = 0;
+    planKey = "free";
   }
+  const plan = PLAN_CONFIGS[planKey];
 
-  const [{ count }] = await sql`select count(*)::int as count from guidebook where user_id = ${user.id} and active = true`;
-  const activeCount = (count as number) || 0;
+  const [counts] = await sql`
+    select count(*)::int as total, count(*) filter (where active)::int as active from guidebook where user_id = ${user.id}`;
+  const viewsUsed = await monthlyViews(sql, user.id).catch(() => 0);
+  const aiUsed = await aiUsage(sql, user.id).catch(() => 0);
 
   const stripeInfo: { customer_id: string | null; subscription: Dict | null; invoices: Dict[] } = {
     customer_id: null,
@@ -147,11 +158,23 @@ export async function billingSummary(sql: Sql, stripe: Stripe | null, user: Bill
   }
 
   return {
-    plan,
-    guidebook_limit: limit,
-    active_guidebooks: activeCount,
-    can_activate_more: limit === null || activeCount < limit,
-    plan_display: PLAN_CONFIGS[plan]?.name ?? "Trial",
+    plan: planKey,
+    plan_display: plan.name,
+    price_usd: plan.priceUsd,
+    guidebook_limit: plan.guidebookLimit,
+    guidebook_count: counts.total,
+    active_guidebooks: counts.active,
+    can_create_more: plan.guidebookLimit === null || counts.total < plan.guidebookLimit,
+    can_activate_more: true,
+    views_used: viewsUsed,
+    views_limit: plan.viewsPerMonth,
+    ai_used: aiUsed,
+    ai_limit: plan.aiPerMonth,
+    features: {
+      all_pdf_templates: plan.pdfTemplates === null,
+      print_pdf: plan.printPdf,
+      analytics: plan.analytics,
+    },
     stripe: stripeInfo,
   };
 }
@@ -217,10 +240,10 @@ export async function handleStripeEvent(sql: Sql, stripe: Stripe | null, event: 
     case "checkout.session.completed": {
       const metadata = asDict(obj.metadata);
       const userId = asString(metadata.user_id);
-      const plan = asString(metadata.plan) || "starter";
+      const plan = normalizePlan(asString(metadata.plan) || "starter");
       const subscriptionId = asString(obj.subscription);
       const customerId = asString(obj.customer);
-      if (!userId || !(plan in PLAN_CONFIGS)) return;
+      if (!userId || !PURCHASABLE_PLANS.includes(plan)) return;
 
       const limit = PLAN_CONFIGS[plan].guidebookLimit;
       const dates = subscriptionId && stripe ? await fetchSubscriptionDates(stripe, subscriptionId) : { starts: null, expires: null };
@@ -275,14 +298,8 @@ export async function handleStripeEvent(sql: Sql, stripe: Stripe | null, event: 
       if (!subscriptionId) return;
 
       if (event.type === "customer.subscription.deleted" || (status && ["canceled", "unpaid", "past_due"].includes(status))) {
-        // Downgrade to trial and unpublish everything
-        await sql.begin(async (tx) => {
-          const rows = await tx`select user_id from public.profiles where stripe_subscription_id = ${subscriptionId}`;
-          if (rows.length === 0) return;
-          const userId = rows[0].user_id as string;
-          await tx`update public.profiles set plan = 'trial', guidebook_limit = 0 where user_id = ${userId}::uuid`;
-          await tx`update guidebook set active = false where user_id = ${userId}`;
-        });
+        // Back to the free plan. Guidebooks stay published (free hosts get a monthly view allowance).
+        await sql`update public.profiles set plan = 'free', guidebook_limit = null where stripe_subscription_id = ${subscriptionId}`;
         return;
       }
 

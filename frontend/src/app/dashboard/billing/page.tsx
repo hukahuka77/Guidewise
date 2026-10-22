@@ -21,11 +21,16 @@ type InvoiceItem = {
 };
 
 type BillingSummary = {
-  plan: "trial" | "starter" | "growth" | "pro" | "enterprise" | string;
+  plan: "free" | "starter" | "power" | "pro" | string;
   guidebook_limit: number | null;
+  guidebook_count?: number;
   active_guidebooks: number;
-  can_activate_more: boolean;
+  can_create_more?: boolean;
   plan_display: string;
+  views_used?: number;
+  views_limit?: number | null;
+  ai_used?: number;
+  ai_limit?: number | null;
   stripe: {
     customer_id: string | null;
     subscription: { id: string; status?: string | null; current_period_end?: number | null } | null;
@@ -165,16 +170,19 @@ export default function BillingPage() {
                   </div>
                   <div className="mt-2 space-y-1">
                     <div className="text-sm text-gray-600">
-                      {summary.plan === 'trial' || summary.guidebook_limit === 0 ? (
-                        <span className="font-semibold text-amber-700">Preview only</span>
-                      ) : summary.guidebook_limit === null ? (
-                        <span className="font-semibold text-green-700">Unlimited active guidebooks</span>
+                      {summary.views_limit == null ? (
+                        <span className="font-semibold text-green-700">Unlimited guest views</span>
                       ) : (
                         <span>
-                          <span className="font-semibold">{summary.active_guidebooks} / {summary.guidebook_limit}</span> guidebooks active
+                          <span className="font-semibold">{summary.views_used ?? 0} / {summary.views_limit}</span> guest views this month
                         </span>
                       )}
                     </div>
+                    {summary.ai_limit != null && (
+                      <div className="text-sm text-gray-600">
+                        <span className="font-semibold">{summary.ai_used ?? 0} / {summary.ai_limit}</span> AI recommendation runs this month
+                      </div>
+                    )}
                     {summary.stripe.subscription?.current_period_end && (
                       <div className="text-xs text-gray-500">
                         Renews {new Date((summary.stripe.subscription.current_period_end as number) * 1000).toLocaleDateString()}
@@ -183,19 +191,14 @@ export default function BillingPage() {
                   </div>
                 </div>
                 <div className="flex flex-col gap-2">
-                  {summary.plan !== 'trial' && (
+                  {summary.plan !== 'free' && (
                     <Button onClick={openPortal} disabled={portalLoading}>
                       {portalLoading ? 'Opening…' : 'Manage Subscription'}
                     </Button>
                   )}
-                  {summary.plan === 'trial' && (
+                  {summary.plan !== 'pro' && (
                     <Link href="/pricing">
-                      <Button>Upgrade Plan</Button>
-                    </Link>
-                  )}
-                  {!summary.can_activate_more && summary.plan !== 'enterprise' && (
-                    <Link href="/pricing">
-                      <Button variant="outline">Upgrade for More</Button>
+                      <Button variant={summary.plan === 'free' ? 'default' : 'outline'}>{summary.plan === 'free' ? 'Upgrade Plan' : 'Change Plan'}</Button>
                     </Link>
                   )}
                 </div>

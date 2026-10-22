@@ -4,7 +4,7 @@ import { stripSurrogates } from "@/lib/guidebook/pyCompat";
 import { TEMPLATE_REGISTRY, renderPublishSnapshot } from "@/lib/guidebook/render";
 import type { GuidebookRow } from "@/lib/guidebook/types";
 import type { Sql } from "./db";
-import { PLAN_GUIDEBOOK_LIMITS } from "./plans";
+import { assertCanCreateGuidebook } from "./usage";
 
 // Port of the guidebook CRUD routes in backend/app.py. Everything that touches several tables runs
 // in one transaction, like the SQLAlchemy session it replaces.
@@ -26,7 +26,6 @@ export class ServiceError extends Error {
 }
 
 const isDict = (v: unknown): v is Dict => typeof v === "object" && v !== null && !Array.isArray(v);
-const isUuid = (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 const isoOrNull = (v: unknown) => (v instanceof Date ? v.toISOString() : v ? String(v) : null);
 const isDataUrl = (v: unknown) => typeof v === "string" && v.trim().startsWith("data:");
 const trimmedString = (v: unknown) => (typeof v === "string" ? v.trim() : "");
@@ -47,28 +46,6 @@ const tokenHex = (bytes: number) => randomBytes(bytes).toString("hex");
 // ---------------------------------------------------------------------------------------------
 // Plans
 // ---------------------------------------------------------------------------------------------
-
-/** How many guidebooks the user may have active. `null` = unlimited. */
-export async function getUserGuidebookLimit(sql: Sql, userId: string): Promise<number | null> {
-  if (!isUuid(userId)) return 0;
-  const rows = await sql`select plan, guidebook_limit from public.profiles where user_id = ${userId}::uuid`;
-  if (rows.length === 0) return 0; // no plan = preview only
-  const plan: string = rows[0].plan || "trial";
-  if (plan in PLAN_GUIDEBOOK_LIMITS) return PLAN_GUIDEBOOK_LIMITS[plan];
-  return rows[0].guidebook_limit ?? 0; // grandfathered/custom limit
-}
-
-export async function canActivateGuidebook(sql: Sql, userId: string): Promise<{ ok: boolean; message: string }> {
-  const limit = await getUserGuidebookLimit(sql, userId);
-  if (limit === null) return { ok: true, message: "Unlimited guidebooks" };
-  if (limit === 0) return { ok: false, message: "Please upgrade to a paid plan to publish guidebooks" };
-  const [{ count }] = await sql`select count(*)::int as count from guidebook where user_id = ${userId} and active = true`;
-  if (count < limit) return { ok: true, message: `${limit - count} slots remaining` };
-  return {
-    ok: false,
-    message: `You've reached your limit of ${limit} guidebooks. Upgrade or deactivate an existing guidebook.`,
-  };
-}
 
 // ---------------------------------------------------------------------------------------------
 // Preview links
@@ -184,6 +161,8 @@ export async function createGuidebook(sql: Sql, userId: string, data: Dict): Pro
 
   const rules = Array.isArray(data.rules) ? compileRulesInput(data.rules) : null;
 
+  await assertCanCreateGuidebook(sql, userId);
+
   return sql.begin(async (tx) => {
     // Host (optional)
     let hostId: number | null = null;
@@ -243,8 +222,8 @@ export async function createGuidebook(sql: Sql, userId: string, data: Dict): Pro
     // Auto-activate when the plan has a free slot
     let active = false;
     let publicSlug: string | null = null;
-    const eligible = await canActivateGuidebook(tx as unknown as Sql, userId);
-    if (eligible.ok) {
+    // Guidebooks are free to publish (creation is capped per plan instead), so every new one goes live.
+    {
       const base = slugify(propertyName);
       let slug = `${base}-${tokenHex(3)}`;
       let attempt = 0;
@@ -502,7 +481,7 @@ export interface ToggleResult {
   previewUrl: string | null;
 }
 
-/** POST /api/guidebooks/:id/toggle: publish/unpublish, enforcing the plan limit when publishing. */
+/** POST /api/guidebooks/:id/toggle: publish/unpublish (publishing is not limited by plan). */
 export async function toggleGuidebook(sql: Sql, userId: string, id: string): Promise<ToggleResult> {
   const result = await sql.begin(async (tx) => {
     const [gb] = await tx`
@@ -512,9 +491,6 @@ export async function toggleGuidebook(sql: Sql, userId: string, id: string): Pro
     if (!gb) throw new ServiceError(404, "Guidebook not found");
 
     if (!gb.active) {
-      const eligible = await canActivateGuidebook(tx as unknown as Sql, userId);
-      if (!eligible.ok) throw new ServiceError(403, eligible.message);
-
       let slug: string | null = gb.public_slug;
       if (!slug) {
         const base = slugify(gb.property_name);
