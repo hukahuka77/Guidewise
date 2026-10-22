@@ -60,6 +60,34 @@ function getCoverThumbUrl(coverUrl: string | null | undefined): string | null {
   return `${base}?width=600&height=300&quality=75`;
 }
 
+/** Last 30 days of guest views as small bars (Power and Pro plans). */
+function ViewSparkline({ points }: { points?: { day: string; views: number }[] }) {
+  const byDay = new Map((points || []).map((p) => [p.day, p.views]));
+  const today = new Date();
+  const days = Array.from({ length: 30 }, (_, i) => {
+    const d = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - (29 - i)));
+    const day = d.toISOString().slice(0, 10);
+    return { day, views: byDay.get(day) ?? 0 };
+  });
+  const max = Math.max(1, ...days.map((d) => d.views));
+  const total = days.reduce((n, d) => n + d.views, 0);
+  return (
+    <div className="mt-2" title={`${total} views in the last 30 days`}>
+      <div className="flex items-end gap-[2px] h-8" role="img" aria-label={`Views per day, last 30 days: ${total} total`}>
+        {days.map((d) => (
+          <div
+            key={d.day}
+            title={`${d.day}: ${d.views}`}
+            className="flex-1 rounded-t bg-[#CC7A52]"
+            style={{ height: `${Math.max(d.views === 0 ? 8 : 15, (d.views / max) * 100)}%`, opacity: d.views === 0 ? 0.25 : 1 }}
+          />
+        ))}
+      </div>
+      <div className="text-[10px] text-gray-400 mt-0.5">{total} in the last 30 days</div>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const [items, setItems] = useState<GuidebookItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,6 +97,7 @@ export default function DashboardPage() {
   const [plan, setPlan] = useState<'free'|'starter'|'power'|'pro'|''>('');
   const [usage, setUsage] = useState<{ viewsUsed: number; viewsLimit: number | null; analytics: boolean }>({ viewsUsed: 0, viewsLimit: null, analytics: false });
   const [viewsByGuidebook, setViewsByGuidebook] = useState<Record<string, number>>({});
+  const [dailyByGuidebook, setDailyByGuidebook] = useState<Record<string, { day: string; views: number }[]>>({});
   const [toggling, setToggling] = useState<string | null>(null); // guidebook id being toggled
 
   // UI state
@@ -132,8 +161,15 @@ export default function DashboardPage() {
             if (v.ok) {
               const vj = await v.json();
               const map: Record<string, number> = {};
-              for (const g of vj?.guidebooks || []) map[g.id] = g.views_month || 0;
-              if (!cancelled) setViewsByGuidebook(map);
+              const daily: Record<string, { day: string; views: number }[]> = {};
+              for (const g of vj?.guidebooks || []) {
+                map[g.id] = g.views_month || 0;
+                if (Array.isArray(g.daily)) daily[g.id] = g.daily;
+              }
+              if (!cancelled) {
+                setViewsByGuidebook(map);
+                setDailyByGuidebook(daily);
+              }
             }
           }
         } catch {}
@@ -336,6 +372,11 @@ export default function DashboardPage() {
             <Link href="/onboarding">
               <Button>Create New</Button>
             </Link>
+            {usage.analytics && (
+              <Link href="/dashboard/analytics">
+                <Button variant="outline">Analytics</Button>
+              </Link>
+            )}
             {plan !== 'pro' && plan !== '' && (
               <Link href="/pricing">
                 <Button variant="secondary">Upgrade</Button>
@@ -402,6 +443,7 @@ export default function DashboardPage() {
                            gb.created_time ? `Created ${new Date(gb.created_time).toLocaleString()}` : ''}
                         </div>
                         <div className="text-xs text-gray-500">{viewsByGuidebook[gb.id] ?? 0} views this month</div>
+                        {usage.analytics && <ViewSparkline points={dailyByGuidebook[gb.id]} />}
                       </div>
                       <span className="text-[10px] px-2 py-1 bg-gray-100 rounded border text-gray-600">
                         {TEMPLATE_DISPLAY_NAMES[gb.template_key || "template_original"] || "Original"}
