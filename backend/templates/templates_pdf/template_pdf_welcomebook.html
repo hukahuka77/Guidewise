@@ -35,7 +35,7 @@
       align-items: center;
       justify-content: center;
       text-align: center;
-      background: {% if ctx.cover_image_url %}linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.5)), url('{{ ctx.cover_image_url }}') center/cover{% else %}linear-gradient(135deg, #D4A574 0%, #8B6F47 100%){% endif %};
+      background: {% if ctx.cover_image_url %}linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.5)), url('{{ ctx.cover_image_url | css_url }}') center/cover{% else %}linear-gradient(135deg, #D4A574 0%, #8B6F47 100%){% endif %};
       padding: 2in;
       position: relative;
     }

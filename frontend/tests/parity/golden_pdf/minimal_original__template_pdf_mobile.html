@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Guidebook</title>
+  <style>
+    @page { size: A4; margin: 0; }
+    html, body { margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", Arial, sans-serif; color: #111827; background: #F8F5F1; }
+    h1, h2, h3 { color: #1f2937; }
+    .page { page-break-after: always; padding: 2.2cm; box-sizing: border-box; height: 297mm; position: relative; }
+    .page:last-of-type { page-break-after: auto; }
+    .cover { display:flex; align-items:center; justify-content:center; text-align:center; padding:0; background: #111827; }
+    .cover-overlay { background: rgba(0,0,0,0.45); width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
+    .cover-title { color:#fff; font-weight:800; font-size:48px; letter-spacing:0.3px; border:3px solid #fff; padding: 18px 36px; }
+    .title { font-size: 30px; border-bottom: 1px solid #D5D8DC; padding-bottom: 8px; margin: 0 0 24px; }
+    .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap: 28px; }
+    .kv { margin: 4px 0; }
+    .label { font-weight: 700; }
+    .muted { color:#6b7280; }
+    .small { font-size: 10pt; }
+    .qr { position:absolute; top:2.2cm; right:2.2cm; background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:8px; width:3.5cm; text-align:center; }
+    .qr img { width:100%; height:auto; display:block; }
+    .qr .cap { font-size:10px; color:#6b7280; margin-top:4px; }
+    .items .item { display:flex; margin-bottom: 18px; }
+    .items .item img { width:96px; height:96px; object-fit:cover; border-radius:8px; margin-right: 14px; display:block; }
+    .rules { list-style:none; padding:0; column-count:2; column-gap: 24px; }
+    .rules li { margin-bottom: 10px; }
+
+    /* Preview Mode Watermark - for PDF */
+    .preview-watermark {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-45deg);
+      font-size: 10rem;
+      font-weight: 900;
+      color: rgba(0, 0, 0, 0.12);
+      pointer-events: none;
+      z-index: 9998;
+      user-select: none;
+      white-space: nowrap;
+      letter-spacing: 0.1em;
+    }
+  </style>
+  
+  <style>
+    /* Mobile-friendly page sizing and typography */
+    @page { size: 420px 740px; margin: 0; }
+    body { font-family: Inter, Arial, sans-serif; font-size: 12px; background: #F8F5F1; }
+    .page { position: relative; padding: 16px; height: auto; min-height: 740px; box-sizing: border-box; }
+
+    .nav-title { font-size: 20px; font-weight: 800; letter-spacing: 0.5px; }
+    .subtitle { color: #444; font-size: 12px; margin-top: 2px; }
+
+    .menu-wrap { min-height: calc(740px - 32px); display:flex; flex-direction:column; align-items:center; justify-content:center; gap: 10px; }
+    .nav-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 8px; width: 100%; max-width: 360px; }
+    .nav-btn { display: block; text-decoration: none; color: #222; border: 1px solid #ddd; border-radius: 12px; padding: 10px 8px; text-align: center; background: #fafafa; min-height: 76px; }
+    .nav-icon { font-size: 20px; display:block; margin-bottom: 6px; line-height: 1; height: 20px; overflow: hidden; font-family: "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji", sans-serif; }
+    .nav-label { font-size: 11px; font-weight: 600; }
+
+    .qr { position:absolute; right: 8px; top: 8px; width: 70px; text-align: center; }
+    .qr img { width: 100%; height: auto; }
+    .qr .cap { font-size: 9px; margin-top: 2px; color:#666; }
+
+    h1.title { font-size: 18px; margin: 0 0 8px 0; }
+    h2 { font-size: 13px; margin: 10px 0 4px 0; }
+    p { margin: 4px 0; }
+    .kv .label { font-weight: 700; }
+    .small { font-size: 11px; }
+    /* Home (Back-to-menu) circular icon button using inline SVG to avoid emoji duplication */
+    .back { position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border-radius: 50%; border: 1px solid #d1d5db; background:#ffffff; display:block; text-decoration:none; overflow:hidden; text-indent: -9999px; }
+    .back { background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23111' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M3 11l9-8 9 8'/><path d='M5 12v9h14v-9'/></svg>"); background-repeat:no-repeat; background-position:center; background-size:18px 18px; }
+
+    ul { margin: 6px 0 0 14px; }
+    ul.rules { list-style: disc; }
+
+    /* Card-like blocks for check-in/out page */
+    .chip { background: #f1f1f1; border-radius: 16px; padding: 8px 10px; margin: 8px 0; }
+  </style>
+
+</head>
+<body>
+  
+
+  
+  
+  <div class="page" id="menu">
+    
+
+    <div class="menu-wrap">
+      <div style="text-align:center;">
+        <div class="nav-title">My Guidebook</div>
+        
+      </div>
+
+      <div class="nav-grid">
+        <a class="nav-btn" href="#sec-welcome"><span class="nav-icon">👋</span><span class="nav-label">Welcome</span></a>
+        <a class="nav-btn" href="#sec-checkin"><span class="nav-icon">🛎️</span><span class="nav-label">Check-in/Out</span></a>
+        
+        
+        
+        
+        
+        
+        
+        
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+        
+      </div>
+    </div>
+  </div>
+
+  
+  <div class="page" id="sec-welcome">
+    <a class="back" href="#menu">Back to menu</a>
+    <h1 class="title">Welcome</h1>
+    
+
+    <h2>Location & Access</h2>
+    
+    
+    
+  </div>
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+    
+  
+
+  
+
+
+</body>
+</html>

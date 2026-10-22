@@ -28,7 +28,7 @@ import { buildGuidebookPayload } from "@/utils/guidebookPayload";
 import { EDIT_SECTIONS_ORDER } from "@/config/sections";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL as string;
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 const BUCKET_NAME = process.env.NEXT_PUBLIC_SUPABASE_FOOD_ACTIVITIES_BUCKET as string;
 const HOUSE_MEDIA_BUCKET = process.env.NEXT_PUBLIC_SUPABASE_USER_VIDEOS_BUCKET as string;
 

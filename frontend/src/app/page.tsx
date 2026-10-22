@@ -84,7 +84,7 @@ export default function Home() {
               <div className="rounded-2xl overflow-hidden shadow-xl border-4 border-gray-300 bg-gray-100 p-2">
                 <div className="rounded-xl overflow-hidden bg-white shadow-inner">
                   <iframe
-                    src="https://guidewise.onrender.com/g/the-white-house"
+                    src="/g/the-white-house"
                     title="Demo Guidebook"
                     className="w-full h-[800px] lg:h-[900px]"
                     style={{ border: 'none' }}
@@ -95,12 +95,14 @@ export default function Home() {
 
             {/* QR code + link under demo */}
             <div className="mt-8 flex items-center justify-center gap-5">
-              <Link
-                href="https://guidewise.onrender.com/g/the-white-house"
+              {/* Plain anchor on purpose: /g/[slug] is an HTML route handler, not a client-routed page. */}
+              {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+              <a
+                href="/g/the-white-house"
                 className="inline-flex items-center px-3 py-2 rounded-xl text-pink-600 font-medium whitespace-nowrap no-underline hover:no-underline border border-transparent hover:border-pink-200 hover:bg-pink-50 hover:text-pink-700 transition-colors duration-200"
               >
                 Or check it out on your phone →
-              </Link>
+              </a>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/images/QR_Code_WhiteHouse.png"

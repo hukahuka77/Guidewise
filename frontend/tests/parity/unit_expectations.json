@@ -1,0 +1,488 @@
+{
+ "place_photo_url": [
+  {
+   "input": {
+    "name": "A",
+    "image_url": "CmRaAAAAref",
+    "place_id": "ChIJ1"
+   },
+   "expected": "/api/place-photo?maxwidth=800&place_id=ChIJ1&photo_reference=CmRaAAAAref&query=A"
+  },
+  {
+   "input": {
+    "name": "A",
+    "image_url": "CmRaAAAAref"
+   },
+   "expected": "/api/place-photo?maxwidth=800&photo_reference=CmRaAAAAref&query=A"
+  },
+  {
+   "input": {
+    "name": "A",
+    "place_id": "ChIJ1"
+   },
+   "expected": "/api/place-photo?maxwidth=800&place_id=ChIJ1&query=A"
+  },
+  {
+   "input": {
+    "name": "A"
+   },
+   "expected": ""
+  },
+  {
+   "input": {
+    "image_url": "https://example.com/x.jpg",
+    "place_id": "p"
+   },
+   "expected": "https://example.com/x.jpg"
+  },
+  {
+   "input": {
+    "image_url": "data:image/png;base64,AAAA"
+   },
+   "expected": "/api/place-photo?maxwidth=800&photo_reference=data%3Aimage%2Fpng%3Bbase64%2CAAAA"
+  },
+  {
+   "input": {
+    "image_url": "https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=REF%2Fabc+d&key=K",
+    "name": "N",
+    "address": "1 St"
+   },
+   "expected": "/api/place-photo?maxwidth=800&photo_reference=REF%2Fabc+d&query=N%2C+1+St"
+  },
+  {
+   "input": {
+    "image_url": "https://maps.googleapis.com/maps/api/place/photo?photo_reference=&key=K",
+    "place_id": "p"
+   },
+   "expected": "https://maps.googleapis.com/maps/api/place/photo?photo_reference=&key=K"
+  },
+  {
+   "input": {
+    "image_url": "https://maps.googleapis.com:443/maps/api/place/photo?photo_reference=R",
+    "place_id": "p"
+   },
+   "expected": "https://maps.googleapis.com:443/maps/api/place/photo?photo_reference=R"
+  },
+  {
+   "input": {
+    "image_url": "https://evil.com/maps/api/place/photo?photo_reference=R"
+   },
+   "expected": "https://evil.com/maps/api/place/photo?photo_reference=R"
+  },
+  {
+   "input": {
+    "image_url": "  spaced ref  ",
+    "place_id": " pid ",
+    "name": " Name ",
+    "address": " Addr "
+   },
+   "expected": "/api/place-photo?maxwidth=800&place_id=pid&photo_reference=spaced+ref&query=Name%2C+Addr"
+  },
+  {
+   "input": {
+    "image_url": "ref!'()*~ &=/+",
+    "name": "Taco (best!) & more",
+    "address": "55 Elm St, Austin"
+   },
+   "expected": "/api/place-photo?maxwidth=800&photo_reference=ref%21%27%28%29%2A~+%26%3D%2F%2B&query=Taco+%28best%21%29+%26+more%2C+55+Elm+St%2C+Austin"
+  },
+  {
+   "input": {
+    "image_url": "r",
+    "name": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   },
+   "expected": "/api/place-photo?maxwidth=800&photo_reference=r&query=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  {
+   "input": {
+    "image_url": "r",
+    "name": "Caf\u00e9 \u00d1o\u00f1o \ud83d\ude00"
+   },
+   "expected": "/api/place-photo?maxwidth=800&photo_reference=r&query=Caf%C3%A9+%C3%91o%C3%B1o+%F0%9F%98%80"
+  },
+  {
+   "input": {
+    "image_url": 12345
+   },
+   "expected": "/api/place-photo?maxwidth=800&photo_reference=12345"
+  },
+  {
+   "input": {
+    "image_url": null,
+    "place_id": null
+   },
+   "expected": ""
+  },
+  {
+   "input": "not a dict",
+   "expected": ""
+  },
+  {
+   "input": null,
+   "expected": ""
+  },
+  {
+   "input": [],
+   "expected": ""
+  }
+ ],
+ "google_photo_reference": [
+  {
+   "input": "CmRaAAAAref",
+   "expected": "CmRaAAAAref"
+  },
+  {
+   "input": "CmRaAAAAref",
+   "expected": "CmRaAAAAref"
+  },
+  {
+   "input": "https://example.com/x.jpg",
+   "expected": ""
+  },
+  {
+   "input": "data:image/png;base64,AAAA",
+   "expected": "data:image/png;base64,AAAA"
+  },
+  {
+   "input": "https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=REF%2Fabc+d&key=K",
+   "expected": "REF/abc d"
+  },
+  {
+   "input": "https://maps.googleapis.com/maps/api/place/photo?photo_reference=&key=K",
+   "expected": ""
+  },
+  {
+   "input": "https://maps.googleapis.com:443/maps/api/place/photo?photo_reference=R",
+   "expected": ""
+  },
+  {
+   "input": "https://evil.com/maps/api/place/photo?photo_reference=R",
+   "expected": ""
+  },
+  {
+   "input": "  spaced ref  ",
+   "expected": "spaced ref"
+  },
+  {
+   "input": "ref!'()*~ &=/+",
+   "expected": "ref!'()*~ &=/+"
+  },
+  {
+   "input": "r",
+   "expected": "r"
+  },
+  {
+   "input": "r",
+   "expected": "r"
+  }
+ ],
+ "urlencode": [
+  {
+   "input": "12 Main St, Austin, TX",
+   "expected": "12%20Main%20St%2C%20Austin%2C%20TX"
+  },
+  {
+   "input": "a/b/c",
+   "expected": "a/b/c"
+  },
+  {
+   "input": "Tom & Jerry's (best!) *~_.-",
+   "expected": "Tom%20%26%20Jerry%27s%20%28best%21%29%20%2A~_.-"
+  },
+  {
+   "input": "caf\u00e9 \ud83d\ude00",
+   "expected": "caf%C3%A9%20%F0%9F%98%80"
+  },
+  {
+   "input": "50% off + more",
+   "expected": "50%25%20off%20%2B%20more"
+  },
+  {
+   "input": "",
+   "expected": ""
+  },
+  {
+   "input": "x y\tz\nw",
+   "expected": "x%20y%09z%0Aw"
+  }
+ ],
+ "title": [
+  {
+   "input": "custom_my_tab",
+   "expected": "Custom_my_tab"
+  },
+  {
+   "input": "my tab",
+   "expected": "My Tab"
+  },
+  {
+   "input": "custom pets & dogs",
+   "expected": "Custom Pets & Dogs"
+  },
+  {
+   "input": "don't stop",
+   "expected": "Don't Stop"
+  },
+  {
+   "input": "ALL CAPS",
+   "expected": "All Caps"
+  },
+  {
+   "input": "a-b c(d)e[f]g<h",
+   "expected": "A-B C(D)e[F]g<H"
+  },
+  {
+   "input": "  lead",
+   "expected": "  Lead"
+  },
+  {
+   "input": "mIxEd CaSe",
+   "expected": "Mixed Case"
+  },
+  {
+   "input": "",
+   "expected": ""
+  }
+ ],
+ "normalize_rules": [
+  {
+   "input": [
+    {
+     "name": "No smoking",
+     "description": "Anywhere"
+    },
+    {
+     "name": "Quiet",
+     "description": ""
+    }
+   ],
+   "expected": [
+    {
+     "name": "No smoking",
+     "description": "Anywhere"
+    },
+    {
+     "name": "Quiet",
+     "description": ""
+    }
+   ]
+  },
+  {
+   "input": [
+    "No parties: Max 6",
+    "{'name': 'Recycle', 'description': 'Blue bin'}",
+    "plain",
+    "",
+    null
+   ],
+   "expected": [
+    {
+     "name": "No parties",
+     "description": "Max 6"
+    },
+    {
+     "name": "Recycle",
+     "description": "Blue bin"
+    },
+    {
+     "name": "plain",
+     "description": ""
+    }
+   ]
+  },
+  {
+   "input": [
+    {
+     "name": {
+      "name": "Pets",
+      "description": "Ask"
+     },
+     "description": ""
+    },
+    {
+     "name": {
+      "description": "only inner desc"
+     },
+     "description": "outer"
+    }
+   ],
+   "expected": [
+    {
+     "name": "Pets",
+     "description": "Ask"
+    },
+    {
+     "name": "",
+     "description": "only inner desc"
+    }
+   ]
+  },
+  {
+   "input": [
+    "{'name': 'A', 'description': 'it\\'s \"quoted\"', 'extra': [1, 2.5, None, True]}",
+    "{not valid python}",
+    "{'a': 1}",
+    "Key: val: more"
+   ],
+   "expected": [
+    {
+     "name": "A",
+     "description": "it's \"quoted\""
+    },
+    {
+     "name": "{not valid python}",
+     "description": ""
+    },
+    {
+     "name": "{'a'",
+     "description": "1}"
+    },
+    {
+     "name": "Key",
+     "description": "val: more"
+    }
+   ]
+  },
+  {
+   "input": [
+    {
+     "name": "",
+     "description": ""
+    },
+    {},
+    [],
+    0,
+    "  spaced : out  "
+   ],
+   "expected": [
+    {
+     "name": "spaced",
+     "description": "out"
+    }
+   ]
+  },
+  {
+   "input": [
+    {
+     "name": 5,
+     "description": 7
+    }
+   ],
+   "expected": [
+    {
+     "name": "5",
+     "description": "7"
+    }
+   ]
+  },
+  {
+   "input": null,
+   "expected": []
+  },
+  {
+   "input": {},
+   "expected": []
+  }
+ ],
+ "rules_as_text": [
+  {
+   "input": [
+    {
+     "name": "No smoking",
+     "description": "Anywhere"
+    },
+    {
+     "name": "Quiet",
+     "description": ""
+    }
+   ],
+   "expected": [
+    "No smoking: Anywhere",
+    "Quiet"
+   ]
+  },
+  {
+   "input": [
+    "No parties: Max 6",
+    "{'name': 'Recycle', 'description': 'Blue bin'}",
+    "plain",
+    "",
+    null
+   ],
+   "expected": [
+    "No parties: Max 6",
+    "Recycle: Blue bin",
+    "plain"
+   ]
+  },
+  {
+   "input": [
+    {
+     "name": {
+      "name": "Pets",
+      "description": "Ask"
+     },
+     "description": ""
+    },
+    {
+     "name": {
+      "description": "only inner desc"
+     },
+     "description": "outer"
+    }
+   ],
+   "expected": [
+    "Pets: Ask",
+    "only inner desc"
+   ]
+  },
+  {
+   "input": [
+    "{'name': 'A', 'description': 'it\\'s \"quoted\"', 'extra': [1, 2.5, None, True]}",
+    "{not valid python}",
+    "{'a': 1}",
+    "Key: val: more"
+   ],
+   "expected": [
+    "A: it's \"quoted\"",
+    "{not valid python}",
+    "{'a': 1}",
+    "Key: val: more"
+   ]
+  },
+  {
+   "input": [
+    {
+     "name": "",
+     "description": ""
+    },
+    {},
+    [],
+    0,
+    "  spaced : out  "
+   ],
+   "expected": [
+    "spaced: out"
+   ]
+  },
+  {
+   "input": [
+    {
+     "name": 5,
+     "description": 7
+    }
+   ],
+   "expected": [
+    "5: 7"
+   ]
+  },
+  {
+   "input": null,
+   "expected": []
+  },
+  {
+   "input": {},
+   "expected": []
+  }
+ ]
+}

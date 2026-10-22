@@ -13,6 +13,8 @@ from utils.rules import rules_as_text
 from models import Guidebook, Host, Property
 import json
 import ast
+import re
+from markupsafe import Markup
 import urllib.parse
 import ssl
 import urllib.request
@@ -96,6 +98,23 @@ PDF_TEMPLATE_REGISTRY = {
 
 # No legacy mapping: expect canonical PDF keys only. Fallback to template_pdf_original.
 
+
+def _css_url(value):
+    """Make a URL safe to place inside CSS `url('...')` in a <style> block (HTML escaping does not apply there)."""
+    s = str(value or '')
+    if not re.match(r'^(https?:|data:image/)', s, re.I):
+        return ''
+    return Markup(re.sub(r"[\x00-\x1f\\'\"() ]", lambda m: '%%%02X' % ord(m.group()), s))
+
+
+def _pdf_env():
+    """Jinja environment for the PDF templates. Autoescape is on: guidebook text is user-controlled and
+    was previously inserted into the HTML verbatim."""
+    env = Environment(loader=FileSystemLoader(['.', 'templates']), autoescape=True)
+    env.filters['css_url'] = _css_url
+    return env
+
+
 def _normalize_recommendations(items):
     """Normalize list items that may be dicts or stringified dicts.
     Returns list of dicts with at least name/title and description/address if present.
@@ -130,6 +149,8 @@ def _normalize_recommendations(items):
             "address": obj.get("address") or "",
             "image_url": obj.get("image_url") or obj.get("photo") or "",
             "place_id": obj.get("place_id") or "",
+            # Shown as "N min drive" by the PDF templates; previously dropped here so it never appeared
+            "driving_minutes": obj.get("driving_minutes"),
         }
         rendered_url = place_photo_url(normalized_item)
         if rendered_url.startswith('/api/place-photo'):
@@ -228,6 +249,8 @@ def create_print_pdf_from_web_template(guidebook):
             "zip": getattr(guidebook.property, 'address_zip', None) if hasattr(guidebook, 'property') and guidebook.property else None,
         },
         "wifi_json": getattr(guidebook, 'wifi_json', None) or {},
+        # The PDF templates read ctx.wifi (they never rendered Wi-Fi details before this key existed)
+        "wifi": getattr(guidebook, 'wifi_json', None) or {},
         "check_in_time": getattr(guidebook, 'check_in_time', None),
         "check_out_time": getattr(guidebook, 'check_out_time', None),
         "access_info": getattr(guidebook, 'access_info', None),
@@ -244,7 +267,7 @@ def create_print_pdf_from_web_template(guidebook):
     }
 
     # Setup Jinja2 environment
-    env = Environment(loader=FileSystemLoader(['.', 'templates']))
+    env = _pdf_env()
     env.filters['place_photo_url'] = place_photo_url
     template = env.get_template(template_file)
 
@@ -324,6 +347,8 @@ def create_guidebook_pdf(guidebook, qr_url: str | None = None):
             'zip': data['address_zip'],
         },
         'wifi_json': data['wifi_json'],
+        # The PDF templates read ctx.wifi (they never rendered Wi-Fi details before this key existed)
+        'wifi': data['wifi_json'],
         'check_in_time': data['check_in_time'],
         'check_out_time': data['check_out_time'],
         'access_info': data['access_info'],
@@ -332,6 +357,8 @@ def create_guidebook_pdf(guidebook, qr_url: str | None = None):
         'things_to_do': data['things_to_do'],
         'places_to_eat': data['places_to_eat'],
         'checkout_info': getattr(guidebook, 'checkout_info', None) or [],
+        # Used by the House Manual page of the PDF templates; the key was missing so it never rendered
+        'house_manual': getattr(guidebook, 'house_manual', None) or [],
         'included_tabs': included_tabs,
         'custom_sections': data['custom_sections'],
         'custom_tabs_meta': data['custom_tabs_meta'],
@@ -341,7 +368,7 @@ def create_guidebook_pdf(guidebook, qr_url: str | None = None):
 
     # Setup Jinja2 environment
     # Search for templates at project root and inside templates/
-    env = Environment(loader=FileSystemLoader(['.', 'templates']))
+    env = _pdf_env()
     # Expect canonical PDF keys (template_pdf_original, template_pdf_basic). Fallback to original.
     raw_key = getattr(guidebook, 'template_key', None)
     selected_key = raw_key if raw_key in PDF_TEMPLATE_REGISTRY else 'template_pdf_original'
