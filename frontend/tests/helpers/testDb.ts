@@ -33,7 +33,7 @@ export async function startTestDb(): Promise<TestDb> {
   return {
     sql,
     reset: async () => {
-      await pg.exec("truncate guidebook, host, property, profiles, guidebook_view_daily, view_dedupe, ai_usage_monthly restart identity cascade");
+      await pg.exec("truncate guidebook, host, property, profiles, guidebook_view_daily, view_dedupe, ai_usage_monthly, guidebook_pdf_plan restart identity cascade");
     },
     close: async () => {
       await sql.end({ timeout: 2 });

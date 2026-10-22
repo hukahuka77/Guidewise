@@ -20,6 +20,7 @@ export default function GuidebookPdfPage() {
   const guidebookId = Array.isArray(params?.id) ? params.id[0] : (params?.id as string | undefined);
 
   const [includeQrInPdf, setIncludeQrInPdf] = useState<boolean>(false);
+  const [aiDesign, setAiDesign] = useState<boolean>(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [isPdfModalOpen, setPdfModalOpen] = useState(false);
 
@@ -37,6 +38,12 @@ export default function GuidebookPdfPage() {
 
   const getQrTargetUrl = () => liveGuidebookUrl;
 
+  /** AI-designed layout only applies to the Standard and Basic layouts. */
+  const withAi = (url: string, templateKey?: TemplateKey) =>
+    aiDesign && templateKey !== "template_pdf_mobile" && templateKey !== "template_pdf_qr"
+      ? `${url}${url.includes("?") ? "&" : "?"}ai=1`
+      : url;
+
   const fetchPdfBlob = async (url: string) => {
     const res = await fetch(url, { headers: await getAuthHeaders() });
     if (!res.ok) await throwApiError(res, `Failed to load PDF (${res.status})`);
@@ -49,7 +56,7 @@ export default function GuidebookPdfPage() {
     const forceQr = templateKey === "template_pdf_qr";
     const qr = (forceQr || includeQrInPdf) && getQrTargetUrl() ? getQrTargetUrl() : null;
     const qrParams = qr ? `&include_qr=1&qr_url=${encodeURIComponent(qr)}` : "";
-    const url = `${API_BASE}/api/guidebook/${guidebookId}/pdf?download=1${tplParam}${qrParams}`;
+    const url = withAi(`${API_BASE}/api/guidebook/${guidebookId}/pdf?download=1${tplParam}${qrParams}`, templateKey);
     try {
       const blobUrl = URL.createObjectURL(await fetchPdfBlob(url));
       const link = document.createElement("a");
@@ -72,7 +79,7 @@ export default function GuidebookPdfPage() {
     const forceQr = templateKey === "template_pdf_qr";
     const qr = (forceQr || includeQrInPdf) && getQrTargetUrl() ? getQrTargetUrl() : null;
     const qrParams = qr ? `${hasTemplate ? "&" : "?"}include_qr=1&qr_url=${encodeURIComponent(qr)}` : "";
-    const url = `${API_BASE}/api/guidebook/${guidebookId}/pdf${tplParam}${qrParams}`;
+    const url = withAi(`${API_BASE}/api/guidebook/${guidebookId}/pdf${tplParam}${qrParams}`, templateKey);
     try {
       if (pdfUrl) URL.revokeObjectURL(pdfUrl);
       const blobUrl = URL.createObjectURL(await fetchPdfBlob(url));
@@ -105,15 +112,26 @@ export default function GuidebookPdfPage() {
         <section>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-semibold">PDFs</h2>
-            <label className="flex items-center gap-2 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                className="h-4 w-4"
-                checked={includeQrInPdf}
-                onChange={(e) => setIncludeQrInPdf(e.target.checked)}
-              />
-              Include Scannable QR Code
-            </label>
+            <div className="flex flex-col items-end gap-1">
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={includeQrInPdf}
+                  onChange={(e) => setIncludeQrInPdf(e.target.checked)}
+                />
+                Include Scannable QR Code
+              </label>
+              <label className="flex items-center gap-2 text-sm text-gray-700" title="Uses one AI credit the first time; reused until you edit the guidebook">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={aiDesign}
+                  onChange={(e) => setAiDesign(e.target.checked)}
+                />
+                AI-designed layout <span className="text-xs text-gray-500">(Standard and Basic, paid plans)</span>
+              </label>
+            </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Standard PDF */}
