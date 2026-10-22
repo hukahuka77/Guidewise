@@ -27,7 +27,7 @@ import { GET as photoRoute } from "../src/app/api/place-photo/route";
 import { GET as enrichRoute } from "../src/app/api/places/enrich/route";
 import { POST as searchRoute } from "../src/app/api/places/search/route";
 import { setSqlForTests } from "../src/lib/server/db";
-import { extractListingContext, hostAllowed, sanitizeExtractedFields, validateListingUrl } from "../src/lib/server/listingImport";
+import { canonicalListingUrl, extractListingContext, hostAllowed, sanitizeExtractedFields, validateListingUrl } from "../src/lib/server/listingImport";
 import { clampItems, rateLimited, resetRateLimitsForTests } from "../src/lib/server/rateLimit";
 import { proxyToBackend } from "../src/lib/server/proxy";
 
@@ -332,7 +332,7 @@ describe("listing import: page reduction", () => {
       <script id="data-deferred-state-0" type="application/json">{"niobeMinimalClientData":[["k",{"data":{"houseRules":"No parties","checkInTime":"3 PM","amenities":["Wifi"],"blob":"${"A".repeat(60)}"}}]]}</script>
       <script>var x = "ignore me";</script></head><body><h1>Hello</h1><style>.a{}</style></body></html>`;
     const { context, coverImage } = extractListingContext(html);
-    expect(coverImage).toBe("https://a0.muscache.com/im/pictures/x.jpg?im_w=720&a=1");
+    expect(coverImage).toBe("https://a0.muscache.com/im/pictures/x.jpg?im_w=1200&a=1");
     expect(context).toContain("TITLE: Cozy Cabin & Spa");
     expect(context).toContain("META description: A lovely place");
     expect(context).toContain("JSON-LD:");
@@ -343,7 +343,7 @@ describe("listing import: page reduction", () => {
   });
   it("falls back to an embedded image when there is no og:image", () => {
     const html = `<script type="application/json">{"pic":"https://a0.muscache.com/im/pictures/y.jpg"}</script>`;
-    expect(extractListingContext(html).coverImage).toBe("https://a0.muscache.com/im/pictures/y.jpg");
+    expect(extractListingContext(html).coverImage).toBe("https://a0.muscache.com/im/pictures/y.jpg?im_w=1200");
   });
   it("ignores non-https images", () => {
     expect(extractListingContext(`<meta property="og:image" content="javascript:alert(1)">`).coverImage).toBeNull();
@@ -365,7 +365,8 @@ describe("listing import: page reduction", () => {
 });
 
 describe("listing import route", () => {
-  const page = `<html><head><title>Cabin</title><meta property="og:image" content="https://a0.muscache.com/c.jpg"></head><body>${"Lovely cabin near the lake. ".repeat(30)}</body></html>`;
+  const COVER = "https://a0.muscache.com/im/pictures/miso/Hosting-1/original/c.jpg";
+  const page = `<html><head><title>Cabin</title><meta property="og:image" content="${COVER}"></head><body>${"Lovely cabin near the lake. ".repeat(30)}</body></html>`;
   const extraction = {
     property_name: "Lake Cabin",
     host_name: "Sam",
@@ -378,44 +379,97 @@ describe("listing import route", () => {
     house_manual: [],
     checkout_info: [],
   };
+  const modelReturns = (obj: unknown) => openaiCreate.mockResolvedValueOnce({ choices: [{ message: { content: JSON.stringify(obj) } }] });
+  const png = () => new Response(new Uint8Array([1]), { status: 206, headers: { "content-type": "image/png" } });
+
+  /** Routes fetches by URL: listing pages vs photo CDN. */
+  const serve = (handlers: { page?: (url: string) => Response; image?: (url: string) => Response }) =>
+    fetchMock.mockImplementation(async (input: string) => {
+      const url = String(input);
+      if (/muscache\.com/.test(url)) return (handlers.image ?? png)(url);
+      return (handlers.page ?? (() => new Response(page, { status: 200 })))(url);
+    });
+  const run = (url = "https://www.airbnb.com/rooms/1") => importRoute(post("/api/import-listing", { url }));
+  const pageCalls = () => fetchMock.mock.calls.map((c) => String(c[0])).filter((u) => !/muscache\.com/.test(u));
 
   it("requires auth and a valid url", async () => {
     expect((await importRoute(post("/api/import-listing", { url: "https://airbnb.com/rooms/1" }, "bad"))).status).toBe(401);
-    const res = await importRoute(post("/api/import-listing", { url: "https://example.com/x" }));
+    const res = await run("https://example.com/x");
     expect(res.status).toBe(400);
     expect((await res.json()).code).toBe("invalid_url");
   });
 
-  it("creates a draft guidebook with a cover image and reports imported/missing fields", async () => {
-    fetchMock.mockResolvedValueOnce(new Response(page, { status: 200 }));
-    openaiCreate.mockResolvedValueOnce({ choices: [{ message: { content: JSON.stringify(extraction) } }] });
-    const res = await importRoute(post("/api/import-listing", { url: "https://www.airbnb.com/rooms/1" }));
+  it("creates a draft guidebook with a verified, enlarged cover image and reports imported/missing fields", async () => {
+    serve({});
+    modelReturns(extraction);
+    const res = await run();
     expect(res.status).toBe(201);
     const body = await res.json();
-    expect(body.ok).toBe(true);
     expect(body.imported).toEqual(expect.arrayContaining(["property name", "host name", "house rules", "cover image"]));
     expect(body.missing).toEqual(expect.arrayContaining(["house manual", "checkout instructions"]));
     const [gb] = await db.sql`select * from guidebook where id = ${body.guidebook_id}`;
     expect(gb.active).toBe(false);
     expect(gb.public_slug).toBeNull();
     expect(gb.user_id).toBe(OWNER);
-    expect(gb.cover_image_url).toBe("https://a0.muscache.com/c.jpg");
+    expect(gb.cover_image_url).toBe(`${COVER}?im_w=1200`);
     expect(gb.check_in_time).toBe("16:00");
     expect(gb.rules_json).toEqual([{ name: "Quiet hours", description: "10pm" }]);
     expect(gb.template_key).toBe("template_original");
     const [prop] = await db.sql`select * from property where id = ${gb.property_id}`;
     expect(prop.name).toBe("Lake Cabin");
     expect(prop.address_city_state).toBe("Austin, TX");
-    const hosts = await db.sql`select * from host where user_id = ${OWNER}`;
-    expect(hosts.map((h) => h.name)).toEqual(["Sam"]);
+    expect((await db.sql`select * from host where user_id = ${OWNER}`).map((h) => h.name)).toEqual(["Sam"]);
     expect(OTHER).not.toBe(OWNER);
   });
 
+  it("fetches the listing without search parameters, falling back to the original link", async () => {
+    serve({});
+    modelReturns(extraction);
+    await run("https://www.airbnb.com/rooms/1101414006622380859?adults=2&check_in=2026-11-07&photo_id=1850473928");
+    expect(pageCalls()[0]).toBe("https://www.airbnb.com/rooms/1101414006622380859");
+
+    fetchMock.mockReset();
+    serve({ page: (url) => (url.includes("?") ? new Response(page, { status: 200 }) : new Response("", { status: 403 })) });
+    modelReturns(extraction);
+    const res = await run("https://www.airbnb.com/rooms/7?adults=2");
+    expect(res.status).toBe(201);
+    expect(pageCalls()).toEqual(["https://www.airbnb.com/rooms/7", "https://www.airbnb.com/rooms/7?adults=2"]);
+  });
+
+  it("falls through unreachable candidates and still creates the guidebook when none work", async () => {
+    const html = `<head><meta property="og:image" content="https://a0.muscache.com/im/pictures/miso/Hosting-1/dead.jpg"></head>${"Lovely cabin. ".repeat(60)}
+      <script>{"photo":"https:\\u002F\\u002Fa0.muscache.com\\u002Fim\\u002Fpictures\\u002Fmiso\\u002FHosting-1\\u002Fgood.jpg"}</script>`;
+    serve({ page: () => new Response(html, { status: 200 }), image: (url) => (url.includes("good") ? png() : new Response("", { status: 403 })) });
+    modelReturns(extraction);
+    let res = await run();
+    let body = await res.json();
+    const [gb] = await db.sql`select cover_image_url from guidebook where id = ${body.guidebook_id}`;
+    expect(gb.cover_image_url).toContain("good.jpg");
+
+    serve({ page: () => new Response(html, { status: 200 }), image: () => new Response("nope", { status: 404 }) });
+    modelReturns(extraction);
+    res = await run();
+    body = await res.json();
+    expect(res.status).toBe(201);
+    expect(body.missing).toContain("cover image");
+    const [gb2] = await db.sql`select cover_image_url from guidebook where id = ${body.guidebook_id}`;
+    expect(gb2.cover_image_url).toBeNull();
+  });
+
+  it("imports just the cover photo when the page has photos but no readable text", async () => {
+    serve({ page: () => new Response(`<meta property="og:image" content="${COVER}">`, { status: 200 }) });
+    const res = await run();
+    expect(res.status).toBe(201);
+    expect(openaiCreate).not.toHaveBeenCalled();
+    const body = await res.json();
+    expect(body.imported).toEqual(["cover image"]);
+  });
+
   it("reuses an existing host and property of the same name", async () => {
+    serve({});
     for (let i = 0; i < 2; i++) {
-      fetchMock.mockResolvedValueOnce(new Response(page, { status: 200 }));
-      openaiCreate.mockResolvedValueOnce({ choices: [{ message: { content: JSON.stringify(extraction) } }] });
-      expect((await importRoute(post("/api/import-listing", { url: "https://www.airbnb.com/rooms/1" }))).status).toBe(201);
+      modelReturns(extraction);
+      expect((await run()).status).toBe(201);
     }
     expect((await db.sql`select 1 from host where user_id = ${OWNER}`).length).toBe(1);
     expect((await db.sql`select 1 from property where user_id = ${OWNER}`).length).toBe(1);
@@ -423,47 +477,91 @@ describe("listing import route", () => {
   });
 
   it("maps fetch problems to friendly errors", async () => {
-    fetchMock.mockResolvedValueOnce(new Response("", { status: 403 }));
-    let res = await importRoute(post("/api/import-listing", { url: "https://www.airbnb.com/rooms/1" }));
+    serve({ page: () => new Response("", { status: 403 }) });
+    let res = await run();
     expect([res.status, (await res.json()).code]).toEqual([502, "blocked"]);
-    fetchMock.mockResolvedValueOnce(new Response("", { status: 404 }));
-    res = await importRoute(post("/api/import-listing", { url: "https://www.airbnb.com/rooms/1" }));
+    serve({ page: () => new Response("", { status: 404 }) });
+    res = await run();
     expect([res.status, (await res.json()).code]).toEqual([422, "not_found"]);
-    fetchMock.mockResolvedValueOnce(new Response("<html>login</html>", { status: 200 }));
-    res = await importRoute(post("/api/import-listing", { url: "https://www.airbnb.com/rooms/1" }));
+    serve({ page: () => new Response("<html>login</html>", { status: 200 }) });
+    res = await run();
     expect((await res.json()).code).toBe("no_content");
   });
 
   it("refuses redirects off the allow-list and hosts resolving to private addresses", async () => {
-    fetchMock.mockResolvedValueOnce(new Response("", { status: 302, headers: { location: "http://169.254.169.254/latest" } }));
-    let res = await importRoute(post("/api/import-listing", { url: "https://www.airbnb.com/rooms/1" }));
+    serve({ page: () => new Response("", { status: 302, headers: { location: "http://169.254.169.254/latest" } }) });
+    let res = await run();
     expect((await res.json()).code).toBe("invalid_url");
+    fetchMock.mockClear();
     vi.mocked(lookup).mockResolvedValueOnce([{ address: "10.0.0.5", family: 4 }] as never);
-    res = await importRoute(post("/api/import-listing", { url: "https://www.airbnb.com/rooms/1" }));
+    res = await run();
     expect(res.status).toBe(400);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("follows allowed redirects (short links)", async () => {
-    fetchMock
-      .mockResolvedValueOnce(new Response("", { status: 302, headers: { location: "https://www.airbnb.com/rooms/9" } }))
-      .mockResolvedValueOnce(new Response(page, { status: 200 }));
-    openaiCreate.mockResolvedValueOnce({ choices: [{ message: { content: JSON.stringify(extraction) } }] });
-    expect((await importRoute(post("/api/import-listing", { url: "https://abnb.me/abc" }))).status).toBe(201);
+    serve({
+      page: (url) =>
+        url.includes("abnb.me") ? new Response("", { status: 302, headers: { location: "https://www.airbnb.com/rooms/9" } }) : new Response(page, { status: 200 }),
+    });
+    modelReturns(extraction);
+    expect((await run("https://abnb.me/abc")).status).toBe(201);
   });
 
   it("returns a friendly error when the model fails and rate limits at 5/min", async () => {
-    fetchMock.mockImplementation(async () => new Response(page, { status: 200 }));
+    serve({});
     openaiCreate.mockRejectedValue(new Error("down"));
-    let res = await importRoute(post("/api/import-listing", { url: "https://www.airbnb.com/rooms/1" }));
+    let res = await run();
     expect([res.status, (await res.json()).code]).toEqual([502, "extract_failed"]);
-    for (let i = 0; i < 4; i++) await importRoute(post("/api/import-listing", { url: "https://www.airbnb.com/rooms/1" }));
-    res = await importRoute(post("/api/import-listing", { url: "https://www.airbnb.com/rooms/1" }));
+    for (let i = 0; i < 4; i++) await run();
+    res = await run();
     expect(res.status).toBe(429);
   });
 
   it("proxies to Flask without an OpenAI key", async () => {
     delete process.env.OPENAI_API_KEY;
-    expect(await (await importRoute(post("/api/import-listing", { url: "https://www.airbnb.com/rooms/1" }))).text()).toBe("PROXIED /api/import-listing");
+    expect(await (await run()).text()).toBe("PROXIED /api/import-listing");
+  });
+});
+
+describe("listing import: cover photo discovery", () => {
+  it("collects candidates from meta, JSON-LD objects, escaped script text and embedded JSON, best first", () => {
+    const html = `<head>
+      <meta property="og:image" content="https://a0.muscache.com/im/pictures/miso/Hosting-9/og.jpg?im_w=720&amp;x=1">
+      <script type="application/ld+json">{"image":[{"url":"https://a0.muscache.com/im/pictures/ld.jpg"}]}</script>
+      <script id="data-deferred-state-0" type="application/json">{"a":{"pic":"https://a0.muscache.com/im/pictures/miso/Hosting-9/state.jpg","host":"https://a0.muscache.com/im/pictures/user/User-1/avatar.jpg"}}</script>
+      <script>var s="https:\\u002F\\u002Fa0.muscache.com\\u002Fim\\u002Fpictures\\u002Fmiso\\u002FHosting-9\\u002Fescaped.jpg";</script>
+      <img src="https://www.airbnb.com/static/logo.svg"></head>`;
+    const { coverCandidates } = extractListingContext(html);
+    expect(coverCandidates[0]).toBe("https://a0.muscache.com/im/pictures/miso/Hosting-9/og.jpg?im_w=1200&x=1");
+    expect(coverCandidates).toEqual(
+      expect.arrayContaining([
+        "https://a0.muscache.com/im/pictures/ld.jpg?im_w=1200",
+        "https://a0.muscache.com/im/pictures/miso/Hosting-9/state.jpg?im_w=1200",
+        "https://a0.muscache.com/im/pictures/miso/Hosting-9/escaped.jpg?im_w=1200",
+      ]),
+    );
+    expect(coverCandidates.join(" ")).not.toMatch(/avatar|logo/);
+  });
+
+  it("ranks listing photos above other images and ignores unknown hosts", () => {
+    const html = `<script>var a="https://a0.muscache.com/im/pictures/plain.jpg", b="https://a0.muscache.com/im/pictures/miso/Hosting-2/first.jpg", c="https://evil.example.com/x.jpg";</script>`;
+    const { coverCandidates } = extractListingContext(html);
+    expect(coverCandidates[0]).toContain("Hosting-2/first.jpg");
+    expect(coverCandidates.join(" ")).not.toContain("evil.example.com");
+  });
+
+  it("prioritizes house rules and check-in details when embedded state is huge", () => {
+    const noise = Array.from({ length: 5000 }, (_, i) => `"title${i}":"Some unrelated title number ${i} with padding text"`).join(",");
+    const state = `{${noise},"houseRules":"No parties or events","checkInTime":"After 4 PM"}`;
+    const { context } = extractListingContext(`<script type="application/json">${state}</script>`);
+    expect(context).toContain("houseRules: No parties or events");
+    expect(context.indexOf("houseRules")).toBeLessThan(context.indexOf("title0"));
+  });
+
+  it("canonicalizes Airbnb room links only", () => {
+    expect(canonicalListingUrl("https://www.airbnb.com/rooms/123?adults=2&check_in=x")).toBe("https://www.airbnb.com/rooms/123");
+    expect(canonicalListingUrl("https://www.airbnb.co.uk/rooms/plus/456?x=1")).toBe("https://www.airbnb.co.uk/rooms/456");
+    expect(canonicalListingUrl("https://www.vrbo.com/12345?x=1")).toBe("https://www.vrbo.com/12345?x=1");
   });
 });
