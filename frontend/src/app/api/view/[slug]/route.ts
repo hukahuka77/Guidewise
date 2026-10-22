@@ -18,7 +18,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   if (rateLimited(`view:${ip}`, 30)) return noContent();
   try {
     const { slug } = await params;
-    const [gb] = await sql`select id, user_id from guidebook where public_slug = ${slug} and active = true limit 1`;
+    const [gb] = await sql`select id, user_id from guidebook where public_slug = ${slug} limit 1`;
     if (!gb?.user_id) return noContent();
     const plan = await getUserPlan(sql, gb.user_id);
     if (plan.viewsPerMonth !== null) return noContent();

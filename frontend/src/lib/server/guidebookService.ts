@@ -1,7 +1,7 @@
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { BASE_TABS } from "@/lib/guidebook/context";
 import { stripSurrogates } from "@/lib/guidebook/pyCompat";
-import { TEMPLATE_REGISTRY, renderPublishSnapshot } from "@/lib/guidebook/render";
+import { TEMPLATE_REGISTRY } from "@/lib/guidebook/render";
 import type { GuidebookRow } from "@/lib/guidebook/types";
 import type { Sql } from "./db";
 import { assertCanCreateGuidebook } from "./usage";
@@ -48,21 +48,28 @@ const tokenHex = (bytes: number) => randomBytes(bytes).toString("hex");
 // ---------------------------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------------------------
-// Preview links
+// Public URL
 // ---------------------------------------------------------------------------------------------
 
-/** Return the draft share token, creating it on first use. */
-export async function ensurePreviewToken(sql: Sql, guidebookId: string): Promise<string> {
-  const token = randomBytes(24).toString("base64url");
-  // Only fills a missing token; deliberately does not touch last_modified_time.
-  const updated = await sql`
-    update guidebook set preview_token = ${token} where id = ${guidebookId} and preview_token is null returning preview_token`;
-  if (updated.length > 0) return updated[0].preview_token;
-  const [row] = await sql`select preview_token from guidebook where id = ${guidebookId}`;
-  return row?.preview_token ?? token;
+/** A slug for `/g/<slug>` that no other guidebook uses. */
+export async function uniqueSlug(tx: Sql, propertyName: string | null | undefined, guidebookId: string): Promise<string> {
+  const base = slugify(propertyName);
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const slug = `${base}-${tokenHex(3)}`;
+    const taken = await tx`select 1 from guidebook where public_slug = ${slug} and id != ${guidebookId} limit 1`;
+    if (taken.length === 0) return slug;
+  }
+  return `${base}-${tokenHex(4)}-${Math.floor(Date.now() / 1000)}`;
 }
 
-export const previewPath = (id: string, token: string) => `/preview/${id}?t=${token}`;
+/** Every guidebook is live at its slug; guidebooks created before that was true get theirs on first use. */
+async function ensurePublicSlug(sql: Sql, guidebookId: string, propertyName: string | null | undefined): Promise<string> {
+  const slug = await uniqueSlug(sql, propertyName, guidebookId);
+  const updated = await sql`update guidebook set public_slug = ${slug} where id = ${guidebookId} and public_slug is null returning public_slug`;
+  if (updated.length > 0) return updated[0].public_slug;
+  const [row] = await sql`select public_slug from guidebook where id = ${guidebookId}`;
+  return row?.public_slug ?? slug;
+}
 
 // ---------------------------------------------------------------------------------------------
 // Input normalisation (shared by create and update)
@@ -134,11 +141,10 @@ const jsonOrNull = (client: { json: Sql["json"] }, value: unknown) =>
 export interface CreateResult {
   guidebookId: string;
   templateKey: string;
-  active: boolean;
-  publicSlug: string | null;
+  publicSlug: string;
 }
 
-/** POST /api/generate: create host/property/guidebook together, auto-activating when a slot is free. */
+/** POST /api/generate: create host/property/guidebook together; the guidebook is live at its slug straight away. */
 export async function createGuidebook(sql: Sql, userId: string, data: Dict): Promise<CreateResult> {
   const propertyName = typeof data.property_name === "string" ? data.property_name : "";
   if (!propertyName.trim()) throw new ServiceError(400, "property_name is required");
@@ -204,11 +210,12 @@ export async function createGuidebook(sql: Sql, userId: string, data: Dict): Pro
     }
 
     const guidebookId = randomUUID();
+    const publicSlug = await uniqueSlug(tx as unknown as Sql, propertyName, guidebookId);
     await tx`
       insert into guidebook (
         id, check_in_time, check_out_time, access_info, welcome_info, parking_info, cover_image_url,
         safety_info, things_to_do, places_to_eat, checkout_info, house_manual, wifi_json, included_tabs,
-        custom_sections, custom_tabs_meta, rules_json, template_key, host_id, property_id, user_id, active, public_slug
+        custom_sections, custom_tabs_meta, rules_json, template_key, host_id, property_id, user_id, public_slug
       ) values (
         ${guidebookId}, ${str(data.check_in_time)}, ${str(data.check_out_time)}, ${str(data.access_info)},
         ${str(data.welcome_message)}, ${str(data.parking_info)}, ${coverImageUrl === null ? null : String(coverImageUrl)},
@@ -216,32 +223,10 @@ export async function createGuidebook(sql: Sql, userId: string, data: Dict): Pro
         ${jsonOrNull(tx, data.checkout_info)}, ${jsonOrNull(tx, data.house_manual)},
         ${Object.keys(wifi).length ? tx.json(wifi as never) : null}, ${tx.json(includedTabs as never)},
         ${tx.json(customSections as never)}, ${Object.keys(customTabsMeta).length ? tx.json(customTabsMeta as never) : null},
-        ${rules && rules.length ? tx.json(rules as never) : null}, ${templateKey}, ${hostId}, ${propertyId}, ${userId}, false, null
+        ${rules && rules.length ? tx.json(rules as never) : null}, ${templateKey}, ${hostId}, ${propertyId}, ${userId}, ${publicSlug}
       )`;
 
-    // Auto-activate when the plan has a free slot
-    let active = false;
-    let publicSlug: string | null = null;
-    // Guidebooks are free to publish (creation is capped per plan instead), so every new one goes live.
-    {
-      const base = slugify(propertyName);
-      let slug = `${base}-${tokenHex(3)}`;
-      let attempt = 0;
-      for (;;) {
-        const taken = await tx`select 1 from guidebook where public_slug = ${slug} and id != ${guidebookId} limit 1`;
-        if (taken.length === 0) break;
-        attempt += 1;
-        if (attempt >= 20) {
-          slug = `${base}-${tokenHex(4)}-${Math.floor(Date.now() / 1000)}`;
-          break;
-        }
-        slug = `${base}-${tokenHex(3)}`;
-      }
-      await tx`update guidebook set active = true, public_slug = ${slug} where id = ${guidebookId}`;
-      active = true;
-      publicSlug = slug;
-    }
-    return { guidebookId, templateKey, active, publicSlug };
+    return { guidebookId, templateKey, publicSlug };
   }) as Promise<CreateResult>;
 }
 
@@ -261,15 +246,13 @@ const GUIDEBOOK_WITH_RELATIONS = (sql: Sql, where: ReturnType<Sql>) => sql`
 /** GET /api/guidebooks */
 export async function listGuidebooks(sql: Sql, userId: string): Promise<Row[]> {
   const rows = await sql`
-    select g.id, g.template_key, g.created_time, g.last_modified_time, g.cover_image_url, g.active,
+    select g.id, g.template_key, g.created_time, g.last_modified_time, g.cover_image_url,
            g.public_slug, p.name as property_name
       from guidebook g left join property p on p.id = g.property_id
      where g.user_id = ${userId}
      order by g.last_modified_time desc`;
   const items: Row[] = [];
   for (const r of rows) {
-    let previewUrl: string | null = null;
-    if (!r.active) previewUrl = previewPath(r.id, await ensurePreviewToken(sql, r.id));
     items.push({
       id: r.id,
       property_name: r.property_name,
@@ -277,9 +260,7 @@ export async function listGuidebooks(sql: Sql, userId: string): Promise<Row[]> {
       created_time: isoOrNull(r.created_time),
       last_modified_time: isoOrNull(r.last_modified_time),
       cover_image_url: r.cover_image_url,
-      active: r.active,
-      public_slug: r.active ? r.public_slug : null,
-      preview_url: previewUrl,
+      public_slug: r.public_slug ?? (await ensurePublicSlug(sql, r.id, r.property_name)),
     });
   }
   return items;
@@ -291,7 +272,7 @@ export async function getGuidebookPayload(sql: Sql, userId: string, id: string):
   if (!g || g.user_id !== userId) throw new ServiceError(404, "Not found");
   return {
     id: g.id,
-    preview_url: g.active ? null : previewPath(g.id, await ensurePreviewToken(sql, g.id)),
+    public_slug: g.public_slug ?? (await ensurePublicSlug(sql, g.id, g.p_name)),
     template_key: g.template_key,
     property: {
       id: g.property_id,
@@ -457,7 +438,7 @@ export async function updateGuidebook(sql: Sql, userId: string, id: string, inpu
 }
 
 // ---------------------------------------------------------------------------------------------
-// Delete, template, toggle, publish
+// Delete, template
 // ---------------------------------------------------------------------------------------------
 
 export async function deleteGuidebook(sql: Sql, userId: string, id: string): Promise<void> {
@@ -475,44 +456,6 @@ export async function setTemplateKey(sql: Sql, userId: string, id: string, templ
   return templateKey;
 }
 
-export interface ToggleResult {
-  active: boolean;
-  publicSlug: string | null;
-  previewUrl: string | null;
-}
-
-/** POST /api/guidebooks/:id/toggle: publish/unpublish (publishing is not limited by plan). */
-export async function toggleGuidebook(sql: Sql, userId: string, id: string): Promise<ToggleResult> {
-  const result = await sql.begin(async (tx) => {
-    const [gb] = await tx`
-      select g.id, g.active, g.public_slug, p.name as property_name
-        from guidebook g left join property p on p.id = g.property_id
-       where g.id = ${id} and g.user_id = ${userId} for update of g`;
-    if (!gb) throw new ServiceError(404, "Guidebook not found");
-
-    if (!gb.active) {
-      let slug: string | null = gb.public_slug;
-      if (!slug) {
-        const base = slugify(gb.property_name);
-        slug = base;
-        for (let i = 0; i < 100; i++) {
-          const taken = await tx`select 1 from guidebook where public_slug = ${slug} limit 1`;
-          if (taken.length === 0) break;
-          slug = `${base}-${tokenHex(3)}`;
-        }
-      }
-      await tx`update guidebook set active = true, public_slug = ${slug}, last_modified_time = now() where id = ${id}`;
-      return { active: true, publicSlug: slug };
-    }
-    await tx`update guidebook set active = false, last_modified_time = now() where id = ${id}`;
-    return { active: false, publicSlug: gb.public_slug as string | null };
-  });
-
-  const previewUrl = result.active ? null : previewPath(id, await ensurePreviewToken(sql, id));
-  return { active: result.active, publicSlug: result.active ? result.publicSlug : null, previewUrl };
-}
-
-/** POST /api/guidebooks/:id/publish: render and store the static HTML snapshot. */
 /** A guidebook with its property and host in the shape the renderers expect; null if it is not the user's. */
 export async function loadOwnedGuidebookRow(sql: Sql, userId: string, id: string): Promise<GuidebookRow | null> {
   const [row] = await GUIDEBOOK_WITH_RELATIONS(sql, sql`g.id = ${id}`);
@@ -524,23 +467,4 @@ export async function loadOwnedGuidebookRow(sql: Sql, userId: string, id: string
       : null,
     host: row.host_id ? { id: row.host_id, name: row.h_name, bio: row.h_bio, contact: row.h_contact, host_image_url: row.h_photo } : null,
   } as unknown as GuidebookRow;
-}
-
-export async function publishGuidebook(sql: Sql, userId: string, id: string): Promise<{ etag: string; publishedAt: string }> {
-  const gb = await loadOwnedGuidebookRow(sql, userId, id);
-  if (!gb) throw new ServiceError(404, "Not found");
-  const row = gb as unknown as Row;
-
-  const { html, templateKey } = renderPublishSnapshot(gb);
-  const etag = createHash("sha256")
-    .update(`${row.id}${templateKey}${isoOrNull(row.last_modified_time)}${html.length}`)
-    .digest("hex");
-
-  // published_at and last_modified_time share one now(), so the snapshot counts as fresh.
-  const [updated] = await sql`
-    update guidebook
-       set published_html = ${html}, published_etag = ${etag}, published_at = now(), last_modified_time = now()
-     where id = ${id} and user_id = ${userId}
- returning published_at`;
-  return { etag, publishedAt: isoOrNull(updated.published_at) as string };
 }

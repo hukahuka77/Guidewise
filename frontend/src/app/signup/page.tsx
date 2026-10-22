@@ -28,15 +28,7 @@ export default function SignupPage() {
       if (typeof window !== 'undefined') {
         // Prefer runtime origin in the browser to avoid using a prod URL during local dev
         const baseUrl = window.location.origin || process.env.NEXT_PUBLIC_SITE_URL;
-        const gb = (sessionStorage.getItem('guidebookId') || localStorage.getItem('guidebookId')) || '';
-        const token = (sessionStorage.getItem('claimToken') || localStorage.getItem('claimToken')) || '';
-        const hasPending = gb && token;
-        if (hasPending) {
-          const hash = `#gb=${encodeURIComponent(gb)}&token=${encodeURIComponent(token)}`;
-          emailRedirectTo = `${baseUrl}/success${hash}`;
-        } else {
-          emailRedirectTo = `${baseUrl}/onboarding`;
-        }
+        emailRedirectTo = `${baseUrl}/onboarding`;
       }
       const { error, data } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo } });
       if (error) {

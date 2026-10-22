@@ -66,7 +66,6 @@ const [formData, setFormData] = useState({
 
 **API Endpoints Used**:
 - `POST /api/generate` - Create new guidebook (Line 243)
-- `POST /api/guidebooks/{id}/publish` - Publish snapshot (Line 279)
 - `POST /api/ai-food` - Get food recommendations (Line 490)
 - `POST /api/ai-activities` - Get activity recommendations (Line 590)
 
@@ -109,7 +108,6 @@ const [formData, setFormData] = useState({
 **API Endpoints Used**:
 - `GET /api/guidebooks/{id}` - Load existing guidebook (Line 177)
 - `PUT /api/guidebooks/{id}` - Update guidebook (Line 319)
-- `POST /api/guidebooks/{id}/publish` - Publish changes (Line 336)
 - `POST /api/ai-food` - Get food recommendations (Line 509)
 - `POST /api/ai-activities` - Get activity recommendations (Line 596)
 
@@ -201,9 +199,6 @@ const payload = {
 
 // Calls POST /api/generate
 const response = await fetch(`${API_BASE}/api/generate`, { ... })
-
-// Publishes snapshot
-await fetch(`${API_BASE}/api/guidebooks/${newId}/publish`, { ... })
 ```
 
 **Edit `handleSubmit`** (Lines 251-356):
@@ -224,9 +219,6 @@ const res = await fetch(`${API_BASE}/api/guidebooks/${guidebookId}`, {
   method: "PUT", 
   ... 
 })
-
-// Publishes snapshot
-await fetch(`${API_BASE}/api/guidebooks/${guidebookId}/publish`, { ... })
 ```
 
 **Duplication Rate**: ~95% identical code
@@ -446,7 +438,6 @@ places_to_eat: foodItems.map(i => ({
 |-----------|--------|------|
 | Submit/Save | `POST /api/generate` | `PUT /api/guidebooks/{id}` |
 | Load existing | N/A | `GET /api/guidebooks/{id}` |
-| Publish snapshot | `POST /api/guidebooks/{id}/publish` | `POST /api/guidebooks/{id}/publish` |
 | AI food | `POST /api/ai-food` | `POST /api/ai-food` |
 | AI activities | `POST /api/ai-activities` | `POST /api/ai-activities` |
 
@@ -463,7 +454,7 @@ places_to_eat: foodItems.map(i => ({
 | `authChecked` | Used for redirect | Not tracked |
 | `signupSuccess` | Banner display | Not present |
 | `visitedSections` | Navigation tracking | Not present |
-| `hasReachedEnd` | Publish button visibility | Not used |
+| `hasReachedEnd` | Save button visibility | Not used |
 | `ruleAutoEditIndex` | Auto-edit newly added rules | Not used |
 
 ---

@@ -17,15 +17,12 @@ vi.mock("@/lib/server/proxy", () => ({
 }));
 
 import { POST as generate } from "../src/app/api/generate/route";
-import { POST as activateForUser } from "../src/app/api/guidebooks/activate_for_user/route";
 import { GET as listRoute } from "../src/app/api/guidebooks/route";
 import { DELETE, GET as getOne, PATCH, PUT } from "../src/app/api/guidebooks/[id]/route";
-import { POST as publish } from "../src/app/api/guidebooks/[id]/publish/route";
-import { POST as toggle } from "../src/app/api/guidebooks/[id]/toggle/route";
 import { POST as template } from "../src/app/api/guidebook/[id]/template/route";
 import { GET as hosts } from "../src/app/api/hosts/route";
 import { setSqlForTests } from "../src/lib/server/db";
-import { liveGuidebookResponse } from "../src/lib/server/guidebookResponse";
+import { guidebookResponse } from "../src/lib/server/guidebookResponse";
 import { proxyToBackend } from "../src/lib/server/proxy";
 import type { GuidebookRow } from "../src/lib/guidebook/types";
 
@@ -69,8 +66,6 @@ describe("authentication and configuration", () => {
       PUT(req("PUT", "/api/guidebooks/x", null, {}), ctx(id)),
       PATCH(req("PATCH", "/api/guidebooks/x", null, {}), ctx(id)),
       DELETE(req("DELETE", "/api/guidebooks/x", null), ctx(id)),
-      publish(req("POST", "/api/guidebooks/x/publish", null), ctx(id)),
-      toggle(req("POST", "/api/guidebooks/x/toggle", null), ctx(id)),
       template(req("POST", "/api/guidebook/x/template", null, {}), ctx(id)),
       hosts(req("GET", "/api/hosts", null)),
     ];
@@ -91,10 +86,6 @@ describe("authentication and configuration", () => {
     expect(proxyToBackend).toHaveBeenCalledTimes(2);
   });
 
-  it("passes activate_for_user through to Flask (and is not captured by /api/guidebooks/[id])", async () => {
-    const res = await activateForUser(req("POST", "/api/guidebooks/activate_for_user"));
-    expect(await res.text()).toBe("PROXIED POST /api/guidebooks/activate_for_user");
-  });
 });
 
 describe("create, read, update, delete over HTTP", () => {
@@ -117,13 +108,13 @@ describe("create, read, update, delete over HTTP", () => {
     expect(body.error).toContain("up to 5 guidebooks");
   });
 
-  it("POST /api/generate: active guidebooks return their public URL; bad input is a 400", async () => {
+  it("POST /api/generate: a new guidebook is live at its public URL; bad input is a 400", async () => {
     await setPlan(db.sql, OWNER, "pro");
     const { res, body } = await createVia({ property_name: "Live House" });
     expect(res.status).toBe(201);
     expect(res.headers.get("X-Guidebook-Url")).toMatch(/^\/g\/live-house-[0-9a-f]{6}$/);
-    expect(res.headers.get("X-Guidebook-Preview")).toBeNull();
     expect(body.ok).toBe(true);
+    expect(body.public_slug).toMatch(/^live-house-[0-9a-f]{6}$/);
     const bad = await generate(req("POST", "/api/generate", "owner", { host_name: "x" }));
     expect(bad.status).toBe(400);
     expect(await json(bad)).toEqual({ error: "property_name is required" });
@@ -138,7 +129,9 @@ describe("create, read, update, delete over HTTP", () => {
     const list = await json(await listRoute(req("GET", "/api/guidebooks")));
     expect(list.ok).toBe(true);
     expect(list.items).toHaveLength(1);
-    expect(list.items[0]).toMatchObject({ id, property_name: "Lifecycle", active: true });
+    expect(list.items[0]).toMatchObject({ id, property_name: "Lifecycle", public_slug: expect.stringMatching(/^lifecycle-/) });
+    expect(list.items[0]).not.toHaveProperty("active");
+    expect(list.items[0]).not.toHaveProperty("preview_url");
     expect((await json(await listRoute(req("GET", "/api/guidebooks", "other")))).items).toEqual([]);
 
     const one = await json(await getOne(req("GET", `/api/guidebooks/${id}`), ctx(id)));
@@ -170,7 +163,7 @@ describe("create, read, update, delete over HTTP", () => {
   });
 });
 
-describe("template, toggle, publish over HTTP", () => {
+describe("template and public page over HTTP", () => {
   it("template: validates and updates", async () => {
     const { body } = await createVia({ property_name: "T" });
     const id = body.guidebook_id as string;
@@ -184,25 +177,10 @@ describe("template, toggle, publish over HTTP", () => {
     expect((await template(req("POST", `/api/guidebook/${id}/template`, "other", { template_key: "template_generic" }), ctx(id))).status).toBe(404);
   });
 
-  it("toggle: unpublishes with a preview link, then republishes (no plan needed)", async () => {
-    const { body } = await createVia({ property_name: "Toggle Me" });
-    const id = body.guidebook_id as string;
-    const off = await json(await toggle(req("POST", `/api/guidebooks/${id}/toggle`), ctx(id)));
-    expect(off).toMatchObject({ ok: true, active: false, public_slug: null });
-    expect(off.preview_url).toMatch(/^\/preview\/.+\?t=/);
-    const on = await json(await toggle(req("POST", `/api/guidebooks/${id}/toggle`), ctx(id)));
-    expect(on).toMatchObject({ ok: true, active: true, preview_url: null });
-    expect(on.public_slug).toMatch(/^toggle-me/);
-  });
-
-  it("publish stores a snapshot that /g serves while fresh and replaces once edited", async () => {
+  it("pages are rendered on demand: new edits show up, ETags change with the content, matching ETags get a 304", async () => {
     await setPlan(db.sql, OWNER, "pro");
     const { body } = await createVia({ property_name: "Snap House", welcome_message: "Original welcome", template_key: "template_generic" });
     const id = body.guidebook_id as string;
-
-    const pub = await json(await publish(req("POST", `/api/guidebooks/${id}/publish`), ctx(id)));
-    expect(pub.ok).toBe(true);
-    expect(pub.etag).toMatch(/^[0-9a-f]{64}$/);
 
     // Load the row the way the public route does (Supabase embeds property/host as ISO strings).
     const load = async (): Promise<GuidebookRow> => {
@@ -210,32 +188,36 @@ describe("template, toggle, publish over HTTP", () => {
         select g.*, to_jsonb(p) as property, to_jsonb(h) as host from guidebook g
           left join property p on p.id = g.property_id left join host h on h.id = g.host_id where g.id = ${id}`;
       const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : v);
-      return { ...row, created_time: iso(row.created_time), last_modified_time: iso(row.last_modified_time), published_at: iso(row.published_at) } as unknown as GuidebookRow;
+      return { ...row, created_time: iso(row.created_time), last_modified_time: iso(row.last_modified_time) } as unknown as GuidebookRow;
     };
 
-    const fresh = liveGuidebookResponse(new Request(url("/g/x")), await load());
-    expect(fresh.headers.get("ETag")).toBe(pub.etag);
-    expect(await fresh.text()).toContain("Original welcome");
-    expect(liveGuidebookResponse(new Request(url("/g/x"), { headers: { "If-None-Match": pub.etag } }), await load()).status).toBe(304);
+    const first = guidebookResponse(new Request(url("/g/x")), await load());
+    const etag = first.headers.get("ETag") as string;
+    expect(await first.text()).toContain("Original welcome");
+    expect(guidebookResponse(new Request(url("/g/x"), { headers: { "If-None-Match": etag } }), await load()).status).toBe(304);
 
     await new Promise((r) => setTimeout(r, 20));
     await PATCH(req("PATCH", `/api/guidebooks/${id}`, "owner", { welcome_message: "Edited welcome" }), ctx(id));
-    const stale = liveGuidebookResponse(new Request(url("/g/x")), await load());
-    const html = await stale.text();
-    expect(html).toContain("Edited welcome"); // snapshot is stale, so the page is rendered live
-    expect(stale.headers.get("ETag")).not.toBe(pub.etag);
-
-    await publish(req("POST", `/api/guidebooks/${id}/publish`), ctx(id));
-    const republished = liveGuidebookResponse(new Request(url("/g/x")), await load());
-    expect(await republished.text()).toContain("Edited welcome");
-    expect(republished.headers.get("X-Template-Key")).toBeNull(); // served from the snapshot again
+    const edited = guidebookResponse(new Request(url("/g/x"), { headers: { "If-None-Match": etag } }), await load());
+    expect(edited.status).toBe(200);
+    const html = await edited.text();
+    expect(html).toContain("Edited welcome");
+    expect(html).not.toMatch(/Preview Mode|preview-watermark/);
+    expect(edited.headers.get("ETag")).not.toBe(etag);
   });
 
-  it("publish and toggle refuse other users", async () => {
-    const { body } = await createVia({ property_name: "Mine" });
+  it("a guidebook created before every guidebook was live gets its public URL the first time it is listed", async () => {
+    const { body } = await createVia({ property_name: "Old Draft" });
     const id = body.guidebook_id as string;
-    expect((await publish(req("POST", `/api/guidebooks/${id}/publish`, "other"), ctx(id))).status).toBe(404);
-    expect((await toggle(req("POST", `/api/guidebooks/${id}/toggle`, "other"), ctx(id))).status).toBe(404);
+    await db.sql`update guidebook set public_slug = null where id = ${id}`;
+    const list = await json(await listRoute(req("GET", "/api/guidebooks")));
+    const slug = list.items[0].public_slug as string;
+    expect(slug).toMatch(/^old-draft-[0-9a-f]{6}$/);
+    const [row] = await db.sql`select public_slug from guidebook where id = ${id}`;
+    expect(row.public_slug).toBe(slug); // saved, so it stays the same
+    expect((await json(await listRoute(req("GET", "/api/guidebooks")))).items[0].public_slug).toBe(slug);
+    const one = await json(await getOne(req("GET", `/api/guidebooks/${id}`), ctx(id)));
+    expect(one.public_slug).toBe(slug);
   });
 });
 

@@ -55,9 +55,9 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     id: "publish",
-    title: "Publish Your Changes",
-    description: "When you're ready, click 'Publish Changes' to save and generate your guidebook. You can preview and share it with your guests!",
-    targetSelector: "[data-tutorial='publish-button']",
+    title: "Save Your Changes",
+    description: "When you're ready, click 'Save Changes'. Your guidebook is live as soon as it is saved, so you can share it with your guests right away.",
+    targetSelector: "[data-tutorial='save-button']",
     position: "left",
     showArrow: true,
   },

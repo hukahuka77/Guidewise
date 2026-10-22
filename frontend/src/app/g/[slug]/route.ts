@@ -1,6 +1,6 @@
 import { notFoundResponse } from "@/lib/server/guidebookResponse";
-import { serveLiveGuidebook } from "@/lib/server/liveGuidebook";
-import { fetchActiveGuidebookBySlug } from "@/lib/server/guidebooks";
+import { serveGuidebook } from "@/lib/server/liveGuidebook";
+import { fetchGuidebookBySlug } from "@/lib/server/guidebooks";
 import { proxyToBackend } from "@/lib/server/proxy";
 import { getSupabaseAdmin } from "@/lib/server/supabaseAdmin";
 
@@ -13,8 +13,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
   if (!getSupabaseAdmin()) return proxyToBackend(request);
   try {
     const { slug } = await params;
-    const gb = await fetchActiveGuidebookBySlug(slug);
-    return gb ? await serveLiveGuidebook(request, gb) : notFoundResponse();
+    const gb = await fetchGuidebookBySlug(slug);
+    return gb ? await serveGuidebook(request, gb) : notFoundResponse();
   } catch (error) {
     console.error("native /g render failed; falling back to Flask", error);
     return proxyToBackend(request);

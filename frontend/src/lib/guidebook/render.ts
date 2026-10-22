@@ -17,9 +17,6 @@ export const TEMPLATE_REGISTRY: Record<string, string> = {
 
 export const DEFAULT_TEMPLATE_KEY = "template_original";
 
-/** Snapshots stored by publish carry this marker once they use durable place-photo URLs. */
-export const PLACE_PHOTO_SNAPSHOT_MARKER = "<!-- place-photo-v2 -->";
-
 const TEMPLATE_DIR = path.join(process.cwd(), "src", "templates", "guidebook");
 
 // Nunjucks escapes backslashes and writes &quot; where Jinja writes &#34;; match Jinja so the
@@ -60,31 +57,14 @@ export function getTemplatesHash(): string {
   return templatesHash;
 }
 
-export interface RenderOptions {
-  showWatermark?: boolean;
-  upgradeUrl?: string;
-}
-
-/** Render a guidebook with its selected template. */
-export function renderGuidebookHtml(gb: GuidebookRow, options: RenderOptions = {}): { html: string; templateKey: string } {
-  const templateKey = resolveTemplateKey(gb.template_key);
-  const html = getEnv().render(TEMPLATE_REGISTRY[templateKey], {
-    ctx: withPythonTruthiness(buildGuidebookContext(gb)),
-    show_watermark: Boolean(options.showWatermark),
-    upgrade_url: options.upgradeUrl ?? "/pricing",
-  });
-  return { html, templateKey };
-}
-
 /**
- * Render the HTML snapshot stored by "publish". Flask passed the guidebook fields to the template
- * both inside `ctx` and as top-level variables, and one template (welcomebook) reads the top-level
- * `property_name`, so the same variables are passed here to produce identical snapshots.
+ * Render a guidebook with its selected template. The guidebook fields are passed both inside `ctx` and as
+ * top-level variables because one template (welcomebook) reads the top-level `property_name`.
  */
-export function renderPublishSnapshot(gb: GuidebookRow): { html: string; templateKey: string } {
+export function renderGuidebookHtml(gb: GuidebookRow): { html: string; templateKey: string } {
   const templateKey = resolveTemplateKey(gb.template_key);
   const ctx = buildGuidebookContext(gb);
-  const legacy = {
+  const topLevel = {
     id: gb.id,
     host_name: gb.host?.name ?? null,
     host_bio: gb.host?.bio ?? null,
@@ -109,8 +89,9 @@ export function renderPublishSnapshot(gb: GuidebookRow): { html: string; templat
     custom_tabs_meta: sanitizeCustomTabsMeta(gb.custom_tabs_meta),
     cover_image_url: gb.cover_image_url,
   };
-  const html =
-    PLACE_PHOTO_SNAPSHOT_MARKER +
-    getEnv().render(TEMPLATE_REGISTRY[templateKey], { ctx: withPythonTruthiness(ctx), ...withPythonTruthiness(legacy) });
+  const html = getEnv().render(TEMPLATE_REGISTRY[templateKey], {
+    ctx: withPythonTruthiness(ctx),
+    ...withPythonTruthiness(topLevel),
+  });
   return { html, templateKey };
 }

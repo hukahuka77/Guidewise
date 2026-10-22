@@ -143,12 +143,7 @@
  "created_time": "2026-01-01T00:00:00+00:00",
  "last_modified_time": "2026-02-03T04:05:06.123456+00:00",
  "user_id": "user-1",
- "active": true,
  "public_slug": "cozy-cabin-abc123",
- "preview_token": null,
- "published_html": null,
- "published_etag": null,
- "published_at": null,
  "property": {
   "id": 1,
   "name": "Cozy Cabin <Deluxe>",
