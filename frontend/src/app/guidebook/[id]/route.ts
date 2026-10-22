@@ -1,4 +1,5 @@
-import { liveGuidebookResponse, notFoundResponse } from "@/lib/server/guidebookResponse";
+import { notFoundResponse } from "@/lib/server/guidebookResponse";
+import { serveLiveGuidebook } from "@/lib/server/liveGuidebook";
 import { fetchGuidebookById } from "@/lib/server/guidebooks";
 import { proxyToBackend } from "@/lib/server/proxy";
 import { getSupabaseAdmin } from "@/lib/server/supabaseAdmin";
@@ -16,7 +17,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     if (!gb.active) {
       return new Response(null, { status: 302, headers: { Location: `/upgrade?gb=${encodeURIComponent(gb.id)}` } });
     }
-    return liveGuidebookResponse(request, gb);
+    return await serveLiveGuidebook(request, gb);
   } catch (error) {
     console.error("native /guidebook render failed; falling back to Flask", error);
     return proxyToBackend(request);

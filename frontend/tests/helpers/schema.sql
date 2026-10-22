@@ -22,3 +22,11 @@ create table profiles (
   created_at timestamptz not null default now(), updated_at timestamptz not null default now(),
   guidebook_limit integer, stripe_customer_id text, stripe_subscription_id text, pro_starts_at timestamptz
 );
+
+create table guidebook_view_daily (
+  guidebook_id text not null, user_id text not null, day date not null, views integer not null default 0,
+  primary key (guidebook_id, day)
+);
+create index idx_guidebook_view_daily_user_day on guidebook_view_daily (user_id, day);
+create table view_dedupe (key text primary key, created_at timestamptz not null default now());
+create table ai_usage_monthly (user_id text not null, month date not null, used integer not null default 0, primary key (user_id, month));

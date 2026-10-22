@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { OTHER, OWNER, startTestDb, type TestDb } from "./helpers/testDb";
+import { OTHER, OWNER, setPlan, startTestDb, type TestDb } from "./helpers/testDb";
 
 vi.mock("@/lib/server/auth", () => ({
   isAuthConfigured: () => true,
@@ -35,6 +35,7 @@ afterAll(async () => {
 beforeEach(async () => {
   await db.reset();
   resetRateLimitsForTests();
+  await setPlan(db.sql, OWNER, "starter");
   const [p] = await db.sql`insert into property (name, address_street, user_id) values ('Café Cabin / №1', '1 Main St', ${OWNER}) returning id`;
   await db.sql`
     insert into guidebook (id, user_id, property_id, template_key, check_in_time, welcome_info, included_tabs, rules_json, wifi_json, house_manual)
@@ -113,6 +114,33 @@ describe("PDF routes", () => {
       expect(r.status).toBe(200);
     }
     expect((await call(pdfRoute, "?template=template_pdf_qr&qr_url=zzz&include_qr=1")).status).toBe(429);
+  }, 120000);
+});
+
+describe("PDF plan gating", () => {
+  it("free: only the standard layout; other layouts, the QR poster and the print PDF need a paid plan", async () => {
+    await setPlan(db.sql, OWNER, "free");
+    const ok = await call(pdfRoute);
+    expect(ok.status).toBe(200);
+    expect((await call(pdfRoute, "?template=template_pdf_original")).status).toBe(200);
+    expect((await call(pdfRoute, "?template=template_pdf_modern")).status).toBe(200); // renders the standard layout
+    expect((await call(pdfRoute, "?template=bogus")).status).toBe(200);
+    for (const template of ["template_pdf_basic", "template_pdf_mobile", "template_pdf_qr"]) {
+      const res = await call(pdfRoute, `?template=${template}`);
+      expect(res.status).toBe(403);
+      expect(await res.json()).toMatchObject({ upgrade: true, feature: "pdf_template" });
+    }
+    const print = await call(printRoute);
+    expect(print.status).toBe(403);
+    expect(await print.json()).toMatchObject({ upgrade: true, feature: "print_pdf" });
+  }, 60000);
+
+  it("paid plans get every layout and the print PDF", async () => {
+    for (const plan of ["starter", "power", "pro"]) {
+      await setPlan(db.sql, OWNER, plan);
+      expect((await call(pdfRoute, "?template=template_pdf_qr")).status).toBe(200);
+      expect((await call(printRoute)).status).toBe(200);
+    }
   }, 120000);
 });
 

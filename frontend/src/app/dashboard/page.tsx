@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import Spinner from "@/components/ui/spinner";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import QRDownloadButton from "@/components/custom/QRDownloadButton";
+import { offerUpgrade, throwApiError } from "@/lib/upgrade";
 import { cacheGet, cacheSet } from "@/lib/cache";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
@@ -65,9 +66,9 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [plan, setPlan] = useState<'free'|'trial'|'starter'|'growth'|'pro'|'enterprise'|''>('');
-  const [guidebookLimit, setGuidebookLimit] = useState<number | null>(0);
-  const [activeCount, setActiveCount] = useState<number>(0);
+  const [plan, setPlan] = useState<'free'|'starter'|'power'|'pro'|''>('');
+  const [usage, setUsage] = useState<{ viewsUsed: number; viewsLimit: number | null; analytics: boolean }>({ viewsUsed: 0, viewsLimit: null, analytics: false });
+  const [viewsByGuidebook, setViewsByGuidebook] = useState<Record<string, number>>({});
   const [toggling, setToggling] = useState<string | null>(null); // guidebook id being toggled
 
   // UI state
@@ -120,14 +121,19 @@ export default function DashboardPage() {
             const r = await fetch(`${API_BASE}/api/billing/summary`, { headers: { Authorization: `Bearer ${token2}` } });
             if (r.ok) {
               const j = await r.json();
-              const userPlan = j?.plan || 'trial';
-              const limit = j?.guidebook_limit;
-              const active = j?.active_guidebooks || 0;
+              const userPlan = j?.plan || 'free';
               if (!cancelled) {
                 setPlan(userPlan);
-                setGuidebookLimit(limit);
-                setActiveCount(active);
+                setUsage({ viewsUsed: j?.views_used ?? 0, viewsLimit: j?.views_limit ?? null, analytics: !!j?.features?.analytics });
               }
+            }
+            // Views per guidebook this month (every plan)
+            const v = await fetch(`${API_BASE}/api/analytics/views`, { headers: { Authorization: `Bearer ${token2}` } });
+            if (v.ok) {
+              const vj = await v.json();
+              const map: Record<string, number> = {};
+              for (const g of vj?.guidebooks || []) map[g.id] = g.views_month || 0;
+              if (!cancelled) setViewsByGuidebook(map);
             }
           }
         } catch {}
@@ -205,9 +211,7 @@ export default function DashboardPage() {
         headers,
       });
 
-      if (!res.ok) {
-        throw new Error('Failed to generate PDF');
-      }
+      if (!res.ok) await throwApiError(res, 'Failed to generate PDF');
 
       // Create blob and trigger download
       const blob = await res.blob();
@@ -221,7 +225,7 @@ export default function DashboardPage() {
       window.URL.revokeObjectURL(url);
     } catch (e) {
       console.error('PDF download error:', e);
-      alert('Failed to generate PDF. Please try again.');
+      if (!offerUpgrade(e)) alert(e instanceof Error && e.message ? e.message : 'Failed to generate PDF. Please try again.');
     } finally {
       setDownloadingPdf(null);
     }
@@ -261,13 +265,6 @@ export default function DashboardPage() {
           ? { ...item, active: result.active, public_slug: result.public_slug }
           : item
       ));
-
-      // Update active count
-      if (result.active) {
-        setActiveCount(prev => prev + 1);
-      } else {
-        setActiveCount(prev => Math.max(0, prev - 1));
-      }
 
       // Clear cache
       cacheSet("dashboard:guidebooks", null, 0);
@@ -315,15 +312,22 @@ export default function DashboardPage() {
             <p className="text-gray-600 mt-1">Manage, share, and download your property guidebooks</p>
             {plan && (
               <p className="text-sm text-gray-500 mt-1">
-                {(plan === 'free' || plan === 'trial') ? (
-                  <span>Free preview mode - <Link href="/pricing" className="underline text-[#CC7A52]">Upgrade to publish</Link></span>
-                ) : guidebookLimit === null ? (
-                  <span className="font-semibold text-green-700">Unlimited guidebooks ({plan})</span>
-                ) : (
+                {usage.viewsLimit !== null ? (
                   <span>
-                    <span className="font-semibold">{activeCount} / {guidebookLimit}</span> guidebooks active ({plan})
-                    {activeCount >= guidebookLimit && <span className="text-[#CC7A52] ml-1">- <Link href="/pricing" className="underline">Upgrade for more</Link></span>}
+                    <span className={usage.viewsUsed >= usage.viewsLimit ? "font-semibold text-red-600" : usage.viewsUsed >= usage.viewsLimit * 0.8 ? "font-semibold text-amber-700" : "font-semibold"}>
+                      {usage.viewsUsed} / {usage.viewsLimit}
+                    </span>{" "}
+                    guest views used this month (Free plan)
+                    <Link href="/pricing" className="underline text-[#CC7A52] ml-1">Upgrade for unlimited views</Link>
+                    {usage.viewsUsed >= usage.viewsLimit && (
+                      <span className="block text-red-600 mt-1">Your guidebooks are paused for guests until next month or until you upgrade.</span>
+                    )}
                   </span>
+                ) : (
+                  <span className="font-semibold text-green-700">Unlimited guest views ({plan.charAt(0).toUpperCase() + plan.slice(1)} plan)</span>
+                )}
+                {usage.analytics && (
+                  <Link href="/dashboard/analytics" className="underline text-[#CC7A52] ml-3">View analytics</Link>
                 )}
               </p>
             )}
@@ -332,7 +336,7 @@ export default function DashboardPage() {
             <Link href="/onboarding">
               <Button>Create New</Button>
             </Link>
-            {(plan === 'free' || plan === 'trial') && (
+            {plan !== 'pro' && plan !== '' && (
               <Link href="/pricing">
                 <Button variant="secondary">Upgrade</Button>
               </Link>
@@ -363,7 +367,7 @@ export default function DashboardPage() {
               const viewUrl = isActive && gb.public_slug
                 ? `${API_BASE}/g/${gb.public_slug}`
                 : (gb.preview_url ? `${API_BASE}${gb.preview_url}` : null);
-              const canActivate = guidebookLimit === null || (activeCount < (guidebookLimit || 0));
+              const canActivate = true; // publishing is not limited; plans cap how many guidebooks you can create
               const isToggling = toggling === gb.id;
 
               return (
@@ -397,6 +401,7 @@ export default function DashboardPage() {
                           {gb.last_modified_time ? `Updated ${new Date(gb.last_modified_time).toLocaleString()}` :
                            gb.created_time ? `Created ${new Date(gb.created_time).toLocaleString()}` : ''}
                         </div>
+                        <div className="text-xs text-gray-500">{viewsByGuidebook[gb.id] ?? 0} views this month</div>
                       </div>
                       <span className="text-[10px] px-2 py-1 bg-gray-100 rounded border text-gray-600">
                         {TEMPLATE_DISPLAY_NAMES[gb.template_key || "template_original"] || "Original"}
@@ -554,11 +559,6 @@ export default function DashboardPage() {
               }
 
               setItems(prev => prev.filter(item => item.id !== deleteId));
-              // If a deleted guidebook was active, adjust activeCount
-              const deleted = items.find(i => i.id === deleteId);
-              if (deleted?.active) {
-                setActiveCount(prev => Math.max(0, prev - 1));
-              }
               cacheSet("dashboard:guidebooks", null, 0);
               setDeleteId(null);
             } catch (e) {
@@ -586,16 +586,16 @@ export default function DashboardPage() {
               </div>
               <div className="p-6 space-y-4">
                 <p className="text-gray-700">
-                  You&apos;ve reached your guidebook limit. Upgrade your plan to activate more guidebooks and unlock additional features.
+                  This needs a higher plan. Upgrade to unlock unlimited guest views, more guidebooks and more features.
                 </p>
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <p className="text-sm text-blue-800 font-medium">
                     ✨ Upgrade benefits:
                   </p>
                   <ul className="text-sm text-blue-700 mt-2 space-y-1 ml-4 list-disc">
-                    <li>Activate more guidebooks</li>
-                    <li>Premium templates</li>
-                    <li>Priority support</li>
+                    <li>Unlimited guest views</li>
+                    <li>All PDF layouts and print-ready PDFs</li>
+                    <li>More AI recommendations</li>
                   </ul>
                 </div>
                 <div className="flex gap-3 pt-2">
