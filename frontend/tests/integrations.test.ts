@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { OTHER, OWNER, startTestDb, type TestDb } from "./helpers/testDb";
+import { OTHER, OWNER, setPlan, startTestDb, type TestDb } from "./helpers/testDb";
 
 vi.mock("@/lib/server/auth", () => ({
   isAuthConfigured: () => true,
@@ -29,6 +29,7 @@ import { POST as searchRoute } from "../src/app/api/places/search/route";
 import { setSqlForTests } from "../src/lib/server/db";
 import { canonicalListingUrl, extractListingContext, hostAllowed, sanitizeExtractedFields, validateListingUrl } from "../src/lib/server/listingImport";
 import { clampItems, rateLimited, resetRateLimitsForTests } from "../src/lib/server/rateLimit";
+import { aiUsage, monthStart } from "../src/lib/server/usage";
 import { proxyToBackend } from "../src/lib/server/proxy";
 
 let db: TestDb;
@@ -465,6 +466,111 @@ describe("listing import route", () => {
     expect(body.imported).toEqual(["cover image"]);
   });
 
+  describe("pre-filling everything it can", () => {
+    const rich = {
+      ...extraction,
+      host_bio: "Sam loves hosting.",
+      address_zip: "78701",
+      address_street: "",
+      access_info: "Self check-in with a keypad",
+      wifi_network: "LakeCabin-5G",
+      house_manual: [{ name: "Kitchen", description: "Fully equipped" }],
+      neighborhood: ["Walk to the lake in 5 minutes.", "Downtown is a 10 minute drive."],
+    };
+    const place = (name: string) => ({ name, address: `${name} St`, description: `About ${name}` });
+    const wire = (opts: { extraction?: unknown } = {}) => {
+      fetchMock.mockImplementation(async (input: string) => {
+        const u = String(input);
+        if (/muscache\.com/.test(u)) return png();
+        if (u.includes("textsearch")) return json({ results: [{ place_id: `pid-${new URL(u).searchParams.get("query")?.split(",")[0]}` }] });
+        if (u.includes("details")) return json({ result: { formatted_address: "1 Real Addr, Austin, TX", photos: [{ photo_reference: "PHOTOREF" }] } });
+        if (u.includes("routes.googleapis")) return json({ routes: [{ duration: "600s" }] });
+        return new Response(page, { status: 200 });
+      });
+      openaiCreate.mockImplementation(async (args: { messages: { content: string }[] }) => {
+        const prompt = args.messages.map((m) => m.content).join(" ");
+        if (prompt.includes("extract vacation rental")) return { choices: [{ message: { content: JSON.stringify(opts.extraction ?? rich) } }] };
+        if (prompt.includes("restaurants")) return { choices: [{ message: { content: JSON.stringify({ places_to_eat: [place("Taco Hut"), place("Pizza Barn")] }) } }] };
+        return { choices: [{ message: { content: JSON.stringify({ activities: [place("Lake Trail"), place("Art Museum")] }) } }] };
+      });
+    };
+
+    it("stores host bio, address, access info, Wi-Fi, neighborhood tab, things to do and places to eat", async () => {
+      wire();
+      const res = await run();
+      expect(res.status).toBe(201);
+      const body = await res.json();
+      expect(body.recommendations).toEqual({ things_to_do: 2, places_to_eat: 2 });
+      expect(body.imported).toEqual(
+        expect.arrayContaining(["host bio", "access instructions", "Wi-Fi network", "neighborhood notes", "things to do", "places to eat", "cover image"]),
+      );
+      const [gb] = await db.sql`select * from guidebook where id = ${body.guidebook_id}`;
+      expect(gb.access_info).toBe("Self check-in with a keypad");
+      expect(gb.wifi_json).toEqual({ network: "LakeCabin-5G" });
+      expect(gb.house_manual).toEqual([{ name: "Kitchen", description: "Fully equipped" }]);
+      expect(gb.included_tabs).toContain("custom_neighborhood");
+      expect(gb.custom_sections).toEqual({ custom_neighborhood: ["Walk to the lake in 5 minutes.", "Downtown is a 10 minute drive."] });
+      expect(gb.custom_tabs_meta).toEqual({ custom_neighborhood: { label: "Neighborhood", icon: "🏘️" } });
+      expect(gb.things_to_do.map((i: { name: string }) => i.name)).toEqual(["Lake Trail", "Art Museum"]);
+      expect(gb.things_to_do[0]).toMatchObject({ address: "1 Real Addr, Austin, TX", image_url: "PHOTOREF", driving_minutes: 10 });
+      expect(gb.things_to_do[0].place_id).toMatch(/^pid-/);
+      expect(gb.places_to_eat.map((i: { name: string }) => i.name)).toEqual(["Taco Hut", "Pizza Barn"]);
+      const [host] = await db.sql`select bio from host where id = ${gb.host_id}`;
+      expect(host.bio).toBe("Sam loves hosting.");
+      const [prop] = await db.sql`select address_zip, address_city_state from property where id = ${gb.property_id}`;
+      expect(prop).toEqual({ address_zip: "78701", address_city_state: "Austin, TX" });
+      expect(await aiUsage(db.sql, OWNER)).toBe(1); // one allowance covers both lists
+    });
+
+    it("uses the city for the searches and asks for restaurants and activities", async () => {
+      wire();
+      await run();
+      const prompts = openaiCreate.mock.calls.map((c) => (c[0] as { messages: { content: string }[] }).messages[1].content);
+      expect(prompts.some((p) => p.includes("Austin, TX") && p.includes("restaurants"))).toBe(true);
+      expect(prompts.some((p) => p.includes("Austin, TX") && p.includes("activities"))).toBe(true);
+    });
+
+    it("still imports when the free AI allowance is used up, and says so", async () => {
+      wire();
+      await db.sql`insert into ai_usage_monthly (user_id, month, used) values (${OWNER}, ${monthStart()}::date, 3)`;
+      const body = await (await run()).json();
+      expect(body.recommendations).toEqual({ things_to_do: 0, places_to_eat: 0, skipped: "quota" });
+      expect(body.missing).toEqual(expect.arrayContaining(["things to do", "places to eat"]));
+      expect(body.imported).toContain("property name");
+      const [gb] = await db.sql`select things_to_do, places_to_eat from guidebook where id = ${body.guidebook_id}`;
+      expect(gb.things_to_do).toEqual([]);
+    });
+
+    it("skips recommendations without a city or without Google configured, and refunds when they come back empty", async () => {
+      wire({ extraction: { ...rich, address_city_state: "" } });
+      expect((await (await run()).json()).recommendations.skipped).toBe("no_location");
+      wire();
+      delete process.env.GOOGLE_API_KEY;
+      expect((await (await run()).json()).recommendations.skipped).toBe("not_configured");
+      process.env.GOOGLE_API_KEY = "gkey";
+      openaiCreate.mockImplementation(async (args: { messages: { content: string }[] }) =>
+        args.messages.map((m) => m.content).join(" ").includes("extract vacation rental")
+          ? { choices: [{ message: { content: JSON.stringify(rich) } }] }
+          : { choices: [{ message: { content: "{}" } }] },
+      );
+      await db.sql`delete from ai_usage_monthly`;
+      expect((await (await run()).json()).recommendations.skipped).toBe("failed");
+      expect(await aiUsage(db.sql, OWNER)).toBe(0);
+    });
+
+    it("stops before fetching anything when the plan's guidebook cap is reached", async () => {
+      wire();
+      await setPlan(db.sql, OWNER, "starter");
+      const [{ id: pid }] = await db.sql`insert into property (name, user_id) values ('P', ${OWNER}) returning id`;
+      for (let i = 0; i < 5; i++) await db.sql`insert into guidebook (id, property_id, user_id, template_key) values (${`cap${i}`}, ${pid}, ${OWNER}, 'template_original')`;
+      const res = await run();
+      expect(res.status).toBe(403);
+      expect((await res.json()).quota).toBe("guidebooks");
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(openaiCreate).not.toHaveBeenCalled();
+    });
+  });
+
   it("reuses an existing host and property of the same name", async () => {
     serve({});
     for (let i = 0; i < 2; i++) {
@@ -549,6 +655,42 @@ describe("listing import: cover photo discovery", () => {
     const { coverCandidates } = extractListingContext(html);
     expect(coverCandidates[0]).toContain("Hosting-2/first.jpg");
     expect(coverCandidates.join(" ")).not.toContain("evil.example.com");
+  });
+
+  const photo = (n: string) => `https://a0.muscache.com/im/pictures/miso/Hosting-7/original/${n}.jpeg`;
+  const stateHtml = (state: unknown, head = "") => `<head>${head}</head><script type="application/json">${JSON.stringify(state)}</script>`;
+
+  it("uses the photo the link points at (photo_id) over page order", () => {
+    const state = { sections: [{ thumbs: [{ id: "1", baseUrl: photo("t1") }, { id: "2", baseUrl: photo("t2") }, { id: "3", baseUrl: photo("t3") }] }, { gallery: [{ id: "900", baseUrl: photo("second") }, { id: "1850473928", baseUrl: photo("cover") }, { id: "901", baseUrl: photo("third") }] }] };
+    const { coverCandidates } = extractListingContext(stateHtml(state), { photoId: "1850473928" });
+    expect(coverCandidates[0]).toContain("cover.jpeg");
+  });
+
+  it("falls back to the first photo of the largest gallery, not whichever photo appears first", () => {
+    const state = { related: [photo("rel1"), photo("rel2"), photo("rel3")], listing: { photos: [{ baseUrl: photo("cover") }, { baseUrl: photo("b") }, { baseUrl: photo("c") }, { baseUrl: photo("d") }, { baseUrl: photo("e") }] }, stray: photo("stray") };
+    const { coverCandidates } = extractListingContext(stateHtml(state));
+    expect(coverCandidates[0]).toContain("cover.jpeg");
+    expect(coverCandidates.some((u) => u.includes("rel1"))).toBe(true); // still available as a fallback
+  });
+
+  it("still trusts the page's own preview image when there is no photo_id", () => {
+    const state = { photos: [{ baseUrl: photo("g1") }, { baseUrl: photo("g2") }, { baseUrl: photo("g3") }] };
+    const { coverCandidates } = extractListingContext(stateHtml(state, `<meta property="og:image" content="${photo("og")}">`));
+    expect(coverCandidates[0]).toContain("og.jpeg");
+  });
+
+  it("the importer reads photo_id from the pasted link", async () => {
+    const state = { photos: [{ id: "5", baseUrl: photo("first") }, { id: "1850473928", baseUrl: photo("chosen") }, { id: "6", baseUrl: photo("last") }], t: "x".repeat(500) };
+    fetchMock.mockImplementation(async (input: string) =>
+      /muscache\.com/.test(String(input))
+        ? new Response(new Uint8Array([1]), { status: 206, headers: { "content-type": "image/png" } })
+        : new Response(`<title>Cabin</title>${"Lovely cabin. ".repeat(60)}<script type="application/json">${JSON.stringify(state)}</script>`, { status: 200 }),
+    );
+    openaiCreate.mockResolvedValueOnce({ choices: [{ message: { content: JSON.stringify({ property_name: "Lake Cabin" }) } }] });
+    const res = await importRoute(post("/api/import-listing", { url: "https://www.airbnb.com/rooms/1?adults=2&photo_id=1850473928" }));
+    expect(res.status).toBe(201);
+    const [gb] = await db.sql`select cover_image_url from guidebook where id = ${(await res.json()).guidebook_id}`;
+    expect(gb.cover_image_url).toContain("chosen.jpeg");
   });
 
   it("prioritizes house rules and check-in details when embedded state is huge", () => {
