@@ -155,6 +155,18 @@ interface Harvest {
   text: { bucket: number; line: string }[];
   images: string[];
   counts: number[];
+  /** Photo galleries: arrays with several image URLs, in page order (the cover is normally first). */
+  groups: string[][];
+  /** Photos keyed by their own id, so a `photo_id` link parameter can pick the exact photo. */
+  byId: Map<string, string>;
+}
+
+const ID_KEY = /^(?:id|picture_?id|photo_?id|image_?id)$/i;
+
+/** The first image URL stored directly on an object. */
+function directImage(obj: Record<string, unknown>): string | null {
+  for (const v of Object.values(obj)) if (typeof v === "string" && IMAGE_URL.test(v)) return v;
+  return null;
 }
 
 /** Walk embedded JSON, collecting readable strings under informative keys and image URLs. */
@@ -177,12 +189,31 @@ function harvest(node: unknown, out: Harvest, key = "", depth = 0, seen = new Se
     if (seen.has(node)) return;
     seen.add(node);
     if (Array.isArray(node)) {
+      const urls: string[] = [];
+      for (const item of node) {
+        if (typeof item === "string" && IMAGE_URL.test(item)) urls.push(item);
+        else if (item && typeof item === "object" && !Array.isArray(item)) {
+          const img = directImage(item as Record<string, unknown>);
+          if (img) urls.push(img);
+        }
+      }
+      if (urls.length >= 3 && out.groups.length < 50) out.groups.push(urls);
       for (const item of node) harvest(item, out, key, depth + 1, seen);
     } else {
-      for (const [k, v] of Object.entries(node)) harvest(v, out, k, depth + 1, seen);
+      const obj = node as Record<string, unknown>;
+      const img = directImage(obj);
+      if (img) {
+        for (const [k, v] of Object.entries(obj)) {
+          if (ID_KEY.test(k) && (typeof v === "string" || typeof v === "number")) out.byId.set(String(v), img);
+        }
+      }
+      for (const [k, v] of Object.entries(obj)) harvest(v, out, k, depth + 1, seen);
     }
   }
 }
+
+/** Last extraction summary, logged by the importer to help diagnose wrong cover photos. */
+let coverDiagnostics = "";
 
 export interface ListingContext {
   context: string;
@@ -223,9 +254,13 @@ function scanImageUrls(html: string): string[] {
   return found;
 }
 
-export function rankCoverCandidates(primary: (string | null)[], others: string[]): string[] {
+/**
+ * Order cover candidates. `exact` is a photo the link itself points at (the `photo_id` parameter) and wins;
+ * then the page's own preview image tags; then the first photo of the biggest gallery; then everything else.
+ */
+export function rankCoverCandidates(primary: (string | null)[], others: string[], exact: string[] = [], gallery: string[] = []): string[] {
   const clean = (u: string | null) => (u ? cleanUrl(u) : null);
-  const explicit = primary.map(clean).filter((u): u is string => !!u);
+  const explicit = [...exact, ...primary, ...gallery].map(clean).filter((u): u is string => !!u);
   const rest = [...new Set(others.map(clean).filter((u): u is string => !!u))]
     .filter((u) => {
       try {
@@ -259,14 +294,14 @@ function cleanUrl(value: unknown): string | null {
   }
 }
 
-export function extractListingContext(html: string): ListingContext {
+export function extractListingContext(html: string, options: { photoId?: string | null } = {}): ListingContext {
   const title = decodeEntities((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? "").trim());
   const meta = metaTags(html);
   const parts: string[] = [];
   if (title) parts.push(`TITLE: ${title}`);
   for (const [k, v] of Object.entries(meta)) parts.push(`META ${k}: ${v}`);
 
-  const harvested: Harvest = { text: [], images: [], counts: [0, 0, 0, 0] };
+  const harvested: Harvest = { text: [], images: [], counts: [0, 0, 0, 0], groups: [], byId: new Map() };
   let jsonLdImage: string | null = null;
   for (const { attrs, body } of scriptBlocks(html)) {
     const isLd = /type\s*=\s*["']application\/ld\+json["']/i.test(attrs);
@@ -309,10 +344,15 @@ export function extractListingContext(html: string): ListingContext {
     .trim();
   parts.push(`PAGE TEXT: ${visible}`);
 
+  const exact = options.photoId && harvested.byId.get(options.photoId) ? [harvested.byId.get(options.photoId) as string] : [];
+  const biggest = harvested.groups.reduce<string[]>((best, g) => (g.length > best.length ? g : best), []);
   const coverCandidates = rankCoverCandidates(
     [meta["og:image"] ?? null, meta["og:image:secure_url"] ?? null, meta["twitter:image"] ?? null, jsonLdImage],
     [...harvested.images, ...scanImageUrls(html)],
+    exact,
+    biggest.length ? [biggest[0]] : [],
   );
+  coverDiagnostics = `og=${Boolean(meta["og:image"])} photoIdMatch=${exact.length > 0} galleries=${harvested.groups.length} biggest=${biggest.length}`;
   return { context: parts.join("\n").slice(0, MAX_CONTEXT_CHARS), coverImage: coverCandidates[0] ?? null, coverCandidates };
 }
 
@@ -460,7 +500,13 @@ async function fetchBestHtml(url: string): Promise<string> {
 
 export async function importListing(url: unknown): Promise<ImportedFields & { cover_image_url: string | null }> {
   const html = await fetchBestHtml(url as string);
-  const { context, coverCandidates } = extractListingContext(html);
+  let photoId: string | null = null;
+  try {
+    photoId = new URL(typeof url === "string" && url.includes("://") ? url : `https://${String(url)}`).searchParams.get("photo_id");
+  } catch {
+    photoId = null;
+  }
+  const { context, coverCandidates } = extractListingContext(html, { photoId });
   // Pages that are only a bot wall or login prompt have almost no usable text.
   if (context.length < 400 && coverCandidates.length === 0) {
     throw new ListingImportError(
@@ -474,7 +520,7 @@ export async function importListing(url: unknown): Promise<ImportedFields & { co
     context.length >= 400 ? extractGuidebookFields(context) : Promise.resolve(sanitizeExtractedFields({})),
   ]);
   console.info(
-    `listing import: fetched ${html.length} bytes, context ${context.length} chars, ${coverCandidates.length} photo candidates, cover ${cover ? "found" : "none"}`,
+    `listing import: fetched ${html.length} bytes, context ${context.length} chars, ${coverCandidates.length} photo candidates (${coverDiagnostics}), cover ${cover ? "found" : "none"}: ${cover ? cover.split("?")[0].split("/").slice(-2).join("/") : "-"}`,
   );
   if (!(fields.property_name || fields.house_rules.length || fields.welcome_message || cover)) {
     throw new ListingImportError("We couldn't find usable details on that page.", "no_content", 422);

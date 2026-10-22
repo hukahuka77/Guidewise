@@ -551,6 +551,42 @@ describe("listing import: cover photo discovery", () => {
     expect(coverCandidates.join(" ")).not.toContain("evil.example.com");
   });
 
+  const photo = (n: string) => `https://a0.muscache.com/im/pictures/miso/Hosting-7/original/${n}.jpeg`;
+  const stateHtml = (state: unknown, head = "") => `<head>${head}</head><script type="application/json">${JSON.stringify(state)}</script>`;
+
+  it("uses the photo the link points at (photo_id) over page order", () => {
+    const state = { sections: [{ thumbs: [{ id: "1", baseUrl: photo("t1") }, { id: "2", baseUrl: photo("t2") }, { id: "3", baseUrl: photo("t3") }] }, { gallery: [{ id: "900", baseUrl: photo("second") }, { id: "1850473928", baseUrl: photo("cover") }, { id: "901", baseUrl: photo("third") }] }] };
+    const { coverCandidates } = extractListingContext(stateHtml(state), { photoId: "1850473928" });
+    expect(coverCandidates[0]).toContain("cover.jpeg");
+  });
+
+  it("falls back to the first photo of the largest gallery, not whichever photo appears first", () => {
+    const state = { related: [photo("rel1"), photo("rel2"), photo("rel3")], listing: { photos: [{ baseUrl: photo("cover") }, { baseUrl: photo("b") }, { baseUrl: photo("c") }, { baseUrl: photo("d") }, { baseUrl: photo("e") }] }, stray: photo("stray") };
+    const { coverCandidates } = extractListingContext(stateHtml(state));
+    expect(coverCandidates[0]).toContain("cover.jpeg");
+    expect(coverCandidates.some((u) => u.includes("rel1"))).toBe(true); // still available as a fallback
+  });
+
+  it("still trusts the page's own preview image when there is no photo_id", () => {
+    const state = { photos: [{ baseUrl: photo("g1") }, { baseUrl: photo("g2") }, { baseUrl: photo("g3") }] };
+    const { coverCandidates } = extractListingContext(stateHtml(state, `<meta property="og:image" content="${photo("og")}">`));
+    expect(coverCandidates[0]).toContain("og.jpeg");
+  });
+
+  it("the importer reads photo_id from the pasted link", async () => {
+    const state = { photos: [{ id: "5", baseUrl: photo("first") }, { id: "1850473928", baseUrl: photo("chosen") }, { id: "6", baseUrl: photo("last") }], t: "x".repeat(500) };
+    fetchMock.mockImplementation(async (input: string) =>
+      /muscache\.com/.test(String(input))
+        ? new Response(new Uint8Array([1]), { status: 206, headers: { "content-type": "image/png" } })
+        : new Response(`<title>Cabin</title>${"Lovely cabin. ".repeat(60)}<script type="application/json">${JSON.stringify(state)}</script>`, { status: 200 }),
+    );
+    openaiCreate.mockResolvedValueOnce({ choices: [{ message: { content: JSON.stringify({ property_name: "Lake Cabin" }) } }] });
+    const res = await importRoute(post("/api/import-listing", { url: "https://www.airbnb.com/rooms/1?adults=2&photo_id=1850473928" }));
+    expect(res.status).toBe(201);
+    const [gb] = await db.sql`select cover_image_url from guidebook where id = ${(await res.json()).guidebook_id}`;
+    expect(gb.cover_image_url).toContain("chosen.jpeg");
+  });
+
   it("prioritizes house rules and check-in details when embedded state is huge", () => {
     const noise = Array.from({ length: 5000 }, (_, i) => `"title${i}":"Some unrelated title number ${i} with padding text"`).join(",");
     const state = `{${noise},"houseRules":"No parties or events","checkInTime":"After 4 PM"}`;
