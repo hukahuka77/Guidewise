@@ -380,7 +380,7 @@ export async function updateGuidebook(sql: Sql, userId: string, id: string, inpu
     const hostBio = data.host_bio;
     const hostContact = data.host_contact;
     const hostPhoto = data.host_photo_url;
-    if (hostName || truthy(hostBio) || truthy(hostPhoto)) {
+    if (hostName || truthy(hostBio) || truthy(hostContact) || truthy(hostPhoto)) {
       let hostId: number | null = gb.host_id ?? null;
       if (hostId !== null) {
         const present = await tx`select id from host where id = ${hostId}`;

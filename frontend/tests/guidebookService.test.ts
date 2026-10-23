@@ -260,6 +260,13 @@ describe("updateGuidebook", () => {
     expect(g.last_modified_time.getTime()).toBeGreaterThan(before.last_modified_time.getTime());
   });
 
+  it("saves a host phone number sent on its own", async () => {
+    const { guidebookId } = await createGuidebook(db.sql, OWNER, base({}));
+    await updateGuidebook(db.sql, OWNER, guidebookId, { host_contact: "(207) 555-0101" });
+    const [h] = await db.sql`select h.contact from guidebook g join host h on h.id = g.host_id where g.id = ${guidebookId}`;
+    expect(h.contact).toBe("(207) 555-0101");
+  });
+
   it("can clear a field with null, and rejects data-URL covers", async () => {
     const { guidebookId } = await createGuidebook(db.sql, OWNER, base({ welcome_message: "x", cover_image_url: "https://x/c.jpg" }));
     await updateGuidebook(db.sql, OWNER, guidebookId, { welcome_message: null, cover_image_url: "data:image/png;base64,AA" });
