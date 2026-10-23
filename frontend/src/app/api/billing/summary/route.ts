@@ -7,10 +7,6 @@ export const preferredRegion = "iad1";
 
 /** Plan, guidebook usage and (when Stripe is configured) subscription and invoices. */
 export function GET(request: Request) {
-  return withUser(
-    request,
-    async ({ sql, user }) => Response.json(await billingSummary(sql, getStripe(), user)),
-    // Until Stripe is configured here, Flask keeps returning the Stripe details.
-    { fallbackOnError: true, needs: () => getStripe() !== null },
-  );
+  // Without Stripe keys the plan and usage still load; only the subscription and invoices are left out.
+  return withUser(request, async ({ sql, user }) => Response.json(await billingSummary(sql, getStripe(), user)), { fallbackOnError: true });
 }

@@ -432,11 +432,20 @@ describe("billing routes", () => {
       body: body === undefined ? undefined : JSON.stringify(body),
     }));
 
-  it("hand requests to Flask until Stripe is configured", async () => {
+  it("hand checkout and portal requests to Flask until Stripe is configured", async () => {
     setStripeForTests(null);
-    for (const [route, method, path] of [[checkoutRoute, "POST", "/api/billing/create-checkout-session"], [portalRoute, "POST", "/api/billing/create-portal-session"], [summaryRoute, "GET", "/api/billing/summary"]] as const) {
+    for (const [route, method, path] of [[checkoutRoute, "POST", "/api/billing/create-checkout-session"], [portalRoute, "POST", "/api/billing/create-portal-session"]] as const) {
       expect(await (await call(route, method, path)).text()).toBe(`PROXIED ${method} ${path}`);
     }
+  });
+
+  it("serves the billing summary without Stripe, minus subscription and invoices", async () => {
+    setStripeForTests(null);
+    const res = await call(summaryRoute, "GET", "/api/billing/summary");
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.plan).toBe("free");
+    expect(json.stripe.invoices).toEqual([]);
   });
 
   it("require authentication", async () => {

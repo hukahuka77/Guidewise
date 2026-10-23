@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Sql } from "./db";
-import { uniqueSlug } from "./guidebookService";
+import { MAX_PROPERTY_NAME, uniqueSlug } from "./guidebookService";
 import type { Recommendations } from "./importPopulate";
 import type { ImportedFields } from "./listingImport";
 import { assertCanCreateGuidebook } from "./usage";
@@ -37,7 +37,7 @@ export async function createImportedGuidebook(
   recommendations: Recommendations = { things_to_do: [], places_to_eat: [] },
 ) {
   await assertCanCreateGuidebook(sql, userId);
-  const propertyName = fields.property_name || "My Property";
+  const propertyName = (fields.property_name || "My Property").slice(0, MAX_PROPERTY_NAME);
 
   const guidebookId = await sql.begin(async (tx) => {
     let hostId: number | null = null;

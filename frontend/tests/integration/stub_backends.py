@@ -6,6 +6,7 @@
 Run the checks with tests/integration/native-routes.sh.
 """
 import json
+import os
 import sys
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -17,6 +18,15 @@ ROWS = {p.stem: json.loads(p.read_text()) for p in FIXTURES.glob("*.json")}
 
 # A guidebook, and a slug that makes the lookup fail.
 ACTIVE = dict(ROWS["full_original"], public_slug="cozy-cabin-abc123")
+# Optional extra rows (a JSON list in the PostgREST shape) so pages can be checked for guidebooks created in the
+# test database: STUB_ROWS=/path/rows.json
+EXTRA_ROWS_FILE = os.environ.get("STUB_ROWS")
+
+
+def extra_rows():
+    if EXTRA_ROWS_FILE and Path(EXTRA_ROWS_FILE).exists():
+        return json.loads(Path(EXTRA_ROWS_FILE).read_text())
+    return []
 OWNER_ID = "11111111-1111-4111-8111-aaaaaaaaaaaa"
 OTHER_ID = "22222222-2222-4222-8222-bbbbbbbbbbbb"
 TOKENS = {"owner-token": OWNER_ID, "other-token": OTHER_ID}
@@ -43,8 +53,16 @@ class Supabase(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(data)))
+        self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
         self.wfile.write(data)
+
+    def do_OPTIONS(self):  # CORS preflight from the browser
+        self.send_response(204)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Headers", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+        self.end_headers()
 
     def do_GET(self):
         url = urlparse(self.path)
@@ -57,7 +75,7 @@ class Supabase(BaseHTTPRequestHandler):
         if url.path == "/rest/v1/guidebook":
             if "broken" in json.dumps(qs):
                 return self._send(500, {"message": "boom"})
-            rows = [ACTIVE]
+            rows = [ACTIVE] + extra_rows()
             for key, cond in qs.items():
                 if not cond.startswith("eq."):
                     continue
