@@ -1,349 +1,324 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Guidebook: Cozy Cabin &lt;Deluxe&gt;</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Marcellus&display=swap" rel="stylesheet">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Cozy Cabin &lt;Deluxe&gt; · Guest guide</title>
+  <meta name="theme-color" content="#F4F8FB" />
+  <link rel="preload" href="/fonts/guidebook/inter-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/fonts/guidebook/inter-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin />
+  <script>document.documentElement.classList.add("js");</script>
   <style>
+    @font-face { font-family: "GW Inter"; src: url("/fonts/guidebook/inter-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+    @font-face { font-family: "GW Inter"; src: url("/fonts/guidebook/inter-latin-500-normal.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+    @font-face { font-family: "GW Inter"; src: url("/fonts/guidebook/inter-latin-600-normal.woff2") format("woff2"); font-weight: 600 700; font-display: swap; }
+
     :root {
-      --primary-color: #0369a1;
-      --background-color: #f8fafc;
-      --card-background: #ffffff;
-      --text-color: #1e293b;
-      --light-text-color: #64748b;
-      --border-color: #e2e8f0;
+      --bg: #F4F8FB; --card: #FFFFFF; --soft: #EAF2F8; --line: #DFE8F0;
+      --ink: #0E1C2B; --ink-2: #3D4E60; --muted: #6B7C8E;
+      --sky: #0A7BA6; --sky-ink: #075F80; --sky-soft: #E1F1F8;
+      --sun: #F2B33D; --sun-soft: #FFF5DF;
+      --coral: #C2513A; --coral-soft: #FCEDE9;
+      --radius: 18px;
+      --shadow: 0 1px 2px rgba(14,28,43,.04), 0 8px 24px -12px rgba(14,28,43,.16);
+      --sans: "GW Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --nav-h: 68px;
     }
-    body { font-family: 'Poppins', sans-serif; margin: 0; background-color: var(--background-color); color: var(--text-color); }
-    .header { background: url('https://example.supabase.co/storage/v1/object/public/my_images/cover.jpg') no-repeat center center; background-size: cover; color: white; padding: 4rem 1rem; text-align: center; position: relative; }
-    .header::before { content: ''; position: absolute; inset: 0; background: rgba(0,0,0,0.5); }
-    .header-content { position: relative; z-index: 1; }
-    .header h1 { margin: 0; font-size: 2.5rem; }
-    .tabs-container { position: relative; background-color: var(--card-background); border-bottom: 1px solid var(--border-color); }
-    .tabs { display: flex; overflow-x: auto; -ms-overflow-style: none; scrollbar-width: none; gap: 0.25rem; padding: 0.375rem; }
-    .tabs::-webkit-scrollbar { display: none; }
-    .tab-button { padding: 0.75rem 1rem; border: none; background: none; cursor: pointer; font-size: 1rem; font-weight: 600; color: var(--light-text-color); white-space: nowrap; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s ease; position: relative; z-index: 1; border-radius: 8px; }
-    .tab-button:not(.active):hover { background-color: #f1f5f9; }
-    .tab-button.active { color: var(--primary-color); background-color: #eff6ff; font-weight: 700; }
-    .tab-slider { position: absolute; top: 0.375rem; height: calc(100% - 0.75rem); background-color: var(--primary-color); border-radius: 8px; transition: left 0.3s ease-out, width 0.3s ease-out; z-index: 0; display: none; }
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 400 16px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
+    img, video { display: block; max-width: 100%; }
+    a { color: inherit; }
+    h1, h2, h3, p { margin: 0; }
+    .ic { flex: none; }
+    .pre { white-space: pre-line; overflow-wrap: anywhere; }
+    .wrap { max-width: 960px; margin: 0 auto; padding: 0 16px; }
 
-    /* Desktop: Show slider background */
-    @media (min-width: 768px) {
-      .tab-slider { display: block; }
-      .tab-button.active { color: white; background-color: transparent; }
-    }
-    .tab-content { display: none; padding: 1.5rem; }
-    .tab-content.active { display: block; }
-    .card { background: var(--card-background); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-    .card h2 { margin-top: 0; font-size: 1.5rem; color: var(--primary-color); border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 1rem; }
-    .info-grid { display: grid; grid-template-columns: 1fr; gap: 1.5rem; }
-    .info-item strong { display: block; color: var(--text-color); margin-bottom: 0.25rem; }
-    .rules-list { list-style: none; padding: 0; }
-    .rules-list li { margin-bottom: 0.75rem; padding-left: 1.5rem; position: relative; }
-    .rules-list li::before { content: '✓'; color: var(--primary-color); position: absolute; left: 0; }
-    .recommendation-grid { display: grid; grid-template-columns: 1fr; gap: 1.5rem; }
-    .recommendation-card { background: var(--card-background); border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.07); overflow: hidden; display: flex; flex-direction: column; }
-    .recommendation-card img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; }
-    .recommendation-card-content { padding: 1rem 1.25rem; }
-    .recommendation-card-content h3 { margin: 0 0 0.5rem; font-size: 1.25rem; }
-    .recommendation-card-content p { margin: 0; color: var(--light-text-color); }
-    @media (min-width: 640px) { .recommendation-grid { grid-template-columns: repeat(2, 1fr); } }
-    @media (min-width: 1024px) { .recommendation-grid { grid-template-columns: repeat(3, 1fr); } }
-    @media (min-width: 768px) { .info-grid { grid-template-columns: 1fr 1fr; } .tabs { justify-content: center; } }
-    .gw-logo{ font-family: 'Marcellus', serif; letter-spacing: 0.15em; text-transform: uppercase; }
+    /* Cover */
+    .cover { max-width: 960px; margin: 0 auto; padding: 12px 12px 0; }
+    .cover-card { position: relative; overflow: hidden; min-height: 300px; height: clamp(300px, 52vh, 460px); border-radius: 28px; background: linear-gradient(135deg, #8EC9E0, #0A7BA6); color: #fff; }
+    .cover-card img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .cover-card::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(8,20,32,0) 35%, rgba(8,20,32,.72) 100%); }
+    .cover-text { position: absolute; z-index: 1; left: 0; right: 0; bottom: 0; padding: 22px 22px 24px; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px; background: rgba(255,255,255,.2); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); font-size: 12px; font-weight: 600; letter-spacing: .04em; }
+    .cover h1 { margin-top: 10px; font-size: clamp(30px, 8vw, 48px); font-weight: 700; line-height: 1.05; letter-spacing: -.025em; text-wrap: balance; }
+    .cover-addr { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 14px; opacity: .92; text-decoration: none; }
+    .cover-addr:hover { opacity: 1; text-decoration: underline; text-underline-offset: 3px; }
 
-    /* House Manual Expandable Items */
-    .manual-item { cursor: pointer; transition: background-color 0.2s; }
-    .manual-item:hover { background-color: #f8fafc; }
-    .manual-item-header { display: flex; justify-content: space-between; align-items: center; }
-    .manual-item-title { font-weight: 600; margin: 0; }
-    .chevron-icon {
-      color: var(--light-text-color);
-      transition: transform 0.2s ease-out;
-      font-size: 0.875rem;
+    /* Quick facts */
+    .quick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+    .q { min-width: 0; padding: 14px 16px; border-radius: var(--radius); background: var(--card); box-shadow: var(--shadow); }
+    .q-label { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+    .q-label .ic { color: var(--sky); }
+    .q-value { margin-top: 4px; font-size: 20px; font-weight: 700; letter-spacing: -.01em; }
+    .q--wifi { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 12px; background: var(--sky); color: #fff; }
+    .q--wifi .q-label, .q--wifi .q-label .ic { color: rgba(255,255,255,.8); }
+    .wifi-net { font-size: 15px; opacity: .9; overflow-wrap: anywhere; }
+    .wifi-pass { font: 600 19px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+    .copy { grid-row: 1 / span 3; grid-column: 2; display: inline-flex; align-items: center; gap: 6px; padding: 9px 14px; border: 0; border-radius: 999px; background: #fff; color: var(--sky-ink); font: 600 14px var(--sans); cursor: pointer; }
+    .copy.copied { background: var(--sun); color: var(--ink); }
+    .quick--odd > .q:last-child { grid-column: 1 / -1; }
+
+    /* Tab bar: bottom on phones, top on wider screens */
+    .tabbar { display: none; }
+    .js .tabbar { display: flex; position: fixed; z-index: 20; left: 0; right: 0; bottom: 0; gap: 2px; overflow-x: auto; padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); background: rgba(255,255,255,.94); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid var(--line); scrollbar-width: none; }
+    .tabbar::-webkit-scrollbar { display: none; }
+    .tab { flex: 1 0 64px; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 4px; border: 0; border-radius: 14px; background: none; color: var(--muted); font: 500 11.5px/1.2 var(--sans); cursor: pointer; white-space: nowrap; }
+    .tab .ic, .tab .emo { width: 22px; height: 22px; display: grid; place-items: center; font-size: 18px; }
+    .tab[aria-selected="true"] { color: var(--sky-ink); background: var(--sky-soft); font-weight: 600; }
+    .js body.has-tabs { padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom)); }
+
+    /* Sections */
+    .sec { padding-top: 30px; scroll-margin-top: 80px; }
+    .js .has-tabs .sec { display: none; }
+    .js .has-tabs .sec.on { display: block; animation: rise .25s ease-out; }
+    @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    .sec-title { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; font-size: 26px; font-weight: 700; letter-spacing: -.02em; }
+    .sec-title .dot { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px; background: var(--sky-soft); color: var(--sky); font-size: 18px; }
+    .card { padding: 18px; border-radius: var(--radius); background: var(--card); box-shadow: var(--shadow); }
+    .stack > * + * { margin-top: 12px; }
+    .label { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+    .lede { font-size: 17px; line-height: 1.7; color: var(--ink-2); }
+
+    .host { container-type: inline-size; }
+    .host-top { display: flex; gap: 14px; align-items: center; }
+    .avatar { flex: none; width: 58px; height: 58px; border-radius: 50%; object-fit: cover; background: var(--sky-soft); color: var(--sky-ink); display: grid; place-items: center; font-size: 22px; font-weight: 700; }
+    .host-name { font-size: 19px; font-weight: 700; }
+    .host-bio { margin-top: 12px; color: var(--ink-2); }
+    .actions { display: flex; gap: 8px; margin-top: 14px; }
+    .btn { flex: 1 1 0; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 10px 12px; border-radius: 12px; background: var(--soft); color: var(--sky-ink); font-size: 14px; font-weight: 600; text-decoration: none; white-space: nowrap; }
+    .btn:hover { background: var(--sky-soft); }
+    @container (max-width: 300px) { .actions--many .btn-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); } }
+    @container (max-width: 200px) { .btn-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); } }
+
+    .safety { background: var(--coral-soft); box-shadow: none; }
+    .safety-row { display: flex; gap: 12px; align-items: flex-start; }
+    .safety-row + .safety-row { margin-top: 12px; }
+    .safety .ic { color: var(--coral); margin-top: 3px; }
+    .safety .label { color: var(--coral); }
+
+    .rows > * + * { border-top: 1px solid var(--line); }
+    .row { display: grid; grid-template-columns: 40px 1fr; gap: 14px; align-items: start; padding: 14px 0; }
+    .row:first-child { padding-top: 0; }
+    .row:last-child { padding-bottom: 0; }
+    .row-ic { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: var(--sky-soft); color: var(--sky); }
+    .row-value { margin-top: 2px; color: var(--ink-2); white-space: pre-line; overflow-wrap: anywhere; }
+    .row-value--big { font-size: 22px; font-weight: 700; color: var(--ink); }
+
+    .fold { border-radius: 14px; background: var(--card); box-shadow: var(--shadow); }
+    .fold + .fold { margin-top: 10px; }
+    .fold summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px; font-weight: 600; cursor: pointer; list-style: none; }
+    .fold summary::-webkit-details-marker { display: none; }
+    .fold-ic { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--soft); color: var(--sky-ink); transition: transform .2s; }
+    .fold[open] .fold-ic { transform: rotate(45deg); }
+    .fold-body { padding: 0 18px 18px; color: var(--ink-2); }
+    .fold-body > * + * { margin-top: 12px; }
+    .media { width: 100%; border-radius: 12px; background: var(--soft); }
+
+    .grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    .place { display: flex; flex-direction: column; overflow: hidden; border-radius: var(--radius); background: var(--card); box-shadow: var(--shadow); }
+    .place-media { position: relative; aspect-ratio: 16 / 10; background: linear-gradient(135deg, var(--sky-soft), var(--soft)); }
+    .place-media img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .place-initial { position: absolute; inset: 0; display: grid; place-items: center; font-size: 40px; font-weight: 700; color: var(--sky); }
+    .place-media img + .place-initial { display: none; }
+    .badge { position: absolute; left: 10px; bottom: 10px; display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border-radius: 999px; background: rgba(255,255,255,.92); color: var(--ink); font-size: 12.5px; font-weight: 600; }
+    .place-body { display: flex; flex-direction: column; gap: 6px; flex: 1; padding: 14px 16px 16px; }
+    .place-body h3 { font-size: 17px; font-weight: 700; line-height: 1.3; }
+    .place-desc { font-size: 14.5px; line-height: 1.55; color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    .link { display: inline-flex; align-items: center; gap: 6px; margin-top: auto; padding-top: 6px; color: var(--sky-ink); font-size: 14px; font-weight: 600; text-decoration: none; }
+    .link:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+    .rules { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+    .rule { min-width: 0; padding: 14px 16px; border-radius: 14px; background: var(--card); box-shadow: var(--shadow); border-left: 0; }
+    .rule-name { font-weight: 700; overflow-wrap: anywhere; }
+    .rule-desc { margin-top: 2px; color: var(--ink-2); font-size: 15px; white-space: pre-line; overflow-wrap: anywhere; }
+
+    .depart { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 20px; border-radius: var(--radius); background: var(--sun-soft); }
+    .depart-time { font-size: 28px; font-weight: 700; letter-spacing: -.01em; }
+    .depart .ic { color: #C98A12; }
+    .list-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+    .list-head h3 { font-size: 17px; font-weight: 700; }
+    .progress { height: 6px; margin: 12px 0 4px; border-radius: 999px; background: var(--soft); overflow: hidden; }
+    .progress span { display: block; height: 100%; width: 0; border-radius: inherit; background: var(--sky); transition: width .3s; }
+    .check { position: relative; display: grid; grid-template-columns: 26px 1fr; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); cursor: pointer; }
+    .check input { position: absolute; opacity: 0; pointer-events: none; }
+    .box { display: grid; place-items: center; width: 26px; height: 26px; border: 1.5px solid #B9C8D6; border-radius: 8px; color: transparent; transition: background .2s, border-color .2s; }
+    .check input:checked + .box { background: var(--sky); border-color: var(--sky); color: #fff; }
+    .check input:focus-visible + .box { outline: 2px solid var(--sky); outline-offset: 2px; }
+    .check-name { font-weight: 600; }
+    .check input:checked ~ div .check-name { text-decoration: line-through; color: var(--muted); }
+    .check-desc { color: var(--ink-2); font-size: 15px; white-space: pre-line; }
+
+    .foot { text-align: center; padding: 44px 16px 32px; color: var(--muted); }
+    .foot-line { font-size: 18px; font-weight: 600; color: var(--ink); }
+    .brand { display: inline-block; margin-top: 18px; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); text-decoration: none; }
+    .brand b { color: var(--ink); }
+
+    @media (min-width: 560px) {
+      .grid { grid-template-columns: 1fr 1fr; }
+      .rules { grid-template-columns: 1fr 1fr; }
     }
-    .manual-item.expanded .chevron-icon { transform: rotate(180deg); }
-    .expandable-content {
-      max-height: 0;
-      overflow: hidden;
-      opacity: 0;
-      transform: translateY(-5px);
-      transition: max-height 0.25s ease-out, opacity 0.2s ease-out, transform 0.25s ease-out;
+    @media (min-width: 760px) {
+      .cover { padding: 20px 16px 0; }
+      .quick { display: flex; }
+      .quick > .q { flex: 1 1 0; }
+      .quick > .q--wifi { flex-grow: 2.2; }
+      .js .tabbar { position: sticky; top: 0; bottom: auto; justify-content: center; margin-top: 18px; padding: 10px; border-top: 0; border-bottom: 1px solid var(--line); background: rgba(244,248,251,.94); }
+      .tab { flex: 0 0 auto; flex-direction: row; gap: 7px; padding: 9px 14px; font-size: 14px; border-radius: 999px; }
+      .tab .ic, .tab .emo { width: 18px; height: 18px; font-size: 15px; }
+      .js body.has-tabs { padding-bottom: 0; }
+      .grid { grid-template-columns: 1fr 1fr 1fr; }
     }
-    .manual-item.expanded .expandable-content {
-      max-height: 2000px;
-      opacity: 1;
-      transform: translateY(0);
-      padding-top: 0.5rem;
-    }
+    @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
   </style>
 </head>
-<body>
-  <div class="header">
-    <div class="header-content">
-      <h1>Cozy Cabin &lt;Deluxe&gt;</h1>
-      <p>Your personal guidebook</p>
+<body class="has-tabs">
+  <header class="cover">
+    <div class="cover-card"><img src="https://example.supabase.co/storage/v1/object/public/my_images/cover.jpg" alt="" fetchpriority="high" onerror="this.remove()" />
+      <div class="cover-text">
+        <span class="chip"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>Your stay guide</span>
+        <h1>Cozy Cabin &lt;Deluxe&gt;</h1><a class="cover-addr" href="https://www.google.com/maps/search/?api=1&amp;query=123%20Pine%20Rd%2C%20Austin%2C%20TX%2078701" target="_blank" rel="noopener noreferrer"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>123 Pine Rd, Austin, TX 78701</a>
+      </div>
     </div>
-  </div>
+  </header>
 
-  <div class="tabs-container">
-    
-    <div class="tabs">
-      
-        
-          <button class="tab-button active" data-tab="rules" data-index="0">Rules</button>
-        
-      
-        
-          
-          <button class="tab-button " data-tab="custom_my_tab" data-index="1">
-            <span>x</span>
-            <span>Tips </span>
-          </button>
-        
-      
-        
-          <button class="tab-button " data-tab="checkin" data-index="2">Check-in Info</button>
-        
-      
-        
-          <button class="tab-button " data-tab="welcome" data-index="3">Welcome</button>
-        
-      
-    </div>
-    <div class="tab-slider"></div>
+  <div class="wrap">
+    <section class="quick" aria-label="Stay essentials">
+      <div class="q q--wifi">
+        <span class="q-label"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><path d="M12 20h.01"/></svg>Wi-Fi</span><span class="wifi-net">HomeNet</span>
+        <span class="wifi-pass">p@ss word!</span>
+        <button class="copy" type="button" data-copy="p@ss word!"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span class="copy-label">Copy</span></button>
+      </div><div class="q"><span class="q-label"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Check-in</span><p class="q-value">3:00 PM</p></div><div class="q"><span class="q-label"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="7" width="14" height="13" rx="2.5"/><path d="M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7"/><path d="M9 20v1.5M15 20v1.5M9 11v5M15 11v5"/></svg>Check-out</span><p class="q-value">11:00 AM</p></div>
+    </section>
   </div>
+  <nav class="tabbar" role="tablist" aria-label="Sections">
+    <button class="tab" type="button" role="tab" id="tab-rules" aria-controls="rules" aria-selected="true" data-tab="rules"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg><span>Rules</span>
+    </button>
+    <button class="tab" type="button" role="tab" id="tab-custom_my_tab" aria-controls="custom_my_tab" aria-selected="false" data-tab="custom_my_tab"><span class="emo" aria-hidden="true">x</span><span>Tips</span>
+    </button>
+    <button class="tab" type="button" role="tab" id="tab-checkin" aria-controls="checkin" aria-selected="false" data-tab="checkin"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7.5" cy="15.5" r="5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg><span>Arrival</span>
+    </button>
+    <button class="tab" type="button" role="tab" id="tab-welcome" aria-controls="welcome" aria-selected="false" data-tab="welcome"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/></svg><span>Welcome</span>
+    </button>
+  </nav>
 
-  <main class="content-container">
-    
-    <div id="welcome" class="tab-content ">
-      
-      <div class="card">
-        <h2>Welcome</h2>
-        
-        <div class="info-item">
-          <div class="whitespace-pre-line">Welcome to our home! We hope you love it.
-Second paragraph with &lt;b&gt;tags&lt;/b&gt; &amp; &#34;quotes&#34; and &#39;apostrophes&#39;.</div>
-        </div>
-        
-        
-        <div class="info-item"><strong>Location:</strong>
-          <div>123 Pine Rd, Austin, TX, 78701</div>
-        </div>
-        
+  <main class="wrap">
+    <section class="sec on" id="rules" role="tabpanel" aria-labelledby="tab-rules">
+      <h2 class="sec-title"><span class="dot"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg></span>House rules</h2>
+      <ul class="rules">
+        <li class="rule"><p class="rule-name">No smoking</p><p class="rule-desc">Anywhere on the property</p></li>
+        <li class="rule"><p class="rule-name">Quiet hours</p><p class="rule-desc">10pm - 8am</p></li>
+      </ul>
+    </section>
+    <section class="sec" id="custom_my_tab" role="tabpanel" aria-labelledby="tab-custom_my_tab">
+      <h2 class="sec-title"><span class="dot"><span aria-hidden="true">x</span></span>Tips</h2>
+      <div class="stack"><div class="card"><p class="pre">hello</p></div>
       </div>
-      
-      
-      <div class="card">
-        <h2>Host Info</h2>
-        <div class="info-grid">
-          <div class="info-item"><strong>Name:</strong> Andrew</div>
-          <div class="info-item"><strong>Contact:</strong> andrew@example.com</div>
-          
-          <div class="info-item"><strong>Bio:</strong>
-            <div class="whitespace-pre-line">Host since 2019.
-Love hosting!</div>
-          </div>
-          
-          
-          <div class="info-item"><strong>Photo:</strong>
-            <div><img src="https://example.supabase.co/storage/v1/object/public/my_images/host.jpg" alt="Host" style="width:96px;height:96px;object-fit:cover;border-radius:9999px;border:1px solid #e2e8f0;"/></div>
-          </div>
-          
-        </div>
+    </section>
+    <section class="sec" id="checkin" role="tabpanel" aria-labelledby="tab-checkin">
+      <h2 class="sec-title"><span class="dot"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7.5" cy="15.5" r="5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg></span>Arrival</h2>
+      <div class="card rows">
+        <div class="row"><span class="row-ic"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><div><p class="label">Check-in from</p><p class="row-value row-value--big">3:00 PM</p></div></div>
+        <div class="row"><span class="row-ic"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7.5" cy="15.5" r="5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg></span><div><p class="label">Getting in</p><p class="row-value">Lockbox on the left of the door. Code is sent the morning of arrival.</p></div></div>
+        <div class="row"><span class="row-ic"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 17V7h4a3 3 0 0 1 0 6H9"/></svg></span><div><p class="label">Parking</p><p class="row-value">Two spots in the driveway.
+Street parking is free after 6pm.</p></div></div>
       </div>
-      
-      
-    </div>
-    
-    
-    <div id="checkin" class="tab-content ">
-      
-      <div class="card">
-        <h2>Check-in Info</h2>
-        
-        <div class="info-item"><strong>Welcome Message:</strong>
-          <div>Welcome to our home! We hope you love it.
-Second paragraph with &lt;b&gt;tags&lt;/b&gt; &amp; &#34;quotes&#34; and &#39;apostrophes&#39;.</div>
-        </div>
-        
-        <div class="info-grid">
-          
-          <div class="info-item"><strong>Location:</strong>
-            <div>123 Pine Rd, Austin, TX, 78701</div>
-          </div>
-          
-          
-          <div class="info-item"><strong>Access Info:</strong>
-            <div class="whitespace-pre-line">Lockbox on the left of the door. Code is sent the morning of arrival.</div>
-          </div>
-          
-          
-          <div class="info-item"><strong>Parking Info:</strong>
-            <div class="whitespace-pre-line">Two spots in the driveway.
-Street parking is free after 6pm.</div>
-          </div>
-          
-        </div>
-      </div>
-      
-      
-      <div class="card">
-        <h2>Arrival</h2>
-        <div class="info-grid">
-          
-          <div class="info-item"><strong>Check-in Time:</strong> 15:00</div>
-          
-          
-          <div class="info-item"><strong>Wi‑Fi:</strong>
+    </section>
+    <section class="sec" id="welcome" role="tabpanel" aria-labelledby="tab-welcome">
+      <h2 class="sec-title"><span class="dot"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/></svg></span>Welcome</h2>
+      <div class="stack"><div class="card"><p class="lede pre">Welcome to our home! We hope you love it.
+Second paragraph with &lt;b&gt;tags&lt;/b&gt; &amp; &#34;quotes&#34; and &#39;apostrophes&#39;.</p></div>
+        <div class="card host">
+          <div class="host-top"><img class="avatar" src="https://example.supabase.co/storage/v1/object/public/my_images/host.jpg" alt="Andrew" />
             <div>
-              <div>Network: HomeNet</div>
-              <div>Password: p@ss word!</div>
+              <p class="label">Your host</p><p class="host-name">Andrew</p>
             </div>
-          </div>
-          
-        </div>
-      </div>
-      
-      
-      
-      <div class="card">
-        <h2>Safety Info</h2>
-        <div class="info-grid">
-          
-          <div class="info-item"><strong>Emergency Contact:</strong> Call 911. Host: 555-0100</div>
-          
-          
-          <div class="info-item"><strong>Fire Extinguisher Location:</strong> Under the kitchen sink</div>
-          
-        </div>
-      </div>
-      
-    </div>
-    
-
-    
-    
-      
-      <div id="custom_my_tab" class="tab-content ">
-        
-        <div class="card">
-          
-          <h2>Tips </h2>
-          <div class="info-grid">
-            
-              
-                
-                <div class="info-item">
-                  <div class="whitespace-pre-line">hello</div>
-                </div>
-              
-            
+          </div><p class="host-bio pre">Host since 2019.
+Love hosting!</p>
+          <div class="actions"><a class="btn" href="mailto:andrew@example.com" aria-label="Email Andrew"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg><span class="btn-label">Email</span></a>
           </div>
         </div>
-        
+        <div class="card safety">
+          <div class="safety-row"><svg class="ic" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><div><p class="label">In an emergency</p><p class="pre">Call 911. Host: 555-0100</p></div></div>
+          <div class="safety-row"><svg class="ic" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.4-.5-2-1-3-1.1-2.1-.2-4 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.2.4-2.3 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg><div><p class="label">Fire extinguisher</p><p class="pre">Under the kitchen sink</p></div></div>
+        </div>
       </div>
-      
-    
-    
+    </section>
 
-    
-
-    
-
-    
-
-    
-    <div id="rules" class="tab-content active">
-      
-      <div class="card">
-        <h2>Rules</h2>
-        <ul class="rules-list">
-          
-            
-              
-                <li>
-                  <strong>No smoking</strong>
-                  
-                    : Anywhere on the property
-                  
-                </li>
-              
-            
-          
-            
-              
-                <li>
-                  <strong>Quiet hours</strong>
-                  
-                    : 10pm - 8am
-                  
-                </li>
-              
-            
-          
-        </ul>
-      </div>
-      
-    </div>
-    
-
-    
+    <footer class="foot">
+      <p class="foot-line">Enjoy your stay, from Andrew.</p>
+      <a class="brand" href="https://guidewiseapp.com/" target="_blank" rel="noopener">Guidebook by <b>Guidewise</b></a>
+    </footer>
   </main>
 
-  <footer style="width:100%; padding: 1.25rem 0; text-align:center; color:#475569;">
-    <div style="display:flex; align-items:center; justify-content:center; gap:0.5rem; font-size:0.95rem;">
-      <span>Powered by</span>
-      <a href="https://guidewiseapp.com/" class="gw-logo" style="color:#0f172a; text-decoration:none;">GUIDEWISE</a>
-    </div>
-  </footer>
-
   <script>
-    (function(){
-      const tabs = Array.from(document.querySelectorAll('.tab-button'));
-      const slider = document.querySelector('.tab-slider');
-      const sections = Array.from(document.querySelectorAll('.tab-content'));
-      const tabsContainer = document.querySelector('.tabs');
-      const isDesktop = () => window.innerWidth >= 768;
-
-      function positionSlider(active){
-        if (!active || !isDesktop()) return;
-        const rect = active.getBoundingClientRect();
-        const parentRect = active.parentElement.getBoundingClientRect();
-        slider.style.left = active.offsetLeft + 'px';
-        slider.style.width = rect.width + 'px';
-      }
-
-      function showTab(tabId){
-        tabs.forEach(t => t.classList.toggle('active', t.getAttribute('data-tab') === tabId));
-        sections.forEach(s => s.classList.toggle('active', s.id === tabId));
-        const active = tabs.find(t => t.getAttribute('data-tab') === tabId);
-
-        // Scroll active tab into view on mobile
-        if (!isDesktop() && active) {
-          active.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-        }
-
-        positionSlider(active);
-      }
-
-      tabs.forEach(t => t.addEventListener('click', () => showTab(t.getAttribute('data-tab'))));
-
-      // Initialize
-      positionSlider(document.querySelector('.tab-button.active'));
-
-      // Reposition slider on window resize
-      let resizeTimer;
-      window.addEventListener('resize', () => {
-        clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(() => {
-          positionSlider(document.querySelector('.tab-button.active'));
-        }, 250);
+  (function () {
+    function copyText(v) {
+      if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(v);
+      var t = document.createElement("textarea");
+      t.value = v; t.setAttribute("readonly", ""); t.style.position = "fixed"; t.style.opacity = "0";
+      document.body.appendChild(t); t.select();
+      try { document.execCommand("copy"); } catch (e) {}
+      document.body.removeChild(t);
+      return Promise.resolve();
+    }
+    [].forEach.call(document.querySelectorAll("[data-copy]"), function (b) {
+      b.addEventListener("click", function () {
+        var label = b.querySelector(".copy-label");
+        copyText(b.getAttribute("data-copy")).then(function () {
+          b.classList.add("copied");
+          if (label) label.textContent = "Copied";
+          setTimeout(function () { b.classList.remove("copied"); if (label) label.textContent = "Copy"; }, 1600);
+        });
       });
-    })();
+    });
+
+    // Tabs: one section at a time; the address bar remembers which (#food), so links and reloads land on it
+    var tabs = [].slice.call(document.querySelectorAll("[data-tab]"));
+    function show(key, scroll) {
+      var panel = document.getElementById(key);
+      if (!panel || !panel.classList.contains("sec")) return;
+      [].forEach.call(document.querySelectorAll(".sec"), function (s) { s.classList.toggle("on", s === panel); });
+      tabs.forEach(function (t) {
+        var on = t.getAttribute("data-tab") === key;
+        t.setAttribute("aria-selected", on ? "true" : "false");
+        if (on && t.scrollIntoView) t.parentNode.scrollTo({ left: t.offsetLeft - t.parentNode.clientWidth / 2 + t.clientWidth / 2, behavior: "smooth" });
+      });
+      if (scroll) {
+        var top = panel.getBoundingClientRect().top + window.pageYOffset - (window.innerWidth >= 760 ? 72 : 12);
+        if (window.pageYOffset > top) window.scrollTo({ top: top, behavior: "smooth" });
+      }
+    }
+    tabs.forEach(function (t) {
+      t.addEventListener("click", function () {
+        var key = t.getAttribute("data-tab");
+        show(key, true);
+        try { history.replaceState(null, "", "#" + key); } catch (e) {}
+      });
+    });
+    if (tabs.length && location.hash) show(decodeURIComponent(location.hash.slice(1)), false);
+
+    [].forEach.call(document.querySelectorAll("[data-checklist]"), function (list) {
+      var key = "gw-checkout-" + list.getAttribute("data-checklist");
+      var boxes = list.querySelectorAll("input[type=checkbox]");
+      var bar = list.querySelector("[data-progress-bar]");
+      var label = list.querySelector("[data-progress-label]");
+      var saved = [];
+      try { saved = JSON.parse(localStorage.getItem(key) || "[]"); } catch (e) {}
+      function update() {
+        var done = [];
+        [].forEach.call(boxes, function (b) { if (b.checked) done.push(Number(b.getAttribute("data-i"))); });
+        if (bar) bar.style.width = (boxes.length ? (done.length / boxes.length) * 100 : 0) + "%";
+        if (label) label.textContent = done.length === boxes.length ? "All done, thank you!" : done.length + " of " + boxes.length + " done";
+        try { localStorage.setItem(key, JSON.stringify(done)); } catch (e) {}
+      }
+      [].forEach.call(boxes, function (b) {
+        if (saved.indexOf(Number(b.getAttribute("data-i"))) !== -1) b.checked = true;
+        b.addEventListener("change", update);
+      });
+      update();
+    });
+  })();
   </script>
 </body>
 </html>
