@@ -41,6 +41,10 @@ const nextConfig: NextConfig = {
     "/g/[slug]": GUIDEBOOK_TEMPLATES,
     "/guidebook/[id]": GUIDEBOOK_TEMPLATES,
   },
+  async redirects() {
+    // The old template picker; the editor now switches styles itself
+    return [{ source: "/dashboard/url/:id", destination: "/edit/:id", permanent: false }];
+  },
   async rewrites() {
     return {
       // `fallback` rewrites only apply when no page or route handler matched,

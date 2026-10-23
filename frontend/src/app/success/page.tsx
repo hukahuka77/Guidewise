@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import QRDownloadButton from '@/components/custom/QRDownloadButton';
+import { absoluteUrl } from '@/lib/publicUrl';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || '';
 
@@ -30,7 +31,7 @@ export default function SuccessPage() {
         });
         if (!res.ok) return;
         const data = await res.json();
-        if (data?.public_slug) setLiveUrl(`${API_BASE}/g/${data.public_slug}`);
+        if (data?.public_slug) setLiveUrl(absoluteUrl(`/g/${data.public_slug}`));
       } catch { }
     })();
   }, [guidebookId]);
@@ -41,10 +42,12 @@ export default function SuccessPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#F8F5F1] to-white flex flex-col items-center p-4 sm:p-6 md:p-10">
       <div className="w-full max-w-6xl space-y-8">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold text-gray-800">Your guidebook is live!</h1>
-          <p className="text-lg text-gray-600 mt-2">It is ready to share with your guests.</p>
-        </div>
+        {guidebookId && (
+          <div className="text-center">
+            <h1 className="text-4xl font-bold text-gray-800">Your guidebook is live!</h1>
+            <p className="text-lg text-gray-600 mt-2">It is ready to share with your guests.</p>
+          </div>
+        )}
 
         {liveUrl && (
           <section className="bg-white rounded-2xl shadow p-6">
@@ -90,7 +93,7 @@ export default function SuccessPage() {
         {!guidebookId && (
           <div className="bg-white rounded-2xl shadow p-8 text-center">
             <p className="text-gray-600 mb-4">No guidebook found in this session.</p>
-            <Link href="/onboarding"><Button variant="outline">Create Another Guidebook</Button></Link>
+            <Link href="/onboarding"><Button variant="outline">Create a guidebook</Button></Link>
           </div>
         )}
       </div>

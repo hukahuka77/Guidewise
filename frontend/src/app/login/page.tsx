@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
@@ -14,6 +14,39 @@ export default function LoginPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [oauthLoading, setOauthLoading] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
+  // Arrived from a password reset email: ask for the new password instead of the login form
+  const [recovering, setRecovering] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("reset") === "1") setRecovering(true);
+    if (!supabase) return;
+    const { data } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") setRecovering(true);
+    });
+    return () => data.subscription.unsubscribe();
+  }, []);
+
+  const onSetNewPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setMessage(null);
+    if (!supabase) return;
+    try {
+      setLoading(true);
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) throw new Error("This reset link has expired. Enter your email below and request a new one.");
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      router.push("/dashboard");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Could not update your password";
+      setError(msg);
+      if (msg.startsWith("This reset link has expired")) setRecovering(false);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,7 +85,7 @@ export default function LoginPage() {
       let redirectTo: string | undefined = undefined;
       if (typeof window !== "undefined") {
         const baseUrl = window.location.origin || process.env.NEXT_PUBLIC_SITE_URL;
-        redirectTo = `${baseUrl}/login`;
+        redirectTo = `${baseUrl}/login?reset=1`;
       }
       const { error } = await supabase.auth.resetPasswordForEmail(email, redirectTo ? { redirectTo } : undefined);
       if (error) throw error;
@@ -100,6 +133,31 @@ export default function LoginPage() {
             </div>
           )}
 
+          {recovering ? (
+            <form onSubmit={onSetNewPassword} className="mt-8 space-y-4">
+              <div>
+                <label htmlFor="new-password" className="block text-sm font-medium text-center">Choose a new password</label>
+                <input
+                  id="new-password"
+                  type="password"
+                  required
+                  minLength={6}
+                  autoComplete="new-password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-200 focus:border-pink-300"
+                  placeholder="••••••••"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full px-4 py-2.5 rounded-lg bg-gradient-to-r from-[#db2777] to-[#f97316] text-white font-semibold disabled:opacity-50 transition-opacity hover:opacity-90"
+              >
+                {loading ? "Saving…" : "Save new password"}
+              </button>
+            </form>
+          ) : (
           <form onSubmit={onSubmit} className="mt-8 space-y-4">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-center">Email</label>
@@ -143,6 +201,7 @@ export default function LoginPage() {
               </button>
             </div>
           </form>
+          )}
 
           {/* Divider */}
           <div className="flex items-center gap-3 py-6">
@@ -165,7 +224,7 @@ export default function LoginPage() {
                 await supabase.auth.signInWithOAuth({
                   provider: 'google',
                   options: {
-                    redirectTo: `${(process.env.NEXT_PUBLIC_SITE_URL || window.location.origin)}/onboarding`,
+                    redirectTo: `${(process.env.NEXT_PUBLIC_SITE_URL || window.location.origin)}/dashboard`,
                     queryParams: { prompt: 'select_account' },
                   },
                 });

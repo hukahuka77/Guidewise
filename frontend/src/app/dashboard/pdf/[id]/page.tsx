@@ -1,13 +1,14 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { getAuthHeaders } from "@/lib/authHeaders";
 import { offerUpgrade, throwApiError } from "@/lib/upgrade";
+import { absoluteUrl } from "@/lib/publicUrl";
 
 const PdfViewer = dynamic(() => import("@/components/custom/PdfViewer"), { ssr: false });
 
@@ -18,6 +19,27 @@ type TemplateKey = "template_pdf_original" | "template_pdf_basic" | "template_pd
 export default function GuidebookPdfPage() {
   const params = useParams();
   const guidebookId = Array.isArray(params?.id) ? params.id[0] : (params?.id as string | undefined);
+  const router = useRouter();
+  const [status, setStatus] = useState<"loading" | "ready" | "missing">("loading");
+  const [propertyName, setPropertyName] = useState<string>("");
+
+  // Only the owner's guidebooks have PDFs: send signed-out visitors to log in and show a clear message for unknown ids
+  useEffect(() => {
+    if (!guidebookId) return;
+    let cancelled = false;
+    (async () => {
+      const headers = await getAuthHeaders();
+      if (!headers.Authorization) { router.replace("/login"); return; }
+      const res = await fetch(`${API_BASE}/api/guidebooks/${guidebookId}`, { headers }).catch(() => null);
+      if (cancelled) return;
+      if (res?.status === 401) { router.replace("/login"); return; }
+      if (!res?.ok) { setStatus("missing"); return; }
+      const data = await res.json().catch(() => null);
+      setPropertyName(data?.property?.name || "");
+      setStatus("ready");
+    })();
+    return () => { cancelled = true; };
+  }, [guidebookId, router]);
 
   const [includeQrInPdf, setIncludeQrInPdf] = useState<boolean>(false);
   const [aiDesign, setAiDesign] = useState<boolean>(false);
@@ -36,7 +58,7 @@ export default function GuidebookPdfPage() {
     return "/images/PDF_Standard.png";
   };
 
-  const getQrTargetUrl = () => liveGuidebookUrl;
+  const getQrTargetUrl = () => (guidebookId ? absoluteUrl(`/guidebook/${guidebookId}`) : null);
 
   /** AI-designed layout only applies to the Standard and Basic layouts. */
   const withAi = (url: string, templateKey?: TemplateKey) =>
@@ -93,13 +115,29 @@ export default function GuidebookPdfPage() {
     }
   };
 
+  if (status !== "ready") {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 p-6 text-center">
+        {status === "loading" ? (
+          <p className="text-gray-600">Loading…</p>
+        ) : (
+          <>
+            <h1 className="text-2xl font-semibold text-gray-800">Guidebook not found</h1>
+            <p className="text-gray-600">It may have been deleted, or it belongs to another account.</p>
+            <Link href="/dashboard"><Button>Back to dashboard</Button></Link>
+          </>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col items-center p-4 sm:p-6 md:p-10">
       <div className="w-full max-w-6xl space-y-8">
         <div className="flex items-center justify-between">
           <div className="text-left">
             <h1 className="text-3xl font-bold text-gray-800">PDFs</h1>
-            <p className="text-gray-600 mt-1">Preview or download your guidebook as a PDF</p>
+            <p className="text-gray-600 mt-1">Preview or download {propertyName ? <strong>{propertyName}</strong> : "your guidebook"} as a PDF</p>
           </div>
           <div className="flex gap-2">
             <Link href="/dashboard"><Button variant="outline">Back to Dashboard</Button></Link>
