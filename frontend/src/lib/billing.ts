@@ -1,7 +1,5 @@
 import { supabase } from "@/lib/supabaseClient";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-
 /**
  * Start Stripe checkout for a subscription plan.
  * @param plan - The plan tier: 'starter', 'power', or 'pro' (default: 'starter')
@@ -14,7 +12,7 @@ export async function startStripeCheckout(plan: PaidPlan = 'starter'): Promise<v
   const token = sess.data.session?.access_token || null;
   const { data: userData } = await supabase.auth.getUser();
   const email = userData.user?.email || undefined;
-  const res = await fetch(`${API_BASE}/api/billing/create-checkout-session`, {
+  const res = await fetch(`/api/billing/create-checkout-session`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -27,7 +25,7 @@ export async function startStripeCheckout(plan: PaidPlan = 'starter'): Promise<v
   // Handle case where user already has a subscription - open Stripe portal to manage it
   if (!res.ok && res.status === 409) {
     try {
-      const portalRes = await fetch(`${API_BASE}/api/billing/create-portal-session`, {
+      const portalRes = await fetch(`/api/billing/create-portal-session`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

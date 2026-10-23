@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { OTHER, OWNER, setPlan, startTestDb, type TestDb } from "./helpers/testDb";
+import { OWNER, setPlan, startTestDb, type TestDb } from "./helpers/testDb";
 
 // Authentication is mocked: "Bearer owner" / "Bearer other" resolve to the two test users.
 vi.mock("@/lib/server/auth", () => ({
@@ -10,10 +10,6 @@ vi.mock("@/lib/server/auth", () => ({
     if (header === "Bearer other") return { id: "22222222-2222-4222-8222-bbbbbbbbbbbb", email: "other@example.com" };
     return null;
   },
-}));
-vi.mock("@/lib/server/proxy", () => ({
-  backendFallbackDisabled: () => false,
-  proxyToBackend: vi.fn(async (request: Request) => new Response(`PROXIED ${request.method} ${new URL(request.url).pathname}`, { status: 200 })),
 }));
 
 import { POST as generate } from "../src/app/api/generate/route";
@@ -26,7 +22,6 @@ import { GET as billingSummaryRoute } from "../src/app/api/billing/summary/route
 import robots from "../src/app/robots";
 import { setSqlForTests } from "../src/lib/server/db";
 import { guidebookResponse } from "../src/lib/server/guidebookResponse";
-import { proxyToBackend } from "../src/lib/server/proxy";
 import type { GuidebookRow } from "../src/lib/guidebook/types";
 
 let db: TestDb;
@@ -39,7 +34,6 @@ afterAll(async () => {
 });
 beforeEach(async () => {
   setSqlForTests(db.sql);
-  vi.mocked(proxyToBackend).mockClear();
   await db.reset();
 });
 afterEach(() => setSqlForTests(db.sql));
@@ -52,6 +46,7 @@ const req = (method: string, path: string, who: "owner" | "other" | null = "owne
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- loose JSON bodies in assertions
 const json = async (r: Response) => r.json() as Promise<Record<string, any>>;
 
 async function createVia(body: Record<string, unknown>, who: "owner" | "other" = "owner") {
@@ -81,13 +76,13 @@ describe("authentication and configuration", () => {
     expect(bad.status).toBe(401);
   });
 
-  it("hands requests to Flask when DATABASE_URL is not configured", async () => {
+  it("answers 503 when DATABASE_URL is not configured", async () => {
     setSqlForTests(null);
     const res = await listRoute(req("GET", "/api/guidebooks"));
-    expect(await res.text()).toBe("PROXIED GET /api/guidebooks");
+    expect(res.status).toBe(503);
+    expect((await json(res)).error).toContain("not configured");
     const post = await generate(req("POST", "/api/generate", "owner", { property_name: "x" }));
-    expect(await post.text()).toBe("PROXIED POST /api/generate");
-    expect(proxyToBackend).toHaveBeenCalledTimes(2);
+    expect(post.status).toBe(503);
   });
 
 });
@@ -261,7 +256,7 @@ describe("billing summary and robots.txt", () => {
 });
 
 describe("error handling", () => {
-  it("returns a 500 JSON error for writes instead of retrying them on Flask", async () => {
+  it("returns a 500 JSON error for writes that fail", async () => {
     await db.sql.unsafe(`create or replace function boom() returns trigger language plpgsql as $$ begin raise exception 'boom'; end $$;
                          create trigger guidebook_boom before insert on guidebook for each row execute function boom();`);
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -269,14 +264,13 @@ describe("error handling", () => {
       const res = await generate(req("POST", "/api/generate", "owner", { property_name: "Fails" }));
       expect(res.status).toBe(500);
       expect((await json(res)).error).toContain("Request failed");
-      expect(proxyToBackend).not.toHaveBeenCalled();
     } finally {
       spy.mockRestore();
       await db.sql.unsafe("drop trigger guidebook_boom on guidebook; drop function boom();");
     }
   });
 
-  it("falls back to Flask for reads that throw unexpectedly", async () => {
+  it("returns a 500 JSON error for reads that throw unexpectedly", async () => {
     const broken = ((strings: TemplateStringsArray) => {
       throw new Error(`db down ${strings[0]}`);
     }) as unknown as typeof db.sql;
@@ -284,7 +278,8 @@ describe("error handling", () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
       const res = await listRoute(req("GET", "/api/guidebooks"));
-      expect(await res.text()).toBe("PROXIED GET /api/guidebooks");
+      expect(res.status).toBe(500);
+      expect((await json(res)).error).toContain("db down");
     } finally {
       spy.mockRestore();
     }

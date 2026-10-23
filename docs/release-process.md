@@ -10,10 +10,8 @@ This document describes the intended deployment guardrails for Guidewise. Andrew
 
 ## Current Recommendation
 
-- Vercel frontend previews should run for pull requests.
-- Vercel frontend dev deploys track `main`.
-- Render backend dev deploys track `main` or a dedicated dev service.
-- Production frontend/backend deploys track `prod`.
+- Vercel previews run for pull requests (Preview uses the Supabase dev branch).
+- Vercel production deploys track `prod`.
 - GitHub production environments should require Andrew as an approving reviewer before production jobs continue.
 
 ## Release Flow
@@ -25,7 +23,7 @@ This document describes the intended deployment guardrails for Guidewise. Andrew
    - signup/login pages render
    - dashboard loads for an authenticated user
    - guidebook create/edit flow starts
-   - backend health or low-risk endpoint responds
+   - `/api/health` responds and a public guidebook page loads
 4. Create a release PR from `main` into `prod`.
 5. Include release notes, risk notes, migrations, and secret/env changes in the PR body.
 6. Andrew reviews and approves production deployment.
@@ -36,8 +34,7 @@ This document describes the intended deployment guardrails for Guidewise. Andrew
 Store secrets only in managed secret stores:
 
 - GitHub Actions secrets for CI/deployment automation.
-- Vercel project environment variables for frontend runtime values.
-- Render environment variables for backend runtime values.
+- Vercel project environment variables for runtime values (site, API routes, PDFs, webhook).
 - Local secure env files only for machine-local CLI work.
 
 Never put production secrets in issues, PR bodies, docs, or chat.
@@ -47,7 +44,7 @@ Never put production secrets in issues, PR bodies, docs, or chat.
 When repo admin access is available, configure:
 
 - Require pull requests before merging into `main`.
-- Require the `CI / Frontend` and `CI / Backend` checks before merging.
+- Require the `CI / Frontend` check before merging.
 - Require pull requests and Andrew review before merging into `prod`.
 - Create GitHub environments: `dev`, `staging`, and `production`.
 - Require Andrew approval for the `production` environment.

@@ -7,8 +7,6 @@ import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import Spinner from "@/components/ui/spinner";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-
 type InvoiceItem = {
   id: string;
   status?: string | null;
@@ -71,7 +69,7 @@ export default function BillingPage() {
         const sess = await supabase.auth.getSession();
         const token = sess.data.session?.access_token || null;
         if (!token) { router.replace("/login"); return; }
-        const res = await fetch(`${API_BASE}/api/billing/summary`, {
+        const res = await fetch(`/api/billing/summary`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const json = (await res.json().catch(() => null)) as (BillingSummary & { error?: string }) | null;
@@ -96,7 +94,7 @@ export default function BillingPage() {
       const email = data.user?.email || undefined;
       const sess = await supabase.auth.getSession();
       const token = sess.data.session?.access_token || null;
-      const res = await fetch(`${API_BASE}/api/billing/create-portal-session`, {
+      const res = await fetch(`/api/billing/create-portal-session`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

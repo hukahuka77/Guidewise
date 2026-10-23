@@ -12,8 +12,6 @@ import { absoluteUrl } from "@/lib/publicUrl";
 
 const PdfViewer = dynamic(() => import("@/components/custom/PdfViewer"), { ssr: false });
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-
 type TemplateKey = "template_pdf_original" | "template_pdf_basic" | "template_pdf_mobile" | "template_pdf_qr";
 
 export default function GuidebookPdfPage() {
@@ -30,7 +28,7 @@ export default function GuidebookPdfPage() {
     (async () => {
       const headers = await getAuthHeaders();
       if (!headers.Authorization) { router.replace("/login"); return; }
-      const res = await fetch(`${API_BASE}/api/guidebooks/${guidebookId}`, { headers }).catch(() => null);
+      const res = await fetch(`/api/guidebooks/${guidebookId}`, { headers }).catch(() => null);
       if (cancelled) return;
       if (res?.status === 401) { router.replace("/login"); return; }
       if (!res?.ok) { setStatus("missing"); return; }
@@ -48,7 +46,7 @@ export default function GuidebookPdfPage() {
 
   const liveGuidebookUrl = useMemo(() => {
     if (!guidebookId) return null;
-    return `${API_BASE}/guidebook/${guidebookId}`;
+    return `/guidebook/${guidebookId}`;
   }, [guidebookId]);
 
   const getPdfPlaceholder = (templateKey?: TemplateKey) => {
@@ -78,7 +76,7 @@ export default function GuidebookPdfPage() {
     const forceQr = templateKey === "template_pdf_qr";
     const qr = (forceQr || includeQrInPdf) && getQrTargetUrl() ? getQrTargetUrl() : null;
     const qrParams = qr ? `&include_qr=1&qr_url=${encodeURIComponent(qr)}` : "";
-    const url = withAi(`${API_BASE}/api/guidebook/${guidebookId}/pdf?download=1${tplParam}${qrParams}`, templateKey);
+    const url = withAi(`/api/guidebook/${guidebookId}/pdf?download=1${tplParam}${qrParams}`, templateKey);
     try {
       const blobUrl = URL.createObjectURL(await fetchPdfBlob(url));
       const link = document.createElement("a");
@@ -101,7 +99,7 @@ export default function GuidebookPdfPage() {
     const forceQr = templateKey === "template_pdf_qr";
     const qr = (forceQr || includeQrInPdf) && getQrTargetUrl() ? getQrTargetUrl() : null;
     const qrParams = qr ? `${hasTemplate ? "&" : "?"}include_qr=1&qr_url=${encodeURIComponent(qr)}` : "";
-    const url = withAi(`${API_BASE}/api/guidebook/${guidebookId}/pdf${tplParam}${qrParams}`, templateKey);
+    const url = withAi(`/api/guidebook/${guidebookId}/pdf${tplParam}${qrParams}`, templateKey);
     try {
       if (pdfUrl) URL.revokeObjectURL(pdfUrl);
       const blobUrl = URL.createObjectURL(await fetchPdfBlob(url));

@@ -6,12 +6,11 @@ import type { DynamicItem } from '@/components/sections/DynamicItemList';
 type PlaceApiItem = Partial<DynamicItem> & { photo_reference?: string };
 
 interface UseAIRecommendationsOptions {
-  apiBase: string;
   onError?: (message: string) => void;
 }
 
 export function useAIRecommendations(options: UseAIRecommendationsOptions) {
-  const { apiBase, onError } = options;
+  const { onError } = options;
 
   const [isFetchingFood, setIsFetchingFood] = useState(false);
   const [isFetchingActivities, setIsFetchingActivities] = useState(false);
@@ -23,12 +22,10 @@ export function useAIRecommendations(options: UseAIRecommendationsOptions) {
     location: string,
     count: number = 5
   ): Promise<DynamicItem[]> => {
-    console.log('CLICKED PREPOPULATE FOOD, API_BASE:', apiBase);
     setIsFetchingFood(true);
 
     try {
-      const url = `${apiBase}/api/ai-food`;
-      console.log('FETCHING FROM:', url);
+      const url = `/api/ai-food`;
 
       const res = await fetch(url, {
         method: "POST",
@@ -55,11 +52,9 @@ export function useAIRecommendations(options: UseAIRecommendationsOptions) {
       }
 
       if (items.length > 0) {
-        console.log('RAW FOOD API RESPONSE:', items);
 
         const mapped = items.map((item: Partial<DynamicItem>) => {
           const photoRef = (item as { photo_reference?: string }).photo_reference || item.image_url || "";
-          console.log('Food Item:', item.name, 'photo_reference:', (item as { photo_reference?: string }).photo_reference, 'image_url:', item.image_url, 'Final:', photoRef);
 
           return {
             name: item.name || "",
@@ -71,7 +66,6 @@ export function useAIRecommendations(options: UseAIRecommendationsOptions) {
           };
         });
 
-        console.log('MAPPED FOOD ITEMS:', mapped);
         return mapped;
       } else {
         const errorMsg = "No food recommendations found.";
@@ -94,12 +88,10 @@ export function useAIRecommendations(options: UseAIRecommendationsOptions) {
     location: string,
     count: number = 5
   ): Promise<DynamicItem[]> => {
-    console.log('CLICKED PREPOPULATE ACTIVITIES, API_BASE:', apiBase);
     setIsFetchingActivities(true);
 
     try {
-      const url = `${apiBase}/api/ai-activities`;
-      console.log('FETCHING FROM:', url);
+      const url = `/api/ai-activities`;
 
       const res = await fetch(url, {
         method: "POST",
@@ -126,11 +118,9 @@ export function useAIRecommendations(options: UseAIRecommendationsOptions) {
       }
 
       if (items.length > 0) {
-        console.log('RAW API RESPONSE:', items);
 
         const mapped = items.map((item: Partial<DynamicItem>) => {
           const photoRef = (item as { photo_reference?: string }).photo_reference || item.image_url || "";
-          console.log('Item:', item.name, 'photo_reference:', (item as { photo_reference?: string }).photo_reference, 'image_url:', item.image_url, 'Final:', photoRef);
 
           return {
             name: item.name || "",
@@ -142,7 +132,6 @@ export function useAIRecommendations(options: UseAIRecommendationsOptions) {
           };
         });
 
-        console.log('MAPPED ITEMS:', mapped);
         return mapped;
       } else {
         const errorMsg = "No activity recommendations found.";

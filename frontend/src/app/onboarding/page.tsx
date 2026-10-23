@@ -12,8 +12,6 @@ import PlacesAutocomplete from "@/components/PlacesAutocomplete";
 import PhonePreview from "@/components/custom/PhonePreview";
 import { offerUpgrade, throwApiError } from "@/lib/upgrade";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-
 type Mode = "link" | "manual";
 
 interface Created {
@@ -70,7 +68,7 @@ export default function OnboardingPage() {
 
   const slugFor = async (id: string): Promise<string | null> => {
     try {
-      const res = await fetch(`${API_BASE}/api/guidebooks/${id}`, { headers: authHeaders() });
+      const res = await fetch(`/api/guidebooks/${id}`, { headers: authHeaders() });
       const data = res.ok ? await res.json() : null;
       return typeof data?.public_slug === "string" ? data.public_slug : null;
     } catch {
@@ -93,7 +91,7 @@ export default function OnboardingPage() {
     setError(null);
     startProgress();
     try {
-      const res = await fetch(`${API_BASE}/api/import-listing`, {
+      const res = await fetch(`/api/import-listing`, {
         method: "POST",
         headers: authHeaders(),
         body: JSON.stringify({ url: listingUrl.trim() }),
@@ -125,7 +123,7 @@ export default function OnboardingPage() {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/generate`, {
+      const res = await fetch(`/api/generate`, {
         method: "POST",
         headers: authHeaders(),
         body: JSON.stringify({
@@ -155,7 +153,7 @@ export default function OnboardingPage() {
     const previous = style;
     setStyle(key);
     try {
-      const res = await fetch(`${API_BASE}/api/guidebook/${created.id}/template`, {
+      const res = await fetch(`/api/guidebook/${created.id}/template`, {
         method: "POST",
         headers: authHeaders(),
         body: JSON.stringify({ template_key: key }),
@@ -314,7 +312,7 @@ export default function OnboardingPage() {
                   Customize it
                 </Button>
                 {created.slug && (
-                  <Link href={`${API_BASE}/g/${created.slug}`} target="_blank" rel="noopener noreferrer">
+                  <Link href={`/g/${created.slug}`} target="_blank" rel="noopener noreferrer">
                     <Button type="button" variant="outline" className="h-12 rounded-2xl px-6 text-base">Open the live page</Button>
                   </Link>
                 )}

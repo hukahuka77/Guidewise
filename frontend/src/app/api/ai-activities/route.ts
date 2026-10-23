@@ -22,7 +22,7 @@ export function POST(request: Request) {
       if (sql) await consumeAiQuota(sql, user.id);
       const activities = await getAiRecommendations("activities", String(address), clampItems(data.num_things_to_do ?? 5));
       if (sql && activities.length === 0) await refundAiQuota(sql, user.id);
-      // Flask returned {"activities": [...]} even when empty (an empty dict is falsy only when the list is missing)
+      // Always {"activities": [...]}, even when the list is empty
       return Response.json({ activities });
     },
     { needs: aiConfigured, rateLimit: { name: "api_ai-activities", limit: 10 } },

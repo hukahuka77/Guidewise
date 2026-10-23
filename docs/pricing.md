@@ -21,8 +21,8 @@ are rendered on demand and the CDN copy (paid plans) refreshes within five minut
 view allowance below.
 
 Leftover database columns, unused by the Next.js code: `guidebook.active`, `preview_token`, `published_html`,
-`published_etag`, `published_at` (and the unused `claimed_at`, `expires_at`, `claim_token`). They are kept only because
-the old Flask backend on Render still reads them. Once Render is retired, drop them in a migration (needs approval):
+`published_etag`, `published_at` (and the unused `claimed_at`, `expires_at`, `claim_token`). Nothing reads them
+any more; drop them in a migration once the Render service is shut down (needs approval):
 `alter table public.guidebook drop column active, drop column preview_token, drop column published_html,
 drop column published_etag, drop column published_at;`
 
@@ -43,11 +43,9 @@ Consider enabling CAPTCHA on Supabase sign-up for account-level abuse.
 ## Rollout checklist
 1. Apply `supabase/migrations/20261022000000_usage_tracking.sql` (three new tables, RLS on, no policies).
 2. Stripe: create Starter ($5), Power ($15), Pro ($30) monthly prices; set `STRIPE_STARTER_PRICE_ID`,
-   `STRIPE_POWER_PRICE_ID` (replaces `STRIPE_GROWTH_PRICE_ID`) and `STRIPE_PRO_PRICE_ID` in Vercel (and Render while it
-   is still live). Unset `STRIPE_ACTIVE_COUPON_ID` (the FIRSTYEAR90 coupon has expired; an invalid coupon is now ignored).
+   `STRIPE_POWER_PRICE_ID` (replaces `STRIPE_GROWTH_PRICE_ID`) and `STRIPE_PRO_PRICE_ID` in Vercel. Unset `STRIPE_ACTIVE_COUPON_ID` (the FIRSTYEAR90 coupon has expired; an invalid coupon is now ignored).
 3. Stripe billing portal: allow switching between the three new prices.
 4. Optional `VIEW_HASH_SALT` in Vercel.
-5. The old Flask backend still enforces the old limits; it only serves requests when the Next.js routes are unconfigured.
 
 ## PDF design system (phase 1)
 `/pdf` (Standard and Basic layouts) and `/print-pdf` are drawn by `frontend/src/lib/pdf/guide/`: one component renderer with three themes

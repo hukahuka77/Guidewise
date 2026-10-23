@@ -11,9 +11,6 @@ vi.mock("@/lib/server/auth", () => ({
     return null;
   },
 }));
-vi.mock("@/lib/server/proxy", () => ({
-  proxyToBackend: vi.fn(async (request: Request) => new Response(`PROXIED ${request.method} ${new URL(request.url).pathname}`)),
-}));
 
 import { POST as checkoutRoute } from "../src/app/api/billing/create-checkout-session/route";
 import { POST as portalRoute } from "../src/app/api/billing/create-portal-session/route";
@@ -29,7 +26,6 @@ import {
 import { setSqlForTests } from "../src/lib/server/db";
 import { normalizePlan, PLAN_CONFIGS, planForPriceId, planPriceId } from "../src/lib/server/plans";
 import { ServiceError } from "../src/lib/server/guidebookService";
-import { proxyToBackend } from "../src/lib/server/proxy";
 import { setStripeForTests } from "../src/lib/server/stripeClient";
 
 const ENV_KEYS = ["STRIPE_STARTER_PRICE_ID", "STRIPE_POWER_PRICE_ID", "STRIPE_PRO_PRICE_ID", "STRIPE_ACTIVE_COUPON_ID", "STRIPE_PORTAL_CONFIGURATION_ID", "STRIPE_WEBHOOK_SECRET"];
@@ -50,7 +46,6 @@ beforeEach(async () => {
   process.env.STRIPE_POWER_PRICE_ID = "price_power";
   process.env.STRIPE_PRO_PRICE_ID = "price_pro";
   setSqlForTests(db.sql);
-  vi.mocked(proxyToBackend).mockClear();
   await db.reset();
 });
 afterEach(() => {
@@ -401,12 +396,12 @@ describe("webhook route (real Stripe signature verification)", () => {
     expect((await db.sql`select count(*)::int as n from profiles`)[0].n).toBe(0);
   });
 
-  it("hands the request to Flask when no secret or database is configured", async () => {
+  it("answers 503 when no secret or database is configured", async () => {
     delete process.env.STRIPE_WEBHOOK_SECRET;
-    expect(await (await post(body, { "stripe-signature": signed(body) })).text()).toBe("PROXIED POST /webhooks/stripe");
+    expect((await post(body, { "stripe-signature": signed(body) })).status).toBe(503);
     process.env.STRIPE_WEBHOOK_SECRET = SECRET;
     setSqlForTests(null);
-    expect(await (await post(body, { "stripe-signature": signed(body) })).text()).toBe("PROXIED POST /webhooks/stripe");
+    expect((await post(body, { "stripe-signature": signed(body) })).status).toBe(503);
   });
 
   it("answers 500 (so Stripe retries) when processing fails after a valid signature", async () => {
@@ -432,10 +427,10 @@ describe("billing routes", () => {
       body: body === undefined ? undefined : JSON.stringify(body),
     }));
 
-  it("hand checkout and portal requests to Flask until Stripe is configured", async () => {
+  it("answer 503 for checkout and portal until Stripe is configured", async () => {
     setStripeForTests(null);
     for (const [route, method, path] of [[checkoutRoute, "POST", "/api/billing/create-checkout-session"], [portalRoute, "POST", "/api/billing/create-portal-session"]] as const) {
-      expect(await (await call(route, method, path)).text()).toBe(`PROXIED ${method} ${path}`);
+      expect((await call(route, method, path)).status).toBe(503);
     }
   });
 

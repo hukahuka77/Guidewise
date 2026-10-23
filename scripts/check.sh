@@ -12,9 +12,7 @@ Runs the local verification contract for Guidewise agent work:
   1. frontend npm ci
   2. frontend lint
   3. frontend typecheck
-  4. frontend production build with local defaults
-  5. backend Python compile check
-  6. backend Flask smoke check
+  4. frontend production build with local defaults (runs the test suite first)
 
 Options:
   --skip-install  Skip frontend npm ci when dependencies are already installed.
@@ -55,7 +53,6 @@ require_command() {
 }
 
 require_command npm
-require_command python3
 
 if [[ "$SKIP_INSTALL" -eq 0 ]]; then
   run_step "Install frontend dependencies" bash -lc "cd '$ROOT_DIR/frontend' && npm ci"
@@ -63,9 +60,7 @@ fi
 
 run_step "Lint frontend" bash -lc "cd '$ROOT_DIR/frontend' && npm run lint"
 run_step "Typecheck frontend" bash -lc "cd '$ROOT_DIR/frontend' && npm run typecheck"
-run_step "Build frontend" bash -lc "cd '$ROOT_DIR/frontend' && NEXT_PUBLIC_API_BASE_URL=\${NEXT_PUBLIC_API_BASE_URL:-http://localhost:5001} NEXT_PUBLIC_SITE_URL=\${NEXT_PUBLIC_SITE_URL:-http://localhost:3000} npm run build"
-run_step "Compile backend" bash -lc "cd '$ROOT_DIR/backend' && python3 -m compileall ."
-run_step "Smoke check backend" bash -lc "cd '$ROOT_DIR/backend' && python3 smoke_check.py"
+run_step "Build frontend" bash -lc "cd '$ROOT_DIR/frontend' && NEXT_PUBLIC_SITE_URL=\${NEXT_PUBLIC_SITE_URL:-http://localhost:3000} npm run build"
 
 echo
 echo "All Guidewise checks passed."
