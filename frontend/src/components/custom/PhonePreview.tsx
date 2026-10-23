@@ -1,6 +1,29 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
+// The phone frame shows the page like a phone does: no desktop scrollbar down the side. Guests on a
+// computer still get their normal scrollbar, because this is only added to the preview.
+const HIDE_SCROLLBAR_CSS = "html{scrollbar-width:none}html::-webkit-scrollbar,body::-webkit-scrollbar{display:none}";
+
+function withoutScrollbar(html: string): string {
+  const tag = `<style data-preview>${HIDE_SCROLLBAR_CSS}</style>`;
+  return html.includes("</head>") ? html.replace("</head>", `${tag}</head>`) : tag + html;
+}
+
+/** For the same-origin sample page, which is loaded by URL rather than as srcDoc. */
+function hideScrollbarOnLoad(e: React.SyntheticEvent<HTMLIFrameElement>) {
+  try {
+    const doc = e.currentTarget.contentDocument;
+    if (!doc || doc.querySelector("style[data-preview]")) return;
+    const style = doc.createElement("style");
+    style.setAttribute("data-preview", "");
+    style.textContent = HIDE_SCROLLBAR_CSS;
+    doc.head.appendChild(style);
+  } catch {
+    // Not same-origin: leave it as is
+  }
+}
 import Spinner from "@/components/ui/spinner";
 
 interface Props {
@@ -57,7 +80,7 @@ export default function PhonePreview({ guidebookId, accessToken, refreshKey = 0,
         {html ? (
           <iframe
             title="Your guidebook"
-            srcDoc={html}
+            srcDoc={withoutScrollbar(html)}
             sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
             className="h-full w-full border-0 bg-white"
           />
@@ -65,6 +88,7 @@ export default function PhonePreview({ guidebookId, accessToken, refreshKey = 0,
           <iframe
             title="Sample guidebook"
             src={`/sample-guidebook${sampleTemplate ? `?template=${encodeURIComponent(sampleTemplate)}` : ""}`}
+            onLoad={hideScrollbarOnLoad}
             sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
             className="h-full w-full border-0 bg-white"
           />

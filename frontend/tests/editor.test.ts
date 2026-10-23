@@ -16,3 +16,15 @@ describe("showing a hidden section again", () => {
     expect(insertInOrder(["welcome", "rules"], "rules")).toEqual(["welcome", "rules"]);
   });
 });
+
+describe("answers given while a listing imports", () => {
+  it("only sends what the host answered, trimmed", async () => {
+    const { answersToPayload, EMPTY_ANSWERS } = await import("../src/components/onboarding/ImportQuestions");
+    expect(answersToPayload(EMPTY_ANSWERS)).toEqual({});
+    expect(answersToPayload({ ...EMPTY_ANSWERS, address: " 1 Main St ", wifiPassword: "pw", hostContact: "555 0101", checkIn: "" })).toEqual({
+      address_street: "1 Main St",
+      wifi_password: "pw",
+      host_contact: "555 0101",
+    });
+  });
+});

@@ -11,6 +11,7 @@ import Spinner from "@/components/ui/spinner";
 import PlacesAutocomplete from "@/components/PlacesAutocomplete";
 import PhonePreview from "@/components/custom/PhonePreview";
 import { offerUpgrade, throwApiError } from "@/lib/upgrade";
+import ImportQuestions, { EMPTY_ANSWERS, ImportProgress, answersToPayload, type ImportAnswers } from "@/components/onboarding/ImportQuestions";
 
 type Mode = "link" | "manual";
 
@@ -47,6 +48,13 @@ export default function OnboardingPage() {
 
   const [busy, setBusy] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
+  const [progress, setProgress] = useState(0);
+  // Questions asked while a listing imports; the answers are saved onto the guidebook once it exists
+  const [fromImport, setFromImport] = useState(false);
+  const [answers, setAnswers] = useState<ImportAnswers>(EMPTY_ANSWERS);
+  const [questionStep, setQuestionStep] = useState(0);
+  const [questionsDone, setQuestionsDone] = useState(false);
+  const savingAnswers = useRef<Promise<void> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<Created | null>(null);
   const [previewKey, setPreviewKey] = useState(0);
@@ -78,7 +86,15 @@ export default function OnboardingPage() {
 
   const startProgress = () => {
     setStepIndex(0);
-    timer.current = setInterval(() => setStepIndex((i) => Math.min(i + 1, IMPORT_STEPS.length - 1)), 5000);
+    setProgress(3);
+    // Imports take 20-60s and report nothing until done, so ease toward 92% and finish on completion
+    timer.current = setInterval(() => {
+      setProgress((p) => {
+        const next = p + (92 - p) * 0.035;
+        setStepIndex(Math.min(IMPORT_STEPS.length - 1, Math.floor(next / 23)));
+        return next;
+      });
+    }, 500);
   };
   const stopProgress = () => {
     if (timer.current) clearInterval(timer.current);
@@ -89,6 +105,9 @@ export default function OnboardingPage() {
     if (!listingUrl.trim() || busy) return;
     setBusy(true);
     setError(null);
+    setFromImport(true);
+    setQuestionStep(0);
+    setQuestionsDone(false);
     startProgress();
     try {
       const res = await fetch(`/api/import-listing`, {
@@ -110,13 +129,39 @@ export default function OnboardingPage() {
         missing: json.missing ?? [],
         places: json.recommendations ?? null,
       });
+      setProgress(100);
     } catch (e) {
+      setFromImport(false);
       if (!offerUpgrade(e)) setError(e instanceof Error ? e.message : "We couldn't import that listing.");
     } finally {
       stopProgress();
       setBusy(false);
     }
   };
+
+  // Once the imported guidebook exists and the host is through the questions, save what they answered
+  const createdId = created?.id;
+  useEffect(() => {
+    if (!fromImport || !createdId || !questionsDone || savingAnswers.current) return;
+    const payload = answersToPayload(answers);
+    if (Object.keys(payload).length === 0) {
+      savingAnswers.current = Promise.resolve();
+      return;
+    }
+    savingAnswers.current = (async () => {
+      try {
+        const res = await fetch(`/api/guidebooks/${createdId}`, { method: "PUT", headers: authHeaders(), body: JSON.stringify(payload) });
+        if (!res.ok) throw new Error(String(res.status));
+        setPreviewKey((k) => k + 1);
+      } catch {
+        setError("We couldn't save some of your answers. You can add them in the editor.");
+      }
+    })();
+    // authHeaders only reads the token, which is stable here
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromImport, createdId, questionsDone, answers]);
+
+  const inImportFlow = fromImport && (!created || !questionsDone);
 
   const startFromTemplate = async () => {
     if (!propertyName.trim() || busy) return;
@@ -172,7 +217,44 @@ export default function OnboardingPage() {
     <div className="min-h-screen bg-gradient-to-br from-[#F8F5F1] via-white to-[#F8F5F1] px-4 py-8 sm:px-8 sm:py-12">
       <div className="mx-auto grid max-w-6xl items-start gap-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-14">
         <section className="rounded-3xl border border-black/5 bg-white p-6 shadow-sm sm:p-10">
-          {!created ? (
+          {inImportFlow ? (
+            <>
+              <h1 className="text-3xl font-bold leading-tight text-gray-900 sm:text-4xl">
+                {created ? "Your guidebook is ready" : "Building your guidebook…"}
+              </h1>
+              <p className="mt-3 text-lg text-gray-600">
+                {created
+                  ? "Finish these questions, or skip ahead and see it."
+                  : "Answer a few quick questions while Guidewise reads your listing. Skip anything you like."}
+              </p>
+              <div className="mt-6 space-y-4">
+                <ImportProgress
+                  progress={created ? 100 : progress}
+                  label={created ? "Your guidebook is ready" : IMPORT_STEPS[stepIndex]}
+                  done={Boolean(created)}
+                />
+                {!questionsDone && (
+                  <ImportQuestions
+                    answers={answers}
+                    onChange={(patch) => setAnswers((a) => ({ ...a, ...patch }))}
+                    step={questionStep}
+                    onStep={setQuestionStep}
+                    onFinish={() => setQuestionsDone(true)}
+                  />
+                )}
+                {questionsDone && !created && (
+                  <p className="flex items-center gap-2 text-sm text-gray-600">
+                    <Spinner size={16} /> Thanks! Finishing your guidebook, almost there…
+                  </p>
+                )}
+                {created && !questionsDone && (
+                  <button type="button" onClick={() => setQuestionsDone(true)} className="text-sm font-medium text-primary hover:underline">
+                    Skip the rest and see my guidebook
+                  </button>
+                )}
+              </div>
+            </>
+          ) : !created ? (
             <>
               <h1 className="text-3xl font-bold leading-tight text-gray-900 sm:text-5xl">
                 Welcome your guests with a guidebook they&apos;ll love. Free.
@@ -308,7 +390,7 @@ export default function OnboardingPage() {
               {error && <p className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{error}</p>}
 
               <div className="mt-8 flex flex-wrap items-center gap-3">
-                <Button type="button" className="h-12 rounded-2xl px-8 text-base" onClick={() => router.push(`/edit/${created.id}?new=true`)}>
+                <Button type="button" className="h-12 rounded-2xl px-8 text-base" onClick={async () => { await savingAnswers.current; router.push(`/edit/${created.id}?new=true`); }}>
                   Customize it
                 </Button>
                 {created.slug && (
