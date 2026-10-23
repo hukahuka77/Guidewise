@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { ExternalLink, LayoutGrid, List, MoreHorizontal } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
@@ -60,30 +61,62 @@ function getCoverThumbUrl(coverUrl: string | null | undefined): string | null {
   return `${base}?width=600&height=300&quality=75`;
 }
 
-/** Last 30 days of guest views as small bars (Power and Pro plans). */
-function ViewSparkline({ points }: { points?: { day: string; views: number }[] }) {
-  const byDay = new Map((points || []).map((p) => [p.day, p.views]));
-  const today = new Date();
-  const days = Array.from({ length: 30 }, (_, i) => {
-    const d = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - (29 - i)));
-    const day = d.toISOString().slice(0, 10);
-    return { day, views: byDay.get(day) ?? 0 };
-  });
-  const max = Math.max(1, ...days.map((d) => d.views));
-  const total = days.reduce((n, d) => n + d.views, 0);
+type ViewMode = "table" | "cards";
+const VIEW_KEY = "guidewise-dashboard-view";
+
+const styleName = (key?: string | null) => TEMPLATE_DISPLAY_NAMES[key || "template_signature"] || "Signature";
+const updatedLabel = (gb: GuidebookItem) => {
+  const when = gb.last_modified_time || gb.created_time;
+  return when ? new Date(when).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "";
+};
+
+/** The less common actions for a guidebook, behind a "…" button. */
+function RowMenu({ items }: { items: { label: string; onSelect: () => void; danger?: boolean; disabled?: boolean }[] }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent | KeyboardEvent) => {
+      if (e instanceof KeyboardEvent ? e.key === "Escape" : !ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", close);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", close);
+    };
+  }, [open]);
   return (
-    <div className="mt-2" title={`${total} views in the last 30 days`}>
-      <div className="flex items-end gap-[2px] h-8" role="img" aria-label={`Views per day, last 30 days: ${total} total`}>
-        {days.map((d) => (
-          <div
-            key={d.day}
-            title={`${d.day}: ${d.views}`}
-            className="flex-1 rounded-t bg-[#CC7A52]"
-            style={{ height: `${Math.max(d.views === 0 ? 8 : 15, (d.views / max) * 100)}%`, opacity: d.views === 0 ? 0.25 : 1 }}
-          />
-        ))}
-      </div>
-      <div className="text-[10px] text-gray-400 mt-0.5">{total} in the last 30 days</div>
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        aria-label="More actions"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+      >
+        <MoreHorizontal className="size-4" />
+      </button>
+      {open && (
+        <div role="menu" className="absolute right-0 z-20 mt-1 w-56 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
+          {items.map((item) => (
+            <button
+              key={item.label}
+              type="button"
+              role="menuitem"
+              disabled={item.disabled}
+              onClick={() => {
+                setOpen(false);
+                item.onSelect();
+              }}
+              className={`block w-full px-4 py-2 text-left text-sm disabled:opacity-50 ${item.danger ? "text-red-700 hover:bg-red-50" : "text-gray-700 hover:bg-gray-50"}`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -95,9 +128,20 @@ export default function DashboardPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [plan, setPlan] = useState<'free'|'starter'|'power'|'pro'|''>('');
-  const [usage, setUsage] = useState<{ viewsUsed: number; viewsLimit: number | null; analytics: boolean }>({ viewsUsed: 0, viewsLimit: null, analytics: false });
-  const [viewsByGuidebook, setViewsByGuidebook] = useState<Record<string, number>>({});
-  const [dailyByGuidebook, setDailyByGuidebook] = useState<Record<string, { day: string; views: number }[]>>({});
+  const [usage, setUsage] = useState<{ viewsUsed: number; viewsLimit: number | null }>({ viewsUsed: 0, viewsLimit: null });
+  // Table by default; the card view is a choice we remember
+  const [view, setView] = useState<ViewMode>("table");
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(VIEW_KEY) === "cards") setView("cards");
+    } catch { }
+  }, []);
+  const changeView = (next: ViewMode) => {
+    setView(next);
+    try {
+      localStorage.setItem(VIEW_KEY, next);
+    } catch { }
+  };
 
   // UI state
   const [qrModalFor, setQrModalFor] = useState<string | null>(null); // guidebook id
@@ -157,22 +201,7 @@ export default function DashboardPage() {
               const userPlan = j?.plan || 'free';
               if (!cancelled) {
                 setPlan(userPlan);
-                setUsage({ viewsUsed: j?.views_used ?? 0, viewsLimit: j?.views_limit ?? null, analytics: !!j?.features?.analytics });
-              }
-            }
-            // Views per guidebook this month (every plan)
-            const v = await fetch(`/api/analytics/views`, { headers: { Authorization: `Bearer ${token2}` } });
-            if (v.ok) {
-              const vj = await v.json();
-              const map: Record<string, number> = {};
-              const daily: Record<string, { day: string; views: number }[]> = {};
-              for (const g of vj?.guidebooks || []) {
-                map[g.id] = g.views_month || 0;
-                if (Array.isArray(g.daily)) daily[g.id] = g.daily;
-              }
-              if (!cancelled) {
-                setViewsByGuidebook(map);
-                setDailyByGuidebook(daily);
+                setUsage({ viewsUsed: j?.views_used ?? 0, viewsLimit: j?.views_limit ?? null });
               }
             }
           }
@@ -300,7 +329,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <div className="max-w-6xl mx-auto p-6 md:p-10">
+      <div className="max-w-6xl mx-auto py-2 sm:p-6 md:p-10">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-800">Your Guidebooks</h1>
@@ -321,9 +350,6 @@ export default function DashboardPage() {
                 ) : (
                   <span className="font-semibold text-green-700">Unlimited guest views ({plan.charAt(0).toUpperCase() + plan.slice(1)} plan)</span>
                 )}
-                {usage.analytics && (
-                  <Link href="/dashboard/analytics" className="underline text-[#CC7A52] ml-3">View analytics</Link>
-                )}
               </p>
             )}
           </div>
@@ -331,11 +357,6 @@ export default function DashboardPage() {
             <Link href="/onboarding">
               <Button>Create New</Button>
             </Link>
-            {usage.analytics && (
-              <Link href="/dashboard/analytics">
-                <Button variant="outline">Analytics</Button>
-              </Link>
-            )}
             {plan !== 'pro' && plan !== '' && (
               <Link href="/pricing">
                 <Button variant="secondary">Upgrade</Button>
@@ -361,6 +382,95 @@ export default function DashboardPage() {
         )}
 
         {!loading && !error && items.length > 0 && (
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <p className="text-sm text-gray-500">{items.length} {items.length === 1 ? "guidebook" : "guidebooks"}</p>
+            <div className="inline-flex rounded-lg border border-gray-200 bg-white p-0.5" role="radiogroup" aria-label="Display as">
+              {([["table", "Table", List], ["cards", "Cards", LayoutGrid]] as const).map(([key, label, Icon]) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="radio"
+                  aria-checked={view === key}
+                  onClick={() => changeView(key)}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition ${view === key ? "bg-gray-900 text-white" : "text-gray-600 hover:text-gray-900"}`}
+                >
+                  <Icon className="size-4" /> {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!loading && !error && items.length > 0 && view === "table" && (
+          <div className="rounded-2xl border bg-white shadow-sm">
+            <table className="w-full table-fixed text-left text-sm">
+              <thead className="border-b bg-gray-50/70 text-xs uppercase tracking-wide text-gray-500">
+                <tr>
+                  <th scope="col" className="rounded-tl-2xl px-4 py-3 font-medium">Property</th>
+                  <th scope="col" className="hidden w-32 px-4 py-3 font-medium md:table-cell">Style</th>
+                  <th scope="col" className="hidden w-36 px-4 py-3 font-medium sm:table-cell">Updated</th>
+                  <th scope="col" className="w-[120px] rounded-tr-2xl px-3 py-3 text-right font-medium sm:w-[190px] sm:px-4"><span className="sr-only">Actions</span></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {items.map((gb) => {
+                  const viewUrl = gb.public_slug ? `/g/${gb.public_slug}` : null;
+                  const name = gb.property_name || "Untitled Property";
+                  return (
+                    <tr key={gb.id} className="hover:bg-gray-50/60">
+                      <td className="px-4 py-3">
+                        <Link href={`/edit/${gb.id}`} className="flex min-w-0 items-center gap-3">
+                          <span className="hidden h-10 w-14 shrink-0 overflow-hidden rounded-md bg-gray-100 sm:block">
+                            {gb.cover_image_url && (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={getCoverThumbUrl(gb.cover_image_url) || gb.cover_image_url} alt="" className="h-full w-full object-cover" />
+                            )}
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block truncate font-medium text-gray-900" title={name}>{name}</span>
+                            <span className="block truncate text-xs text-gray-500 sm:hidden">{updatedLabel(gb)}</span>
+                          </span>
+                        </Link>
+                      </td>
+                      <td className="hidden px-4 py-3 text-gray-600 md:table-cell">{styleName(gb.template_key)}</td>
+                      <td className="hidden px-4 py-3 text-gray-600 sm:table-cell">{updatedLabel(gb)}</td>
+                      <td className="px-3 py-3 sm:px-4">
+                        <div className="flex items-center justify-end gap-2">
+                          <Link href={`/edit/${gb.id}`}>
+                            <Button size="sm" className="h-9 px-4">Edit</Button>
+                          </Link>
+                          {viewUrl && (
+                            <Link
+                              href={viewUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              aria-label={`View ${name}`}
+                              title="View guidebook"
+                              className="hidden h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 sm:flex"
+                            >
+                              <ExternalLink className="size-4" />
+                            </Link>
+                          )}
+                          <RowMenu
+                            items={[
+                              ...(viewUrl ? [{ label: "View guidebook", onSelect: () => window.open(viewUrl, "_blank", "noopener") }] : []),
+                              { label: "QR code", onSelect: () => setQrModalFor(gb.id) },
+                              { label: downloadingPdf === gb.id ? "Generating print version…" : "Download print version", onSelect: () => downloadPrintPdf(gb.id, name), disabled: downloadingPdf === gb.id },
+                              { label: "PDF guidebook", onSelect: () => router.push(`/dashboard/pdf/${gb.id}`) },
+                              { label: "Delete", onSelect: () => setDeleteId(gb.id), danger: true },
+                            ]}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {!loading && !error && items.length > 0 && view === "cards" && (
           <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {items.slice(0, visibleCount).map((gb) => {
               const viewUrl = gb.public_slug ? `/g/${gb.public_slug}` : null;
@@ -377,17 +487,14 @@ export default function DashboardPage() {
                   </div>
                   <div className="p-5 pb-6">
                     <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-gray-800 truncate">{gb.property_name || "Untitled Property"}</h3>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-semibold text-gray-800 truncate" title={gb.property_name || undefined}>{gb.property_name || "Untitled Property"}</h3>
                         <div className="text-xs text-gray-500">
-                          {gb.last_modified_time ? `Updated ${new Date(gb.last_modified_time).toLocaleString()}` :
-                           gb.created_time ? `Created ${new Date(gb.created_time).toLocaleString()}` : ''}
+                          {updatedLabel(gb) && `Updated ${updatedLabel(gb)}`}
                         </div>
-                        <div className="text-xs text-gray-500">{viewsByGuidebook[gb.id] ?? 0} views this month</div>
-                        {usage.analytics && <ViewSparkline points={dailyByGuidebook[gb.id]} />}
                       </div>
-                      <span className="text-[10px] px-2 py-1 bg-gray-100 rounded border text-gray-600">
-                        {TEMPLATE_DISPLAY_NAMES[gb.template_key || "template_signature"] || "Signature"}
+                      <span className="shrink-0 whitespace-nowrap text-[10px] px-2 py-1 bg-gray-100 rounded border text-gray-600">
+                        {styleName(gb.template_key)}
                       </span>
                     </div>
 
@@ -447,7 +554,7 @@ export default function DashboardPage() {
           </ul>
         )}
 
-        {!loading && !error && items.length > visibleCount && (
+        {!loading && !error && view === "cards" && items.length > visibleCount && (
           <div className="mt-6 flex justify-center">
             <Button
               variant="outline"
