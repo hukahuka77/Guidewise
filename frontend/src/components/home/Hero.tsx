@@ -4,13 +4,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRef } from "react";
 import { motion, useMotionValue, useReducedMotion, useScroll, useSpring, useTransform } from "framer-motion";
-import { Clock, MapPin, Wifi } from "lucide-react";
 import PhonePreview from "@/components/custom/PhonePreview";
 
 /**
  * Opening scene: the copy on one side, and on the other a real, tappable guidebook in a phone, set in
- * front of a photo of the home with a few of its answers floating off the screen. Each layer drifts at
- * its own rate as the page scrolls (and with the pointer on a computer), so the scene has depth.
+ * front of a photo of the home. The photo and the phone drift at different rates as the page scrolls (and with the pointer on a computer), so the scene has depth.
  */
 export default function Hero() {
   const ref = useRef<HTMLElement>(null);
@@ -31,10 +29,6 @@ export default function Hero() {
   const phoneRotate = useTransform(p, [0, 1], still ? [0, 0] : [0, -4]);
   const copyY = useTransform(p, [0, 1], still ? [0, 0] : [0, -70]);
   const copyOpacity = useTransform(p, [0, 0.7], still ? [1, 1] : [1, 0.2]);
-  const chipNear = useTransform(p, [0, 1], still ? [0, 0] : [0, -170]);
-  const chipFar = useTransform(p, [0, 1], still ? [0, 0] : [0, -100]);
-  const nearX = useTransform(sx, [-0.5, 0.5], still ? [0, 0] : [-12, 12]);
-  const nearY = useTransform(sy, [-0.5, 0.5], still ? [0, 0] : [-14, 14]);
   const farX = useTransform(sx, [-0.5, 0.5], still ? [0, 0] : [8, -8]);
   const farY = useTransform(sy, [-0.5, 0.5], still ? [0, 0] : [6, -6]);
 
@@ -88,12 +82,12 @@ export default function Hero() {
           </ul>
         </motion.div>
 
-        <div className="relative mx-auto h-[600px] w-full max-w-[420px] sm:h-[640px] sm:max-w-[560px] lg:h-[660px]">
+        <div className="relative mx-auto h-[600px] w-full max-w-[420px] sm:h-[640px] lg:h-[660px]">
           {/* Back plane: the home itself, cut to an arch */}
           <motion.div
             aria-hidden
             style={{ y: photoY, scale: photoScale, x: farX }}
-            className="absolute inset-x-6 bottom-10 top-6 overflow-hidden sm:left-20 sm:right-0 rounded-t-[999px] rounded-b-[2rem] shadow-[0_30px_60px_-30px_rgba(60,40,30,0.45)]"
+            className="absolute inset-x-6 bottom-10 top-6 overflow-hidden rounded-t-[999px] rounded-b-[2rem] shadow-[0_30px_60px_-30px_rgba(60,40,30,0.45)]"
           >
             <motion.div style={{ y: farY }} className="absolute -inset-6">
               <Image src="/images/home/living-room.webp" alt="" fill priority sizes="420px" className="object-cover" />
@@ -107,49 +101,17 @@ export default function Hero() {
             initial={still ? false : { opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
-            className="absolute inset-x-0 top-0 z-10 flex justify-center sm:justify-end sm:pr-2"
+            className="absolute inset-x-0 top-0 z-10 flex justify-center"
           >
-            <div className="w-[272px] sm:w-[292px] lg:w-[250px] xl:w-[264px]">
+            <div className="w-[272px] sm:w-[292px]">
               <PhonePreview sampleTemplate="template_signature" className="!max-w-none" />
               <p className="mt-3 text-center text-xs font-medium text-[#5b524c]">A real guidebook. Scroll it, tap it.</p>
             </div>
           </motion.div>
 
-          {/* Near plane: answers lifted out beside the phone, never over it, so the guidebook stays easy to use */}
-          <motion.div style={{ y: chipNear }} className="pointer-events-none absolute left-0 top-[16%] z-20 hidden sm:block">
-            <motion.div style={{ x: nearX, y: nearY }}>
-              <Chip icon={<Wifi className="h-4 w-4" />} label="Wi-Fi" value="Copy it in one tap" delay={0.5} still={still} />
-            </motion.div>
-          </motion.div>
-          <motion.div style={{ y: chipFar }} className="pointer-events-none absolute left-0 top-[42%] z-20 hidden sm:block">
-            <motion.div style={{ x: nearX, y: nearY }}>
-              <Chip icon={<Clock className="h-4 w-4" />} label="Check-in" value="3:00 PM, code by text" delay={0.7} still={still} />
-            </motion.div>
-          </motion.div>
-          <motion.div style={{ y: chipNear }} className="pointer-events-none absolute left-0 top-[68%] z-20 hidden sm:block">
-            <motion.div style={{ x: nearX, y: nearY }}>
-              <Chip icon={<MapPin className="h-4 w-4" />} label="Corner Bakery" value="4 min · cardamom buns" delay={0.9} still={still} />
-            </motion.div>
-          </motion.div>
         </div>
       </div>
     </section>
   );
 }
 
-function Chip({ icon, label, value, delay, still }: { icon: React.ReactNode; label: string; value: string; delay: number; still: boolean }) {
-  return (
-    <motion.div
-      initial={still ? false : { opacity: 0, scale: 0.9, y: 12 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      transition={{ duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] }}
-      className="flex w-[220px] items-center lg:w-[196px] xl:w-[220px] gap-3 rounded-2xl bg-white/95 px-3.5 py-2.5 shadow-[0_18px_40px_-18px_rgba(60,40,30,0.5)] ring-1 ring-black/5 backdrop-blur"
-    >
-      <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#fdf0f5] text-[#db2777]">{icon}</span>
-      <span className="min-w-0 leading-tight">
-        <span className="block truncate text-[13px] font-semibold text-[#1f1a17]">{label}</span>
-        <span className="block truncate text-xs text-[#6f655e]">{value}</span>
-      </span>
-    </motion.div>
-  );
-}
