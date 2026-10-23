@@ -1,458 +1,464 @@
-<!DOCTYPE html>
+{#- Guidewise Lifestyle: light, airy and app-like. One section at a time behind a tab bar (bottom on phones,
+    top on wider screens). Self-contained (no CSS/JS/icon CDNs). Without JavaScript every section shows in order. -#}
+{%- macro icon(name, size=20) -%}
+<svg class="ic" width="{{ size }}" height="{{ size }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+{%- if name == 'wifi' -%}<path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><path d="M12 20h.01"/>
+{%- elif name == 'clock' -%}<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
+{%- elif name == 'key' -%}<circle cx="7.5" cy="15.5" r="5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/>
+{%- elif name == 'car' -%}<path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/>
+{%- elif name == 'pin' -%}<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>
+{%- elif name == 'nav' -%}<path d="M3 11 22 2l-9 19-2-8-8-2z"/>
+{%- elif name == 'sun' -%}<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/>
+{%- elif name == 'book' -%}<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>
+{%- elif name == 'utensils' -%}<path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7"/>
+{%- elif name == 'compass' -%}<circle cx="12" cy="12" r="9"/><path d="m16.2 7.8-2.1 6.3-6.3 2.1 2.1-6.3z"/>
+{%- elif name == 'rules' -%}<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6h.01M4 12h.01M4 18h.01"/>
+{%- elif name == 'bag' -%}<rect x="5" y="7" width="14" height="13" rx="2.5"/><path d="M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7"/><path d="M9 20v1.5M15 20v1.5M9 11v5M15 11v5"/>
+{%- elif name == 'phone' or name == 'call' -%}<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/>
+{%- elif name == 'text' -%}<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+{%- elif name == 'email' -%}<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/>
+{%- elif name == 'shield' -%}<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+{%- elif name == 'flame' -%}<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.4-.5-2-1-3-1.1-2.1-.2-4 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.2.4-2.3 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
+{%- elif name == 'parking' -%}<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 17V7h4a3 3 0 0 1 0 6H9"/>
+{%- elif name == 'copy' -%}<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+{%- elif name == 'check' -%}<path d="M20 6 9 17l-5-5"/>
+{%- elif name == 'plus' -%}<path d="M12 5v14M5 12h14"/>
+{%- elif name == 'star' -%}<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>
+{%- endif -%}
+</svg>
+{%- endmacro -%}
+
+{%- macro maps_url(q) -%}https://www.google.com/maps/search/?api=1&amp;query={{ q | urlencode }}{%- endmacro -%}
+
+{%- macro places(list) -%}
+<div class="grid">
+  {%- for place in list %}
+  <article class="place">
+    <div class="place-media">
+      {%- if place.image_url %}
+      <img src="{{ place | place_photo_url }}" alt="{{ place.name }}" loading="lazy" onerror="this.parentNode.classList.add('place-media--blank');this.remove()" />
+      {%- endif %}
+      <span class="place-initial" aria-hidden="true">{{ (place.name or '·') | first | upper }}</span>
+      {%- if place.driving_minutes %}<span class="badge">{{ icon('car', 14) }}{{ place.driving_minutes }} min</span>{% endif %}
+    </div>
+    <div class="place-body">
+      <h3>{{ place.name }}</h3>
+      {%- if place.description %}<p class="place-desc">{{ place.description }}</p>{% endif %}
+      {%- if place.address %}<a class="link" href="{{ maps_url(place.address) }}" target="_blank" rel="noopener noreferrer">{{ icon('nav', 14) }}Directions</a>{% endif %}
+    </div>
+  </article>
+  {%- endfor %}
+</div>
+{%- endmacro -%}
+
+{%- macro fold(name, description, media_url, media_type) -%}
+<details class="fold">
+  <summary><span>{{ name or 'Details' }}</span><span class="fold-ic">{{ icon('plus', 16) }}</span></summary>
+  <div class="fold-body">
+    {%- if description %}<p class="pre">{{ description }}</p>{% endif %}
+    {%- if media_url and media_type == 'image' %}<img class="media" src="{{ media_url }}" alt="{{ name }}" loading="lazy" />{% endif %}
+    {%- if media_url and media_type == 'video' %}<video class="media" controls playsinline preload="metadata"><source src="{{ media_url }}" type="video/mp4" /></video>{% endif %}
+  </div>
+</details>
+{%- endmacro -%}
+
+{%- set sections = ctx | guide_sections -%}
+{%- set addr = ctx.address | address_line -%}
+{%- set host = ctx.host -%}
+{%- set host_links = (host.contact if host else '') | contact_links -%}
+{%- set wifi = ctx.wifi_json if (ctx.wifi_json and (ctx.wifi_json.network or ctx.wifi_json.password)) else null -%}
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Guidebook: {{ ctx.property_name }}</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Marcellus&display=swap" rel="stylesheet">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>{{ ctx.property_name }} · Guest guide</title>
+  <meta name="theme-color" content="#F4F8FB" />
+  <link rel="preload" href="/fonts/guidebook/inter-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/fonts/guidebook/inter-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin />
+  <script>document.documentElement.classList.add("js");</script>
   <style>
+    @font-face { font-family: "GW Inter"; src: url("/fonts/guidebook/inter-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+    @font-face { font-family: "GW Inter"; src: url("/fonts/guidebook/inter-latin-500-normal.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+    @font-face { font-family: "GW Inter"; src: url("/fonts/guidebook/inter-latin-600-normal.woff2") format("woff2"); font-weight: 600 700; font-display: swap; }
+
     :root {
-      --primary-color: #0369a1;
-      --background-color: #f8fafc;
-      --card-background: #ffffff;
-      --text-color: #1e293b;
-      --light-text-color: #64748b;
-      --border-color: #e2e8f0;
+      --bg: #F4F8FB; --card: #FFFFFF; --soft: #EAF2F8; --line: #DFE8F0;
+      --ink: #0E1C2B; --ink-2: #3D4E60; --muted: #6B7C8E;
+      --sky: #0A7BA6; --sky-ink: #075F80; --sky-soft: #E1F1F8;
+      --sun: #F2B33D; --sun-soft: #FFF5DF;
+      --coral: #C2513A; --coral-soft: #FCEDE9;
+      --radius: 18px;
+      --shadow: 0 1px 2px rgba(14,28,43,.04), 0 8px 24px -12px rgba(14,28,43,.16);
+      --sans: "GW Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --nav-h: 68px;
     }
-    body { font-family: 'Poppins', sans-serif; margin: 0; background-color: var(--background-color); color: var(--text-color); }
-    .header { background: url('{{ ctx.cover_image_url }}') no-repeat center center; background-size: cover; color: white; padding: 4rem 1rem; text-align: center; position: relative; }
-    .header::before { content: ''; position: absolute; inset: 0; background: rgba(0,0,0,0.5); }
-    .header-content { position: relative; z-index: 1; }
-    .header h1 { margin: 0; font-size: 2.5rem; }
-    .tabs-container { position: relative; background-color: var(--card-background); border-bottom: 1px solid var(--border-color); }
-    .tabs { display: flex; overflow-x: auto; -ms-overflow-style: none; scrollbar-width: none; gap: 0.25rem; padding: 0.375rem; }
-    .tabs::-webkit-scrollbar { display: none; }
-    .tab-button { padding: 0.75rem 1rem; border: none; background: none; cursor: pointer; font-size: 1rem; font-weight: 600; color: var(--light-text-color); white-space: nowrap; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s ease; position: relative; z-index: 1; border-radius: 8px; }
-    .tab-button:not(.active):hover { background-color: #f1f5f9; }
-    .tab-button.active { color: var(--primary-color); background-color: #eff6ff; font-weight: 700; }
-    .tab-slider { position: absolute; top: 0.375rem; height: calc(100% - 0.75rem); background-color: var(--primary-color); border-radius: 8px; transition: left 0.3s ease-out, width 0.3s ease-out; z-index: 0; display: none; }
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 400 16px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
+    img, video { display: block; max-width: 100%; }
+    a { color: inherit; }
+    h1, h2, h3, p { margin: 0; }
+    .ic { flex: none; }
+    .pre { white-space: pre-line; overflow-wrap: anywhere; }
+    .wrap { max-width: 960px; margin: 0 auto; padding: 0 16px; }
 
-    /* Desktop: Show slider background */
-    @media (min-width: 768px) {
-      .tab-slider { display: block; }
-      .tab-button.active { color: white; background-color: transparent; }
-    }
-    .tab-content { display: none; padding: 1.5rem; }
-    .tab-content.active { display: block; }
-    .card { background: var(--card-background); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-    .card h2 { margin-top: 0; font-size: 1.5rem; color: var(--primary-color); border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 1rem; }
-    .info-grid { display: grid; grid-template-columns: 1fr; gap: 1.5rem; }
-    .info-item strong { display: block; color: var(--text-color); margin-bottom: 0.25rem; }
-    .rules-list { list-style: none; padding: 0; }
-    .rules-list li { margin-bottom: 0.75rem; padding-left: 1.5rem; position: relative; }
-    .rules-list li::before { content: '✓'; color: var(--primary-color); position: absolute; left: 0; }
-    .recommendation-grid { display: grid; grid-template-columns: 1fr; gap: 1.5rem; }
-    .recommendation-card { background: var(--card-background); border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.07); overflow: hidden; display: flex; flex-direction: column; }
-    .recommendation-card img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; }
-    .recommendation-card-content { padding: 1rem 1.25rem; }
-    .recommendation-card-content h3 { margin: 0 0 0.5rem; font-size: 1.25rem; }
-    .recommendation-card-content p { margin: 0; color: var(--light-text-color); }
-    @media (min-width: 640px) { .recommendation-grid { grid-template-columns: repeat(2, 1fr); } }
-    @media (min-width: 1024px) { .recommendation-grid { grid-template-columns: repeat(3, 1fr); } }
-    @media (min-width: 768px) { .info-grid { grid-template-columns: 1fr 1fr; } .tabs { justify-content: center; } }
-    .gw-logo{ font-family: 'Marcellus', serif; letter-spacing: 0.15em; text-transform: uppercase; }
+    /* Cover */
+    .cover { max-width: 960px; margin: 0 auto; padding: 12px 12px 0; }
+    .cover-card { position: relative; overflow: hidden; min-height: 300px; height: clamp(300px, 52vh, 460px); border-radius: 28px; background: linear-gradient(135deg, #8EC9E0, #0A7BA6); color: #fff; }
+    .cover-card img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .cover-card::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(8,20,32,0) 35%, rgba(8,20,32,.72) 100%); }
+    .cover-text { position: absolute; z-index: 1; left: 0; right: 0; bottom: 0; padding: 22px 22px 24px; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px; background: rgba(255,255,255,.2); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); font-size: 12px; font-weight: 600; letter-spacing: .04em; }
+    .cover h1 { margin-top: 10px; font-size: clamp(30px, 8vw, 48px); font-weight: 700; line-height: 1.05; letter-spacing: -.025em; text-wrap: balance; }
+    .cover-addr { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 14px; opacity: .92; text-decoration: none; }
+    .cover-addr:hover { opacity: 1; text-decoration: underline; text-underline-offset: 3px; }
 
-    /* House Manual Expandable Items */
-    .manual-item { cursor: pointer; transition: background-color 0.2s; }
-    .manual-item:hover { background-color: #f8fafc; }
-    .manual-item-header { display: flex; justify-content: space-between; align-items: center; }
-    .manual-item-title { font-weight: 600; margin: 0; }
-    .chevron-icon {
-      color: var(--light-text-color);
-      transition: transform 0.2s ease-out;
-      font-size: 0.875rem;
+    /* Quick facts */
+    .quick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+    .q { min-width: 0; padding: 14px 16px; border-radius: var(--radius); background: var(--card); box-shadow: var(--shadow); }
+    .q-label { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+    .q-label .ic { color: var(--sky); }
+    .q-value { margin-top: 4px; font-size: 20px; font-weight: 700; letter-spacing: -.01em; }
+    .q--wifi { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 12px; background: var(--sky); color: #fff; }
+    .q--wifi .q-label, .q--wifi .q-label .ic { color: rgba(255,255,255,.8); }
+    .wifi-net { font-size: 15px; opacity: .9; overflow-wrap: anywhere; }
+    .wifi-pass { font: 600 19px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+    .copy { grid-row: 1 / span 3; grid-column: 2; display: inline-flex; align-items: center; gap: 6px; padding: 9px 14px; border: 0; border-radius: 999px; background: #fff; color: var(--sky-ink); font: 600 14px var(--sans); cursor: pointer; }
+    .copy.copied { background: var(--sun); color: var(--ink); }
+    .quick--odd > .q:last-child { grid-column: 1 / -1; }
+
+    /* Tab bar: bottom on phones, top on wider screens */
+    .tabbar { display: none; }
+    .js .tabbar { display: flex; position: fixed; z-index: 20; left: 0; right: 0; bottom: 0; gap: 2px; overflow-x: auto; padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); background: rgba(255,255,255,.94); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid var(--line); scrollbar-width: none; }
+    .tabbar::-webkit-scrollbar { display: none; }
+    .tab { flex: 1 0 64px; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 4px; border: 0; border-radius: 14px; background: none; color: var(--muted); font: 500 11.5px/1.2 var(--sans); cursor: pointer; white-space: nowrap; }
+    .tab .ic, .tab .emo { width: 22px; height: 22px; display: grid; place-items: center; font-size: 18px; }
+    .tab[aria-selected="true"] { color: var(--sky-ink); background: var(--sky-soft); font-weight: 600; }
+    .js body.has-tabs { padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom)); }
+
+    /* Sections */
+    .sec { padding-top: 30px; scroll-margin-top: 80px; }
+    .js .has-tabs .sec { display: none; }
+    .js .has-tabs .sec.on { display: block; animation: rise .25s ease-out; }
+    @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    .sec-title { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; font-size: 26px; font-weight: 700; letter-spacing: -.02em; }
+    .sec-title .dot { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px; background: var(--sky-soft); color: var(--sky); font-size: 18px; }
+    .card { padding: 18px; border-radius: var(--radius); background: var(--card); box-shadow: var(--shadow); }
+    .stack > * + * { margin-top: 12px; }
+    .label { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+    .lede { font-size: 17px; line-height: 1.7; color: var(--ink-2); }
+
+    .host { container-type: inline-size; }
+    .host-top { display: flex; gap: 14px; align-items: center; }
+    .avatar { flex: none; width: 58px; height: 58px; border-radius: 50%; object-fit: cover; background: var(--sky-soft); color: var(--sky-ink); display: grid; place-items: center; font-size: 22px; font-weight: 700; }
+    .host-name { font-size: 19px; font-weight: 700; }
+    .host-bio { margin-top: 12px; color: var(--ink-2); }
+    .actions { display: flex; gap: 8px; margin-top: 14px; }
+    .btn { flex: 1 1 0; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 10px 12px; border-radius: 12px; background: var(--soft); color: var(--sky-ink); font-size: 14px; font-weight: 600; text-decoration: none; white-space: nowrap; }
+    .btn:hover { background: var(--sky-soft); }
+    @container (max-width: 300px) { .actions--many .btn-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); } }
+    @container (max-width: 200px) { .btn-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); } }
+
+    .safety { background: var(--coral-soft); box-shadow: none; }
+    .safety-row { display: flex; gap: 12px; align-items: flex-start; }
+    .safety-row + .safety-row { margin-top: 12px; }
+    .safety .ic { color: var(--coral); margin-top: 3px; }
+    .safety .label { color: var(--coral); }
+
+    .rows > * + * { border-top: 1px solid var(--line); }
+    .row { display: grid; grid-template-columns: 40px 1fr; gap: 14px; align-items: start; padding: 14px 0; }
+    .row:first-child { padding-top: 0; }
+    .row:last-child { padding-bottom: 0; }
+    .row-ic { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: var(--sky-soft); color: var(--sky); }
+    .row-value { margin-top: 2px; color: var(--ink-2); white-space: pre-line; overflow-wrap: anywhere; }
+    .row-value--big { font-size: 22px; font-weight: 700; color: var(--ink); }
+
+    .fold { border-radius: 14px; background: var(--card); box-shadow: var(--shadow); }
+    .fold + .fold { margin-top: 10px; }
+    .fold summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px; font-weight: 600; cursor: pointer; list-style: none; }
+    .fold summary::-webkit-details-marker { display: none; }
+    .fold-ic { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--soft); color: var(--sky-ink); transition: transform .2s; }
+    .fold[open] .fold-ic { transform: rotate(45deg); }
+    .fold-body { padding: 0 18px 18px; color: var(--ink-2); }
+    .fold-body > * + * { margin-top: 12px; }
+    .media { width: 100%; border-radius: 12px; background: var(--soft); }
+
+    .grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    .place { display: flex; flex-direction: column; overflow: hidden; border-radius: var(--radius); background: var(--card); box-shadow: var(--shadow); }
+    .place-media { position: relative; aspect-ratio: 16 / 10; background: linear-gradient(135deg, var(--sky-soft), var(--soft)); }
+    .place-media img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .place-initial { position: absolute; inset: 0; display: grid; place-items: center; font-size: 40px; font-weight: 700; color: var(--sky); }
+    .place-media img + .place-initial { display: none; }
+    .badge { position: absolute; left: 10px; bottom: 10px; display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border-radius: 999px; background: rgba(255,255,255,.92); color: var(--ink); font-size: 12.5px; font-weight: 600; }
+    .place-body { display: flex; flex-direction: column; gap: 6px; flex: 1; padding: 14px 16px 16px; }
+    .place-body h3 { font-size: 17px; font-weight: 700; line-height: 1.3; }
+    .place-desc { font-size: 14.5px; line-height: 1.55; color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    .link { display: inline-flex; align-items: center; gap: 6px; margin-top: auto; padding-top: 6px; color: var(--sky-ink); font-size: 14px; font-weight: 600; text-decoration: none; }
+    .link:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+    .rules { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+    .rule { min-width: 0; padding: 14px 16px; border-radius: 14px; background: var(--card); box-shadow: var(--shadow); border-left: 0; }
+    .rule-name { font-weight: 700; overflow-wrap: anywhere; }
+    .rule-desc { margin-top: 2px; color: var(--ink-2); font-size: 15px; white-space: pre-line; overflow-wrap: anywhere; }
+
+    .depart { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 20px; border-radius: var(--radius); background: var(--sun-soft); }
+    .depart-time { font-size: 28px; font-weight: 700; letter-spacing: -.01em; }
+    .depart .ic { color: #C98A12; }
+    .list-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+    .list-head h3 { font-size: 17px; font-weight: 700; }
+    .progress { height: 6px; margin: 12px 0 4px; border-radius: 999px; background: var(--soft); overflow: hidden; }
+    .progress span { display: block; height: 100%; width: 0; border-radius: inherit; background: var(--sky); transition: width .3s; }
+    .check { position: relative; display: grid; grid-template-columns: 26px 1fr; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); cursor: pointer; }
+    .check input { position: absolute; opacity: 0; pointer-events: none; }
+    .box { display: grid; place-items: center; width: 26px; height: 26px; border: 1.5px solid #B9C8D6; border-radius: 8px; color: transparent; transition: background .2s, border-color .2s; }
+    .check input:checked + .box { background: var(--sky); border-color: var(--sky); color: #fff; }
+    .check input:focus-visible + .box { outline: 2px solid var(--sky); outline-offset: 2px; }
+    .check-name { font-weight: 600; }
+    .check input:checked ~ div .check-name { text-decoration: line-through; color: var(--muted); }
+    .check-desc { color: var(--ink-2); font-size: 15px; white-space: pre-line; }
+
+    .foot { text-align: center; padding: 44px 16px 32px; color: var(--muted); }
+    .foot-line { font-size: 18px; font-weight: 600; color: var(--ink); }
+    .brand { display: inline-block; margin-top: 18px; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); text-decoration: none; }
+    .brand b { color: var(--ink); }
+
+    @media (min-width: 560px) {
+      .grid { grid-template-columns: 1fr 1fr; }
+      .rules { grid-template-columns: 1fr 1fr; }
     }
-    .manual-item.expanded .chevron-icon { transform: rotate(180deg); }
-    .expandable-content {
-      max-height: 0;
-      overflow: hidden;
-      opacity: 0;
-      transform: translateY(-5px);
-      transition: max-height 0.25s ease-out, opacity 0.2s ease-out, transform 0.25s ease-out;
+    @media (min-width: 760px) {
+      .cover { padding: 20px 16px 0; }
+      .quick { display: flex; }
+      .quick > .q { flex: 1 1 0; }
+      .quick > .q--wifi { flex-grow: 2.2; }
+      .js .tabbar { position: sticky; top: 0; bottom: auto; justify-content: center; margin-top: 18px; padding: 10px; border-top: 0; border-bottom: 1px solid var(--line); background: rgba(244,248,251,.94); }
+      .tab { flex: 0 0 auto; flex-direction: row; gap: 7px; padding: 9px 14px; font-size: 14px; border-radius: 999px; }
+      .tab .ic, .tab .emo { width: 18px; height: 18px; font-size: 15px; }
+      .js body.has-tabs { padding-bottom: 0; }
+      .grid { grid-template-columns: 1fr 1fr 1fr; }
     }
-    .manual-item.expanded .expandable-content {
-      max-height: 2000px;
-      opacity: 1;
-      transform: translateY(0);
-      padding-top: 0.5rem;
-    }
+    @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
   </style>
 </head>
-<body>
-  <div class="header">
-    <div class="header-content">
-      <h1>{{ ctx.property_name }}</h1>
-      <p>Your personal guidebook</p>
+<body class="{% if sections | length > 1 %}has-tabs{% endif %}">
+  <header class="cover">
+    <div class="cover-card">
+      {%- if ctx.cover_image_url %}<img src="{{ ctx.cover_image_url }}" alt="" fetchpriority="high" onerror="this.remove()" />{% endif %}
+      <div class="cover-text">
+        <span class="chip">{{ icon('book', 13) }}Your stay guide</span>
+        <h1>{{ ctx.property_name }}</h1>
+        {%- if addr %}<a class="cover-addr" href="{{ maps_url(addr) }}" target="_blank" rel="noopener noreferrer">{{ icon('pin', 15) }}{{ addr }}</a>{% endif %}
+      </div>
     </div>
+  </header>
+
+  <div class="wrap">
+    {%- if wifi or ctx.check_in_time or ctx.check_out_time %}
+    {%- set small = (1 if ctx.check_in_time else 0) + (1 if ctx.check_out_time else 0) %}
+    <section class="quick{% if small == 1 %} quick--odd{% endif %}" aria-label="Stay essentials">
+      {%- if wifi %}
+      <div class="q q--wifi">
+        <span class="q-label">{{ icon('wifi', 14) }}Wi-Fi</span>
+        {%- if wifi.network %}<span class="wifi-net">{{ wifi.network }}</span>{% endif %}
+        {%- if wifi.password %}
+        <span class="wifi-pass">{{ wifi.password }}</span>
+        <button class="copy" type="button" data-copy="{{ wifi.password }}">{{ icon('copy', 15) }}<span class="copy-label">Copy</span></button>
+        {%- endif %}
+      </div>
+      {%- endif %}
+      {%- if ctx.check_in_time %}<div class="q"><span class="q-label">{{ icon('clock', 14) }}Check-in</span><p class="q-value">{{ ctx.check_in_time | time12 }}</p></div>{% endif %}
+      {%- if ctx.check_out_time %}<div class="q"><span class="q-label">{{ icon('bag', 14) }}Check-out</span><p class="q-value">{{ ctx.check_out_time | time12 }}</p></div>{% endif %}
+    </section>
+    {%- endif %}
   </div>
 
-  <div class="tabs-container">
-    {% set first_tab = ctx.included_tabs[0] if ctx.included_tabs and ctx.included_tabs|length > 0 else 'checkin' %}
-    <div class="tabs">
-      {% for tab in ctx.included_tabs %}
-        {% if tab == 'welcome' %}
-          <button class="tab-button {% if first_tab == tab %}active{% endif %}" data-tab="welcome" data-index="{{ loop.index0 }}">Welcome</button>
-        {% elif tab == 'checkin' %}
-          <button class="tab-button {% if first_tab == tab %}active{% endif %}" data-tab="checkin" data-index="{{ loop.index0 }}">Check-in Info</button>
-        {% elif tab == 'property' %}
-          <button class="tab-button {% if first_tab == tab %}active{% endif %}" data-tab="property" data-index="{{ loop.index0 }}">House Manual</button>
-        {% elif tab == 'food' %}
-          <button class="tab-button {% if first_tab == tab %}active{% endif %}" data-tab="food" data-index="{{ loop.index0 }}">Food</button>
-        {% elif tab == 'activities' %}
-          <button class="tab-button {% if first_tab == tab %}active{% endif %}" data-tab="activities" data-index="{{ loop.index0 }}">Activities</button>
-        {% elif tab == 'rules' %}
-          <button class="tab-button {% if first_tab == tab %}active{% endif %}" data-tab="rules" data-index="{{ loop.index0 }}">Rules</button>
-        {% elif tab == 'checkout' %}
-          <button class="tab-button {% if first_tab == tab %}active{% endif %}" data-tab="checkout" data-index="{{ loop.index0 }}">Checkout Info</button>
-        {% elif tab.startsWith('custom_') %}
-          {% set meta = (ctx.custom_tabs_meta[tab] if ctx.custom_tabs_meta else null) %}
-          <button class="tab-button {% if first_tab == tab %}active{% endif %}" data-tab="{{ tab }}" data-index="{{ loop.index0 }}">
-            {% if meta and meta.icon %}<span>{{ meta.icon }}</span>{% endif %}
-            <span>{{ (meta.label if meta and meta.label) or (tab | replace('custom_', '') | replace('_', ' ') | title) }}</span>
-          </button>
-        {% endif %}
-      {% endfor %}
-    </div>
-    <div class="tab-slider"></div>
-  </div>
+  {%- if sections | length > 1 %}
+  <nav class="tabbar" role="tablist" aria-label="Sections">
+    {%- for s in sections %}
+    <button class="tab" type="button" role="tab" id="tab-{{ s.key }}" aria-controls="{{ s.key }}" aria-selected="{{ 'true' if loop.first else 'false' }}" data-tab="{{ s.key }}">
+      {%- if s.icon %}{{ icon(s.icon, 20) }}{% else %}<span class="emo" aria-hidden="true">{{ s.emoji or '✦' }}</span>{% endif %}<span>{{ s.short }}</span>
+    </button>
+    {%- endfor %}
+  </nav>
+  {%- endif %}
 
-  <main class="content-container">
-    {% if 'welcome' in ctx.included_tabs %}
-    <div id="welcome" class="tab-content {% if first_tab == 'welcome' %}active{% endif %}">
-      {% if ctx.welcome_message or ctx.address.street or ctx.address.city_state or ctx.address.zip %}
-      <div class="card">
-        <h2>Welcome</h2>
-        {% if ctx.welcome_message %}
-        <div class="info-item">
-          <div class="whitespace-pre-line">{{ ctx.welcome_message }}</div>
-        </div>
-        {% endif %}
-        {% if ctx.address.street or ctx.address.city_state or ctx.address.zip %}
-        <div class="info-item"><strong>Location:</strong>
-          <div>{{ ctx.address.street }}{% if ctx.address.city_state %}, {{ ctx.address.city_state }}{% endif %}{% if ctx.address.zip %}, {{ ctx.address.zip }}{% endif %}</div>
-        </div>
-        {% endif %}
-      </div>
-      {% endif %}
-      {% if ctx.host and (ctx.host.name or ctx.host.contact or ctx.host.bio or ctx.host.photo_url) %}
-      <div class="card">
-        <h2>Host Info</h2>
-        <div class="info-grid">
-          {% if ctx.host.name %}<div class="info-item"><strong>Name:</strong> {{ ctx.host.name }}</div>{% endif %}
-          {% if ctx.host.contact %}<div class="info-item"><strong>Contact:</strong> {{ ctx.host.contact }}</div>{% endif %}
-          {% if ctx.host.bio %}
-          <div class="info-item"><strong>Bio:</strong>
-            <div class="whitespace-pre-line">{{ ctx.host.bio }}</div>
-          </div>
-          {% endif %}
-          {% if ctx.host.photo_url %}
-          <div class="info-item"><strong>Photo:</strong>
-            <div><img src="{{ ctx.host.photo_url }}" alt="Host" style="width:96px;height:96px;object-fit:cover;border-radius:9999px;border:1px solid #e2e8f0;"/></div>
-          </div>
-          {% endif %}
-        </div>
-      </div>
-      {% endif %}
-      {# Safety Info removed from Welcome; now shown under Check-in #}
-    </div>
-    {% endif %}
-    {% if 'checkin' in ctx.included_tabs %}
-    <div id="checkin" class="tab-content {% if first_tab == 'checkin' %}active{% endif %}">
-      {% if ctx.welcome_message or ctx.address.street or ctx.address.city_state or ctx.address.zip or ctx.access_info or ctx.parking_info %}
-      <div class="card">
-        <h2>Check-in Info</h2>
-        {% if ctx.welcome_message %}
-        <div class="info-item"><strong>Welcome Message:</strong>
-          <div>{{ ctx.welcome_message }}</div>
-        </div>
-        {% endif %}
-        <div class="info-grid">
-          {% if ctx.address.street or ctx.address.city_state or ctx.address.zip %}
-          <div class="info-item"><strong>Location:</strong>
-            <div>{{ ctx.address.street }}{% if ctx.address.city_state %}, {{ ctx.address.city_state }}{% endif %}{% if ctx.address.zip %}, {{ ctx.address.zip }}{% endif %}</div>
-          </div>
-          {% endif %}
-          {% if ctx.access_info %}
-          <div class="info-item"><strong>Access Info:</strong>
-            <div class="whitespace-pre-line">{{ ctx.access_info }}</div>
-          </div>
-          {% endif %}
-          {% if ctx.parking_info %}
-          <div class="info-item"><strong>Parking Info:</strong>
-            <div class="whitespace-pre-line">{{ ctx.parking_info }}</div>
-          </div>
-          {% endif %}
-        </div>
-      </div>
-      {% endif %}
-      {% if ctx.check_in_time or (ctx.wifi.network or ctx.wifi.password) %}
-      <div class="card">
-        <h2>Arrival</h2>
-        <div class="info-grid">
-          {% if ctx.check_in_time %}
-          <div class="info-item"><strong>Check-in Time:</strong> {{ ctx.check_in_time }}</div>
-          {% endif %}
-          {% if ctx.wifi_json and (ctx.wifi_json.network or ctx.wifi_json.password) %}
-          <div class="info-item"><strong>Wi‑Fi:</strong>
+  <main class="wrap">
+    {%- for s in sections %}
+    <section class="sec{% if loop.first %} on{% endif %}" id="{{ s.key }}" role="tabpanel" aria-labelledby="tab-{{ s.key }}">
+      <h2 class="sec-title"><span class="dot">{% if s.icon %}{{ icon(s.icon, 20) }}{% else %}<span aria-hidden="true">{{ s.emoji or '✦' }}</span>{% endif %}</span>{{ s.label }}</h2>
+
+      {%- if s.key == 'welcome' %}
+      <div class="stack">
+        {%- if ctx.welcome_message %}<div class="card"><p class="lede pre">{{ ctx.welcome_message }}</p></div>{% endif %}
+        {%- if host and (host.name or host.bio or host.contact) %}
+        <div class="card host">
+          <div class="host-top">
+            {%- if host.photo_url %}<img class="avatar" src="{{ host.photo_url }}" alt="{{ host.name or 'Your host' }}" />
+            {%- else %}<span class="avatar" aria-hidden="true">{{ (host.name or 'H') | first | upper }}</span>{% endif %}
             <div>
-              {% if ctx.wifi_json.network %}<div>Network: {{ ctx.wifi_json.network }}</div>{% endif %}
-              {% if ctx.wifi_json.password %}<div>Password: {{ ctx.wifi_json.password }}</div>{% endif %}
+              <p class="label">Your host</p>
+              {%- if host.name %}<p class="host-name">{{ host.name }}</p>{% endif %}
             </div>
           </div>
-          {% endif %}
-        </div>
-      </div>
-      {% endif %}
-      {% set si = ctx.safety_info or {} %}
-      {% if si.emergency_contact or si.fire_extinguisher_location %}
-      <div class="card">
-        <h2>Safety Info</h2>
-        <div class="info-grid">
-          {% if si.emergency_contact %}
-          <div class="info-item"><strong>Emergency Contact:</strong> {{ si.emergency_contact }}</div>
-          {% endif %}
-          {% if si.fire_extinguisher_location %}
-          <div class="info-item"><strong>Fire Extinguisher Location:</strong> {{ si.fire_extinguisher_location }}</div>
-          {% endif %}
-        </div>
-      </div>
-      {% endif %}
-    </div>
-    {% endif %}
-
-    {% if ctx.custom_sections %}
-    {% for key, items in ctx.custom_sections %}
-      {% if key in ctx.included_tabs %}
-      <div id="{{ key }}" class="tab-content {% if first_tab == key %}active{% endif %}">
-        {% if items and items|length > 0 %}
-        <div class="card">
-          {% set meta = (ctx.custom_tabs_meta[key] if ctx.custom_tabs_meta else null) %}
-          <h2>{{ (meta.label if meta and meta.label) or (key | replace('custom_', '') | replace('_', ' ') | title) }}</h2>
-          <div class="info-grid">
-            {% for item in items %}
-              {% if item is string %}
-                {# Legacy text block #}
-                <div class="info-item">
-                  <div class="whitespace-pre-line">{{ item }}</div>
-                </div>
-              {% elif item.type == 'text' %}
-                {# New text item #}
-                <div class="info-item">
-                  <div class="whitespace-pre-line">{{ item.content }}</div>
-                </div>
-              {% elif item.type == 'manual' %}
-                {# Manual item with optional media #}
-                <div class="info-item" style="grid-column: 1 / -1;">
-                  {% if item.name %}
-                  <div style="font-weight: 600; margin-bottom: 0.5rem;">{{ item.name }}</div>
-                  {% endif %}
-                  {% if item.description %}
-                  <div class="whitespace-pre-line" style="margin-bottom: 0.5rem;">{{ item.description }}</div>
-                  {% endif %}
-                  {% if item.mediaUrl and item.mediaType %}
-                  <div style="margin-top: 0.75rem;">
-                    {% if item.mediaType == 'image' %}
-                    <img src="{{ item.mediaUrl }}" alt="{{ item.name }}"
-                      style="max-width: 100%; width: auto; max-height: 260px; height: auto; object-fit: contain; border-radius: 8px; display: block; margin: 0 auto;" />
-                    {% elif item.mediaType == 'video' %}
-                    <video controls style="width: 100%; max-width: 100%; max-height: 260px; border-radius: 8px; display: block; margin: 0 auto;">
-                      <source src="{{ item.mediaUrl }}" type="video/mp4" />
-                      Your browser does not support the video tag.
-                    </video>
-                    {% endif %}
-                  </div>
-                  {% endif %}
-                </div>
-              {% endif %}
-            {% endfor %}
+          {%- if host.bio %}<p class="host-bio pre">{{ host.bio }}</p>{% endif %}
+          {%- if host_links | length %}
+          <div class="actions{% if host_links | length > 2 %} actions--many{% endif %}">
+            {%- for l in host_links %}<a class="btn" href="{{ l.href }}" aria-label="{{ l.label }} {{ host.name or 'your host' }}">{{ icon(l.kind, 16) }}<span class="btn-label">{{ l.label }}</span></a>{% endfor %}
           </div>
+          {%- elif host.contact %}
+          <p class="host-bio pre">{{ host.contact }}</p>
+          {%- endif %}
         </div>
-        {% endif %}
-      </div>
-      {% endif %}
-    {% endfor %}
-    {% endif %}
-
-    {% if 'property' in ctx.included_tabs %}
-    <div id="property" class="tab-content {% if first_tab == 'property' %}active{% endif %}">
-      {% if ctx.house_manual and ctx.house_manual|length > 0 %}
-      <div class="card">
-        <h2>House Manual</h2>
-        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-          {% for item in ctx.house_manual %}
-          <div class="manual-item info-item" onclick="this.classList.toggle('expanded')" style="padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color);">
-            <div class="manual-item-header">
-              {% if item.name %}<div class="manual-item-title">{{ item.name }}</div>{% endif %}
-              <span class="chevron-icon">▼</span>
-            </div>
-            <div class="expandable-content">
-              {% if item.description %}<div class="whitespace-pre-line" style="color: var(--light-text-color); margin-top: 0.5rem;">{{ item.description }}</div>{% endif %}
-              {% if item.media_url and item.media_type %}
-              <div style="margin-top: 0.75rem;">
-                {% if item.media_type == 'image' %}
-                <img src="{{ item.media_url }}" alt="{{ item.name }}"
-                  style="max-width: 100%; width: auto; max-height: 260px; height: auto; object-fit: contain; border-radius: 8px; display: block; margin: 0 auto;" />
-                {% elif item.media_type == 'video' %}
-                <video controls style="width: 100%; max-width: 100%; max-height: 260px; border-radius: 8px; display: block; margin: 0 auto;">
-                  <source src="{{ item.media_url }}" type="video/mp4" />
-                  Your browser does not support the video tag.
-                </video>
-                {% endif %}
-              </div>
-              {% endif %}
-            </div>
-          </div>
-          {% endfor %}
+        {%- endif %}
+        {%- if ctx.safety_info and (ctx.safety_info.emergency_contact or ctx.safety_info.fire_extinguisher_location) %}
+        <div class="card safety">
+          {%- if ctx.safety_info.emergency_contact %}
+          <div class="safety-row">{{ icon('shield', 19) }}<div><p class="label">In an emergency</p><p class="pre">{{ ctx.safety_info.emergency_contact }}</p></div></div>
+          {%- endif %}
+          {%- if ctx.safety_info.fire_extinguisher_location %}
+          <div class="safety-row">{{ icon('flame', 19) }}<div><p class="label">Fire extinguisher</p><p class="pre">{{ ctx.safety_info.fire_extinguisher_location }}</p></div></div>
+          {%- endif %}
         </div>
+        {%- endif %}
       </div>
-      {% endif %}
-    </div>
-    {% endif %}
 
-    {% if 'food' in ctx.included_tabs %}
-    <div id="food" class="tab-content {% if first_tab == 'food' %}active{% endif %}">
-      {% if ctx.places_to_eat and ctx.places_to_eat|length > 0 %}
-      <div class="card">
-        <h2>Nearby Food</h2>
-        <div class="recommendation-grid">
-          {% for place in ctx.places_to_eat %}
-          <div class="recommendation-card">
-            {% if place.image_url %}<img src="{{ place | place_photo_url }}" alt="{{ place.name }}">{% endif %}
-            <div class="recommendation-card-content">
-              {% if place.name %}<h3>{{ place.name }}</h3>{% endif %}
-              {% if place.description %}<p>{{ place.description }}</p>{% endif %}
-              {% if place.address %}<a href="https://maps.google.com/maps?q={{ place.address | urlencode }}" target="_blank" rel="noopener noreferrer" style="color: #64748b; font-size: 0.9rem; margin-top: 0.25rem; display: block; text-decoration: none;">{{ place.address }}</a>{% endif %}
-              {% if place.driving_minutes %}<div style="color: #6b7280; font-size: 0.875rem; margin-top: 0.25rem;">🚗 {{ place.driving_minutes }} min drive</div>{% endif %}
-            </div>
-          </div>
-          {% endfor %}
+      {%- elif s.key == 'checkin' %}
+      <div class="card rows">
+        {%- if ctx.check_in_time %}
+        <div class="row"><span class="row-ic">{{ icon('clock') }}</span><div><p class="label">Check-in from</p><p class="row-value row-value--big">{{ ctx.check_in_time | time12 }}</p></div></div>
+        {%- endif %}
+        {%- if ctx.access_info %}
+        <div class="row"><span class="row-ic">{{ icon('key') }}</span><div><p class="label">Getting in</p><p class="row-value">{{ ctx.access_info }}</p></div></div>
+        {%- endif %}
+        {%- if ctx.parking_info %}
+        <div class="row"><span class="row-ic">{{ icon('parking') }}</span><div><p class="label">Parking</p><p class="row-value">{{ ctx.parking_info }}</p></div></div>
+        {%- endif %}
+      </div>
+
+      {%- elif s.key == 'property' %}
+      {%- for item in ctx.house_manual %}{{ fold(item.name, item.description, item.media_url, item.media_type) }}{% endfor %}
+
+      {%- elif s.key == 'food' %}
+      {{ places(ctx.places_to_eat) }}
+
+      {%- elif s.key == 'activities' %}
+      {{ places(ctx.things_to_do) }}
+
+      {%- elif s.key == 'rules' %}
+      <ul class="rules">
+        {%- for rule in ctx.rules %}
+        <li class="rule"><p class="rule-name">{{ rule.name }}</p>{% if rule.description %}<p class="rule-desc">{{ rule.description }}</p>{% endif %}</li>
+        {%- endfor %}
+      </ul>
+
+      {%- elif s.key == 'checkout' %}
+      <div class="stack">
+        {%- if ctx.check_out_time %}
+        <div class="depart"><div><p class="label">Check-out by</p><p class="depart-time">{{ ctx.check_out_time | time12 }}</p></div>{{ icon('bag', 32) }}</div>
+        {%- endif %}
+        {%- if ctx.checkout_info %}
+        <div class="card" data-checklist="{{ ctx.id }}">
+          <div class="list-head"><h3>Before you go</h3><span class="label" data-progress-label>{{ ctx.checkout_info | length }} things</span></div>
+          <div class="progress" aria-hidden="true"><span data-progress-bar></span></div>
+          {%- for item in ctx.checkout_info %}
+          <label class="check">
+            <input type="checkbox" data-i="{{ loop.index0 }}" />
+            <span class="box">{{ icon('check', 15) }}</span>
+            <div><p class="check-name">{{ item.name }}</p>{% if item.description %}<p class="check-desc">{{ item.description }}</p>{% endif %}</div>
+          </label>
+          {%- endfor %}
         </div>
+        {%- endif %}
       </div>
-      {% endif %}
-    </div>
-    {% endif %}
 
-    {% if 'activities' in ctx.included_tabs %}
-    <div id="activities" class="tab-content {% if first_tab == 'activities' %}active{% endif %}">
-      {% if ctx.things_to_do and ctx.things_to_do|length > 0 %}
-      <div class="card">
-        <h2>Nearby Activities</h2>
-        <div class="recommendation-grid">
-          {% for place in ctx.things_to_do %}
-          <div class="recommendation-card">
-            {% if place.image_url %}<img src="{{ place | place_photo_url }}" alt="{{ place.name }}">{% endif %}
-            <div class="recommendation-card-content">
-              {% if place.name %}<h3>{{ place.name }}</h3>{% endif %}
-              {% if place.description %}<p>{{ place.description }}</p>{% endif %}
-              {% if place.address %}<a href="https://maps.google.com/maps?q={{ place.address | urlencode }}" target="_blank" rel="noopener noreferrer" style="color: #64748b; font-size: 0.9rem; margin-top: 0.25rem; display: block; text-decoration: none;">{{ place.address }}</a>{% endif %}
-              {% if place.driving_minutes %}<div style="color: #6b7280; font-size: 0.875rem; margin-top: 0.25rem;">🚗 {{ place.driving_minutes }} min drive</div>{% endif %}
-            </div>
-          </div>
-          {% endfor %}
-        </div>
+      {%- elif s.key.startsWith('custom_') %}
+      <div class="stack">
+      {%- for item in ctx.custom_sections[s.key] %}
+        {%- if item is string %}{% if item | trim %}<div class="card"><p class="pre">{{ item }}</p></div>{% endif %}
+        {%- elif item.type == 'manual' %}{% if item.name or item.description %}{{ fold(item.name, item.description, item.mediaUrl, item.mediaType) }}{% endif %}
+        {%- elif item.content and (item.content | trim) %}<div class="card"><p class="pre">{{ item.content }}</p></div>
+        {%- endif %}
+      {%- endfor %}
       </div>
-      {% endif %}
-    </div>
-    {% endif %}
+      {%- endif %}
+    </section>
+    {%- endfor %}
 
-    {% if 'rules' in ctx.included_tabs %}
-    <div id="rules" class="tab-content {% if first_tab == 'rules' %}active{% endif %}">
-      {% if ctx.rules and ctx.rules|length > 0 %}
-      <div class="card">
-        <h2>Rules</h2>
-        <ul class="rules-list">
-          {% for rule in ctx.rules %}
-            {% if rule %}
-              {% if rule.name is defined or rule.description is defined %}
-                <li>
-                  {% if rule.name %}<strong>{{ rule.name }}</strong>{% endif %}
-                  {% if rule.description %}
-                    {% if rule.name %}: {% endif %}{{ rule.description }}
-                  {% endif %}
-                </li>
-              {% else %}
-                <li>{{ rule }}</li>
-              {% endif %}
-            {% endif %}
-          {% endfor %}
-        </ul>
-      </div>
-      {% endif %}
-    </div>
-    {% endif %}
-
-    {% if 'checkout' in ctx.included_tabs %}
-    <div id="checkout" class="tab-content {% if first_tab == 'checkout' %}active{% endif %}">
-      {% if ctx.check_out_time or (ctx.checkout_info and ctx.checkout_info|length > 0) %}
-      <div class="card">
-        <h2>Checkout Info</h2>
-        {% if ctx.check_out_time %}<div class="info-item"><strong>Checkout Time:</strong> {{ ctx.check_out_time }}</div>{% endif %}
-        {% if ctx.checkout_info and ctx.checkout_info|length > 0 %}
-        <ul class="rules-list">
-          {% for info in ctx.checkout_info %}
-            <li><strong>{{ info.name }}</strong>{% if info.description %}: {{ info.description }}{% endif %}</li>
-          {% endfor %}
-        </ul>
-        {% endif %}
-      </div>
-      {% endif %}
-    </div>
-    {% endif %}
+    <footer class="foot">
+      <p class="foot-line">Enjoy your stay{% if host and host.name %}, from {{ host.name }}{% endif %}.</p>
+      <a class="brand" href="https://guidewiseapp.com/" target="_blank" rel="noopener">Guidebook by <b>Guidewise</b></a>
+    </footer>
   </main>
 
-  <footer style="width:100%; padding: 1.25rem 0; text-align:center; color:#475569;">
-    <div style="display:flex; align-items:center; justify-content:center; gap:0.5rem; font-size:0.95rem;">
-      <span>Powered by</span>
-      <a href="https://guidewiseapp.com/" class="gw-logo" style="color:#0f172a; text-decoration:none;">GUIDEWISE</a>
-    </div>
-  </footer>
-
   <script>
-    (function(){
-      const tabs = Array.from(document.querySelectorAll('.tab-button'));
-      const slider = document.querySelector('.tab-slider');
-      const sections = Array.from(document.querySelectorAll('.tab-content'));
-      const tabsContainer = document.querySelector('.tabs');
-      const isDesktop = () => window.innerWidth >= 768;
-
-      function positionSlider(active){
-        if (!active || !isDesktop()) return;
-        const rect = active.getBoundingClientRect();
-        const parentRect = active.parentElement.getBoundingClientRect();
-        slider.style.left = active.offsetLeft + 'px';
-        slider.style.width = rect.width + 'px';
-      }
-
-      function showTab(tabId){
-        tabs.forEach(t => t.classList.toggle('active', t.getAttribute('data-tab') === tabId));
-        sections.forEach(s => s.classList.toggle('active', s.id === tabId));
-        const active = tabs.find(t => t.getAttribute('data-tab') === tabId);
-
-        // Scroll active tab into view on mobile
-        if (!isDesktop() && active) {
-          active.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-        }
-
-        positionSlider(active);
-      }
-
-      tabs.forEach(t => t.addEventListener('click', () => showTab(t.getAttribute('data-tab'))));
-
-      // Initialize
-      positionSlider(document.querySelector('.tab-button.active'));
-
-      // Reposition slider on window resize
-      let resizeTimer;
-      window.addEventListener('resize', () => {
-        clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(() => {
-          positionSlider(document.querySelector('.tab-button.active'));
-        }, 250);
+  (function () {
+    function copyText(v) {
+      if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(v);
+      var t = document.createElement("textarea");
+      t.value = v; t.setAttribute("readonly", ""); t.style.position = "fixed"; t.style.opacity = "0";
+      document.body.appendChild(t); t.select();
+      try { document.execCommand("copy"); } catch (e) {}
+      document.body.removeChild(t);
+      return Promise.resolve();
+    }
+    [].forEach.call(document.querySelectorAll("[data-copy]"), function (b) {
+      b.addEventListener("click", function () {
+        var label = b.querySelector(".copy-label");
+        copyText(b.getAttribute("data-copy")).then(function () {
+          b.classList.add("copied");
+          if (label) label.textContent = "Copied";
+          setTimeout(function () { b.classList.remove("copied"); if (label) label.textContent = "Copy"; }, 1600);
+        });
       });
-    })();
+    });
+
+    // Tabs: one section at a time; the address bar remembers which (#food), so links and reloads land on it
+    var tabs = [].slice.call(document.querySelectorAll("[data-tab]"));
+    function show(key, scroll) {
+      var panel = document.getElementById(key);
+      if (!panel || !panel.classList.contains("sec")) return;
+      [].forEach.call(document.querySelectorAll(".sec"), function (s) { s.classList.toggle("on", s === panel); });
+      tabs.forEach(function (t) {
+        var on = t.getAttribute("data-tab") === key;
+        t.setAttribute("aria-selected", on ? "true" : "false");
+        if (on && t.scrollIntoView) t.parentNode.scrollTo({ left: t.offsetLeft - t.parentNode.clientWidth / 2 + t.clientWidth / 2, behavior: "smooth" });
+      });
+      if (scroll) {
+        var top = panel.getBoundingClientRect().top + window.pageYOffset - (window.innerWidth >= 760 ? 72 : 12);
+        if (window.pageYOffset > top) window.scrollTo({ top: top, behavior: "smooth" });
+      }
+    }
+    tabs.forEach(function (t) {
+      t.addEventListener("click", function () {
+        var key = t.getAttribute("data-tab");
+        show(key, true);
+        try { history.replaceState(null, "", "#" + key); } catch (e) {}
+      });
+    });
+    if (tabs.length && location.hash) show(decodeURIComponent(location.hash.slice(1)), false);
+
+    [].forEach.call(document.querySelectorAll("[data-checklist]"), function (list) {
+      var key = "gw-checkout-" + list.getAttribute("data-checklist");
+      var boxes = list.querySelectorAll("input[type=checkbox]");
+      var bar = list.querySelector("[data-progress-bar]");
+      var label = list.querySelector("[data-progress-label]");
+      var saved = [];
+      try { saved = JSON.parse(localStorage.getItem(key) || "[]"); } catch (e) {}
+      function update() {
+        var done = [];
+        [].forEach.call(boxes, function (b) { if (b.checked) done.push(Number(b.getAttribute("data-i"))); });
+        if (bar) bar.style.width = (boxes.length ? (done.length / boxes.length) * 100 : 0) + "%";
+        if (label) label.textContent = done.length === boxes.length ? "All done, thank you!" : done.length + " of " + boxes.length + " done";
+        try { localStorage.setItem(key, JSON.stringify(done)); } catch (e) {}
+      }
+      [].forEach.call(boxes, function (b) {
+        if (saved.indexOf(Number(b.getAttribute("data-i"))) !== -1) b.checked = true;
+        b.addEventListener("change", update);
+      });
+      update();
+    });
+  })();
   </script>
 </body>
 </html>

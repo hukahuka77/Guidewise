@@ -13,7 +13,7 @@
 {%- elif name == 'compass' -%}<circle cx="12" cy="12" r="9"/><path d="m16.2 7.8-2.1 6.3-6.3 2.1 2.1-6.3z"/>
 {%- elif name == 'rules' -%}<path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
 {%- elif name == 'bag' -%}<rect x="5" y="7" width="14" height="13" rx="2.5"/><path d="M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7"/><path d="M9 20v1.5M15 20v1.5M9 11v5M15 11v5"/>
-{%- elif name == 'phone' -%}<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/>
+{%- elif name == 'phone' or name == 'call' -%}<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/>
 {%- elif name == 'text' -%}<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
 {%- elif name == 'email' -%}<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/>
 {%- elif name == 'shield' -%}<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
@@ -152,15 +152,19 @@
     .stack > * + * { margin-top: 12px; }
     .kicker { font-size: 11.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 
-    .lede { font-size: 18px; line-height: 1.65; color: var(--ink-2); white-space: pre-line; }
+    .lede { display: flow-root; font-size: 18px; line-height: 1.65; color: var(--ink-2); white-space: pre-line; }
     .lede::first-letter { float: left; font: 500 3.3em/.86 var(--serif); color: var(--accent); margin: 6px 10px 0 0; }
 
-    .host { display: flex; gap: 16px; align-items: flex-start; }
+    .host { container-type: inline-size; }
+    .host-top { display: flex; gap: 16px; align-items: flex-start; }
     .avatar { flex: none; width: 64px; height: 64px; border-radius: 50%; object-fit: cover; background: var(--accent-soft); color: var(--accent-ink); display: grid; place-items: center; font: 500 26px var(--serif); }
     .host-name { font: 500 21px/1.2 var(--serif); margin-top: 2px; }
     .host-bio { margin-top: 6px; color: var(--ink-2); white-space: pre-line; }
-    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-    .btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); color: var(--ink); font-size: 14px; font-weight: 500; text-decoration: none; }
+    .actions { display: flex; gap: 8px; margin-top: 16px; }
+    .btn { flex: 1 1 0; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); color: var(--ink); font-size: 14px; font-weight: 500; text-decoration: none; white-space: nowrap; }
+    /* Labels give way to icons only when the row runs out of room */
+    @container (max-width: 300px) { .actions--many .btn-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); } }
+    @container (max-width: 200px) { .btn-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); } }
     .btn:hover { border-color: var(--accent); color: var(--accent-ink); }
     .contact-raw { margin-top: 10px; color: var(--ink-2); white-space: pre-line; overflow-wrap: anywhere; }
 
@@ -175,10 +179,9 @@
     .fact-ic { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 13px; background: var(--paper-2); color: var(--accent); }
     .fact-value { margin-top: 2px; white-space: pre-line; overflow-wrap: anywhere; }
     .fact-value--big { font: 500 24px/1.2 var(--serif); }
-    .callout { margin-top: 6px; padding: 12px 14px; border-radius: 12px; background: var(--accent-soft); border-left: 3px solid var(--accent); white-space: pre-line; overflow-wrap: anywhere; }
 
     .fold { background: var(--card); border: 1px solid var(--line); border-radius: 16px; }
-    .fold + .fold { margin-top: 10px; }
+    .fold + .fold, .stack > .fold + .fold { margin-top: 10px; }
     .fold summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px; font-weight: 600; cursor: pointer; list-style: none; }
     .fold summary::-webkit-details-marker { display: none; }
     .fold summary .ic { color: var(--muted); transition: transform .2s; }
@@ -201,12 +204,10 @@
     .place-link { display: inline-flex; align-items: center; gap: 6px; color: var(--accent-ink); font-size: 14px; font-weight: 600; text-decoration: none; }
     .place-link:hover { text-decoration: underline; text-underline-offset: 3px; }
 
-    .rules { list-style: none; margin: 0; padding: 0; }
-    .rules li { display: grid; grid-template-columns: 30px 1fr; gap: 12px; }
-    .rules li + li { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
-    .tick { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--sage-soft); color: var(--sage); }
-    .rule-name { font-weight: 600; }
-    .rule-desc { color: var(--ink-2); font-size: 15px; white-space: pre-line; }
+    .rules { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+    .rule { min-width: 0; padding: 16px 18px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; }
+    .rule-name { font: 500 18px/1.3 var(--serif); overflow-wrap: anywhere; }
+    .rule-desc { margin-top: 4px; color: var(--ink-2); font-size: 15px; line-height: 1.55; white-space: pre-line; overflow-wrap: anywhere; }
 
     .depart { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px; border-radius: var(--radius); background: var(--ink); color: #FBF6EE; }
     .depart-time { font: 500 32px/1.1 var(--serif); }
@@ -232,6 +233,7 @@
     .brand b { color: var(--ink); font-weight: 600; }
 
     @media (min-width: 640px) {
+      .rules { grid-template-columns: 1fr 1fr; }
       .places { grid-auto-flow: row; grid-auto-columns: auto; grid-template-columns: 1fr 1fr; overflow: visible; margin: 0; padding: 0; }
       .essentials { display: flex; }
       .essentials > .tile { flex: 1 1 0; }
@@ -302,20 +304,21 @@
         {%- if ctx.welcome_message %}<p class="lede">{{ ctx.welcome_message }}</p>{% endif %}
         {%- if host and (host.name or host.bio or host.contact) %}
         <div class="card host">
-          {%- if host.photo_url %}<img class="avatar" src="{{ host.photo_url }}" alt="{{ host.name or 'Your host' }}" />
-          {%- else %}<span class="avatar" aria-hidden="true">{{ (host.name or 'H') | first | upper }}</span>{% endif %}
-          <div>
-            <p class="kicker">Your host</p>
-            {%- if host.name %}<p class="host-name">{{ host.name }}</p>{% endif %}
-            {%- if host.bio %}<p class="host-bio">{{ host.bio }}</p>{% endif %}
-            {%- if host_links | length %}
-            <div class="actions">
-              {%- for l in host_links %}<a class="btn" href="{{ l.href }}">{{ icon(l.kind, 16) }}{{ l.label }}</a>{% endfor %}
+          <div class="host-top">
+            {%- if host.photo_url %}<img class="avatar" src="{{ host.photo_url }}" alt="{{ host.name or 'Your host' }}" />
+            {%- else %}<span class="avatar" aria-hidden="true">{{ (host.name or 'H') | first | upper }}</span>{% endif %}
+            <div>
+              <p class="kicker">Your host</p>
+              {%- if host.name %}<p class="host-name">{{ host.name }}</p>{% endif %}
+              {%- if host.bio %}<p class="host-bio">{{ host.bio }}</p>{% endif %}
+              {%- if not (host_links | length) and host.contact %}<p class="contact-raw">{{ host.contact }}</p>{% endif %}
             </div>
-            {%- elif host.contact %}
-            <p class="contact-raw">{{ host.contact }}</p>
-            {%- endif %}
           </div>
+          {%- if host_links | length %}
+          <div class="actions{% if host_links | length > 2 %} actions--many{% endif %}">
+            {%- for l in host_links %}<a class="btn" href="{{ l.href }}" aria-label="{{ l.label }} {{ host.name or 'your host' }}">{{ icon(l.kind, 16) }}<span class="btn-label">{{ l.label }}</span></a>{% endfor %}
+          </div>
+          {%- endif %}
         </div>
         {%- endif %}
         {%- if ctx.safety_info and (ctx.safety_info.emergency_contact or ctx.safety_info.fire_extinguisher_location) %}
@@ -336,7 +339,7 @@
         <div class="fact"><span class="fact-ic">{{ icon('clock') }}</span><div><p class="kicker">Check-in from</p><p class="fact-value fact-value--big">{{ ctx.check_in_time | time12 }}</p></div></div>
         {%- endif %}
         {%- if ctx.access_info %}
-        <div class="fact"><span class="fact-ic">{{ icon('key') }}</span><div><p class="kicker">Getting in</p><p class="callout">{{ ctx.access_info }}</p></div></div>
+        <div class="fact"><span class="fact-ic">{{ icon('key') }}</span><div><p class="kicker">Getting in</p><p class="fact-value">{{ ctx.access_info }}</p></div></div>
         {%- endif %}
         {%- if ctx.parking_info %}
         <div class="fact"><span class="fact-ic">{{ icon('parking') }}</span><div><p class="kicker">Parking</p><p class="fact-value">{{ ctx.parking_info }}</p></div></div>
@@ -353,11 +356,11 @@
       {{ places(ctx.things_to_do) }}
 
       {%- elif s.key == 'rules' %}
-      <ol class="card rules">
+      <ul class="rules">
         {%- for rule in ctx.rules %}
-        <li><span class="tick">{{ icon('check', 16) }}</span><div><p class="rule-name">{{ rule.name }}</p>{% if rule.description %}<p class="rule-desc">{{ rule.description }}</p>{% endif %}</div></li>
+        <li class="rule"><p class="rule-name">{{ rule.name }}</p>{% if rule.description %}<p class="rule-desc">{{ rule.description }}</p>{% endif %}</li>
         {%- endfor %}
-      </ol>
+      </ul>
 
       {%- elif s.key == 'checkout' %}
       <div class="stack">
@@ -380,12 +383,14 @@
       </div>
 
       {%- elif s.key.startsWith('custom_') %}
+      <div class="stack">
       {%- for item in ctx.custom_sections[s.key] %}
         {%- if item is string %}{% if item | trim %}<div class="card"><p class="pre">{{ item }}</p></div>{% endif %}
         {%- elif item.type == 'manual' %}{% if item.name or item.description %}{{ fold(item.name, item.description, item.mediaUrl, item.mediaType) }}{% endif %}
         {%- elif item.content and (item.content | trim) %}<div class="card"><p class="pre">{{ item.content }}</p></div>
         {%- endif %}
       {%- endfor %}
+      </div>
       {%- endif %}
     </section>
     {%- endfor %}

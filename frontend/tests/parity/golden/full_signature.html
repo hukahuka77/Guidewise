@@ -81,15 +81,19 @@
     .stack > * + * { margin-top: 12px; }
     .kicker { font-size: 11.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 
-    .lede { font-size: 18px; line-height: 1.65; color: var(--ink-2); white-space: pre-line; }
+    .lede { display: flow-root; font-size: 18px; line-height: 1.65; color: var(--ink-2); white-space: pre-line; }
     .lede::first-letter { float: left; font: 500 3.3em/.86 var(--serif); color: var(--accent); margin: 6px 10px 0 0; }
 
-    .host { display: flex; gap: 16px; align-items: flex-start; }
+    .host { container-type: inline-size; }
+    .host-top { display: flex; gap: 16px; align-items: flex-start; }
     .avatar { flex: none; width: 64px; height: 64px; border-radius: 50%; object-fit: cover; background: var(--accent-soft); color: var(--accent-ink); display: grid; place-items: center; font: 500 26px var(--serif); }
     .host-name { font: 500 21px/1.2 var(--serif); margin-top: 2px; }
     .host-bio { margin-top: 6px; color: var(--ink-2); white-space: pre-line; }
-    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-    .btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); color: var(--ink); font-size: 14px; font-weight: 500; text-decoration: none; }
+    .actions { display: flex; gap: 8px; margin-top: 16px; }
+    .btn { flex: 1 1 0; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); color: var(--ink); font-size: 14px; font-weight: 500; text-decoration: none; white-space: nowrap; }
+    /* Labels give way to icons only when the row runs out of room */
+    @container (max-width: 300px) { .actions--many .btn-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); } }
+    @container (max-width: 200px) { .btn-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); } }
     .btn:hover { border-color: var(--accent); color: var(--accent-ink); }
     .contact-raw { margin-top: 10px; color: var(--ink-2); white-space: pre-line; overflow-wrap: anywhere; }
 
@@ -104,10 +108,9 @@
     .fact-ic { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 13px; background: var(--paper-2); color: var(--accent); }
     .fact-value { margin-top: 2px; white-space: pre-line; overflow-wrap: anywhere; }
     .fact-value--big { font: 500 24px/1.2 var(--serif); }
-    .callout { margin-top: 6px; padding: 12px 14px; border-radius: 12px; background: var(--accent-soft); border-left: 3px solid var(--accent); white-space: pre-line; overflow-wrap: anywhere; }
 
     .fold { background: var(--card); border: 1px solid var(--line); border-radius: 16px; }
-    .fold + .fold { margin-top: 10px; }
+    .fold + .fold, .stack > .fold + .fold { margin-top: 10px; }
     .fold summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px; font-weight: 600; cursor: pointer; list-style: none; }
     .fold summary::-webkit-details-marker { display: none; }
     .fold summary .ic { color: var(--muted); transition: transform .2s; }
@@ -130,12 +133,10 @@
     .place-link { display: inline-flex; align-items: center; gap: 6px; color: var(--accent-ink); font-size: 14px; font-weight: 600; text-decoration: none; }
     .place-link:hover { text-decoration: underline; text-underline-offset: 3px; }
 
-    .rules { list-style: none; margin: 0; padding: 0; }
-    .rules li { display: grid; grid-template-columns: 30px 1fr; gap: 12px; }
-    .rules li + li { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
-    .tick { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--sage-soft); color: var(--sage); }
-    .rule-name { font-weight: 600; }
-    .rule-desc { color: var(--ink-2); font-size: 15px; white-space: pre-line; }
+    .rules { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+    .rule { min-width: 0; padding: 16px 18px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; }
+    .rule-name { font: 500 18px/1.3 var(--serif); overflow-wrap: anywhere; }
+    .rule-desc { margin-top: 4px; color: var(--ink-2); font-size: 15px; line-height: 1.55; white-space: pre-line; overflow-wrap: anywhere; }
 
     .depart { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px; border-radius: var(--radius); background: var(--ink); color: #FBF6EE; }
     .depart-time { font: 500 32px/1.1 var(--serif); }
@@ -161,6 +162,7 @@
     .brand b { color: var(--ink); font-weight: 600; }
 
     @media (min-width: 640px) {
+      .rules { grid-template-columns: 1fr 1fr; }
       .places { grid-auto-flow: row; grid-auto-columns: auto; grid-template-columns: 1fr 1fr; overflow: visible; margin: 0; padding: 0; }
       .essentials { display: flex; }
       .essentials > .tile { flex: 1 1 0; }
@@ -212,12 +214,14 @@
       </header>
       <div class="stack"><p class="lede">Welcome to our home! We hope you love it.
 Second paragraph with &lt;b&gt;tags&lt;/b&gt; &amp; &#34;quotes&#34; and &#39;apostrophes&#39;.</p>
-        <div class="card host"><img class="avatar" src="https://example.supabase.co/storage/v1/object/public/my_images/host.jpg" alt="Andrew" />
-          <div>
-            <p class="kicker">Your host</p><p class="host-name">Andrew</p><p class="host-bio">Host since 2019.
+        <div class="card host">
+          <div class="host-top"><img class="avatar" src="https://example.supabase.co/storage/v1/object/public/my_images/host.jpg" alt="Andrew" />
+            <div>
+              <p class="kicker">Your host</p><p class="host-name">Andrew</p><p class="host-bio">Host since 2019.
 Love hosting!</p>
-            <div class="actions"><a class="btn" href="mailto:andrew@example.com"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>Email</a>
             </div>
+          </div>
+          <div class="actions"><a class="btn" href="mailto:andrew@example.com" aria-label="Email Andrew"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg><span class="btn-label">Email</span></a>
           </div>
         </div>
         <div class="card safety">
@@ -233,7 +237,7 @@ Love hosting!</p>
       </header>
       <div class="card">
         <div class="fact"><span class="fact-ic"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><div><p class="kicker">Check-in from</p><p class="fact-value fact-value--big">3:00 PM</p></div></div>
-        <div class="fact"><span class="fact-ic"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7.5" cy="15.5" r="5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg></span><div><p class="kicker">Getting in</p><p class="callout">Lockbox on the left of the door. Code is sent the morning of arrival.</p></div></div>
+        <div class="fact"><span class="fact-ic"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7.5" cy="15.5" r="5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg></span><div><p class="kicker">Getting in</p><p class="fact-value">Lockbox on the left of the door. Code is sent the morning of arrival.</p></div></div>
         <div class="fact"><span class="fact-ic"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 17V7h4a3 3 0 0 1 0 6H9"/></svg></span><div><p class="kicker">Parking</p><p class="fact-value">Two spots in the driveway.
 Street parking is free after 6pm.</p></div></div>
       </div>
@@ -321,10 +325,10 @@ Street parking is free after 6pm.</p></div></div>
         <span class="sec-badge"><svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
         <div><p class="sec-num">06</p><h2>House rules</h2></div>
       </header>
-      <ol class="card rules">
-        <li><span class="tick"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><div><p class="rule-name">No smoking</p><p class="rule-desc">Anywhere on the property</p></div></li>
-        <li><span class="tick"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><div><p class="rule-name">Quiet hours</p><p class="rule-desc">10pm - 8am</p></div></li>
-      </ol>
+      <ul class="rules">
+        <li class="rule"><p class="rule-name">No smoking</p><p class="rule-desc">Anywhere on the property</p></li>
+        <li class="rule"><p class="rule-name">Quiet hours</p><p class="rule-desc">10pm - 8am</p></li>
+      </ul>
     </section>
     <section class="sec" id="checkout">
       <header class="sec-head">
@@ -353,13 +357,17 @@ Street parking is free after 6pm.</p></div></div>
       <header class="sec-head">
         <span class="sec-badge"><span aria-hidden="true">🐾</span></span>
         <div><p class="sec-num">08</p><h2>Pets 🐶</h2></div>
-      </header><div class="card"><p class="pre">Dogs welcome</p></div><div class="card"><p class="pre">Please clean up after them</p></div>
+      </header>
+      <div class="stack"><div class="card"><p class="pre">Dogs welcome</p></div><div class="card"><p class="pre">Please clean up after them</p></div>
+      </div>
     </section>
     <section class="sec" id="custom_local_tips">
       <header class="sec-head">
         <span class="sec-badge"><span aria-hidden="true">✦</span></span>
         <div><p class="sec-num">09</p><h2>local tips</h2></div>
-      </header><div class="card"><p class="pre">A plain string tip</p></div>
+      </header>
+      <div class="stack"><div class="card"><p class="pre">A plain string tip</p></div>
+      </div>
     </section>
 
     <footer class="foot">

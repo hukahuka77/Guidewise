@@ -559,7 +559,7 @@ export default function EditGuidebookPage() {
 
   const styleSwitcher = (
     <div className="w-full">
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">Style</p>
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">Guidebook style</p>
       <div className="grid grid-cols-3 gap-1 rounded-xl bg-[#EFE8DE] p-1" role="group" aria-label="Guidebook style">
         {STYLE_OPTIONS.map(([key, label]) => (
           <button
@@ -692,10 +692,13 @@ export default function EditGuidebookPage() {
     </div>
   );
 
+  // Style picker sits above the phone so it's the first thing seen next to the preview
   const preview = (
-    <div className="flex flex-col items-center gap-4">
-      <PhonePreview guidebookId={guidebookId} accessToken={accessToken} refreshKey={previewKey} />
-      <div className="w-full max-w-[340px]">{styleSwitcher}</div>
+    <div className="flex flex-col items-center gap-3">
+      <div className="w-full max-w-[320px]">{styleSwitcher}</div>
+      <div className="w-full max-w-[310px]">
+        <PhonePreview guidebookId={guidebookId} accessToken={accessToken} refreshKey={previewKey} />
+      </div>
     </div>
   );
 
