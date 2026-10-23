@@ -377,7 +377,9 @@ describe("guests: build first, create an account to save", () => {
     const [payload, mac] = (ticket as string).split(".");
     const forged = `${Buffer.from(JSON.stringify({ g: "22222222-2222-4222-8222-bbbbbbbbbbbb", exp: Date.now() + 1e6 })).toString("base64url")}.${mac}`;
     expect(readClaimTicket(forged)).toBeNull();
-    expect(readClaimTicket(`${payload}.x${mac.slice(1)}`)).toBeNull();
+    // Change the signature's first character to a different one (a fixed "x" is a no-op when it already starts with x)
+    const tampered = `${mac[0] === "x" ? "y" : "x"}${mac.slice(1)}`;
+    expect(readClaimTicket(`${payload}.${tampered}`)).toBeNull();
     expect(readClaimTicket(ticket, Date.now() + 31 * 24 * 60 * 60 * 1000)).toBeNull();
     expect((await guestClaim(req("POST", "/api/guest/claim", "owner", { ticket: forged }))).status).toBe(400);
     // A ticket only moves guidebooks while their owner is still a guest
