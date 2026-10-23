@@ -8,6 +8,5 @@ export function GET(request: Request) {
   return withUser(
     request,
     async ({ sql, user }) => Response.json({ ok: true, items: await listGuidebooks(sql, user.id) }),
-    { fallbackOnError: true },
   );
 }

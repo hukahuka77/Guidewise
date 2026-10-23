@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { googleDistanceMatrix, googlePlacesDetails, googlePlacesTextSearch, isGoogleConfigured } from "./googlePlaces";
 
-// Port of backend/utils/ai_recommendations.py.
+// AI recommendations for places to eat and things to do, enriched with Google Places data.
 
 type Dict = Record<string, unknown>;
 const asDict = (v: unknown): Dict => (typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Dict) : {});
@@ -111,7 +111,7 @@ async function enrichOne(item: unknown, location: string): Promise<EnrichedItem 
   };
 }
 
-/** Enrich in parallel (Flask did this sequentially); an item that fails to enrich is skipped. */
+/** Enrich in parallel; an item that fails to enrich is skipped. */
 export async function enrichWithGooglePlaces(items: unknown[], location: string): Promise<EnrichedItem[]> {
   const results = await Promise.all(
     items.map((item) =>
@@ -124,7 +124,7 @@ export async function enrichWithGooglePlaces(items: unknown[], location: string)
   return results.filter((r): r is EnrichedItem => r !== null);
 }
 
-/** Mirrors Flask: any failure while calling OpenAI/Places yields an empty list; an unknown type throws. */
+/** Any failure while calling OpenAI/Places yields an empty list; an unknown type throws. */
 export async function getAiRecommendations(type: string, address: string, numItems = 5): Promise<EnrichedItem[]> {
   if (!isKnownType(type)) {
     throw new RangeError(
@@ -152,5 +152,5 @@ export async function getAiRecommendations(type: string, address: string, numIte
   }
 }
 
-/** Both OpenAI and Google must be configured here; otherwise Flask keeps serving these routes. */
+/** Both OpenAI and Google must be configured; otherwise these routes answer 503. */
 export const aiConfigured = () => Boolean(process.env.OPENAI_API_KEY) && isGoogleConfigured();

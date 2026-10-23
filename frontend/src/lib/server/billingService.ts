@@ -4,7 +4,7 @@ import { ServiceError } from "./guidebookService";
 import { normalizePlan, PLAN_CONFIGS, planForPriceId, planPriceId, PURCHASABLE_PLANS } from "./plans";
 import { aiUsage, monthlyViews } from "./usage";
 
-// Port of the billing routes and the Stripe webhook in backend/app.py.
+// Billing routes (checkout, portal, summary) and the Stripe webhook.
 
 type Dict = Record<string, unknown>;
 const asDict = (v: unknown): Dict => (typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Dict) : {});

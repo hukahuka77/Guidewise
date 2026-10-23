@@ -3,8 +3,6 @@
 import { useEffect, useState } from "react";
 import Spinner from "@/components/ui/spinner";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-
 interface Props {
   /** The guidebook to show; without one a placeholder screen is shown. */
   guidebookId?: string | null;
@@ -33,7 +31,7 @@ export default function PhonePreview({ guidebookId, accessToken, refreshKey = 0,
     setRefreshing(true);
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/guidebooks/${guidebookId}/html`, {
+        const res = await fetch(`/api/guidebooks/${guidebookId}/html`, {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
         if (!res.ok) throw new Error(String(res.status));

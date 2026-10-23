@@ -16,7 +16,7 @@ Guidewise uses GitHub as the shared operating system for AI-assisted development
 - `prod`: confirmed production release branch. PRs or merges into this branch require Andrew approval.
 - `agent/<issue-or-task>`: temporary worker branches for AI-agent changes.
 
-Vercel and Render automation should follow the confirmed branch mapping in `docs/release-process.md`.
+Vercel automation should follow the confirmed branch mapping in `docs/release-process.md`.
 
 ## Runner Configuration
 
@@ -27,7 +27,7 @@ worktree root instead of assuming a machine-specific absolute path.
 
 The config is the machine-readable source for development and production
 branches, the default PR base, PR expectations, protected/high-risk paths, and
-the frontend and backend commands mirrored from CI. Before spawning a worker,
+the commands mirrored from CI. Before spawning a worker,
 the runner should:
 
 1. Confirm the checkout belongs to the configured repository and use an
@@ -66,11 +66,9 @@ When dependencies are already installed and the agent only needs to rerun checks
 scripts/check.sh --skip-install
 ```
 
-The script extends the CI checks by running frontend install, lint, typecheck,
-production build with local default public URLs, backend Python compilation,
-and `python smoke_check.py` from `backend/`. The smoke check verifies that the
-Flask application imports and initializes without production secrets or
-external services. The script exits nonzero on the first failing step.
+The script mirrors the CI checks: frontend install, lint, typecheck, and the
+production build with local default public URLs (the build runs the test suite
+first). It exits nonzero on the first failing step.
 
 ## Nightly Loop
 
@@ -89,5 +87,5 @@ The overnight automation should run in this order:
 
 - Agents may deploy to dev only through branch and CI rules.
 - Agents may prepare production release PRs but may not approve production deployment.
-- Secrets must live in GitHub, Vercel, Render, or local secure environment stores. Do not paste secrets into chat.
+- Secrets must live in GitHub, Vercel, or local secure environment stores. Do not paste secrets into chat.
 - If an issue is ambiguous, blocked, or security-sensitive, mark it `agent:blocked` and escalate.

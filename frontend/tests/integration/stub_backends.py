@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
-"""Local stand-ins used to exercise the native Next.js routes without real services.
+"""Local stand-in used to exercise the Next.js routes without real services.
 
-  :5055  Flask stand-in  - answers every path with "FLASK-STUB <path>"
   :5056  Supabase stand-in - PostgREST guidebook lookups from the parity fixtures + /auth/v1/user
 Run the checks with tests/integration/native-routes.sh.
 """
 import json
 import os
 import sys
-import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -30,19 +28,6 @@ def extra_rows():
 OWNER_ID = "11111111-1111-4111-8111-aaaaaaaaaaaa"
 OTHER_ID = "22222222-2222-4222-8222-bbbbbbbbbbbb"
 TOKENS = {"owner-token": OWNER_ID, "other-token": OTHER_ID}
-
-
-class Flask(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.send_header("Content-Type", "text/plain")
-        self.end_headers()
-        self.wfile.write(f"FLASK-STUB {self.path}".encode())
-
-    do_POST = do_GET
-
-    def log_message(self, *a):
-        pass
 
 
 class Supabase(BaseHTTPRequestHandler):
@@ -93,5 +78,4 @@ def serve(port, handler):
 
 
 if __name__ == "__main__":
-    threading.Thread(target=serve, args=(5055, Flask), daemon=True).start()
     serve(5056, Supabase)

@@ -18,6 +18,14 @@ export function notFoundResponse(message = "Not Found"): Response {
   return new Response(message, { status: 404, headers: { "Content-Type": "text/plain; charset=utf-8" } });
 }
 
+/** The guidebook could not be loaded (server not configured, or the database failed). Never cached. */
+export function unavailableResponse(status = 503): Response {
+  return new Response("This guidebook is temporarily unavailable. Please try again in a moment.", {
+    status,
+    headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" },
+  });
+}
+
 export interface LiveOptions {
   /** False for guidebooks whose views are metered per request (free plan): never stored by shared caches. */
   cacheable?: boolean;

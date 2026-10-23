@@ -7,8 +7,6 @@ import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import Spinner from "@/components/ui/spinner";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-
 type Point = { day: string; views: number };
 type Stats = {
   plan: string;
@@ -45,7 +43,7 @@ export default function AnalyticsPage() {
         return;
       }
       try {
-        const res = await fetch(`${API_BASE}/api/analytics/views`, { headers: { Authorization: `Bearer ${token}` } });
+        const res = await fetch(`/api/analytics/views`, { headers: { Authorization: `Bearer ${token}` } });
         if (res.status === 401) {
           router.push("/login");
           return;

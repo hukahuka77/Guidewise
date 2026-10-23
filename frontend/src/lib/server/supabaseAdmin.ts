@@ -4,8 +4,7 @@ let client: SupabaseClient | null | undefined;
 
 /**
  * Server-side Supabase client with the service-role key (bypasses RLS, so callers MUST enforce
- * ownership themselves). Returns null when the key is not configured, which lets routes fall
- * back to the Flask backend instead of failing.
+ * ownership themselves). Returns null when the key is not configured.
  */
 export function getSupabaseAdmin(): SupabaseClient | null {
   if (client !== undefined) return client;

@@ -6,8 +6,7 @@ import type { GuidebookRow } from "@/lib/guidebook/types";
 import type { Sql } from "./db";
 import { assertCanCreateGuidebook } from "./usage";
 
-// Port of the guidebook CRUD routes in backend/app.py. Everything that touches several tables runs
-// in one transaction, like the SQLAlchemy session it replaces.
+// Guidebook CRUD. Everything that touches several tables runs in one transaction.
 
 type Dict = Record<string, unknown>;
 type Row = Record<string, unknown>;
@@ -31,7 +30,7 @@ const isDataUrl = (v: unknown) => typeof v === "string" && v.trim().startsWith("
 const trimmedString = (v: unknown) => (typeof v === "string" ? v.trim() : "");
 const truthy = (v: unknown) => v !== undefined && v !== null && v !== false && v !== 0 && v !== "";
 
-/** Slug used for public URLs (the `_slugify` that is in effect in Flask). */
+/** Slug used for public URLs. */
 export const MAX_PROPERTY_NAME = 120;
 
 /** A property name that would make an unusable page title and URL is refused rather than silently cut. */

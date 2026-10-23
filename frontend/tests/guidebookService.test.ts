@@ -39,7 +39,7 @@ const rejects = async (p: Promise<unknown>, status: number) => {
 };
 
 describe("slugify and rules input", () => {
-  it("slugifies like Flask's effective _slugify", () => {
+  it("slugifies property names", () => {
     expect(slugify("Cozy Cabin <Deluxe>")).toBe("cozy-cabin-deluxe");
     expect(slugify("Andrew's  Place!")).toBe("andrews-place");
     expect(slugify("  --x--  ")).toBe("x");

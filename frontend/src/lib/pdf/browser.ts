@@ -2,7 +2,7 @@ import chromium from "@sparticuz/chromium";
 import puppeteer, { type Browser, type HTTPRequest } from "puppeteer-core";
 import { resolvesToPublicIp } from "@/lib/server/ssrf";
 
-// HTML -> PDF with headless Chromium (replaces WeasyPrint). On Vercel it runs the @sparticuz/chromium
+// HTML -> PDF with headless Chromium. On Vercel it runs the @sparticuz/chromium
 // build; set PDF_CHROMIUM_PATH to use a locally installed Chrome instead (e.g. for development).
 
 const IMAGE_WAIT_MS = 15_000;

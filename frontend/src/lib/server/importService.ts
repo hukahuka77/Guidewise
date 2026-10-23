@@ -5,7 +5,7 @@ import type { Recommendations } from "./importPopulate";
 import type { ImportedFields } from "./listingImport";
 import { assertCanCreateGuidebook } from "./usage";
 
-// DB half of `/api/import-listing` (backend/app.py): the imported guidebook is live at its slug straight away.
+// DB half of `/api/import-listing`: the imported guidebook is live at its slug straight away.
 
 const LABELS: [keyof ImportedFields | "cover_image_url" | "things_to_do" | "places_to_eat", string][] = [
   ["property_name", "property name"],
