@@ -1,3 +1,5 @@
+import { showDialog } from "@/lib/dialog";
+
 /** Error from the API that the user can resolve by upgrading their plan. */
 export class UpgradeRequiredError extends Error {
   constructor(message: string) {
@@ -17,8 +19,14 @@ export async function throwApiError(res: Response, fallback: string): Promise<ne
 /** Offer the pricing page when an action needs a higher plan. Returns true if it handled the error. */
 export function offerUpgrade(error: unknown): boolean {
   if (!(error instanceof UpgradeRequiredError)) return false;
-  if (typeof window !== "undefined" && window.confirm(`${error.message}\n\nView plans?`)) {
-    window.location.href = "/pricing";
-  }
+  showDialog({
+    title: "Upgrade to unlock this",
+    message: error.message,
+    confirmLabel: "View plans",
+    cancelLabel: "Not now",
+    onConfirm: () => {
+      window.location.href = "/pricing";
+    },
+  });
   return true;
 }

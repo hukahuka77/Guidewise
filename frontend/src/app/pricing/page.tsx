@@ -118,7 +118,7 @@ export default function PricingPage() {
         <div className="max-w-3xl mx-auto text-center mt-12 space-y-3">
           <p className="text-xs text-gray-500 leading-relaxed">{PRICING_FINE_PRINT}</p>
           <p className="text-sm text-gray-600">
-            Need something custom? <Link href="/#contact" className="underline text-[#CC7A52]">Contact us</Link>.
+            Need something custom? <Link href="/contact" className="underline text-[#CC7A52]">Contact us</Link>.
           </p>
         </div>
       </section>
