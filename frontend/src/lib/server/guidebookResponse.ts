@@ -57,6 +57,15 @@ export function limitReachedResponse(): Response {
   });
 }
 
+/** A guidebook made by someone who hasn't created an account yet: not shared until they save it. */
+export function notSavedResponse(): Response {
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>Guidebook not saved yet</title><style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#F8F5F1;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#1f2937}main{max-width:28rem;margin:1.5rem;padding:2rem;background:#fff;border-radius:1rem;box-shadow:0 1px 3px rgba(0,0,0,.1);text-align:center}h1{font-size:1.25rem;margin:0 0 .75rem}p{margin:.5rem 0;color:#4b5563;line-height:1.5}a{color:#e11d48}</style></head><body><main><h1>This guidebook isn&#39;t shared yet</h1><p>Its host hasn&#39;t saved it. Once they create their free Guidewise account, it will appear here.</p><p><a href="/">Make your own guidebook</a></p></main></body></html>`;
+  return new Response(html, {
+    status: 404,
+    headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "private, no-store", "X-Robots-Tag": "noindex" },
+  });
+}
+
 /** Render a guidebook on demand (ETag changes with the content and the templates). */
 export function guidebookResponse(request: Request, gb: GuidebookRow, options: LiveOptions = {}): Response {
   const incoming = request.headers.get("if-none-match");

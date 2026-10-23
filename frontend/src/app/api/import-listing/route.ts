@@ -4,6 +4,7 @@ import { recommendationsForListing } from "@/lib/server/importPopulate";
 import { importListing, ListingImportError } from "@/lib/server/listingImport";
 import { rateLimited } from "@/lib/server/rateLimit";
 import { assertCanCreateGuidebook } from "@/lib/server/usage";
+import { assertGuestCanCreate } from "@/lib/server/guestAccounts";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -18,6 +19,7 @@ export function POST(request: Request) {
       }
       // Check the guidebook cap and creation rate before spending a fetch, OpenAI and Places calls
       await assertCanCreateGuidebook(sql, user.id);
+      if (user.isGuest) await assertGuestCanCreate(sql, user.id);
       const data = await readJson(request);
       let fields;
       try {
@@ -32,6 +34,6 @@ export function POST(request: Request) {
       const recommendations = await recommendationsForListing(sql, user.id, fields.address_city_state);
       return Response.json(await createImportedGuidebook(sql, user.id, fields, recommendations), { status: 201 });
     },
-    { needs: () => Boolean(process.env.OPENAI_API_KEY) },
+    { needs: () => Boolean(process.env.OPENAI_API_KEY), allowGuest: true },
   );
 }

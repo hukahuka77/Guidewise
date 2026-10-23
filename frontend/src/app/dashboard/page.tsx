@@ -11,6 +11,7 @@ import QRDownloadButton from "@/components/custom/QRDownloadButton";
 import { absoluteUrl } from "@/lib/publicUrl";
 import { offerUpgrade, throwApiError } from "@/lib/upgrade";
 import { cacheGet, cacheSet } from "@/lib/cache";
+import { claimGuestGuidebooks, isGuestSession } from "@/lib/guest";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 
@@ -139,6 +140,12 @@ export default function DashboardPage() {
         router.push("/login");
         return;
       }
+      if (isGuestSession(data.session)) {
+        router.push("/signup?save=1");
+        return;
+      }
+      // Guidebooks built as a guest before signing up join the account first
+      await claimGuestGuidebooks();
       try {
         // Fetch plan and limits from billing summary
         try {

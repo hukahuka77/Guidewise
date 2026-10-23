@@ -83,7 +83,7 @@ export default function EditGuidebookPage() {
   const isNewGuidebook = searchParams.get('new') === 'true';
 
   // Use consolidated auth hook
-  const { accessToken, authChecked: authReady } = useAuth({
+  const { accessToken, authChecked: authReady, isGuest } = useAuth({
     requireAuth: false, // Edit doesn't redirect immediately, loads data first
   });
 
@@ -193,6 +193,11 @@ export default function EditGuidebookPage() {
     if (!guidebookId || !authReady) return;
     if (!accessToken) {
       router.push("/login");
+      return;
+    }
+    // Editing is for saved guidebooks: guests create a free account first (their guidebook comes with them)
+    if (isGuest) {
+      router.replace("/signup?save=1");
       return;
     }
     (async () => {
@@ -331,7 +336,7 @@ export default function EditGuidebookPage() {
         setInitialLoading(false);
       }
     })();
-  }, [guidebookId, accessToken, authReady, router, setActivityItems, setCheckoutItems, setCustomSections, setCustomTabsMeta, setExcluded, setFoodItems, setFormData, setHostPhotoPreviewUrl, setHouseManualItems, setIncluded, setPreviewUrl, setRules]);
+  }, [guidebookId, accessToken, authReady, isGuest, router, setActivityItems, setCheckoutItems, setCustomSections, setCustomTabsMeta, setExcluded, setFoodItems, setFormData, setHostPhotoPreviewUrl, setHouseManualItems, setIncluded, setPreviewUrl, setRules]);
 
   // Image handlers are now provided by useGuidebookForm hook
 

@@ -4,6 +4,8 @@ import { getSupabaseAdmin } from "./supabaseAdmin";
 export interface AuthedUser {
   id: string;
   email: string | null;
+  /** A Supabase anonymous user: someone trying Guidewise before creating an account. */
+  isGuest: boolean;
 }
 
 let anonClient: SupabaseClient | null | undefined;
@@ -32,5 +34,5 @@ export async function getAuthedUser(request: Request): Promise<AuthedUser | null
   if (!token || !client) return null;
   const { data, error } = await client.auth.getUser(token);
   if (error || !data.user) return null;
-  return { id: data.user.id, email: data.user.email ?? null };
+  return { id: data.user.id, email: data.user.email ?? null, isGuest: data.user.is_anonymous === true };
 }

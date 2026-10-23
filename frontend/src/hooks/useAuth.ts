@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
+import { isGuestSession } from '@/lib/guest';
 
 export interface UseAuthOptions {
   redirectTo?: string;
@@ -19,6 +20,8 @@ export function useAuth(options: UseAuthOptions = {}) {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // A guest (anonymous session) has a token but no account; pages that need an account treat them as signed out
+  const [isGuest, setIsGuest] = useState(false);
 
   // Load initial session and set up listener
   useEffect(() => {
@@ -44,7 +47,8 @@ export function useAuth(options: UseAuthOptions = {}) {
         const token = data.session?.access_token || null;
         setAccessToken(token);
         setAuthChecked(true);
-        setIsAuthenticated(!!token);
+        setIsGuest(isGuestSession(data.session));
+        setIsAuthenticated(!!token && !isGuestSession(data.session));
       }
     })();
 
@@ -55,7 +59,8 @@ export function useAuth(options: UseAuthOptions = {}) {
             const token = session?.access_token || null;
             setAccessToken(token);
             setAuthChecked(true);
-            setIsAuthenticated(!!token);
+            setIsGuest(isGuestSession(session));
+            setIsAuthenticated(!!token && !isGuestSession(session));
           }
         ).data.subscription
       : { unsubscribe: () => {} };
@@ -78,5 +83,6 @@ export function useAuth(options: UseAuthOptions = {}) {
     accessToken,
     authChecked,
     isAuthenticated,
+    isGuest,
   };
 }

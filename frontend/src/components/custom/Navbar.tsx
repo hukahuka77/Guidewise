@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { claimInBackground, isGuestSession } from "@/lib/guest";
 import { useRouter } from "next/navigation";
 import { Marcellus } from "next/font/google";
 
@@ -18,10 +19,13 @@ export default function Navbar() {
     (async () => {
       if (!supabase) return; // auth disabled; keep defaults (no dashboard link)
       const { data } = await supabase.auth.getSession();
-      if (mounted) setIsAuthed(!!data.session);
+      if (mounted) setIsAuthed(!!data.session && !isGuestSession(data.session));
     })();
-    const sub = supabase?.auth.onAuthStateChange((_event, session) => {
-      setIsAuthed(!!session);
+    const sub = supabase?.auth.onAuthStateChange((event, session) => {
+      // Guests (trying Guidewise before signing up) see the signed-out menu
+      setIsAuthed(!!session && !isGuestSession(session));
+      // Signed in after building a guidebook as a guest: move it into the account, wherever they landed
+      if (event === "SIGNED_IN" && session && !isGuestSession(session)) claimInBackground();
     });
     return () => {
       mounted = false;
