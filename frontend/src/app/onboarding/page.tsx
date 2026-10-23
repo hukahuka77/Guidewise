@@ -11,6 +11,8 @@ import Spinner from "@/components/ui/spinner";
 import PlacesAutocomplete from "@/components/PlacesAutocomplete";
 import PhonePreview from "@/components/custom/PhonePreview";
 import { offerUpgrade, throwApiError } from "@/lib/upgrade";
+import { ensureSession, finishClaim, hasPendingClaim, isGuestSession, takeClaimed, rememberGuestGuidebook } from "@/lib/guest";
+import { supabase } from "@/lib/supabaseClient";
 import ImportQuestions, { EMPTY_ANSWERS, ImportProgress, answersToPayload, type ImportAnswers } from "@/components/onboarding/ImportQuestions";
 
 type Mode = "link" | "manual";
@@ -38,7 +40,14 @@ const STYLES: { key: string; label: string; hint: string }[] = [
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { accessToken } = useAuth({ requireAuth: true, redirectTo: "/login" });
+  // No account needed to build a guidebook: a guest session starts when they create one
+  const { accessToken: signedInToken, isGuest: guestSession } = useAuth();
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const accessToken = sessionToken ?? signedInToken;
+  const [guest, setGuest] = useState(false);
+  const isGuest = guest || guestSession;
+  // Just signed up or logged in after building a guidebook as a guest: bring it into the account
+  const [claiming, setClaiming] = useState(false);
 
   const [mode, setMode] = useState<Mode>("link");
   const [listingUrl, setListingUrl] = useState("");
@@ -60,23 +69,53 @@ export default function OnboardingPage() {
   const [previewKey, setPreviewKey] = useState(0);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const authHeaders = (): Record<string, string> => ({
+  const authHeaders = (token = accessToken): Record<string, string> => ({
     "Content-Type": "application/json",
-    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   });
 
   useEffect(() => () => { if (timer.current) clearInterval(timer.current); }, []);
 
-  const remember = (id: string) => {
+  useEffect(() => {
+    if (!supabase || !hasPendingClaim()) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase!.auth.getSession();
+      if (!data.session || isGuestSession(data.session)) return;
+      setClaiming(true);
+      await finishClaim();
+      if (cancelled) return; // take the result only in the effect that's still mounted
+      const ids = takeClaimed();
+      if (ids[0]) router.replace(`/edit/${ids[0]}?new=true`);
+      else setClaiming(false);
+    })();
+    return () => { cancelled = true; };
+  }, [router]);
+
+  /** The token to create with: the signed-in user's, or a new guest session's. Null sends them to sign up. */
+  const sessionForCreate = async (): Promise<{ token: string; guest: boolean } | null> => {
+    const session = await ensureSession();
+    if (!session) {
+      router.push("/signup");
+      return null;
+    }
+    setSessionToken(session.token);
+    setGuest(session.guest);
+    return session;
+  };
+
+  const remember = (id: string, session: { token: string; guest: boolean }) => {
     try {
       sessionStorage.setItem("guidebookId", id);
       localStorage.setItem("guidebookId", id);
     } catch { }
+    // A guest keeps a claim ticket so the guidebook follows them into their account
+    if (session.guest) void rememberGuestGuidebook(session.token);
   };
 
-  const slugFor = async (id: string): Promise<string | null> => {
+  const slugFor = async (id: string, token: string): Promise<string | null> => {
     try {
-      const res = await fetch(`/api/guidebooks/${id}`, { headers: authHeaders() });
+      const res = await fetch(`/api/guidebooks/${id}`, { headers: authHeaders(token) });
       const data = res.ok ? await res.json() : null;
       return typeof data?.public_slug === "string" ? data.public_slug : null;
     } catch {
@@ -110,9 +149,15 @@ export default function OnboardingPage() {
     setQuestionsDone(false);
     startProgress();
     try {
+      const session = await sessionForCreate();
+      if (!session) {
+        setFromImport(false);
+        return;
+      }
+      const token = session.token;
       const res = await fetch(`/api/import-listing`, {
         method: "POST",
-        headers: authHeaders(),
+        headers: authHeaders(token),
         body: JSON.stringify({ url: listingUrl.trim() }),
       });
       if (res.status === 401) {
@@ -121,10 +166,10 @@ export default function OnboardingPage() {
       }
       if (!res.ok) await throwApiError(res, "We couldn't import that listing. You can start with a template instead.");
       const json = await res.json();
-      remember(json.guidebook_id);
+      remember(json.guidebook_id, session);
       setCreated({
         id: json.guidebook_id,
-        slug: await slugFor(json.guidebook_id),
+        slug: await slugFor(json.guidebook_id, token),
         imported: json.imported ?? [],
         missing: json.missing ?? [],
         places: json.recommendations ?? null,
@@ -168,9 +213,12 @@ export default function OnboardingPage() {
     setBusy(true);
     setError(null);
     try {
+      const session = await sessionForCreate();
+      if (!session) return;
+      const token = session.token;
       const res = await fetch(`/api/generate`, {
         method: "POST",
-        headers: authHeaders(),
+        headers: authHeaders(token),
         body: JSON.stringify({
           property_name: propertyName.trim(),
           address_street: address.trim(),
@@ -184,7 +232,7 @@ export default function OnboardingPage() {
       }
       if (!res.ok) await throwApiError(res, "We couldn't create your guidebook. Please try again.");
       const json = await res.json();
-      remember(json.guidebook_id);
+      remember(json.guidebook_id, session);
       setCreated({ id: json.guidebook_id, slug: json.public_slug ?? null, imported: [], missing: [], places: null });
     } catch (e) {
       if (!offerUpgrade(e)) setError(e instanceof Error ? e.message : "We couldn't create your guidebook.");
@@ -217,7 +265,12 @@ export default function OnboardingPage() {
     <div className="min-h-screen bg-gradient-to-br from-[#F8F5F1] via-white to-[#F8F5F1] px-4 py-8 sm:px-8 sm:py-12">
       <div className="mx-auto grid max-w-6xl items-start gap-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-14">
         <section className="rounded-3xl border border-black/5 bg-white p-6 shadow-sm sm:p-10">
-          {inImportFlow ? (
+          {claiming ? (
+            <div className="flex flex-col items-center gap-4 py-16 text-center">
+              <Spinner />
+              <h1 className="text-2xl font-semibold text-gray-900">Saving your guidebook to your account…</h1>
+            </div>
+          ) : inImportFlow ? (
             <>
               <h1 className="text-3xl font-bold leading-tight text-gray-900 sm:text-4xl">
                 {created ? "Your guidebook is ready" : "Building your guidebook…"}
@@ -339,9 +392,13 @@ export default function OnboardingPage() {
             </>
           ) : (
             <>
-              <h1 className="text-3xl font-bold leading-tight text-gray-900 sm:text-4xl">Your guidebook is live! 🎉</h1>
+              <h1 className="text-3xl font-bold leading-tight text-gray-900 sm:text-4xl">
+                {isGuest ? "Your guidebook is ready! 🎉" : "Your guidebook is live! 🎉"}
+              </h1>
               <p className="mt-4 text-lg text-gray-600">
-                It&apos;s already on the phone. Tap around, then fine-tune anything you like. Changes appear instantly.
+                {isGuest
+                  ? "Have a look on the phone. Create a free account to save it, then customize it and share it with your guests."
+                  : "It’s already on the phone. Tap around, then fine-tune anything you like. Changes appear instantly."}
               </p>
 
               {created.imported.length > 0 && (
@@ -389,6 +446,22 @@ export default function OnboardingPage() {
 
               {error && <p className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{error}</p>}
 
+              {isGuest ? (
+                <div className="mt-8 rounded-2xl border border-rose-200 bg-rose-50/70 p-5">
+                  <h2 className="text-lg font-semibold text-gray-900">Save your guidebook</h2>
+                  <p className="mt-1 text-sm text-gray-600">
+                    It&apos;s free. Your guidebook moves into your account, ready to customize and share. Until then it isn&apos;t visible to guests.
+                  </p>
+                  <div className="mt-4 flex flex-wrap items-center gap-3">
+                    <Button type="button" className="h-12 rounded-2xl px-8 text-base" onClick={async () => { await savingAnswers.current; router.push("/signup?save=1"); }}>
+                      Create a free account
+                    </Button>
+                    <Link href="/login?save=1" onClick={async (e) => { e.preventDefault(); await savingAnswers.current; router.push("/login?save=1"); }} className="text-sm font-medium text-gray-700 underline">
+                      I already have an account
+                    </Link>
+                  </div>
+                </div>
+              ) : (
               <div className="mt-8 flex flex-wrap items-center gap-3">
                 <Button type="button" className="h-12 rounded-2xl px-8 text-base" onClick={async () => { await savingAnswers.current; router.push(`/edit/${created.id}?new=true`); }}>
                   Customize it
@@ -400,6 +473,7 @@ export default function OnboardingPage() {
                 )}
                 <Link href="/dashboard" className="text-sm text-gray-600 underline">Go to dashboard</Link>
               </div>
+              )}
             </>
           )}
         </section>

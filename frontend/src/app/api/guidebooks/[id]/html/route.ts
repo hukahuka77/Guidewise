@@ -22,5 +22,5 @@ export function GET(request: Request, { params }: { params: Promise<{ id: string
         "X-Template-Key": templateKey,
       },
     });
-  });
+  }, { allowGuest: true });
 }

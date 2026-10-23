@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { isGuestSession } from "@/lib/guest";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -17,30 +18,26 @@ export default function GetStartedButton({
   labelWhenLoggedIn = "Create new guidebook",
   buttonClassName,
 }: GetStartedButtonProps) {
-  const [href, setHref] = useState<string>("/signup");
+  // Anyone can build a guidebook straight away; an account is only needed to save it
+  const href = "/onboarding";
   const [label, setLabel] = useState<string>(labelWhenLoggedOut);
 
   useEffect(() => {
     let mounted = true;
     (async () => {
       if (!supabase) {
-        if (mounted) {
-          setHref("/signup");
-          setLabel(labelWhenLoggedOut);
-        }
+        if (mounted) setLabel(labelWhenLoggedOut);
         return;
       }
       const { data } = await supabase.auth.getSession();
       if (mounted) {
-        const authed = !!data.session;
-        setHref(authed ? "/onboarding" : "/signup");
+        const authed = !!data.session && !isGuestSession(data.session);
         setLabel(authed ? labelWhenLoggedIn : labelWhenLoggedOut);
       }
     })();
     const subscription = supabase
       ? supabase.auth.onAuthStateChange((_event, session) => {
-          const authed = !!session;
-          setHref(authed ? "/onboarding" : "/signup");
+          const authed = !!session && !isGuestSession(session);
           setLabel(authed ? labelWhenLoggedIn : labelWhenLoggedOut);
         }).data.subscription
       : { unsubscribe: () => {} };

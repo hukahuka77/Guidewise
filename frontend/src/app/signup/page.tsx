@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
@@ -13,6 +13,11 @@ export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [oauthLoading, setOauthLoading] = useState(false);
+  // Came from "Save your guidebook": /onboarding moves the guest's guidebook into the new account
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    setSaving(new URLSearchParams(window.location.search).get("save") === "1");
+  }, []);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,7 +54,9 @@ export default function SignupPage() {
         router.push("/onboarding");
         return;
       }
-      setMessage("Check your email to confirm your account. Once confirmed, you can log in.");
+      setMessage(saving
+        ? "Check your email to confirm your account. Open the link in this browser and your guidebook will be saved to it."
+        : "Check your email to confirm your account. Once confirmed, you can log in.");
     } catch (err: unknown) {
       // Network or unexpected errors
       const msg = err instanceof Error ? err.message : 'Signup failed';
@@ -72,8 +79,10 @@ export default function SignupPage() {
       {/* Left: full-height form area */}
       <div className="w-full h-full flex items-center justify-center px-6 md:px-10 lg:px-16 py-10 md:py-0 bg-white">
         <div className="w-full max-w-md text-center">
-          <h1 className="text-3xl font-semibold tracking-tight">Welcome to Guidewise</h1>
-          <p className="mt-2 text-sm text-gray-600">Get started - it&apos;s free! No credit card required.</p>
+          <h1 className="text-3xl font-semibold tracking-tight">{saving ? "Save your guidebook" : "Welcome to Guidewise"}</h1>
+          <p className="mt-2 text-sm text-gray-600">
+            {saving ? "Create your free account and your guidebook comes with you. No credit card required." : "Get started - it’s free! No credit card required."}
+          </p>
 
           {error && (
             <div className="mt-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-center">
@@ -168,7 +177,7 @@ export default function SignupPage() {
 
             <div className="mt-6 text-sm text-gray-600 text-center">
               Already have an account? {" "}
-              <Link href="/login" className="text-pink-700 hover:text-pink-800 underline-offset-2 hover:underline">Log in</Link>
+              <Link href={saving ? "/login?save=1" : "/login"} className="text-pink-700 hover:text-pink-800 underline-offset-2 hover:underline">Log in</Link>
             </div>
         </div>
       </div>

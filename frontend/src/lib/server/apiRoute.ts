@@ -27,12 +27,19 @@ interface Options {
   needs?: () => boolean;
   /** Per-user sliding-window limit (requests per minute). */
   rateLimit?: { name: string; limit: number };
+  /** Let guests (anonymous users who haven't created an account yet) use the route. */
+  allowGuest?: boolean;
 }
+
+/** Guests can create and preview a guidebook; everything else needs an account. */
+const accountRequired = () =>
+  Response.json({ error: "Create a free account to do that.", code: "account_required" }, { status: 403 });
 
 /**
  * Wrap an authenticated API route:
  *  - not configured (no DATABASE_URL / Supabase auth, or `needs` is false) -> 503
  *  - missing or invalid token -> 401
+ *  - a guest, unless `allowGuest` -> 403
  *  - ServiceError -> `{ error }` with its status; anything else -> 500
  */
 export async function withUser(
@@ -45,6 +52,7 @@ export async function withUser(
 
   const user = await getAuthedUser(request);
   if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if (user.isGuest && !options.allowGuest) return accountRequired();
 
   try {
     return await handler({ sql, user, request });
@@ -65,11 +73,12 @@ export async function withUser(
 export async function withAuth(
   request: Request,
   handler: (user: AuthedUser) => Promise<Response>,
-  options: Pick<Options, "needs" | "rateLimit"> = {},
+  options: Pick<Options, "needs" | "rateLimit" | "allowGuest"> = {},
 ): Promise<Response> {
   if (!isAuthConfigured() || (options.needs && !options.needs())) return notConfigured();
   const user = await getAuthedUser(request);
   if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if (user.isGuest && !options.allowGuest) return accountRequired();
   if (options.rateLimit && rateLimited(`${options.rateLimit.name}:${user.id}`, options.rateLimit.limit)) {
     return Response.json({ error: "Too many requests. Please slow down." }, { status: 429 });
   }
