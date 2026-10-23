@@ -170,6 +170,7 @@ describe("absoluteQrUrl", () => {
 
 describe("absoluteUrl", () => {
   it("prefixes the site origin when no API base is configured", () => {
+    vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", "");
     vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://guidewise.example/");
     try {
       expect(absoluteUrl("/g/slug")).toBe("https://guidewise.example/g/slug");

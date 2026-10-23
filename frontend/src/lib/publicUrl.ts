@@ -1,8 +1,6 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-
 /** Absolute URL for a public page. QR codes and shared links must not be relative, or a scanned code leads nowhere. */
 export function absoluteUrl(path: string): string {
-  const base = API_BASE || (typeof window !== "undefined" ? window.location.origin : process.env.NEXT_PUBLIC_SITE_URL || "");
+  const base = process.env.NEXT_PUBLIC_API_BASE_URL || (typeof window !== "undefined" ? window.location.origin : process.env.NEXT_PUBLIC_SITE_URL || "");
   return `${base.replace(/\/$/, "")}${path}`;
 }
 
