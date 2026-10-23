@@ -371,13 +371,17 @@ Street parking is free after 6pm.</p></div></div>
   <script>
   (function () {
     function copyText(v) {
-      if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(v);
+      // The clipboard API is refused in some frames (like the editor preview): fall back to execCommand
+      if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(v).catch(function () { legacyCopy(v); });
+      legacyCopy(v);
+      return Promise.resolve();
+    }
+    function legacyCopy(v) {
       var t = document.createElement("textarea");
       t.value = v; t.setAttribute("readonly", ""); t.style.position = "fixed"; t.style.opacity = "0";
       document.body.appendChild(t); t.select();
       try { document.execCommand("copy"); } catch (e) {}
       document.body.removeChild(t);
-      return Promise.resolve();
     }
     [].forEach.call(document.querySelectorAll("[data-copy]"), function (b) {
       b.addEventListener("click", function () {

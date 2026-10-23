@@ -95,14 +95,17 @@ describe("helpers", () => {
     expect(isNonViewRequest(r(BROWSER, {}, "HEAD"))).toBe(true);
   });
 
-  it("visitor keys differ per guidebook/visitor and are stable within the half hour", () => {
+  it("visitor keys differ per guidebook/visitor and day, and ignore the user agent", () => {
     const a = new Request("http://x/", { headers: { "user-agent": BROWSER, "x-forwarded-for": "1.1.1.1" } });
     const b = new Request("http://x/", { headers: { "user-agent": BROWSER, "x-forwarded-for": "2.2.2.2" } });
     const t = Date.UTC(2026, 9, 22, 12, 0, 0);
     expect(visitorKey(a, "g1", t)).toBe(visitorKey(a, "g1", t + 60_000));
     expect(visitorKey(a, "g1", t)).not.toBe(visitorKey(b, "g1", t));
     expect(visitorKey(a, "g1", t)).not.toBe(visitorKey(a, "g2", t));
-    expect(visitorKey(a, "g1", t)).not.toBe(visitorKey(a, "g1", t + 31 * 60_000));
+    expect(visitorKey(a, "g1", t)).toBe(visitorKey(a, "g1", t + 11 * 3600_000));
+    expect(visitorKey(a, "g1", t)).not.toBe(visitorKey(a, "g1", t + 12 * 3600_000));
+    const otherAgent = new Request("http://x/", { headers: { "user-agent": BROWSER + " x", "x-forwarded-for": "1.1.1.1" } });
+    expect(visitorKey(otherAgent, "g1", t)).toBe(visitorKey(a, "g1", t));
     expect(visitorKey(a, "g1", t)).not.toContain("1.1.1.1");
   });
 

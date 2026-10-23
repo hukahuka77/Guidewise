@@ -468,16 +468,27 @@ async function extractGuidebookFields(context: string): Promise<ImportedFields> 
 /** True if the URL serves an image to a plain request (a dead or blocked link makes a broken cover). */
 export async function imageIsReachable(url: string): Promise<boolean> {
   try {
-    const parsed = new URL(url);
-    if (parsed.protocol !== "https:" || !(await resolvesToPublicIp(parsed.hostname))) return false;
-    const res = await fetch(url, {
-      headers: { "User-Agent": USER_AGENT, Range: "bytes=0-1023", Accept: "image/*" },
-      redirect: "follow",
-      signal: AbortSignal.timeout(8000),
-    });
-    const ok = (res.status === 200 || res.status === 206) && (res.headers.get("content-type") || "").toLowerCase().startsWith("image/");
-    await res.body?.cancel();
-    return ok;
+    // Follow redirects by hand so every hop is checked, not just the first host
+    let current = url;
+    for (let hop = 0; hop < 4; hop++) {
+      const parsed = new URL(current);
+      if (parsed.protocol !== "https:" || !(await resolvesToPublicIp(parsed.hostname))) return false;
+      const res = await fetch(current, {
+        headers: { "User-Agent": USER_AGENT, Range: "bytes=0-1023", Accept: "image/*" },
+        redirect: "manual",
+        signal: AbortSignal.timeout(8000),
+      });
+      const location = res.headers.get("location");
+      if (res.status >= 300 && res.status < 400 && location) {
+        await res.body?.cancel();
+        current = new URL(location, current).toString();
+        continue;
+      }
+      const ok = (res.status === 200 || res.status === 206) && (res.headers.get("content-type") || "").toLowerCase().startsWith("image/");
+      await res.body?.cancel();
+      return ok;
+    }
+    return false;
   } catch {
     return false;
   }

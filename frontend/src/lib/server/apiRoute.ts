@@ -61,8 +61,8 @@ export async function withUser(
       return Response.json({ error: error.message, ...error.extra }, { status: error.status });
     }
     console.error(`${request.method} ${new URL(request.url).pathname} failed`, error);
-    const detail = error instanceof Error ? `${error.name}: ${error.message}` : "unexpected error";
-    return Response.json({ error: `Request failed: ${detail}` }, { status: 500 });
+    // The details stay in the server log: database errors name tables and columns
+    return Response.json({ error: "Request failed. Please try again." }, { status: 500 });
   }
 }
 

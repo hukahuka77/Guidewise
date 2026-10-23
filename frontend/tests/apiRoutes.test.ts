@@ -289,7 +289,7 @@ describe("error handling", () => {
     try {
       const res = await listRoute(req("GET", "/api/guidebooks"));
       expect(res.status).toBe(500);
-      expect((await json(res)).error).toContain("db down");
+      expect((await json(res)).error).not.toContain("db down");
     } finally {
       spy.mockRestore();
     }
