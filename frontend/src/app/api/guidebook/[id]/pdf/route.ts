@@ -4,6 +4,8 @@ import { rateLimited } from "@/lib/server/rateLimit";
 import { resolveAiPlan, type AiPlanStatus } from "@/lib/pdf/aiPlan";
 import { assertAiPdfAllowed, assertPdfAllowed, generateGuidebookPdf, pdfEtag, pdfTemplateFor, qrExtra } from "@/lib/pdf/service";
 import { getUserPlan } from "@/lib/server/usage";
+import { SITE_ORIGIN } from "@/lib/server/env";
+import { absoluteQrUrl } from "@/lib/publicUrl";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -23,7 +25,7 @@ export function GET(request: Request, { params }: { params: Promise<{ id: string
       const search = new URL(request.url).searchParams;
       const download = truthy(search.get("download"), "0");
       const includeQr = truthy(search.get("include_qr"), "0");
-      const qrUrl = includeQr ? search.get("qr_url") || null : null;
+      const qrUrl = includeQr ? absoluteQrUrl(search.get("qr_url"), SITE_ORIGIN || request.url) : null;
       const templateKey = pdfTemplateFor({ template: search.get("template"), qrUrl });
       const plan = await getUserPlan(sql, user.id);
       assertPdfAllowed(plan, { template: templateKey });

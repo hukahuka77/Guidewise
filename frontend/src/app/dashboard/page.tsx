@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import Spinner from "@/components/ui/spinner";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import QRDownloadButton from "@/components/custom/QRDownloadButton";
+import { absoluteUrl } from "@/lib/publicUrl";
 import { offerUpgrade, throwApiError } from "@/lib/upgrade";
 import { cacheGet, cacheSet } from "@/lib/cache";
 
@@ -142,7 +143,7 @@ export default function DashboardPage() {
         // Fetch plan and limits from billing summary
         try {
           const token2 = (await supabase.auth.getSession()).data.session?.access_token || null;
-          if (API_BASE && token2) {
+          if (token2) {
             const r = await fetch(`${API_BASE}/api/billing/summary`, { headers: { Authorization: `Bearer ${token2}` } });
             if (r.ok) {
               const j = await r.json();
@@ -225,7 +226,7 @@ export default function DashboardPage() {
     return () => clearTimeout(timer);
   }, [searchParams]);
 
-  const getQrTargetUrl = (id: string) => `${API_BASE}/guidebook/${id}`;
+  const getQrTargetUrl = (id: string) => absoluteUrl(`/guidebook/${id}`);
   const getQrImageUrl = (url: string, size = 300) =>
     `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(url)}`;
 
@@ -392,7 +393,7 @@ export default function DashboardPage() {
                       >
                         Delete
                       </Button>
-                      <Link href={`/dashboard/url/${gb.id}`}>
+                      <Link href={`/edit/${gb.id}`}>
                         <Button className="w-full whitespace-nowrap text-sm">Edit</Button>
                       </Link>
                       <Button
@@ -417,6 +418,10 @@ export default function DashboardPage() {
                           '📄 Download Print Version'
                         )}
                       </Button>
+
+                      <Link href={`/dashboard/pdf/${gb.id}`} className="col-span-2">
+                        <Button variant="outline" className="w-full whitespace-nowrap text-sm">📘 PDF Guidebook</Button>
+                      </Link>
 
                       {/* View the guidebook */}
                       <Link href={viewUrl || '#'} target="_blank" rel="noopener noreferrer" className="col-span-2" aria-disabled={!viewUrl}>

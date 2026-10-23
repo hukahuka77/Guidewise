@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { OTHER, OWNER, setPlan, startTestDb, type TestDb } from "./helpers/testDb";
+import { absoluteQrUrl, absoluteUrl } from "@/lib/publicUrl";
 
 vi.mock("@/lib/server/auth", () => ({
   isAuthConfigured: () => true,
@@ -151,5 +152,29 @@ describe("headless browser request guard", () => {
     expect(await isRequestAllowed("file:///etc/passwd")).toBe(false);
     expect(await isRequestAllowed("ftp://x/y")).toBe(false);
     expect(await isRequestAllowed("not a url")).toBe(false);
+  });
+});
+
+describe("absoluteQrUrl", () => {
+  it("makes relative QR targets absolute so printed codes can be scanned", () => {
+    expect(absoluteQrUrl("/guidebook/abc", "https://guidewise.example")).toBe("https://guidewise.example/guidebook/abc");
+    expect(absoluteQrUrl("https://other.example/g/x", "https://guidewise.example")).toBe("https://other.example/g/x");
+  });
+
+  it("drops non-http targets and empty values", () => {
+    expect(absoluteQrUrl("javascript:alert(1)", "https://guidewise.example")).toBeNull();
+    expect(absoluteQrUrl("", "https://guidewise.example")).toBeNull();
+    expect(absoluteQrUrl(null, "https://guidewise.example")).toBeNull();
+  });
+});
+
+describe("absoluteUrl", () => {
+  it("prefixes the site origin when no API base is configured", () => {
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://guidewise.example/");
+    try {
+      expect(absoluteUrl("/g/slug")).toBe("https://guidewise.example/g/slug");
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });
