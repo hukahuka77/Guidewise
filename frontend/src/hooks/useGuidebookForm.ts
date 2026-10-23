@@ -194,8 +194,6 @@ export function useGuidebookForm(options: UseGuidebookFormOptions = {}) {
   // Modal states for place pickers
   const [foodPickerOpen, setFoodPickerOpen] = useState(false);
   const [activityPickerOpen, setActivityPickerOpen] = useState(false);
-  const [foodAddChoiceOpen, setFoodAddChoiceOpen] = useState(false);
-  const [activityAddChoiceOpen, setActivityAddChoiceOpen] = useState(false);
 
   // Auto-edit state for rules (create flow only, but included for consistency)
   const [ruleAutoEditIndex, setRuleAutoEditIndex] = useState<number | null>(null);
@@ -253,10 +251,6 @@ export function useGuidebookForm(options: UseGuidebookFormOptions = {}) {
     setFoodPickerOpen,
     activityPickerOpen,
     setActivityPickerOpen,
-    foodAddChoiceOpen,
-    setFoodAddChoiceOpen,
-    activityAddChoiceOpen,
-    setActivityAddChoiceOpen,
 
     // Auto-edit
     ruleAutoEditIndex,

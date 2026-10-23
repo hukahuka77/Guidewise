@@ -7,7 +7,7 @@ const COVER = "https://hojncqasasvvrhdmwwhv.supabase.co/storage/v1/object/public
  * A made-up guidebook shown in the phone on the start screen before the host has created one, so they can see
  * what guests will get. It goes through the same templates as every real guidebook.
  */
-export function sampleGuidebook(templateKey = "template_welcomebook"): GuidebookRow {
+export function sampleGuidebook(templateKey = "template_signature"): GuidebookRow {
   return {
     id: "sample",
     template_key: templateKey,

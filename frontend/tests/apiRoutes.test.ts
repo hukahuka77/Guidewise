@@ -91,7 +91,7 @@ describe("create, read, update, delete over HTTP", () => {
   it("POST /api/generate: 201 with ids and the public url on the free plan", async () => {
     const { res, body } = await createVia({ property_name: "Cozy Cabin", host_name: "Andrew" });
     expect(res.status).toBe(201);
-    expect(body).toMatchObject({ ok: true, template_key: "template_original" });
+    expect(body).toMatchObject({ ok: true, template_key: "template_signature" });
     expect(body.guidebook_id).toMatch(/^[0-9a-f-]{36}$/);
     expect(res.headers.get("X-Guidebook-Url")).toMatch(/^\/g\/cozy-cabin-[0-9a-f]{6}$/);
     expect(res.headers.get("X-Guidebook-Preview")).toBeNull();

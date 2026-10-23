@@ -42,16 +42,18 @@ export default function RulesSection({
 
   return (
     <EditableItemsSection
-      title="House Rules"
+      title="House rules"
+      description="Keep them short and friendly. Guests see them as a simple checklist."
       items={normalizedRules}
+      addLabel="Add a rule"
       suggestions={RULES_SUGGESTIONS}
       onChange={onChange}
       onAdd={onAdd}
       onAddWithValues={onAddWithValues}
       onDelete={onDelete}
       maxItems={LIMITS.maxRules}
-      namePlaceholder="e.g. Quiet Hours"
-      descriptionPlaceholder="Explain the rule details..."
+      namePlaceholder="e.g. Quiet hours"
+      descriptionPlaceholder="Details (optional), e.g. Please keep noise down after 10pm."
       nameLabel="Rule Name"
       descriptionLabel="Description"
       nameMaxLength={LIMITS.ruleName}

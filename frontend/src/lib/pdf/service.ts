@@ -39,6 +39,7 @@ export const GUIDE_THEME_FOR_PDF: Record<string, ThemeKey> = {
 
 /** Print PDF theme by the guidebook's web template. */
 export const GUIDE_THEME_FOR_PRINT: Record<string, ThemeKey> = {
+  template_signature: "welcomebook",
   template_welcomebook: "welcomebook",
   template_original: "classic",
   template_generic: "minimal",

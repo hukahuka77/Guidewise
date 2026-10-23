@@ -1,20 +1,29 @@
 import React from "react";
 
 interface CreateGuidebookLayoutProps {
+  /** Sticky bar under the site header: back link, title, save state and actions. */
+  topbar?: React.ReactNode;
+  /** Section navigation: a column from md up, a scrollable strip above the form on phones. */
   sidebar: React.ReactNode;
   children: React.ReactNode;
   /** Live preview column (shown from the xl breakpoint up). */
   preview?: React.ReactNode;
 }
 
-export default function CreateGuidebookLayout({ sidebar, children, preview }: CreateGuidebookLayoutProps) {
+/** The guidebook editor: navigation | form | live preview, on the Guidewise cream background. */
+export default function CreateGuidebookLayout({ topbar, sidebar, children, preview }: CreateGuidebookLayoutProps) {
   return (
-    <div className="flex items-center justify-center min-h-screen w-full">
-      <div className="flex h-[90vh] w-[90vw] max-w-[1800px] rounded-2xl shadow-lg overflow-hidden bg-white/60">
-        <aside className="w-10 sm:w-20 md:w-56 flex-shrink-0 rounded-l-2xl shadow-lg bg-[oklch(0.6923_0.22_21.05)]/95">{sidebar}</aside>
-        <main className="flex-1 bg-gradient-to-br from-blue-50 via-pink-50 to-purple-100 p-4 sm:p-6 md:p-10 overflow-y-auto">{children}</main>
+    <div className="min-h-[calc(100vh-56px)] w-full bg-[#F8F5F1]">
+      {topbar}
+      <div className="mx-auto flex max-w-[1600px] flex-col gap-5 px-4 py-5 md:flex-row md:gap-8 md:py-8 lg:px-6">
+        <aside className="md:w-56 md:shrink-0 lg:w-60">
+          <div className="md:sticky md:top-[152px]">{sidebar}</div>
+        </aside>
+        <main className="min-w-0 flex-1 pb-16">{children}</main>
         {preview && (
-          <aside className="hidden xl:flex w-[420px] flex-shrink-0 flex-col items-center justify-center gap-4 overflow-y-auto bg-neutral-100 p-6">{preview}</aside>
+          <aside className="hidden w-[360px] shrink-0 xl:block">
+            <div className="sticky top-[152px]">{preview}</div>
+          </aside>
         )}
       </div>
     </div>

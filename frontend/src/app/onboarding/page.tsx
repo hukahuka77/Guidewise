@@ -30,7 +30,7 @@ const IMPORT_STEPS = [
 ];
 
 const STYLES: { key: string; label: string; hint: string }[] = [
-  { key: "template_original", label: "Classic", hint: "Clean and familiar" },
+  { key: "template_signature", label: "Signature", hint: "Elegant and easy to use" },
   { key: "template_generic", label: "Lifestyle", hint: "Light and modern" },
   { key: "template_welcomebook", label: "Welcoming", hint: "Warm and editorial" },
 ];
@@ -43,7 +43,7 @@ export default function OnboardingPage() {
   const [listingUrl, setListingUrl] = useState("");
   const [propertyName, setPropertyName] = useState("");
   const [address, setAddress] = useState("");
-  const [style, setStyle] = useState("template_original");
+  const [style, setStyle] = useState("template_signature");
 
   const [busy, setBusy] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);

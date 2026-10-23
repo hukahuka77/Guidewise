@@ -1,9 +1,6 @@
-/* eslint-disable @next/next/no-img-element */
-import React, { useState, useRef } from "react";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import React from "react";
 import { LIMITS } from "@/constants/limits";
+import { Card, CardHeader, Field, ImageDrop, inputClass, textareaClass } from "@/components/editor/primitives";
 
 interface HostInfoSectionProps {
   name: string;
@@ -15,54 +12,28 @@ interface HostInfoSectionProps {
 }
 
 export default function HostInfoSection({ name, bio, contact, onChange, onHostPhotoChange, hostPhotoPreviewUrl }: HostInfoSectionProps) {
-  const [dragOver, setDragOver] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
   return (
-    <section className="mb-8">
-      <div className="flex items-center gap-2 mb-2">
-        <h2 className="text-xl font-semibold">Host Info</h2>
-      </div>
-      <Label htmlFor="hostName">Host Name</Label>
-      <Input id="hostName" maxLength={LIMITS.hostName} value={name} onChange={e => onChange("hostName", e.target.value)} className="mb-2 mt-1" placeholder="e.g. Alex Morgan" />
-      <Label htmlFor="hostBio">Bio</Label>
-      <Textarea id="hostBio" maxLength={LIMITS.hostBio} value={bio} onChange={e => onChange("hostBio", e.target.value)} className="mb-2 mt-1" placeholder="Tell guests about yourself and how you like to host." />
-      <Label htmlFor="hostContact">Contact Info</Label>
-      <Input id="hostContact" maxLength={LIMITS.hostContact} value={contact} onChange={e => onChange("hostContact", e.target.value)} className="mt-1" placeholder="e.g. alex@email.com | (555) 123-4567" />
-
-      <div className="mt-4">
-        <Label htmlFor="hostPhoto">Host Photo</Label>
-        <label htmlFor="hostPhoto" className="inline-block mt-1">
-          <input
-            id="hostPhoto"
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            className="sr-only"
-            onChange={(e) => {
-              const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
-              onHostPhotoChange(file);
-            }}
-          />
-          <div
-            className={`h-40 w-40 rounded-xl border-2 border-dashed flex items-center justify-center cursor-pointer bg-white text-gray-500 hover:border-[oklch(0.6923_0.22_21.05)]/70 hover:text-[oklch(0.6923_0.22_21.05)] ${dragOver ? 'border-[oklch(0.6923_0.22_21.05)] bg-[oklch(0.6923_0.22_21.05)]/10 text-[oklch(0.6923_0.22_21.05)]' : 'border-gray-300'}`}
-            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-            onDragLeave={(e) => { e.preventDefault(); setDragOver(false); }}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDragOver(false);
-              const file = e.dataTransfer.files && e.dataTransfer.files[0] ? e.dataTransfer.files[0] : null;
-              onHostPhotoChange(file);
-            }}
-          >
-            {hostPhotoPreviewUrl ? (
-              <img src={hostPhotoPreviewUrl} alt="Host Preview" className="h-full w-full object-cover rounded-xl" />
-            ) : (
-              <span className="text-sm">Click to upload</span>
-            )}
+    <Card>
+      <CardHeader title="Your host details" description="Guests can call, text or email you straight from the guidebook." />
+      <div className="flex flex-col gap-5 sm:flex-row">
+        <div className="flex flex-col items-center gap-2">
+          <ImageDrop previewUrl={hostPhotoPreviewUrl} onFile={(file) => onHostPhotoChange(file)} shape="round" />
+          <span className="text-xs text-gray-500">Photo</span>
+        </div>
+        <div className="flex-1 space-y-5">
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Field label="Name" htmlFor="hostName">
+              <input id="hostName" maxLength={LIMITS.hostName} value={name} onChange={(e) => onChange("hostName", e.target.value)} className={inputClass} placeholder="e.g. Alex Morgan" />
+            </Field>
+            <Field label="Phone or email" htmlFor="hostContact" hint="A phone number adds Call and Text buttons.">
+              <input id="hostContact" maxLength={LIMITS.hostContact} value={contact} onChange={(e) => onChange("hostContact", e.target.value)} className={inputClass} placeholder="(555) 123-4567 · alex@email.com" />
+            </Field>
           </div>
-        </label>
-        <p className="text-sm text-gray-600 mt-2">This photo can appear alongside your host intro.</p>
+          <Field label="About you" htmlFor="hostBio" count={[bio.length, LIMITS.hostBio]}>
+            <textarea id="hostBio" maxLength={LIMITS.hostBio} value={bio} onChange={(e) => onChange("hostBio", e.target.value)} className={textareaClass} rows={3} placeholder="A line or two about you and how to reach you during the stay." />
+          </Field>
+        </div>
       </div>
-    </section>
+    </Card>
   );
 }

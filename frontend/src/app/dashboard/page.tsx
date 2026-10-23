@@ -26,6 +26,7 @@ type GuidebookItem = {
 
 // Map internal template keys to human-friendly display names
 const TEMPLATE_DISPLAY_NAMES: Record<string, string> = {
+  template_signature: "Signature",
   template_original: "Guidewise Classic",
   template_generic: "Lifestyle",
   template_lifestyle: "Lifestyle",
@@ -379,7 +380,7 @@ export default function DashboardPage() {
                         {usage.analytics && <ViewSparkline points={dailyByGuidebook[gb.id]} />}
                       </div>
                       <span className="text-[10px] px-2 py-1 bg-gray-100 rounded border text-gray-600">
-                        {TEMPLATE_DISPLAY_NAMES[gb.template_key || "template_original"] || "Original"}
+                        {TEMPLATE_DISPLAY_NAMES[gb.template_key || "template_signature"] || "Signature"}
                       </span>
                     </div>
 
