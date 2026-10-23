@@ -23,7 +23,7 @@ export const PLAN_COPY: PlanCopy[] = [
     features: [
       "Unlimited guidebooks",
       "30 guest views per month",
-      "All guidebook templates",
+      "Signature guidebook style",
       "AI content and place recommendations (3 runs / month)",
       "Airbnb & VRBO listing import",
       "1 PDF layout",
@@ -49,6 +49,7 @@ export const PLAN_COPY: PlanCopy[] = [
     popular: true,
     features: [
       "Up to 100 guidebooks",
+      "Premium guidebook styles: Lifestyle and Welcoming",
       "View analytics for every guidebook",
       "150 AI recommendation runs / month",
       "Everything in Starter",
@@ -69,4 +70,4 @@ export const PLAN_COPY: PlanCopy[] = [
 ];
 
 export const PRICING_FINE_PRINT =
-  "Guest views are counted per visitor (repeat visits within 30 minutes count once, and search engines and link previews are not counted) across all of your guidebooks, each calendar month. When a Free account reaches its monthly views, its guidebooks show a temporary \"unavailable\" notice to guests until the next month or until the host upgrades. Starter includes up to 5 guidebooks and Power up to 100. AI allowances reset monthly. Prices in USD, billed monthly. Cancel anytime; guidebooks stay online on the Free plan.";
+  "Guest views are counted per visitor (repeat visits within 30 minutes count once, and search engines and link previews are not counted) across all of your guidebooks, each calendar month. When a Free account reaches its monthly views, its guidebooks show a temporary \"unavailable\" notice to guests until the next month or until the host upgrades. Starter includes up to 5 guidebooks and Power up to 100. Free and Starter guidebooks use the Signature style; the Lifestyle and Welcoming styles come with Power and Pro. AI allowances reset monthly. Prices in USD, billed monthly. Cancel anytime; guidebooks stay online on the Free plan.";

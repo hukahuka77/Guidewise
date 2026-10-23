@@ -172,6 +172,7 @@ export async function billingSummary(sql: Sql, stripe: Stripe | null, user: Bill
       all_pdf_templates: plan.pdfTemplates === null,
       print_pdf: plan.printPdf,
       analytics: plan.analytics,
+      premium_styles: plan.premiumStyles,
     },
     stripe: stripeInfo,
   };

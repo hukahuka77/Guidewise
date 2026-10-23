@@ -22,7 +22,6 @@ const LABELS: [keyof ImportedFields | "cover_image_url" | "things_to_do" | "plac
   ["wifi_network", "Wi-Fi network"],
   ["house_rules", "house rules"],
   ["house_manual", "house manual"],
-  ["neighborhood", "neighborhood notes"],
   ["checkout_info", "checkout instructions"],
   ["cover_image_url", "cover image"],
   ["things_to_do", "things to do"],
@@ -72,10 +71,7 @@ export async function createImportedGuidebook(
     const id = randomUUID();
     const publicSlug = await uniqueSlug(tx as unknown as Sql, propertyName, id);
     const json = (v: unknown[]) => (v.length ? tx.json(v as never) : null);
-    const hasNeighborhood = fields.neighborhood.length > 0;
-    const tabs = ["welcome", "checkin", "property", "food", "activities", "rules", "checkout", ...(hasNeighborhood ? ["custom_neighborhood"] : [])];
-    const customSections = hasNeighborhood ? { custom_neighborhood: fields.neighborhood } : {};
-    const customTabsMeta = hasNeighborhood ? { custom_neighborhood: { label: "Neighborhood", icon: "🏘️" } } : null;
+    const tabs = ["welcome", "checkin", "property", "food", "activities", "rules", "checkout"];
     const wifi = fields.wifi_network ? { network: fields.wifi_network } : null;
     await tx`
       insert into guidebook (
@@ -87,8 +83,7 @@ export async function createImportedGuidebook(
         ${fields.welcome_message || null}, ${fields.parking_info || null}, ${fields.cover_image_url || null},
         ${json(fields.house_manual)}, ${json(fields.checkout_info)}, ${json(fields.house_rules)},
         ${tx.json(recommendations.things_to_do as never)}, ${tx.json(recommendations.places_to_eat as never)},
-        ${wifi ? tx.json(wifi as never) : null}, ${tx.json(customSections as never)},
-        ${customTabsMeta ? tx.json(customTabsMeta as never) : null},
+        ${wifi ? tx.json(wifi as never) : null}, ${tx.json({} as never)}, ${null},
         ${tx.json(tabs as never)},
         ${DEFAULT_TEMPLATE_KEY}, ${hostId}, ${propertyId}, ${userId}, ${publicSlug}
       )`;

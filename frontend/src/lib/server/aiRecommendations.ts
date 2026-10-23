@@ -19,7 +19,7 @@ const NO_IMAGES = "Do NOT include any image URLs or keys for images.";
 
 export const RECOMMENDATION_CONFIGS: Record<string, Config> = {
   food: {
-    model: "gpt-4-1106-preview",
+    model: "gpt-4o",
     systemPrompt: "You are a helpful assistant that provides diverse, highly-rated restaurant and food recommendations.",
     prompt: (address, n, key) =>
       `Provide a JSON object with a key '${key}' containing a list of ${n} diverse, highly-rated restaurants or food spots near ${address}.
