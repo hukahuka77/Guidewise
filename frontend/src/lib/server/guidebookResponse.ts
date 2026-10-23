@@ -57,5 +57,11 @@ export function guidebookResponse(request: Request, gb: GuidebookRow, options: L
   const etag = sha256(`${gb.id}:${gb.template_key}:${gb.last_modified_time}:${getTemplatesHash()}`);
   if (incoming === etag) return notModified(etag);
   const { html, templateKey } = renderGuidebookHtml(gb);
-  return htmlResponse(withBeacon(html, gb, options.beacon), { ETag: etag, "Cache-Control": cache, "X-Template-Key": templateKey });
+  // Guidebooks hold door codes and Wi-Fi passwords: guests get the link, search engines must not index it
+  return htmlResponse(withBeacon(html, gb, options.beacon), {
+    ETag: etag,
+    "Cache-Control": cache,
+    "X-Robots-Tag": "noindex, nofollow",
+    "X-Template-Key": templateKey,
+  });
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,7 @@ type BillingSummary = {
 
 export default function BillingPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<BillingSummary | null>(null);
@@ -69,11 +70,12 @@ export default function BillingPage() {
         if (!supabase) throw new Error("Supabase not initialized");
         const sess = await supabase.auth.getSession();
         const token = sess.data.session?.access_token || null;
-        if (!token) throw new Error("Not authenticated");
+        if (!token) { router.replace("/login"); return; }
         const res = await fetch(`${API_BASE}/api/billing/summary`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        const json = (await res.json()) as BillingSummary;
+        const json = (await res.json().catch(() => null)) as (BillingSummary & { error?: string }) | null;
+        if (!res.ok || !json || !json.plan) throw new Error(json?.error || "We couldn't load your billing details. Please try again.");
         if (!cancelled) setSummary(json);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load billing");
@@ -84,10 +86,9 @@ export default function BillingPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [router]);
 
   const openPortal = async () => {
-    if (!API_BASE) return;
     setPortalLoading(true);
     try {
       if (!supabase) throw new Error("Supabase not initialized");

@@ -35,8 +35,15 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["@sparticuz/chromium", "puppeteer-core"],
   outputFileTracingIncludes: {
     ...PDF_ROUTES,
+    // the editor's live preview renders the guidebook templates inside an API route
+    "/api/guidebooks/[id]/html": GUIDEBOOK_TEMPLATES,
+    "/sample-guidebook": GUIDEBOOK_TEMPLATES,
     "/g/[slug]": GUIDEBOOK_TEMPLATES,
     "/guidebook/[id]": GUIDEBOOK_TEMPLATES,
+  },
+  async redirects() {
+    // The old template picker; the editor now switches styles itself
+    return [{ source: "/dashboard/url/:id", destination: "/edit/:id", permanent: false }];
   },
   async rewrites() {
     return {

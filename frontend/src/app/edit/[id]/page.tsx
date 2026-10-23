@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
@@ -18,6 +18,7 @@ import CustomSection, { CustomItem } from "@/components/sections/CustomSection";
 import AddItemChoiceModal from "@/components/places/AddItemChoiceModal";
 import PlacePickerModal from "@/components/places/PlacePickerModal";
 import EditTutorial from "@/components/ui/EditTutorial";
+import PhonePreview from "@/components/custom/PhonePreview";
 import { LIMITS } from "@/constants/limits";
 import { useGuidebookForm } from "@/hooks/useGuidebookForm";
 import { useAIRecommendations } from "@/hooks/useAIRecommendations";
@@ -36,6 +37,7 @@ const HOUSE_MEDIA_BUCKET = process.env.NEXT_PUBLIC_SUPABASE_USER_VIDEOS_BUCKET a
 type GuidebookDetail = {
   id: number | string;
   template_key?: string | null;
+  public_slug?: string | null;
   property?: {
     id?: number | string | null;
     name?: string | null;
@@ -159,9 +161,14 @@ export default function EditGuidebookPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notFound, setNotFound] = useState(false);
   const [pendingHouseMediaIndex, setPendingHouseMediaIndex] = useState<number | null>(null);
   const [showHouseMediaConfirm, setShowHouseMediaConfirm] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [templateKey, setTemplateKey] = useState<string>("template_original");
+  const [publicSlug, setPublicSlug] = useState<string | null>(null);
+  const [previewKey, setPreviewKey] = useState(0);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   // Check if this is first-time visiting edit page (skip on mobile)
   useEffect(() => {
@@ -204,6 +211,7 @@ export default function EditGuidebookPage() {
         });
         // 401 shouldn't occur because we verified accessToken above; still handle just in case
         if (res.status === 401) { router.push("/login"); return; }
+        if (res.status === 404 || res.status === 400) { setNotFound(true); return; }
         if (!res.ok) throw new Error(`Failed to load guidebook (${res.status})`);
         const data: GuidebookDetail = await res.json();
 
@@ -228,6 +236,13 @@ export default function EditGuidebookPage() {
           checkInTime: data.check_in_time || prev.checkInTime,
           checkOutTime: data.check_out_time || prev.checkOutTime,
         }));
+
+        setTemplateKey(data.template_key || "template_original");
+        setPublicSlug(data.public_slug || null);
+        try {
+          sessionStorage.setItem("guidebookId", guidebookId);
+          localStorage.setItem("guidebookId", guidebookId);
+        } catch { }
 
         const loadedIncluded = Array.isArray(data.included_tabs) && data.included_tabs.length ? data.included_tabs : [...EDIT_SECTIONS_ORDER];
         setIncluded(loadedIncluded);
@@ -324,59 +339,167 @@ export default function EditGuidebookPage() {
 
   // Image handlers are now provided by useGuidebookForm hook
 
+  // Files that were already uploaded, so repeated saves do not upload them again
+  const uploaded = useRef<{ cover?: { file: File; url: string }; host?: { file: File; url: string } }>({});
+
+  /**
+   * Uploads new photos and saves the whole guidebook. Returns false when the session has expired.
+   * With `keepalive` (the page is closing) photos are not uploaded and the request outlives the page.
+   */
+  const persist = async (keepalive = false): Promise<boolean> => {
+    let coverImageUrl: string | undefined = undefined;
+    let hostPhotoUrl: string | undefined = undefined;
+    if (keepalive) {
+      coverImageUrl = uploaded.current.cover?.url;
+      hostPhotoUrl = uploaded.current.host?.url;
+    } else if (coverImage) {
+      if (uploaded.current.cover?.file !== coverImage) {
+        const url = await uploadToStorage('covers', coverImage);
+        if (url) uploaded.current.cover = { file: coverImage, url };
+      }
+      coverImageUrl = uploaded.current.cover?.url;
+    }
+    if (hostPhoto && !keepalive) {
+      if (uploaded.current.host?.file !== hostPhoto) {
+        const url = await uploadToStorage('hosts', hostPhoto);
+        if (url) uploaded.current.host = { file: hostPhoto, url };
+      }
+      hostPhotoUrl = uploaded.current.host?.url;
+    }
+
+    const payload = buildGuidebookPayload({
+      formData,
+      foodItems,
+      activityItems,
+      rules,
+      houseManualItems,
+      checkoutItems,
+      customSections,
+      customTabsMeta,
+      included,
+      coverImageUrl,
+      hostPhotoUrl,
+    });
+
+    const res = await fetch(`${API_BASE}/api/guidebooks/${guidebookId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
+      body: JSON.stringify(payload),
+      keepalive,
+    });
+    if (res.status === 401) {
+      router.push("/login");
+      return false;
+    }
+    if (!res.ok) throw new Error(`Update failed (${res.status})`);
+    return true;
+  };
+
+  // Always the latest closure, so a save that starts later sees the latest edits
+  const persistRef = useRef(persist);
+  persistRef.current = persist;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
-
     try {
-      let coverImageUrl: string | undefined = undefined;
-      let hostPhotoUrl: string | undefined = undefined;
-      if (coverImage) coverImageUrl = await uploadToStorage('covers', coverImage);
-      if (hostPhoto) hostPhotoUrl = await uploadToStorage('hosts', hostPhoto);
-
-      // Build payload using utility function
-      const payload = buildGuidebookPayload({
-        formData,
-        foodItems,
-        activityItems,
-        rules,
-        houseManualItems,
-        checkoutItems,
-        customSections,
-        customTabsMeta,
-        included,
-        coverImageUrl,
-        hostPhotoUrl,
-      });
-
-      const res = await fetch(`${API_BASE}/api/guidebooks/${guidebookId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (res.status === 401) {
-        router.push("/login");
-        return;
-      }
-      if (!res.ok) throw new Error(`Update failed (${res.status})`);
-
-      // Redirect based on whether this is a new guidebook or an edit
-      if (isNewGuidebook) {
-        router.push(`/select-template/${guidebookId}`);
-      } else {
-        router.push('/dashboard?updated=true');
-      }
+      if (baseline.current !== null) baseline.current = snapshotRef.current;
+      if (!(await persistRef.current())) return;
+      // A new guidebook goes on to share it; an existing one returns to the dashboard
+      router.push(isNewGuidebook ? "/success" : "/dashboard?updated=true");
     } catch (err: unknown) {
       console.error(err);
       const msg = err instanceof Error ? err.message : "An unexpected error occurred. Please try again.";
       setError(msg);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Autosave: the guidebook is live, so edits are saved shortly after you stop typing and the phone refreshes
+  const saving = useRef(false);
+  const again = useRef(false);
+  const baseline = useRef<string | null>(null);
+  const baselineTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const snapshotRef = useRef("");
+  const autosave = useCallback(async () => {
+    if (saving.current) {
+      again.current = true;
+      return;
+    }
+    saving.current = true;
+    setSaveState("saving");
+    try {
+      do {
+        again.current = false;
+        if (snapshotRef.current) baseline.current = snapshotRef.current;
+        if (!(await persistRef.current())) return;
+      } while (again.current);
+      setSaveState("saved");
+      setPreviewKey((k) => k + 1);
+    } catch (err) {
+      console.error("autosave failed", err);
+      setSaveState("error");
+    } finally {
+      saving.current = false;
+    }
+  }, []);
+
+  const snapshot = JSON.stringify([
+    formData, foodItems, activityItems, rules, houseManualItems, checkoutItems, customSections, customTabsMeta, included,
+    coverImage?.name ?? null, coverImage?.lastModified ?? null, hostPhoto?.name ?? null, hostPhoto?.lastModified ?? null,
+  ]);
+  snapshotRef.current = snapshot;
+
+  // Leaving the page (closing the tab, or navigating away) before the debounce fires must not lose the last edit
+  useEffect(() => {
+    if (initialLoading) return;
+    const flush = () => {
+      // A save still in flight is cancelled by the browser when the page unloads, so it is sent again with keepalive
+      if (baseline.current === null || (snapshotRef.current === baseline.current && !saving.current)) return;
+      baseline.current = snapshotRef.current;
+      // The browser may reject the promise as the page unloads even though the keepalive request still completes
+      persistRef.current(true).catch(() => {});
+    };
+    window.addEventListener("pagehide", flush);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      flush();
+    };
+  }, [initialLoading]);
+
+  useEffect(() => {
+    if (initialLoading) return;
+    if (baseline.current === null) {
+      // What was just loaded (plus state that settles in the renders right after) is the starting point.
+      // Captured once: a timer that restarted on every change would swallow edits made right after the page opened.
+      if (!baselineTimer.current) baselineTimer.current = setTimeout(() => { baseline.current = snapshotRef.current; }, 300);
+      return;
+    }
+    if (snapshot === baseline.current) return;
+    const t = setTimeout(autosave, 1200);
+    return () => clearTimeout(t);
+  }, [snapshot, initialLoading, autosave]);
+
+  const switchTemplate = async (key: string) => {
+    if (key === templateKey || !accessToken) return;
+    const previous = templateKey;
+    setTemplateKey(key);
+    try {
+      const res = await fetch(`${API_BASE}/api/guidebook/${guidebookId}/template`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ template_key: key }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      setPreviewKey((k) => k + 1);
+    } catch {
+      setTemplateKey(previous);
+      setError("Could not change the style. Please try again.");
     }
   };
 
@@ -416,6 +539,40 @@ export default function EditGuidebookPage() {
     );
   }
 
+  const styleSwitcher = (
+    <div className="flex items-center justify-center gap-1 rounded-full bg-white p-1 shadow-sm ring-1 ring-black/5" role="group" aria-label="Guidebook style">
+      {[
+        ["template_original", "Classic"],
+        ["template_generic", "Lifestyle"],
+        ["template_welcomebook", "Welcoming"],
+      ].map(([key, label]) => (
+        <button
+          key={key}
+          type="button"
+          onClick={() => switchTemplate(key)}
+          className={`flex-1 rounded-full px-3 py-1.5 text-sm transition ${templateKey === key || (key === "template_generic" && templateKey === "template_lifestyle") ? "bg-[oklch(0.6923_0.22_21.05)] font-semibold text-white" : "text-gray-700 hover:bg-gray-100"}`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+  const saveStatus = (
+    <p className="text-xs text-gray-500" aria-live="polite">
+      {saveState === "saving" ? "Saving…" : saveState === "saved" ? "All changes saved" : saveState === "error" ? "Could not save. Try Save Changes." : "Changes save automatically"}
+    </p>
+  );
+
+  if (notFound) {
+    return (
+      <div className="w-full min-h-[60vh] flex flex-col items-center justify-center gap-4 text-center">
+        <h1 className="text-2xl font-semibold text-gray-800">Guidebook not found</h1>
+        <p className="text-gray-600">It may have been deleted, or it belongs to another account.</p>
+        <Button onClick={() => router.push("/dashboard")}>Back to dashboard</Button>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full">
       {/* Tutorial overlay */}
@@ -429,6 +586,15 @@ export default function EditGuidebookPage() {
       )}
 
       <CreateGuidebookLayout
+        preview={
+          <>
+            <PhonePreview guidebookId={guidebookId} accessToken={accessToken} refreshKey={previewKey} />
+            <div className="w-full max-w-[340px] space-y-2 text-center">
+              {styleSwitcher}
+              {saveStatus}
+            </div>
+          </>
+        }
         sidebar={
           <div data-tutorial="sidebar">
             <SidebarNav
@@ -447,6 +613,18 @@ export default function EditGuidebookPage() {
         }
       >
         <div data-tutorial="content-area">
+          {/* Below xl the phone preview column is hidden, so style, save status and the live page live here */}
+          <div className="xl:hidden mb-6 flex flex-col gap-2 rounded-2xl bg-white/80 p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+            <div className="sm:min-w-[300px]">{styleSwitcher}</div>
+            <div className="flex items-center justify-between gap-3 sm:justify-end">
+              {saveStatus}
+              {publicSlug && (
+                <a href={`${API_BASE}/g/${publicSlug}`} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-[oklch(0.6923_0.22_21.05)] underline">
+                  View live
+                </a>
+              )}
+            </div>
+          </div>
           {error && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
               <strong className="font-bold">Error:</strong>

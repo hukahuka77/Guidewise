@@ -65,7 +65,7 @@ export default function ProfilePage() {
         setLoading(false);
       }
     })();
-    return () => { cancelled = false };
+    return () => { cancelled = true };
   }, [router]);
 
   const onSave = async () => {
