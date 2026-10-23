@@ -179,7 +179,7 @@ function FillVisual() {
                 </span>
                 <span className="min-w-0 flex-1 leading-tight">
                   <span className="block text-[13px] font-semibold text-[#1f1a17]">{f.label}</span>
-                  <span className={`block truncate text-xs text-[#6f655e] transition-opacity duration-500 ${state === "done" ? "opacity-100" : "opacity-0"}`}>{f.value}</span>
+                  <span className={`block text-xs text-[#6f655e] transition-opacity duration-500 ${state === "done" ? "opacity-100" : "opacity-0"}`}>{f.value}</span>
                 </span>
               </li>
             );
@@ -209,7 +209,7 @@ function ShareVisual() {
       >
         <p className="text-xs font-medium text-[#8a7f77]">Welcome message</p>
         <p className="mt-1.5 text-sm leading-snug text-[#1f1a17]">
-          Hi Sam! Everything for your stay is here: <span className="font-medium text-[#db2777]">guidewiseapp.com/g/willow-cottage</span>
+          Hi Sam! Everything for your stay is here: <span className="break-all font-medium text-[#db2777]">guidewiseapp.com/g/willow-cottage</span>
         </p>
         <motion.span
           animate={inView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.8 }}

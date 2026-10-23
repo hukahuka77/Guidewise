@@ -135,6 +135,12 @@
     .copy { grid-area: copy; justify-self: end; display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border: 0; border-radius: 999px; background: var(--accent); color: #fff; font: 600 14px var(--sans); cursor: pointer; }
     .copy.copied { background: var(--sage); }
     .essentials--odd > .tile:last-child { grid-column: 1 / -1; }
+    /* Too narrow for two tiles side by side (small phones, the editor's phone preview): one per row, label then value */
+    @media (max-width: 359px) {
+      .essentials { grid-template-columns: 1fr; }
+      .tile:not(.tile--wifi) { flex-flow: row wrap; align-items: center; justify-content: space-between; gap: 4px 12px; }
+      .tile:not(.tile--wifi) .tile-value { white-space: nowrap; }
+    }
 
     /* Section tabs */
     .tabs { position: sticky; top: 0; z-index: 10; display: flex; gap: 8px; overflow-x: auto; margin: 22px -18px 0; padding: 12px 18px; background: rgba(250,246,240,.92); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); scrollbar-width: none; }

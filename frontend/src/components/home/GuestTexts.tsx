@@ -14,11 +14,11 @@ const TEXTS = [
 ];
 
 const ANSWERS = [
-  { icon: Wifi, label: "Wi-Fi", value: "WillowCottage · welcome2024" },
+  { icon: Wifi, label: "Wi-Fi", value: "Password welcome2024" },
   { icon: Car, label: "Parking", value: "Two spots in the driveway" },
   { icon: Thermometer, label: "Heating", value: "Thermostat in the hallway" },
-  { icon: Coffee, label: "Breakfast", value: "The Corner Bakery · 4 min" },
-  { icon: Clock, label: "Checkout", value: "11:00 AM · start the dishwasher" },
+  { icon: Coffee, label: "Breakfast", value: "Corner Bakery, 4 min away" },
+  { icon: Clock, label: "Checkout", value: "By 11:00 AM" },
 ];
 
 // Scroll timeline (0..1 across the section): the texts pile up, a beat of quiet, then each one is
@@ -87,8 +87,8 @@ function Bubble({ p, i, q, at, desktop }: { p: MotionValue<number>; i: number; q
   const scale = useTransform(p, [a0, a1, r0, r1], [0.92, 1, 1, 0.55]);
   return (
     <motion.div style={{ opacity, y, x, scale }} className="flex items-end gap-2 origin-right">
-      <div className="max-w-[85%] rounded-2xl rounded-bl-md bg-[#efeae6] px-4 py-2.5 text-[15px] leading-snug text-[#1f1a17]">{q}</div>
-      <span className="pb-1 text-[11px] text-[#a0958d]">{at}</span>
+      <div className="min-w-0 max-w-[80%] rounded-2xl rounded-bl-md bg-[#efeae6] px-4 py-2.5 text-[15px] leading-snug text-[#1f1a17]">{q}</div>
+      <span className="shrink-0 whitespace-nowrap pb-1 text-[11px] text-[#a0958d]">{at}</span>
     </motion.div>
   );
 }
@@ -125,9 +125,9 @@ function GuideCard({ p, desktop, className = "" }: { p: MotionValue<number>; des
     <motion.div style={{ opacity, scale, x }} className={`w-full max-w-[340px] lg:max-w-none rounded-[1.75rem] bg-white p-5 shadow-[0_30px_60px_-28px_rgba(60,40,30,0.4)] ring-1 ring-black/5 ${className}`}>
       <div className="mb-4 flex items-center gap-3">
         <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-[#db2777] to-[#f97316] text-sm font-bold text-white">W</span>
-        <div className="leading-tight">
+        <div className="min-w-0 leading-tight">
           <p className="text-[15px] font-semibold text-[#1f1a17]">Willow Cottage</p>
-          <p className="text-xs text-[#8a7f77]">guidewiseapp.com/g/willow-cottage</p>
+          <p className="text-xs text-[#8a7f77]">One link for the whole stay</p>
         </div>
       </div>
       <ul className="space-y-1.5">
@@ -151,7 +151,7 @@ function AnswerRow({ p, i, icon: Icon, label, value }: { p: MotionValue<number>;
       </span>
       <span className="min-w-0 flex-1 leading-tight">
         <span className="block text-[13px] font-semibold text-[#1f1a17]">{label}</span>
-        <span className="block truncate text-xs text-[#6f655e]">{value}</span>
+        <span className="block text-xs text-[#6f655e]">{value}</span>
       </span>
       <motion.span style={{ opacity: tick, scale: tick }} className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-white">
         <Check className="h-3 w-3" strokeWidth={3} />

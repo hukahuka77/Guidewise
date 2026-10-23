@@ -486,20 +486,15 @@
       gap: 0.25rem;
     }
 
+    /* Buttons size to their label so every name fits in full */
     .nav-link {
       font-size: 0.65rem;
-      padding: 0.5rem 0.4rem;
-      min-width: 60px;
-      max-width: 60px;
+      letter-spacing: 0.03em;
+      padding: 0.5rem 0.55rem;
+      min-width: 0;
+      max-width: none;
       gap: 0.15rem;
       border: 1px solid var(--border-light);
-    }
-
-    .nav-link span {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      max-width: 100%;
     }
 
     .nav-icon {
@@ -508,7 +503,7 @@
     }
 
     .nav-container {
-      max-height: 140px;
+      max-height: 220px;
     }
 
     .nav-bar.collapsed .nav-container {

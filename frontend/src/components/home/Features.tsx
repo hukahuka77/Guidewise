@@ -34,7 +34,7 @@ const ROWS = [
 export default function Features() {
   const reduce = useReducedMotion();
   return (
-    <section id="features" className="scroll-mt-14 bg-white px-4 py-24 sm:px-6 md:py-32">
+    <section id="features" className="scroll-mt-14 overflow-hidden bg-white px-4 py-24 sm:px-6 md:py-32">
       <div className="mx-auto max-w-6xl">
         <h2 className="max-w-2xl text-balance text-4xl font-semibold leading-[1.04] tracking-[-0.03em] text-[#1f1a17] sm:text-5xl">
           Everything a guest asks about, already handled.
@@ -112,7 +112,7 @@ function PlacesVisual() {
           </span>
           <span className="min-w-0 flex-1 leading-tight">
             <span className="block font-semibold text-[#1f1a17]">{name}</span>
-            <span className="block truncate text-sm text-[#6f655e]">{note}</span>
+            <span className="block text-sm text-[#6f655e]">{note}</span>
           </span>
           <span className="shrink-0 rounded-full bg-[#fdf0f5] px-2.5 py-1 text-xs font-semibold text-[#be185d]">{min} min</span>
         </motion.li>
@@ -134,14 +134,14 @@ function LiveVisual() {
   }, [inView]);
   const pw = PASSWORDS[k % 2];
   return (
-    <div ref={ref} className="mx-auto grid max-w-[420px] grid-cols-[1fr_auto_1fr] items-center gap-3">
+    <div ref={ref} className="mx-auto flex max-w-[280px] flex-col items-stretch gap-2">
       <div className="rounded-2xl bg-white p-4 shadow-[0_16px_30px_-20px_rgba(60,40,30,0.45)] ring-1 ring-black/5">
         <p className="text-xs font-medium text-[#8a7f77]">You edit</p>
         <p className="mt-2 text-[13px] text-[#6f655e]">Wi-Fi password</p>
-        <div className="mt-1 truncate rounded-lg bg-[#f6f2ee] px-2.5 py-2 font-mono text-[13px] text-[#1f1a17]">{pw}</div>
+        <div className="mt-1 rounded-lg bg-[#f6f2ee] px-2.5 py-2 font-mono text-[13px] text-[#1f1a17]">{pw}</div>
       </div>
-      <motion.span key={k} initial={{ x: -6, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="text-[#db2777]">
-        →
+      <motion.span key={k} initial={{ y: -6, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="self-center text-[#db2777]">
+        ↓
       </motion.span>
       <div className="rounded-2xl bg-white p-4 shadow-[0_16px_30px_-20px_rgba(60,40,30,0.45)] ring-1 ring-black/5">
         <p className="text-xs font-medium text-[#8a7f77]">Guests see</p>
@@ -153,7 +153,7 @@ function LiveVisual() {
           initial={{ backgroundColor: "rgba(16,185,129,0.25)" }}
           animate={{ backgroundColor: "rgba(246,242,238,1)" }}
           transition={{ duration: 1.4, delay: 0.3 }}
-          className="mt-1 truncate rounded-lg px-2.5 py-2 font-mono text-[13px] text-[#1f1a17]"
+          className="mt-1 rounded-lg px-2.5 py-2 font-mono text-[13px] text-[#1f1a17]"
         >
           {pw}
         </motion.div>
