@@ -29,7 +29,6 @@ import { buildGuidebookPayload } from "@/utils/guidebookPayload";
 import { EDIT_SECTIONS_ORDER } from "@/config/sections";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 const BUCKET_NAME = process.env.NEXT_PUBLIC_SUPABASE_FOOD_ACTIVITIES_BUCKET as string;
 const HOUSE_MEDIA_BUCKET = process.env.NEXT_PUBLIC_SUPABASE_USER_VIDEOS_BUCKET as string;
 
@@ -137,7 +136,6 @@ export default function EditGuidebookPage() {
     fetchFoodRecommendations,
     fetchActivityRecommendations,
   } = useAIRecommendations({
-    apiBase: API_BASE,
     onError: (msg) => setError(msg),
   });
 
@@ -203,7 +201,7 @@ export default function EditGuidebookPage() {
       try {
         setIsLoading(true);
         setInitialLoading(true);
-        const res = await fetch(`${API_BASE}/api/guidebooks/${guidebookId}`, {
+        const res = await fetch(`/api/guidebooks/${guidebookId}`, {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${accessToken}`,
@@ -381,7 +379,7 @@ export default function EditGuidebookPage() {
       hostPhotoUrl,
     });
 
-    const res = await fetch(`${API_BASE}/api/guidebooks/${guidebookId}`, {
+    const res = await fetch(`/api/guidebooks/${guidebookId}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -490,7 +488,7 @@ export default function EditGuidebookPage() {
     const previous = templateKey;
     setTemplateKey(key);
     try {
-      const res = await fetch(`${API_BASE}/api/guidebook/${guidebookId}/template`, {
+      const res = await fetch(`/api/guidebook/${guidebookId}/template`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify({ template_key: key }),
@@ -619,7 +617,7 @@ export default function EditGuidebookPage() {
             <div className="flex items-center justify-between gap-3 sm:justify-end">
               {saveStatus}
               {publicSlug && (
-                <a href={`${API_BASE}/g/${publicSlug}`} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-[oklch(0.6923_0.22_21.05)] underline">
+                <a href={`/g/${publicSlug}`} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-[oklch(0.6923_0.22_21.05)] underline">
                   View live
                 </a>
               )}
@@ -741,7 +739,6 @@ export default function EditGuidebookPage() {
               <PlacePickerModal
                 open={foodPickerOpen}
                 onClose={() => setFoodPickerOpen(false)}
-                apiBase={API_BASE}
                 near={formData.location}
                 title="Add Food"
                 onSelect={(item) => {
@@ -794,7 +791,6 @@ export default function EditGuidebookPage() {
               <PlacePickerModal
                 open={activityPickerOpen}
                 onClose={() => setActivityPickerOpen(false)}
-                apiBase={API_BASE}
                 near={formData.location}
                 title="Add Activity"
                 onSelect={(item) => {

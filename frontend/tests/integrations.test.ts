@@ -6,9 +6,6 @@ vi.mock("@/lib/server/auth", () => ({
   getAuthedUser: async (request: Request) =>
     request.headers.get("authorization") === "Bearer owner" ? { id: "11111111-1111-4111-8111-aaaaaaaaaaaa", email: "o@example.com" } : null,
 }));
-vi.mock("@/lib/server/proxy", () => ({
-  proxyToBackend: vi.fn(async (request: Request) => new Response(`PROXIED ${new URL(request.url).pathname}`)),
-}));
 
 const openaiCreate = vi.fn();
 vi.mock("openai", () => ({
@@ -30,7 +27,6 @@ import { setSqlForTests } from "../src/lib/server/db";
 import { canonicalListingUrl, extractListingContext, hostAllowed, sanitizeExtractedFields, validateListingUrl } from "../src/lib/server/listingImport";
 import { clampItems, rateLimited, resetRateLimitsForTests } from "../src/lib/server/rateLimit";
 import { aiUsage, monthStart } from "../src/lib/server/usage";
-import { proxyToBackend } from "../src/lib/server/proxy";
 
 let db: TestDb;
 beforeAll(async () => {
@@ -52,7 +48,6 @@ beforeEach(async () => {
   await db.reset();
   resetRateLimitsForTests();
   openaiCreate.mockReset();
-  vi.mocked(proxyToBackend).mockClear();
   fetchMock = vi.fn();
   globalThis.fetch = fetchMock as unknown as typeof fetch;
 });
@@ -81,7 +76,7 @@ describe("rate limiting helpers", () => {
     expect(rateLimited("k", 3, 1000, 1200)).toBe(false);
     expect(rateLimited("other", 3, 1000, 200)).toBe(false);
   });
-  it("clamps item counts like Flask", () => {
+  it("clamps item counts", () => {
     expect(clampItems(5)).toBe(5);
     expect(clampItems("7")).toBe(7);
     expect(clampItems(999)).toBe(10);
@@ -94,10 +89,10 @@ describe("rate limiting helpers", () => {
 });
 
 describe("places search / enrich", () => {
-  it("proxies to Flask when Google is not configured", async () => {
+  it("answers 503 when Google is not configured", async () => {
     delete process.env.GOOGLE_API_KEY;
     const res = await searchRoute(post("/api/places/search", { query: "pizza" }));
-    expect(await res.text()).toBe("PROXIED /api/places/search");
+    expect(res.status).toBe(503);
   });
 
   it("requires auth", async () => {
@@ -211,9 +206,9 @@ describe("place photo", () => {
     expect((await photoRoute(get("/api/place-photo?photo_reference=R"))).status).toBe(404);
   });
 
-  it("proxies to Flask when Google is not configured", async () => {
+  it("answers 503 when Google is not configured", async () => {
     delete process.env.GOOGLE_API_KEY;
-    expect(await (await photoRoute(get("/api/place-photo?photo_reference=R"))).text()).toBe("PROXIED /api/place-photo");
+    expect((await photoRoute(get("/api/place-photo?photo_reference=R"))).status).toBe(503);
   });
 });
 
@@ -229,9 +224,9 @@ describe("AI recommendations", () => {
     });
   };
 
-  it("proxies when OpenAI or Google is not configured", async () => {
+  it("answers 503 when OpenAI or Google is not configured", async () => {
     delete process.env.OPENAI_API_KEY;
-    expect(await (await aiRecs(post("/api/ai-recommendations", { type: "food", location: "x" }))).text()).toBe("PROXIED /api/ai-recommendations");
+    expect((await aiRecs(post("/api/ai-recommendations", { type: "food", location: "x" }))).status).toBe(503);
   });
 
   it("validates input", async () => {
@@ -266,7 +261,7 @@ describe("AI recommendations", () => {
     expect((await (await aiRecs(post("/api/ai-recommendations", { type: "activities", location: "Austin" }))).json())[0].description).toBe("");
   });
 
-  it("returns [] (like Flask) when OpenAI fails or returns nothing", async () => {
+  it("returns [] when OpenAI fails or returns nothing", async () => {
     openaiCreate.mockRejectedValueOnce(new Error("boom"));
     expect(await (await aiRecs(post("/api/ai-recommendations", { type: "food", location: "A" }))).json()).toEqual([]);
     openaiCreate.mockResolvedValueOnce(completion({ other: [] }));
@@ -623,9 +618,9 @@ describe("listing import route", () => {
     expect(res.status).toBe(429);
   });
 
-  it("proxies to Flask without an OpenAI key", async () => {
+  it("answers 503 without an OpenAI key", async () => {
     delete process.env.OPENAI_API_KEY;
-    expect(await (await run()).text()).toBe("PROXIED /api/import-listing");
+    expect((await run()).status).toBe(503);
   });
 });
 

@@ -10,7 +10,6 @@ export function GET(request: Request, { params }: Params) {
   return withUser(
     request,
     async ({ sql, user }) => Response.json(await getGuidebookPayload(sql, user.id, (await params).id)),
-    { fallbackOnError: true },
   );
 }
 

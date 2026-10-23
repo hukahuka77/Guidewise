@@ -11,9 +11,6 @@ vi.mock("@/lib/server/auth", () => ({
     return null;
   },
 }));
-vi.mock("@/lib/server/proxy", () => ({
-  proxyToBackend: vi.fn(async () => new Response("PROXIED")),
-}));
 vi.mock("node:dns/promises", () => ({ lookup: vi.fn(async () => [{ address: "93.184.216.34", family: 4 }]) }));
 
 import { GET as pdfRoute } from "../src/app/api/guidebook/[id]/pdf/route";
@@ -169,8 +166,7 @@ describe("absoluteQrUrl", () => {
 });
 
 describe("absoluteUrl", () => {
-  it("prefixes the site origin when no API base is configured", () => {
-    vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", "");
+  it("prefixes the site origin outside the browser", () => {
     vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://guidewise.example/");
     try {
       expect(absoluteUrl("/g/slug")).toBe("https://guidewise.example/g/slug");

@@ -32,11 +32,11 @@ function firstDiff(a: string, b: string): string {
   return `first difference at char ${i}\n  expected: ${ctx(a)}\n  actual:   ${ctx(b)}`;
 }
 
-// Only the layouts still drawn from Flask-era templates are compared; the rest use the new design system.
+// Only the legacy template layouts are compared against golden HTML; the rest use the new design system.
 const LEGACY = ["template_pdf_mobile", "template_pdf_qr"];
 const goldens = fs.readdirSync(GOLDEN).filter((f) => f.endsWith(".html") && LEGACY.some((k) => f.includes(`__${k}`))).sort();
 
-describe("Nunjucks PDF HTML matches what Flask handed to WeasyPrint (legacy layouts)", () => {
+describe("PDF HTML matches the golden files (legacy layouts)", () => {
   it("has goldens", () => expect(goldens.length).toBeGreaterThan(10));
 
   for (const file of goldens) {
@@ -47,7 +47,7 @@ describe("Nunjucks PDF HTML matches what Flask handed to WeasyPrint (legacy layo
       const golden = fs.readFileSync(path.join(GOLDEN, file), "utf8");
       const ctx = await buildPdfContext(row, resolver, { qrUrl: qr ? QR_URL : null });
       const html = renderPdfHtml(kind, ctx);
-      if (norm(html) !== norm(golden)) throw new Error(`${file} differs from Flask output: ${firstDiff(norm(golden), norm(html))}`);
+      if (norm(html) !== norm(golden)) throw new Error(`${file} differs from the golden file: ${firstDiff(norm(golden), norm(html))}`);
       expect(true).toBe(true);
     });
   }

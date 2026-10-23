@@ -5,7 +5,7 @@ import { placePhotoUrl } from "@/lib/guidebook/placePhotos";
 
 const TEMPLATE_DIR = path.join(process.cwd(), "src", "templates", "pdf");
 
-/** Keys accepted by `/pdf?template=`, as in Flask; `template_pdf_modern` was accepted but fell back to original. */
+/** Keys accepted by `/pdf?template=`; `template_pdf_modern` is accepted for old links and falls back to original. */
 export const ALLOWED_PDF_TEMPLATE_KEYS = [
   "template_pdf_original",
   "template_pdf_basic",
@@ -20,7 +20,7 @@ export const PDF_TEMPLATE_REGISTRY: Record<string, string> = {
 };
 (nunjucks as unknown as { lib: { escape: (s: string) => string } }).lib.escape = jinjaEscape;
 
-/** Port of `_css_url` in backend/main.py: a URL made safe for CSS `url('...')` inside a <style> block. */
+/** A URL made safe for CSS `url('...')` inside a <style> block. */
 export function cssUrl(value: unknown): nunjucks.runtime.SafeString {
   const s = typeof value === "string" ? value : value ? String(value) : "";
   if (!/^(https?:|data:image\/)/i.test(s)) return new nunjucks.runtime.SafeString("");

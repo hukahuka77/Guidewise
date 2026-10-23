@@ -8,8 +8,6 @@ import { supabase } from '@/lib/supabaseClient';
 import QRDownloadButton from '@/components/custom/QRDownloadButton';
 import { absoluteUrl } from '@/lib/publicUrl';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || '';
-
 // Shown after a new guidebook is created and its template chosen. The guidebook is already live.
 export default function SuccessPage() {
   const [guidebookId, setGuidebookId] = useState<string | null>(null);
@@ -26,7 +24,7 @@ export default function SuccessPage() {
     (async () => {
       try {
         const token = (await supabase?.auth.getSession())?.data.session?.access_token || null;
-        const res = await fetch(`${API_BASE}/api/guidebooks/${guidebookId}`, {
+        const res = await fetch(`/api/guidebooks/${guidebookId}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         });
         if (!res.ok) return;

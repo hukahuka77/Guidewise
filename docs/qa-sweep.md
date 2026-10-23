@@ -1,11 +1,11 @@
 # QA sweep (Oct 2026)
 
-Scope: every page and button, bad inputs and odd URLs, driven with Playwright against a local stack (stub Supabase + PGlite, `DISABLE_BACKEND_FALLBACK=1`).
+Scope: every page and button, bad inputs and odd URLs, driven with Playwright against a local stack (stub Supabase + PGlite).
 
 | # | Issue | Status |
 |---|-------|--------|
 | 1 | `/dashboard/billing` crashed when the summary request failed or lacked a plan | Fixed: error state shown |
-| 2 | `/api/billing/summary` proxied to Flask when Stripe keys were missing (503 with fallback disabled) | Fixed: serves plan and usage, omits invoices |
+| 2 | `/api/billing/summary` failed when Stripe keys were missing | Fixed: serves plan and usage, omits invoices |
 | 3 | `/onboarding` reachable while logged out | Fixed: redirects to `/login` |
 | 4 | Public guidebooks were indexable | Fixed: `X-Robots-Tag: noindex, nofollow` and `robots.ts` |
 | 5 | Property names and slugs unbounded | Fixed: names capped at 120 chars, slugs capped |

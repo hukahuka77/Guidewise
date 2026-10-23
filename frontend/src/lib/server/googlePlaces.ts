@@ -1,4 +1,4 @@
-// Port of backend/utils/google_places.py (without logging full API responses).
+// Google Places / Distance Matrix client (full API responses are never logged).
 
 const TEXT_SEARCH_URL = "https://maps.googleapis.com/maps/api/place/textsearch/json";
 const DETAILS_URL = "https://maps.googleapis.com/maps/api/place/details/json";

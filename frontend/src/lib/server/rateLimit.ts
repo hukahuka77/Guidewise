@@ -1,5 +1,4 @@
-// Small in-memory sliding-window limiter, per server instance (like the Flask version it replaces, which
-// was per gunicorn worker). It blunts accidental loops and casual abuse; use Vercel's firewall rate limiting
+// Small in-memory sliding-window limiter, per server instance. It blunts accidental loops and casual abuse; use Vercel's firewall rate limiting
 // for hard guarantees across instances.
 const buckets = new Map<string, number[]>();
 

@@ -1,5 +1,5 @@
-// Small ports of Python/Jinja behaviours that the guidebook templates and helpers rely on.
-// Keeping these byte-compatible keeps the migrated HTML identical to what Flask produced.
+// Python/Jinja behaviours that the guidebook templates and helpers rely on (the templates were
+// written for Jinja, and stored data includes Python-style values).
 
 const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g;
 

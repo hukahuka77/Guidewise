@@ -64,6 +64,5 @@ export function GET(request: Request, { params }: { params: Promise<{ id: string
         },
       });
     },
-    { fallbackOnError: true },
   );
 }

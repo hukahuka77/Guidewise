@@ -1,8 +1,8 @@
 import OpenAI from "openai";
 import { resolvesToPublicIp } from "./ssrf";
 
-// Port of backend/utils/listing_import.py, extended to read the data embedded in the page (not just
-// the visible text) and to return a cover image. Listing content is untrusted input: it is never
+// Listing import: reads the data embedded in the page (not just the visible text) and returns a
+// cover image. Listing content is untrusted input: it is never
 // executed or followed, and model output is sanitized before use.
 
 const MAX_HTML_BYTES = 3 * 1024 * 1024;

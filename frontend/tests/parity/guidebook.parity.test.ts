@@ -7,9 +7,8 @@ import type { GuidebookRow } from "../../src/lib/guidebook/types";
 const FIXTURES = path.join(__dirname, "fixtures");
 const GOLDEN = path.join(__dirname, "golden");
 
-// Snapshots of the rendered guidebook pages. They started as the Flask/Jinja output; after the watermark and
-// the separately stored "published" copy were removed they are regenerated from the renderer itself
-// (UPDATE_GOLDEN=1 npx vitest run tests/parity/guidebook.parity.test.ts) and reviewed in the diff.
+// Snapshots of the rendered guidebook pages. Regenerate them from the renderer itself
+// (UPDATE_GOLDEN=1 npx vitest run tests/parity/guidebook.parity.test.ts) and review the diff.
 
 // Jinja leaves a single trailing newline off; ignore only that.
 const norm = (html: string) => html.replace(/\n$/, "");
