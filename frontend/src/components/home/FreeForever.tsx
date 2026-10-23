@@ -36,7 +36,7 @@ export default function FreeForever() {
           <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
             <motion.h2
               style={{ scale, letterSpacing: tracking, opacity: wordOpacity }}
-              className="origin-left text-[4.5rem] font-semibold leading-[0.92] sm:text-[7rem] lg:text-[10rem]"
+              className="origin-left text-[3.75rem] font-semibold leading-[0.92] min-[400px]:text-[4.5rem] sm:text-[7rem] lg:text-[10rem]"
             >
               Free
               <br />
