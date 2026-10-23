@@ -11,7 +11,7 @@ import Spinner from "@/components/ui/spinner";
 import PlacesAutocomplete from "@/components/PlacesAutocomplete";
 import PhonePreview from "@/components/custom/PhonePreview";
 import { offerUpgrade, throwApiError } from "@/lib/upgrade";
-import { ensureSession, finishClaim, hasPendingClaim, isGuestSession, takeClaimed, rememberGuestGuidebook } from "@/lib/guest";
+import { ensureSession, finishClaim, hasPendingClaim, isGuestSession, savePendingBuild, takeClaimed, takePendingBuild, type PendingBuild, rememberGuestGuidebook } from "@/lib/guest";
 import { supabase } from "@/lib/supabaseClient";
 import ImportQuestions, { EMPTY_ANSWERS, ImportProgress, answersToPayload, type ImportAnswers } from "@/components/onboarding/ImportQuestions";
 
@@ -92,11 +92,41 @@ export default function OnboardingPage() {
     return () => { cancelled = true; };
   }, [router]);
 
-  /** The token to create with: the signed-in user's, or a new guest session's. Null sends them to sign up. */
-  const sessionForCreate = async (): Promise<{ token: string; guest: boolean } | null> => {
+  // Signed up because guests weren't available: build what they asked for now that they're in
+  const resumed = useRef(false);
+  useEffect(() => {
+    if (!supabase || resumed.current) return;
+    (async () => {
+      const { data } = await supabase!.auth.getSession();
+      if (!data.session || isGuestSession(data.session) || resumed.current) return;
+      const build = takePendingBuild();
+      if (!build) return;
+      resumed.current = true;
+      if (build.mode === "link") {
+        setMode("link");
+        setListingUrl(build.url);
+        void importListing(build.url);
+      } else {
+        setMode("manual");
+        setPropertyName(build.name);
+        setAddress(build.address);
+        if (build.style) setStyle(build.style);
+        void startFromTemplate(build);
+      }
+    })();
+    // runs once on arrival; the build functions only read state set here
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /**
+   * The token to create with: the signed-in user's, or a new guest session's. When guests aren't
+   * available the person signs up first, and what they asked for is built once they're back here.
+   */
+  const sessionForCreate = async (build: PendingBuild): Promise<{ token: string; guest: boolean } | null> => {
     const session = await ensureSession();
     if (!session) {
-      router.push("/signup");
+      savePendingBuild(build);
+      router.push("/signup?build=1");
       return null;
     }
     setSessionToken(session.token);
@@ -140,8 +170,9 @@ export default function OnboardingPage() {
     timer.current = null;
   };
 
-  const importListing = async () => {
-    if (!listingUrl.trim() || busy) return;
+  const importListing = async (urlOverride?: string) => {
+    const url = (urlOverride ?? listingUrl).trim();
+    if (!url || busy) return;
     setBusy(true);
     setError(null);
     setFromImport(true);
@@ -149,7 +180,7 @@ export default function OnboardingPage() {
     setQuestionsDone(false);
     startProgress();
     try {
-      const session = await sessionForCreate();
+      const session = await sessionForCreate({ mode: "link", url });
       if (!session) {
         setFromImport(false);
         return;
@@ -158,7 +189,7 @@ export default function OnboardingPage() {
       const res = await fetch(`/api/import-listing`, {
         method: "POST",
         headers: authHeaders(token),
-        body: JSON.stringify({ url: listingUrl.trim() }),
+        body: JSON.stringify({ url }),
       });
       if (res.status === 401) {
         router.push("/login");
@@ -208,22 +239,25 @@ export default function OnboardingPage() {
 
   const inImportFlow = fromImport && (!created || !questionsDone);
 
-  const startFromTemplate = async () => {
-    if (!propertyName.trim() || busy) return;
+  const startFromTemplate = async (override?: { name: string; address: string; style: string }) => {
+    const name = (override?.name ?? propertyName).trim();
+    const where = (override?.address ?? address).trim();
+    const look = override?.style || style;
+    if (!name || busy) return;
     setBusy(true);
     setError(null);
     try {
-      const session = await sessionForCreate();
+      const session = await sessionForCreate({ mode: "manual", name, address: where, style: look });
       if (!session) return;
       const token = session.token;
       const res = await fetch(`/api/generate`, {
         method: "POST",
         headers: authHeaders(token),
         body: JSON.stringify({
-          property_name: propertyName.trim(),
-          address_street: address.trim(),
+          property_name: name,
+          address_street: where,
           welcome_message: "Welcome! We hope you have a wonderful stay.",
-          template_key: style,
+          template_key: look,
         }),
       });
       if (res.status === 401) {
@@ -341,7 +375,7 @@ export default function OnboardingPage() {
                       disabled={busy}
                       className="h-14 rounded-2xl px-5 text-base"
                     />
-                    <Button type="button" onClick={importListing} disabled={busy || !listingUrl.trim()} className="h-14 rounded-2xl px-8 text-base">
+                    <Button type="button" onClick={() => importListing()} disabled={busy || !listingUrl.trim()} className="h-14 rounded-2xl px-8 text-base">
                       {busy ? <Spinner /> : "Build my guidebook"}
                     </Button>
                   </div>
@@ -382,7 +416,7 @@ export default function OnboardingPage() {
                       ))}
                     </div>
                   </div>
-                  <Button type="button" onClick={startFromTemplate} disabled={busy || !propertyName.trim()} className="h-14 rounded-2xl px-8 text-base">
+                  <Button type="button" onClick={() => startFromTemplate()} disabled={busy || !propertyName.trim()} className="h-14 rounded-2xl px-8 text-base">
                     {busy ? <Spinner /> : "Start my guidebook"}
                   </Button>
                 </div>

@@ -89,6 +89,10 @@ class Supabase(BaseHTTPRequestHandler):
         body = json.loads(self.rfile.read(length) or b"{}")
         # Sign-up without an email is an anonymous (guest) sign-in; with one it creates the owner's account
         if url.path == "/auth/v1/signup":
+            # STUB_ANON_OFF=/path/flag: while that file exists, anonymous sign-ins are switched off (as in Supabase)
+            anon_off = os.environ.get("STUB_ANON_OFF")
+            if not body.get("email") and anon_off and Path(anon_off).exists():
+                return self._send(422, {"code": 422, "error_code": "anonymous_provider_disabled", "msg": "Anonymous sign-ins are disabled"})
             return self._send(200, session_for("owner-token" if body.get("email") else "guest-token"))
         if url.path == "/auth/v1/token":
             return self._send(200, session_for("owner-token"))

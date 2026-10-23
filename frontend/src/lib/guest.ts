@@ -125,3 +125,43 @@ async function runClaim(): Promise<string[]> {
   writeTickets(keep);
   return moved;
 }
+
+// When guests can't be signed in (anonymous sign-ins switched off in Supabase), the person creates an
+// account first; what they asked to build is kept so /onboarding can start it as soon as they're in.
+const PENDING_BUILD_KEY = 'guidewise-pending-build';
+const PENDING_BUILD_TTL_MS = 24 * 60 * 60 * 1000;
+
+export type PendingBuild =
+  | { mode: 'link'; url: string }
+  | { mode: 'manual'; name: string; address: string; style: string };
+
+export function savePendingBuild(build: PendingBuild): void {
+  try {
+    localStorage.setItem(PENDING_BUILD_KEY, JSON.stringify({ ...build, at: Date.now() }));
+  } catch { }
+}
+
+export const hasPendingBuild = (): boolean => peekPendingBuild() !== null;
+
+function peekPendingBuild(): PendingBuild | null {
+  try {
+    const raw = JSON.parse(localStorage.getItem(PENDING_BUILD_KEY) || 'null');
+    if (!raw || typeof raw.at !== 'number' || Date.now() - raw.at > PENDING_BUILD_TTL_MS) return null;
+    if (raw.mode === 'link' && typeof raw.url === 'string') return { mode: 'link', url: raw.url };
+    if (raw.mode === 'manual' && typeof raw.name === 'string') {
+      return { mode: 'manual', name: raw.name, address: String(raw.address ?? ''), style: String(raw.style ?? '') };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/** The build waiting for the person to sign in, removed so it only runs once. */
+export function takePendingBuild(): PendingBuild | null {
+  const build = peekPendingBuild();
+  try {
+    localStorage.removeItem(PENDING_BUILD_KEY);
+  } catch { }
+  return build;
+}

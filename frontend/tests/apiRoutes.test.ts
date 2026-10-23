@@ -356,6 +356,16 @@ describe("guests: build first, create an account to save", () => {
     expect((await serveGuidebook(new Request(url("/g/x")), await load(id))).status).toBe(200);
   });
 
+  it("claiming lists the guest's newest guidebook first, so that's the one that opens", async () => {
+    const { body: first } = await createVia({ property_name: "First Try" }, "guest");
+    await db.sql`update guidebook set created_time = now() - interval '1 hour' where id = ${first.guidebook_id}`;
+    const { body: second } = await createVia({ property_name: "Second Try" }, "guest");
+    const { ticket } = await json(await guestTicket(req("POST", "/api/guest/ticket", "guest")));
+    expect(await json(await guestClaim(req("POST", "/api/guest/claim", "owner", { ticket })))).toEqual({
+      guidebook_ids: [second.guidebook_id, first.guidebook_id],
+    });
+  });
+
   it("claim tickets can't be forged, reused for someone else's guidebooks, or used after they expire", async () => {
     await createVia({ property_name: "Mine" }, "other");
     const { ticket } = await json(await guestTicket(req("POST", "/api/guest/ticket", "guest")));
