@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { isGuestSession } from "@/lib/guest";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { startStripeCheckout, type PaidPlan } from "@/lib/billing";
@@ -24,7 +25,7 @@ export default function PricingPage() {
   useEffect(() => {
     (async () => {
       const sess = await supabase?.auth.getSession();
-      setIsAuthed(!!sess?.data.session);
+      setIsAuthed(!!sess?.data.session && !isGuestSession(sess?.data.session));
     })();
   }, []);
 
@@ -88,7 +89,7 @@ export default function PricingPage() {
               </ul>
               <div className="mt-6">
                 {plan.key === "free" ? (
-                  <Link href={isAuthed ? "/onboarding" : "/signup"}>
+                  <Link href="/onboarding">
                     <Button variant="outline" className="w-full">{isAuthed ? "Create a guidebook" : "Start free"}</Button>
                   </Link>
                 ) : (

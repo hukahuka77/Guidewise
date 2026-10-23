@@ -409,7 +409,7 @@ describe("listing import route", () => {
     expect(gb.cover_image_url).toBe(`${COVER}?im_w=1200`);
     expect(gb.check_in_time).toBe("16:00");
     expect(gb.rules_json).toEqual([{ name: "Quiet hours", description: "10pm" }]);
-    expect(gb.template_key).toBe("template_original");
+    expect(gb.template_key).toBe("template_signature");
     const [prop] = await db.sql`select * from property where id = ${gb.property_id}`;
     expect(prop.name).toBe("Lake Cabin");
     expect(prop.address_city_state).toBe("Austin, TX");

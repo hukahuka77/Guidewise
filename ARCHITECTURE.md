@@ -44,7 +44,7 @@ graph TB
 | `src/lib/server/` | Server-only code: `apiRoute.ts` (auth + error wrapper), `db.ts` (postgres.js over the Supabase pooler), `auth.ts` (Supabase JWT check), guidebook CRUD, billing/Stripe, plans and usage metering, listing import, AI recommendations, Google Places, rate limiting, SSRF guard |
 | `src/lib/guidebook/` | Guidebook rendering: context builder, Nunjucks environment, rules/photo helpers, the sample guidebook |
 | `src/lib/pdf/` | PDF generation: Chromium launcher, the design system in `guide/` (themes, layout), the AI layout composer, legacy PDF templates |
-| `src/templates/` | Guidebook templates (Classic, Lifestyle, Welcoming) and legacy PDF templates |
+| `src/templates/` | Guidebook templates: Signature (the default for new guidebooks, self-contained CSS and fonts), Lifestyle, Welcoming, and Classic (no longer offered, still rendered for guidebooks on it); legacy PDF templates |
 | `src/components/`, `src/hooks/` | React UI (editor sections, phone preview, dashboard) |
 | `tests/` | Vitest suites against an in-process Postgres (PGlite), golden HTML snapshots, PDF layout checks, `integration/native-routes.sh` |
 | `supabase/migrations/` | Database migrations (applied to the dev branch first, to prod only with approval) |

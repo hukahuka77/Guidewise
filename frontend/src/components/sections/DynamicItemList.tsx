@@ -1,12 +1,11 @@
 /* eslint-disable @next/next/no-img-element */
-import React, { useState } from "react";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash } from "lucide-react";
+import React, { useRef, useState } from "react";
+import { Car, ImagePlus, MapPin, Trash2, X } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { LIMITS } from "@/constants/limits";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import Spinner from "@/components/ui/spinner";
+import { Card, CardHeader, IconButton, inputClass, compactTextareaClass } from "@/components/editor/primitives";
 
 export interface DynamicItem {
   name: string;
@@ -19,17 +18,15 @@ export interface DynamicItem {
 
 interface DynamicItemListProps {
   items: DynamicItem[];
-  onChange: (index: number, field: keyof DynamicItem, value: string) => void;
-  onAdd: () => void;
-  label: string;
-}
-
-interface DynamicItemListProps {
-  items: DynamicItem[];
   onChange: (idx: number, field: keyof DynamicItem, value: string) => void;
+  /** Adds an empty item to fill in by hand. */
   onAdd: () => void;
   onDelete?: (idx: number) => void;
   label: string;
+  description?: string;
+  /** Buttons shown in the card header (Add from Google, Suggest with AI). */
+  toolbar?: React.ReactNode;
+  emptyHint?: string;
 }
 
 const BUCKET_NAME = process.env.NEXT_PUBLIC_SUPABASE_FOOD_ACTIVITIES_BUCKET as string;
@@ -59,22 +56,21 @@ function getItemImageUrl(item: DynamicItem): string {
   return `/api/place-photo?${params.toString()}`;
 }
 
-export default function DynamicItemList({ items, onChange, onAdd, onDelete, label }: DynamicItemListProps) {
+export default function DynamicItemList({ items, onChange, onAdd, onDelete, label, description, toolbar, emptyHint }: DynamicItemListProps) {
   const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
   const [pendingDeleteIdx, setPendingDeleteIdx] = useState<number | null>(null);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const fileInputs = useRef<Record<number, HTMLInputElement | null>>({});
+  const full = items.length >= LIMITS.maxFoodActivityItems;
 
   const uploadImage = async (idx: number, file: File) => {
     try {
       setUploadingIdx(idx);
       if (!supabase) throw new Error("Supabase not configured");
       if (!BUCKET_NAME) throw new Error("Supabase bucket not configured (NEXT_PUBLIC_SUPABASE_FOOD_ACTIVITIES_BUCKET)");
-      const ext = file.name.split('.').pop() || 'jpg';
-      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const ext = file.name.split(".").pop() || "jpg";
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
       const path = `guidebook/${Date.now()}-${idx}-${safeName}`;
-      const { error: uploadErr } = await supabase.storage
-        .from(BUCKET_NAME)
-        .upload(path, file, { contentType: file.type || `image/${ext}`, upsert: true });
+      const { error: uploadErr } = await supabase.storage.from(BUCKET_NAME).upload(path, file, { contentType: file.type || `image/${ext}`, upsert: true });
       if (uploadErr) throw uploadErr;
       const { data: pub } = supabase.storage.from(BUCKET_NAME).getPublicUrl(path);
       if (pub?.publicUrl) {
@@ -86,144 +82,112 @@ export default function DynamicItemList({ items, onChange, onAdd, onDelete, labe
       console.error("Upload failed, falling back to data URL:", e);
       // Fallback: inline data URL to avoid blocking the user
       const reader = new FileReader();
-      reader.onload = () => {
-        const dataUrl = reader.result as string;
-        onChange(idx, "image_url", dataUrl);
-      };
+      reader.onload = () => onChange(idx, "image_url", reader.result as string);
       reader.readAsDataURL(file);
     } finally {
       setUploadingIdx(null);
     }
   };
+
   return (
-    <section className="mb-8">
-      <div className="flex items-center gap-2 mb-2">
-        <h2 className="text-xl font-semibold">{label}</h2>
-      </div>
+    <Card>
+      <CardHeader
+        title={label}
+        description={description}
+        action={<span className="rounded-full bg-[#F5EFE7] px-2.5 py-1 text-xs font-medium text-gray-600">{items.length} of {LIMITS.maxFoodActivityItems}</span>}
+      />
+      {toolbar && <div className="mb-5 flex flex-wrap gap-2">{toolbar}</div>}
+
       {items.length === 0 ? (
-        <button type="button" onClick={onAdd} className="flex items-center gap-2 px-4 py-2 border-2 border-dashed border-[oklch(0.6923_0.22_21.05)]/60 rounded-lg hover:bg-[oklch(0.6923_0.22_21.05)]/10 transition">
-          <Plus style={{ color: 'oklch(0.6923 0.22 21.05)' }} />
-          <span>Add</span>
-        </button>
+        <div className="rounded-xl border border-dashed border-[#DCD2C4] bg-[#FBF8F4] px-6 py-10 text-center">
+          <MapPin className="mx-auto size-6 text-primary" />
+          <p className="mt-2 text-sm font-medium text-gray-800">Nothing here yet</p>
+          <p className="mt-1 text-sm text-gray-500">{emptyHint || "Add a few favorites from Google, or type them in yourself."}</p>
+        </div>
       ) : (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {items.map((item, idx) => (
-              <div key={idx} className="p-4 rounded-lg bg-white/80 shadow flex flex-col gap-2 relative">
-                {onDelete && (
-                  <button
-                    type="button"
-                    aria-label="Delete item"
-                    className="absolute top-2 left-2 z-20 p-1 rounded bg-white/90 hover:bg-[oklch(0.6923_0.22_21.05)]/10 transition"
-                    onClick={() => {
-                      setPendingDeleteIdx(idx);
-                      setShowDeleteConfirm(true);
-                    }}
-                  >
-                    <Trash style={{ color: 'oklch(0.6923 0.22 21.05)' }} size={20} />
+        <ul className="space-y-3">
+          {items.map((item, idx) => (
+            <li key={idx} className="flex flex-col gap-3 rounded-xl border border-[#ECE5DB] bg-[#FDFBF8] p-3 sm:flex-row sm:p-4">
+              <input
+                ref={(el) => { fileInputs.current[idx] = el; }}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (file) await uploadImage(idx, file);
+                }}
+              />
+              {item.image_url ? (
+                <div className="relative h-28 w-full shrink-0 overflow-hidden rounded-xl border border-[#ECE5DB] bg-gray-100 sm:w-40">
+                  <img src={getItemImageUrl(item)} alt="" className="size-full object-cover" />
+                  <button type="button" aria-label="Remove photo" onClick={() => onChange(idx, "image_url", "")} className="absolute right-1.5 top-1.5 inline-flex size-6 items-center justify-center rounded-full bg-white/90 text-gray-600 shadow hover:text-red-600">
+                    <X className="size-3.5" />
                   </button>
-                )}
-                {item.image_url ? (
-                  <div className="relative mb-2">
-                    <img
-                      src={getItemImageUrl(item)}
-                      alt={item.name + " image"}
-                      className="w-full h-32 object-cover rounded border shadow"
-                    />
-                    <button
-                      type="button"
-                      className="absolute top-2 right-2 px-2 py-1 text-xs rounded bg-white/90 border shadow hover:bg-white"
-                      onClick={() => onChange(idx, "image_url", "")}
-                    >
-                      Remove image
-                    </button>
-                  </div>
-                ) : (
-                  <div
-                    className="mb-2 w-full h-32 rounded border-2 border-dashed border-gray-300 flex items-center justify-center text-sm text-gray-500 bg-gray-50/40 hover:bg-gray-50 cursor-pointer"
-                    onClick={() => document.getElementById(`upload-${idx}`)?.dispatchEvent(new MouseEvent('click', {bubbles: true}))}
-                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                    onDrop={async (e) => {
-                      e.preventDefault();
-                      const file = e.dataTransfer.files?.[0];
-                      if (!file) return;
-                      await uploadImage(idx, file);
-                    }}
-                  >
-                    {uploadingIdx === idx ? "Uploading…" : "Drop image here or click to upload"}
-                  </div>
-                )}
-                <input
-                  id={`upload-${idx}`}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    await uploadImage(idx, file);
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileInputs.current[idx]?.click()}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={async (e) => {
+                    e.preventDefault();
+                    const file = e.dataTransfer.files?.[0];
+                    if (file) await uploadImage(idx, file);
                   }}
-                />
-                <Label>Name</Label>
-                <Input maxLength={LIMITS.itemName} value={item.name} onChange={e => onChange(idx, "name", e.target.value)} />
-                {item.address && (
-                  <div className="mt-1 mb-2">
-                    <div className="flex items-center text-xs text-gray-600">
-                      <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="mr-1"><path strokeLinecap="round" strokeLinejoin="round" d="M12 11.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z"/><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7-7.5 11-7.5 11s-7.5-4-7.5-11a7.5 7.5 0 1115 0z"/></svg>
-                      <span>{item.address}</span>
-                    </div>
-                    {item.driving_minutes != null && (
-                      <div className="flex items-center text-xs text-gray-500 mt-1 ml-5">
-                        🚗 {item.driving_minutes} min drive
-                      </div>
-                    )}
-                  </div>
+                  className="flex h-28 w-full shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-[#DCD2C4] bg-white text-xs font-medium text-gray-500 transition hover:border-primary/60 hover:text-primary sm:w-40"
+                >
+                  {uploadingIdx === idx ? <Spinner size={16} colorClass="text-primary" /> : <ImagePlus className="size-5" />}
+                  {uploadingIdx === idx ? "Uploading…" : "Add a photo"}
+                </button>
+              )}
+              <div className="min-w-0 flex-1 space-y-2">
+                <input aria-label="Name" maxLength={LIMITS.itemName} value={item.name} onChange={(e) => onChange(idx, "name", e.target.value)} placeholder="Name" className={`${inputClass} font-medium`} />
+                <div className="relative">
+                  <MapPin className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
+                  <input aria-label="Address" maxLength={LIMITS.itemAddress} value={item.address} onChange={(e) => onChange(idx, "address", e.target.value)} placeholder="Address" className={`${inputClass} pl-9 text-sm`} />
+                </div>
+                <textarea aria-label="Description" maxLength={LIMITS.itemDescription} value={item.description} onChange={(e) => onChange(idx, "description", e.target.value)} placeholder="Why you recommend it" rows={2} className={compactTextareaClass} />
+                {item.driving_minutes != null && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800">
+                    <Car className="size-3.5" /> {item.driving_minutes} min drive
+                  </span>
                 )}
-                <Label>Address</Label>
-                <Input maxLength={LIMITS.itemAddress} value={item.address} onChange={e => onChange(idx, "address", e.target.value)} />
-                <Label>Description</Label>
-                <Textarea maxLength={LIMITS.itemDescription} value={item.description} onChange={e => onChange(idx, "description", e.target.value)} />
               </div>
-            ))}
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              if (items.length >= LIMITS.maxFoodActivityItems) return;
-              onAdd();
-            }}
-            disabled={items.length >= LIMITS.maxFoodActivityItems}
-            className={`flex items-center gap-2 px-4 py-2 border-2 border-dashed border-[oklch(0.6923_0.22_21.05)]/60 rounded-lg hover:bg-[oklch(0.6923_0.22_21.05)]/10 transition mt-6 ${items.length >= LIMITS.maxFoodActivityItems ? 'opacity-50 cursor-not-allowed' : ''}`}
-          >
-            <Plus style={{ color: 'oklch(0.6923 0.22 21.05)' }} />
-            <span>Add another</span>
-          </button>
-        </>
+              {onDelete && (
+                <div className="flex justify-end sm:block">
+                  <IconButton label="Remove" tone="danger" onClick={() => setPendingDeleteIdx(idx)}>
+                    <Trash2 className="size-4" />
+                  </IconButton>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {items.length > 0 && (
+        <button type="button" onClick={() => !full && onAdd()} disabled={full} className="mt-3 text-sm font-medium text-primary hover:underline disabled:cursor-not-allowed disabled:text-gray-400 disabled:no-underline">
+          {full ? `Limit of ${LIMITS.maxFoodActivityItems} reached` : "+ Add one by hand"}
+        </button>
       )}
 
       {onDelete && (
         <ConfirmModal
-          open={showDeleteConfirm}
-          title="Remove item?"
-          description={"This will permanently remove this place or activity from your guidebook."}
+          open={pendingDeleteIdx !== null}
+          title="Remove this place?"
+          description="It will be removed from your guidebook."
           confirmLabel="Remove"
           cancelLabel="Cancel"
           destructive
-          onCancel={() => {
-            setShowDeleteConfirm(false);
-            setPendingDeleteIdx(null);
-          }}
+          onCancel={() => setPendingDeleteIdx(null)}
           onConfirm={() => {
-            if (pendingDeleteIdx == null) {
-              setShowDeleteConfirm(false);
-              return;
-            }
-            onDelete(pendingDeleteIdx);
-            setShowDeleteConfirm(false);
+            if (pendingDeleteIdx !== null) onDelete(pendingDeleteIdx);
             setPendingDeleteIdx(null);
           }}
         />
       )}
-    </section>
+    </Card>
   );
 }

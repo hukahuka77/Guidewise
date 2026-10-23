@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { ArrowLeft, ArrowRight, Check, ExternalLink, EyeOff, Loader2, Search, Smartphone, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/editor/primitives";
 
 // Shared components
-import SidebarNav from "@/components/sections/SidebarNav";
+import SidebarNav, { SECTION_META, insertInOrder } from "@/components/sections/SidebarNav";
 import CreateGuidebookLayout from "@/components/sections/CreateGuidebookLayout";
 import CheckinSection from "@/components/sections/CheckinSection";
 import WelcomeSection from "@/components/sections/WelcomeSection";
@@ -15,7 +17,6 @@ import HouseManualList from "@/components/sections/HouseManualList";
 import RulesSection from "@/components/sections/RulesSection";
 import CheckoutSection from "@/components/sections/CheckoutSection";
 import CustomSection, { CustomItem } from "@/components/sections/CustomSection";
-import AddItemChoiceModal from "@/components/places/AddItemChoiceModal";
 import PlacePickerModal from "@/components/places/PlacePickerModal";
 import EditTutorial from "@/components/ui/EditTutorial";
 import PhonePreview from "@/components/custom/PhonePreview";
@@ -82,7 +83,7 @@ export default function EditGuidebookPage() {
   const isNewGuidebook = searchParams.get('new') === 'true';
 
   // Use consolidated auth hook
-  const { accessToken, authChecked: authReady } = useAuth({
+  const { accessToken, authChecked: authReady, isGuest } = useAuth({
     requireAuth: false, // Edit doesn't redirect immediately, loads data first
   });
 
@@ -118,10 +119,6 @@ export default function EditGuidebookPage() {
     setFoodPickerOpen,
     activityPickerOpen,
     setActivityPickerOpen,
-    foodAddChoiceOpen,
-    setFoodAddChoiceOpen,
-    activityAddChoiceOpen,
-    setActivityAddChoiceOpen,
     handleCoverImageSelect,
     handleHostPhotoSelect,
   } = useGuidebookForm({
@@ -167,6 +164,7 @@ export default function EditGuidebookPage() {
   const [publicSlug, setPublicSlug] = useState<string | null>(null);
   const [previewKey, setPreviewKey] = useState(0);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   // Check if this is first-time visiting edit page (skip on mobile)
   useEffect(() => {
@@ -195,6 +193,11 @@ export default function EditGuidebookPage() {
     if (!guidebookId || !authReady) return;
     if (!accessToken) {
       router.push("/login");
+      return;
+    }
+    // Editing is for saved guidebooks: guests create a free account first (their guidebook comes with them)
+    if (isGuest) {
+      router.replace("/signup?save=1");
       return;
     }
     (async () => {
@@ -333,7 +336,7 @@ export default function EditGuidebookPage() {
         setInitialLoading(false);
       }
     })();
-  }, [guidebookId, accessToken, authReady, router, setActivityItems, setCheckoutItems, setCustomSections, setCustomTabsMeta, setExcluded, setFoodItems, setFormData, setHostPhotoPreviewUrl, setHouseManualItems, setIncluded, setPreviewUrl, setRules]);
+  }, [guidebookId, accessToken, authReady, isGuest, router, setActivityItems, setCheckoutItems, setCustomSections, setCustomTabsMeta, setExcluded, setFoodItems, setFormData, setHostPhotoPreviewUrl, setHouseManualItems, setIncluded, setPreviewUrl, setRules]);
 
   // Image handlers are now provided by useGuidebookForm hook
 
@@ -530,35 +533,53 @@ export default function EditGuidebookPage() {
     return (
       <div className="w-full min-h-[60vh] flex items-center justify-center">
         <div className="flex items-center gap-3 text-gray-700">
-          <Spinner size={22} colorClass="text-[oklch(0.6923_0.22_21.05)]" />
+          <Spinner size={22} colorClass="text-primary" />
           <span>Loading…</span>
         </div>
       </div>
     );
   }
 
+  const STYLE_OPTIONS: [string, string][] = [
+    ["template_signature", "Signature"],
+    ["template_generic", "Lifestyle"],
+    ["template_welcomebook", "Welcoming"],
+  ];
+  // Classic is no longer offered, but a guidebook already on it keeps showing it as the current style
+  if (templateKey === "template_original") STYLE_OPTIONS.push(["template_original", "Classic"]);
+  const isCurrentStyle = (key: string) => templateKey === key || (key === "template_generic" && templateKey === "template_lifestyle");
+
   const styleSwitcher = (
-    <div className="flex items-center justify-center gap-1 rounded-full bg-white p-1 shadow-sm ring-1 ring-black/5" role="group" aria-label="Guidebook style">
-      {[
-        ["template_original", "Classic"],
-        ["template_generic", "Lifestyle"],
-        ["template_welcomebook", "Welcoming"],
-      ].map(([key, label]) => (
-        <button
-          key={key}
-          type="button"
-          onClick={() => switchTemplate(key)}
-          className={`flex-1 rounded-full px-3 py-1.5 text-sm transition ${templateKey === key || (key === "template_generic" && templateKey === "template_lifestyle") ? "bg-[oklch(0.6923_0.22_21.05)] font-semibold text-white" : "text-gray-700 hover:bg-gray-100"}`}
-        >
-          {label}
-        </button>
-      ))}
+    <div className="w-full">
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">Style</p>
+      <div className="grid grid-cols-3 gap-1 rounded-xl bg-[#EFE8DE] p-1" role="group" aria-label="Guidebook style">
+        {STYLE_OPTIONS.map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => switchTemplate(key)}
+            aria-pressed={isCurrentStyle(key)}
+            className={`rounded-lg px-2 py-1.5 text-sm transition ${isCurrentStyle(key) ? "bg-white font-semibold text-gray-900 shadow-sm" : "text-gray-600 hover:text-gray-900"}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
     </div>
   );
+
   const saveStatus = (
-    <p className="text-xs text-gray-500" aria-live="polite">
-      {saveState === "saving" ? "Saving…" : saveState === "saved" ? "All changes saved" : saveState === "error" ? "Could not save. Try Save Changes." : "Changes save automatically"}
-    </p>
+    <span className="inline-flex items-center gap-1.5 text-sm text-gray-500" aria-live="polite" data-save-status>
+      {saveState === "saving" ? (
+        <><Loader2 className="size-4 animate-spin" /> Saving…</>
+      ) : saveState === "error" ? (
+        <span className="text-red-600">Couldn&apos;t save. Try Done.</span>
+      ) : saveState === "saved" ? (
+        <><Check className="size-4 text-emerald-600" /> Saved</>
+      ) : (
+        <><Check className="size-4 text-gray-400" /> Autosave on</>
+      )}
+    </span>
   );
 
   if (notFound) {
@@ -570,6 +591,99 @@ export default function EditGuidebookPage() {
       </div>
     );
   }
+
+  const liveUrl = publicSlug ? `/g/${publicSlug}` : null;
+  const isCustom = currentSection.startsWith("custom_");
+  const sectionMeta = SECTION_META[currentSection];
+  const sectionLabel = sectionMeta?.label || customTabsMeta[currentSection]?.label || "Custom section";
+  const sectionDescription = sectionMeta?.description || "Anything else guests should know.";
+  const SectionIcon = sectionMeta?.icon;
+  const sectionShown = included.includes(currentSection);
+  const setSectionShown = (show: boolean) => {
+    if (currentSection === "welcome") return;
+    if (show) {
+      setIncluded(insertInOrder(included, currentSection));
+      setExcluded(excluded.filter((k) => k !== currentSection));
+    } else {
+      setIncluded(included.filter((k) => k !== currentSection));
+      setExcluded([...excluded.filter((k) => k !== currentSection), currentSection]);
+    }
+  };
+
+  /** AI suggestions are added to the list (up to the limit) instead of replacing what the host already has. */
+  const mergeSuggestions = (current: DynamicItem[], suggested: DynamicItem[]) => {
+    const seen = new Set(current.map((i) => i.name.trim().toLowerCase()));
+    const fresh = suggested.filter((i) => i.name && !seen.has(i.name.trim().toLowerCase()));
+    return [...current, ...fresh].slice(0, LIMITS.maxFoodActivityItems);
+  };
+
+  const placesToolbar = (kind: "food" | "activities") => {
+    const busy = kind === "food" ? isFetchingFood : isFetchingActivities;
+    const items = kind === "food" ? foodItems : activityItems;
+    const full = items.length >= LIMITS.maxFoodActivityItems;
+    const needsAddress = !formData.location;
+    return (
+      <>
+        <Button type="button" variant="outline" disabled={full} onClick={() => (kind === "food" ? setFoodPickerOpen(true) : setActivityPickerOpen(true))} className="rounded-xl">
+          <Search className="size-4" /> Add from Google
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={busy || needsAddress || full}
+          title={needsAddress ? "Add your address in Welcome first" : undefined}
+          onClick={async () => {
+            const suggested = kind === "food" ? await fetchFoodRecommendations(formData.location, 5) : await fetchActivityRecommendations(formData.location, 5);
+            if (kind === "food") setFoodItems((prev) => mergeSuggestions(prev, suggested));
+            else setActivityItems((prev) => mergeSuggestions(prev, suggested));
+          }}
+          className="rounded-xl"
+        >
+          {busy ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4 text-primary" />}
+          {busy ? "Finding places…" : "Suggest with AI"}
+        </Button>
+        {needsAddress && <span className="self-center text-xs text-gray-500">Add your address in Welcome to use suggestions.</span>}
+      </>
+    );
+  };
+
+  const topbar = (
+    <div className="sticky top-14 z-30 border-b border-[#ECE5DB] bg-[#F8F5F1]/90 backdrop-blur">
+      <div className="mx-auto flex h-16 max-w-[1600px] items-center gap-3 px-4 lg:px-6">
+        <button type="button" onClick={() => router.push("/dashboard")} className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-gray-600 hover:bg-white hover:text-gray-900">
+          <ArrowLeft className="size-4" />
+          <span className="hidden sm:inline">Guidebooks</span>
+        </button>
+        <span className="hidden h-6 w-px bg-[#E2D9CC] sm:block" aria-hidden="true" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[15px] font-semibold text-gray-900">{formData.propertyName || "Untitled guidebook"}</p>
+          <p className="flex items-center gap-1.5 text-xs text-gray-500">
+            <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden="true" /> Live
+            <span className="hidden sm:inline">· {saveStatus}</span>
+          </p>
+        </div>
+        <button type="button" onClick={() => setPreviewOpen(true)} className="inline-flex items-center gap-1.5 rounded-xl border border-[#E2D9CC] bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 xl:hidden">
+          <Smartphone className="size-4" /> <span className="hidden sm:inline">Preview</span>
+        </button>
+        {liveUrl && (
+          <a href={liveUrl} target="_blank" rel="noopener noreferrer" className="hidden items-center gap-1.5 rounded-xl border border-[#E2D9CC] bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 sm:inline-flex">
+            <ExternalLink className="size-4" /> View live
+          </a>
+        )}
+        <Button type="button" data-tutorial="save-button" onClick={(e) => handleSubmit(e as unknown as React.FormEvent)} disabled={isLoading} className="h-10 rounded-xl px-5">
+          {isLoading ? <Loader2 className="size-4 animate-spin" /> : null}
+          {isNewGuidebook ? "Finish" : "Done"}
+        </Button>
+      </div>
+    </div>
+  );
+
+  const preview = (
+    <div className="flex flex-col items-center gap-4">
+      <PhonePreview guidebookId={guidebookId} accessToken={accessToken} refreshKey={previewKey} />
+      <div className="w-full max-w-[340px]">{styleSwitcher}</div>
+    </div>
+  );
 
   return (
     <div className="w-full">
@@ -584,15 +698,8 @@ export default function EditGuidebookPage() {
       )}
 
       <CreateGuidebookLayout
-        preview={
-          <>
-            <PhonePreview guidebookId={guidebookId} accessToken={accessToken} refreshKey={previewKey} />
-            <div className="w-full max-w-[340px] space-y-2 text-center">
-              {styleSwitcher}
-              {saveStatus}
-            </div>
-          </>
-        }
+        topbar={topbar}
+        preview={preview}
         sidebar={
           <div data-tutorial="sidebar">
             <SidebarNav
@@ -610,25 +717,38 @@ export default function EditGuidebookPage() {
           </div>
         }
       >
-        <div data-tutorial="content-area">
-          {/* Below xl the phone preview column is hidden, so style, save status and the live page live here */}
-          <div className="xl:hidden mb-6 flex flex-col gap-2 rounded-2xl bg-white/80 p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-            <div className="sm:min-w-[300px]">{styleSwitcher}</div>
-            <div className="flex items-center justify-between gap-3 sm:justify-end">
-              {saveStatus}
-              {publicSlug && (
-                <a href={`/g/${publicSlug}`} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-[oklch(0.6923_0.22_21.05)] underline">
-                  View live
-                </a>
-              )}
+        <div data-tutorial="content-area" className="mx-auto max-w-3xl">
+          {/* Section header */}
+          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-start gap-4">
+              <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-white text-primary shadow-sm ring-1 ring-[#ECE5DB]" aria-hidden="true">
+                {SectionIcon ? <SectionIcon className="size-6" /> : <span className="text-2xl">{customTabsMeta[currentSection]?.icon || "📝"}</span>}
+              </span>
+              <div>
+                <h1 className="text-2xl font-semibold tracking-tight text-gray-900">{sectionLabel}</h1>
+                <p className="mt-1 max-w-xl text-sm text-gray-500">{sectionDescription}</p>
+              </div>
             </div>
+            {currentSection !== "welcome" && (
+              <div className="shrink-0 rounded-xl border border-[#ECE5DB] bg-white px-3 py-2">
+                <Switch checked={sectionShown} onChange={setSectionShown} label="Show in guidebook" />
+              </div>
+            )}
           </div>
-          {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
-              <strong className="font-bold">Error:</strong>
-              <span className="block sm:inline"> {error}</span>
+
+          {!sectionShown && (
+            <div className="mb-5 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="status">
+              <EyeOff className="mt-0.5 size-4 shrink-0" />
+              <span>This section is hidden from guests. Your edits are kept, and you can show it again any time.</span>
             </div>
           )}
+
+          {error && (
+            <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+              {error}
+            </div>
+          )}
+
           {currentSection === "welcome" && (
             <WelcomeSection
               welcomeMessage={formData.welcomeMessage}
@@ -657,90 +777,55 @@ export default function EditGuidebookPage() {
             />
           )}
           {currentSection === "property" && (
-            <>
-              <div className="mt-0">
-                <HouseManualList
-                  items={houseManualItems}
-                  onChange={(idx, field, value) => {
-                    setHouseManualItems(items => items.map((it, i) => (i === idx ? { ...it, [field]: value } : it)));
-                  }}
-                  onAdd={() => setHouseManualItems(items => [...items, { name: "", description: "" }])}
-                  onDelete={(idx) => setHouseManualItems(items => items.filter((_, i) => i !== idx))}
-                  onMediaSelect={async (idx, file) => {
-                    if (!file) {
-                      setHouseManualItems(items =>
-                        items.map((it, i) =>
-                          i === idx ? { ...it, mediaUrl: undefined, mediaType: undefined } : it
-                        )
-                      );
-                      return;
-                    }
-
-                    try {
-                      const url = await uploadHouseMedia('guide', file);
-                      if (!url) return;
-                      const isVideo = file.type && file.type.startsWith('video/');
-                      const mediaType = isVideo ? 'video' : 'image';
-                      setHouseManualItems(items =>
-                        items.map((it, i) =>
-                          i === idx ? { ...it, mediaUrl: url, mediaType } : it
-                        )
-                      );
-                    } catch (e) {
-                      console.error('Failed to upload house manual media:', e);
-                      setError(prev => prev || 'Failed to upload media. Please try a smaller file or different format.');
-                    }
-                  }}
-                  onRemoveMedia={(idx) => {
-                    setPendingHouseMediaIndex(idx);
-                    setShowHouseMediaConfirm(true);
-                  }}
-                />
-              </div>
-            </>
+            <HouseManualList
+              items={houseManualItems}
+              onChange={(idx, field, value) => {
+                setHouseManualItems(items => items.map((it, i) => (i === idx ? { ...it, [field]: value } : it)));
+              }}
+              onAdd={() => setHouseManualItems(items => [...items, { name: "", description: "" }])}
+              onDelete={(idx) => setHouseManualItems(items => items.filter((_, i) => i !== idx))}
+              onMediaSelect={async (idx, file) => {
+                if (!file) {
+                  setHouseManualItems(items =>
+                    items.map((it, i) => (i === idx ? { ...it, mediaUrl: undefined, mediaType: undefined } : it))
+                  );
+                  return;
+                }
+                try {
+                  const url = await uploadHouseMedia('guide', file);
+                  if (!url) return;
+                  const mediaType = file.type && file.type.startsWith('video/') ? 'video' : 'image';
+                  setHouseManualItems(items => items.map((it, i) => (i === idx ? { ...it, mediaUrl: url, mediaType } : it)));
+                } catch (e) {
+                  console.error('Failed to upload house manual media:', e);
+                  setError(prev => prev || 'Failed to upload media. Please try a smaller file or different format.');
+                }
+              }}
+              onRemoveMedia={(idx) => {
+                setPendingHouseMediaIndex(idx);
+                setShowHouseMediaConfirm(true);
+              }}
+            />
           )}
           {currentSection === "food" && (
-            <div>
-              <Button
-                type="button"
-                className="mb-4 px-4 py-2 font-semibold shadow hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={isFetchingFood || !formData.location}
-                onClick={async () => {
-                  const items = await fetchFoodRecommendations(formData.location, 5);
-                  setFoodItems(items);
-                }}
-              >
-                {isFetchingFood ? (
-                  <span className="inline-flex items-center gap-2"><Spinner size={16} /> Prepopulate with AI…</span>
-                ) : (
-                  "Prepopulate with AI"
-                )}
-              </Button>
+            <>
               <DynamicItemList
                 items={foodItems}
-                label="Nearby Food"
+                label="Places to eat"
+                description="Restaurants, cafes and bars you'd send a friend to."
+                toolbar={placesToolbar("food")}
+                emptyHint="Search Google for your favorites, or let AI suggest popular spots near your address."
                 onChange={(idx, field, value) => {
                   setFoodItems(items => items.map((item, i) => i === idx ? { ...item, [field]: value } : item));
                 }}
-                onAdd={() => setFoodAddChoiceOpen(true)}
+                onAdd={() => setFoodItems(items => items.length >= LIMITS.maxFoodActivityItems ? items : [...items, { name: '', address: '', description: '' }])}
                 onDelete={idx => setFoodItems(items => items.filter((_, i) => i !== idx))}
-              />
-              <AddItemChoiceModal
-                open={foodAddChoiceOpen}
-                onClose={() => setFoodAddChoiceOpen(false)}
-                title="Add Food"
-                onGoogle={() => setFoodPickerOpen(true)}
-                onManual={() =>
-                  setFoodItems(items =>
-                    items.length >= LIMITS.maxFoodActivityItems ? items : [...items, { name: '', address: '', description: '' }]
-                  )
-                }
               />
               <PlacePickerModal
                 open={foodPickerOpen}
                 onClose={() => setFoodPickerOpen(false)}
                 near={formData.location}
-                title="Add Food"
+                title="Add a place to eat"
                 onSelect={(item) => {
                   setFoodItems(items =>
                     items.length >= LIMITS.maxFoodActivityItems
@@ -749,50 +834,27 @@ export default function EditGuidebookPage() {
                   );
                 }}
               />
-            </div>
+            </>
           )}
           {currentSection === "activities" && (
-            <div>
-              <Button
-                type="button"
-                className="mb-4 px-4 py-2 font-semibold shadow hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={isFetchingActivities || !formData.location}
-                onClick={async () => {
-                  const items = await fetchActivityRecommendations(formData.location, 5);
-                  setActivityItems(items);
-                }}
-              >
-                {isFetchingActivities ? (
-                  <span className="inline-flex items-center gap-2"><Spinner size={16} /> Prepopulate with AI…</span>
-                ) : (
-                  "Prepopulate with AI"
-                )}
-              </Button>
+            <>
               <DynamicItemList
                 items={activityItems}
-                label="Nearby Activities"
+                label="Things to do"
+                description="Walks, sights, markets and experiences nearby."
+                toolbar={placesToolbar("activities")}
+                emptyHint="Search Google for places you love, or let AI suggest highlights near your address."
                 onChange={(idx, field, value) => {
                   setActivityItems(items => items.map((item, i) => i === idx ? { ...item, [field]: value } : item));
                 }}
-                onAdd={() => setActivityAddChoiceOpen(true)}
+                onAdd={() => setActivityItems(items => items.length >= LIMITS.maxFoodActivityItems ? items : [...items, { name: '', address: '', description: '' }])}
                 onDelete={idx => setActivityItems(items => items.filter((_, i) => i !== idx))}
-              />
-              <AddItemChoiceModal
-                open={activityAddChoiceOpen}
-                onClose={() => setActivityAddChoiceOpen(false)}
-                title="Add Activity"
-                onGoogle={() => setActivityPickerOpen(true)}
-                onManual={() =>
-                  setActivityItems(items =>
-                    items.length >= LIMITS.maxFoodActivityItems ? items : [...items, { name: '', address: '', description: '' }]
-                  )
-                }
               />
               <PlacePickerModal
                 open={activityPickerOpen}
                 onClose={() => setActivityPickerOpen(false)}
                 near={formData.location}
-                title="Add Activity"
+                title="Add a thing to do"
                 onSelect={(item) => {
                   setActivityItems(items =>
                     items.length >= LIMITS.maxFoodActivityItems
@@ -801,7 +863,7 @@ export default function EditGuidebookPage() {
                   );
                 }}
               />
-            </div>
+            </>
           )}
           {currentSection === "rules" && (
             <RulesSection
@@ -834,8 +896,7 @@ export default function EditGuidebookPage() {
             />
           )}
 
-          {/* Custom sections */}
-          {currentSection.startsWith("custom_") && (
+          {isCustom && (
             <CustomSection
               sectionKey={currentSection}
               icon={customTabsMeta[currentSection]?.icon || "📝"}
@@ -878,27 +939,37 @@ export default function EditGuidebookPage() {
             />
           )}
 
-          {/* Save button at bottom right */}
-          <div className="flex justify-end mt-8">
-            <Button
-              type="button"
-              data-tutorial="save-button"
-              className="px-10 py-4 font-semibold rounded-lg shadow-lg hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed text-lg md:text-xl"
-              onClick={(e) => handleSubmit(e as unknown as React.FormEvent)}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <span className="inline-flex items-center gap-2">
-                  <Spinner size={18} />
-                  Updating…
-                </span>
-              ) : (
-                "Save Changes"
-              )}
-            </Button>
-          </div>
+          {/* Next section, so hosts can work through the guidebook top to bottom */}
+          {(() => {
+            const order = [...included, ...excluded];
+            const next = order[order.indexOf(currentSection) + 1];
+            if (!next) return null;
+            const nextLabel = SECTION_META[next]?.label || customTabsMeta[next]?.label || "Next section";
+            return (
+              <div className="mt-8 flex justify-end">
+                <button type="button" onClick={() => { goToSection(next); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="inline-flex items-center gap-2 rounded-xl border border-[#E2D9CC] bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:border-primary/50 hover:text-gray-900">
+                  Next: {nextLabel} <ArrowRight className="size-4" />
+                </button>
+              </div>
+            );
+          })()}
         </div>
       </CreateGuidebookLayout>
+
+      {/* Preview on screens without the side column */}
+      {previewOpen && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center overflow-y-auto bg-black/60 p-4 xl:hidden" onClick={() => setPreviewOpen(false)} role="dialog" aria-modal="true" aria-label="Guidebook preview">
+          <div className="my-auto flex w-full max-w-sm flex-col items-center gap-4 rounded-3xl bg-[#F8F5F1] p-5" onClick={(e) => e.stopPropagation()}>
+            <div className="flex w-full items-center justify-between">
+              <p className="font-semibold text-gray-900">Preview</p>
+              <button type="button" onClick={() => setPreviewOpen(false)} className="inline-flex size-8 items-center justify-center rounded-lg text-gray-500 hover:bg-white" aria-label="Close preview">
+                <X className="size-4" />
+              </button>
+            </div>
+            {preview}
+          </div>
+        </div>
+      )}
 
       <ConfirmModal
         open={showHouseMediaConfirm}

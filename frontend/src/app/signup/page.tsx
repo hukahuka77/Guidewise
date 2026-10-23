@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
@@ -13,6 +13,15 @@ export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [oauthLoading, setOauthLoading] = useState(false);
+  // Came from "Save your guidebook": /onboarding moves the guest's guidebook into the new account
+  const [saving, setSaving] = useState(false);
+  // Came from "Build my guidebook" when guests aren't available: /onboarding builds it once they're in
+  const [building, setBuilding] = useState(false);
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    setSaving(query.get("save") === "1");
+    setBuilding(query.get("build") === "1");
+  }, []);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,6 +29,11 @@ export default function SignupPage() {
     setMessage(null);
     if (!supabase) {
       setError("Authentication is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+      return;
+    }
+    // Same rule as the Supabase password policy, said up front instead of as a server error
+    if (!/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/\d/.test(password)) {
+      setError("Your password needs an uppercase letter, a lowercase letter and a number.");
       return;
     }
     try {
@@ -49,7 +63,9 @@ export default function SignupPage() {
         router.push("/onboarding");
         return;
       }
-      setMessage("Check your email to confirm your account. Once confirmed, you can log in.");
+      setMessage(saving
+        ? "Check your email to confirm your account. Open the link in this browser and your guidebook will be saved to it."
+        : "Check your email to confirm your account. Once confirmed, you can log in.");
     } catch (err: unknown) {
       // Network or unexpected errors
       const msg = err instanceof Error ? err.message : 'Signup failed';
@@ -72,8 +88,14 @@ export default function SignupPage() {
       {/* Left: full-height form area */}
       <div className="w-full h-full flex items-center justify-center px-6 md:px-10 lg:px-16 py-10 md:py-0 bg-white">
         <div className="w-full max-w-md text-center">
-          <h1 className="text-3xl font-semibold tracking-tight">Welcome to Guidewise</h1>
-          <p className="mt-2 text-sm text-gray-600">Get started - it&apos;s free! No credit card required.</p>
+          <h1 className="text-3xl font-semibold tracking-tight">{saving ? "Save your guidebook" : building ? "Create your free account" : "Welcome to Guidewise"}</h1>
+          <p className="mt-2 text-sm text-gray-600">
+            {saving
+              ? "Create your free account and your guidebook comes with you. No credit card required."
+              : building
+                ? "Then we’ll build your guidebook straight away. No credit card required."
+                : "Get started - it’s free! No credit card required."}
+          </p>
 
           {error && (
             <div className="mt-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-center">
@@ -109,7 +131,9 @@ export default function SignupPage() {
                   onChange={(e) => { setPassword(e.target.value); if (error) setError(null); }}
                   className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-200 focus:border-pink-300"
                   placeholder="••••••••"
+                  aria-describedby="password-hint"
                 />
+                <p id="password-hint" className="mt-1 text-xs text-gray-500">Use upper and lower case letters and at least one number.</p>
               </div>
               <button
                 type="submit"
@@ -168,7 +192,7 @@ export default function SignupPage() {
 
             <div className="mt-6 text-sm text-gray-600 text-center">
               Already have an account? {" "}
-              <Link href="/login" className="text-pink-700 hover:text-pink-800 underline-offset-2 hover:underline">Log in</Link>
+              <Link href={saving ? "/login?save=1" : building ? "/login?build=1" : "/login"} className="text-pink-700 hover:text-pink-800 underline-offset-2 hover:underline">Log in</Link>
             </div>
         </div>
       </div>

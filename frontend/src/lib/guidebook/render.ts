@@ -4,18 +4,27 @@ import path from "node:path";
 import nunjucks from "nunjucks";
 import { buildGuidebookContext, sanitizeCustomTabsMeta } from "./context";
 import { placePhotoUrl } from "./placePhotos";
+import { addressLine, contactLinks, formatTime12, guideSections } from "./format";
 import { jinjaEscape, jinjaTitle, jinjaUrlencode, withPythonTruthiness } from "./pyCompat";
 import type { GuidebookRow } from "./types";
 
 /** Template keys accepted by the app, mapped to template files. */
 export const TEMPLATE_REGISTRY: Record<string, string> = {
+  template_signature: "templates_url/template_signature.html",
   template_original: "templates_url/template_original.html",
   template_generic: "templates_url/template_generic.html",
   template_lifestyle: "templates_url/template_generic.html",
   template_welcomebook: "templates_url/template_welcomebook.html",
 };
 
-export const DEFAULT_TEMPLATE_KEY = "template_original";
+/** New guidebooks use Signature; existing guidebooks keep the template they were saved with. */
+export const DEFAULT_TEMPLATE_KEY = "template_signature";
+
+/** Styles hosts can pick. Classic stays renderable for guidebooks already on it, but is no longer offered. */
+/** Rows with a missing or unknown key keep rendering as they always have (Classic), so nothing changes for guests. */
+export const FALLBACK_TEMPLATE_KEY = "template_original";
+
+export const SELECTABLE_TEMPLATE_KEYS = ["template_signature", "template_generic", "template_welcomebook"];
 
 const TEMPLATE_DIR = path.join(process.cwd(), "src", "templates", "guidebook");
 
@@ -27,16 +36,21 @@ let env: nunjucks.Environment | null = null;
 
 function getEnv(): nunjucks.Environment {
   if (!env) {
-    env = new nunjucks.Environment(new nunjucks.FileSystemLoader(TEMPLATE_DIR), { autoescape: true });
+    // Re-read templates on every render in development so edits show up without a restart
+    env = new nunjucks.Environment(new nunjucks.FileSystemLoader(TEMPLATE_DIR, { noCache: process.env.NODE_ENV === "development" }), { autoescape: true });
     env.addFilter("place_photo_url", (item: unknown) => placePhotoUrl(item));
     env.addFilter("urlencode", (value: unknown) => jinjaUrlencode(value));
     env.addFilter("title", (value: unknown) => jinjaTitle(value));
+    env.addFilter("time12", (value: unknown) => formatTime12(value));
+    env.addFilter("contact_links", (value: unknown) => contactLinks(value));
+    env.addFilter("address_line", (value: unknown) => addressLine(value));
+    env.addFilter("guide_sections", (value: unknown) => guideSections(value));
   }
   return env;
 }
 
 export function resolveTemplateKey(key: string | null | undefined): string {
-  return key && key in TEMPLATE_REGISTRY ? key : DEFAULT_TEMPLATE_KEY;
+  return key && key in TEMPLATE_REGISTRY ? key : FALLBACK_TEMPLATE_KEY;
 }
 
 /** Hash of the template sources, so edits to templates invalidate cached pages and ETags. */

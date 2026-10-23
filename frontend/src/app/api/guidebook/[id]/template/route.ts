@@ -9,5 +9,5 @@ export function POST(request: Request, { params }: { params: Promise<{ id: strin
     const body = await readJson(request);
     const templateKey = await setTemplateKey(sql, user.id, (await params).id, body.template_key);
     return Response.json({ ok: true, template_key: templateKey });
-  });
+  }, { allowGuest: true });
 }

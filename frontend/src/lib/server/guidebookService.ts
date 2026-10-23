@@ -1,7 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { BASE_TABS } from "@/lib/guidebook/context";
 import { stripSurrogates } from "@/lib/guidebook/pyCompat";
-import { TEMPLATE_REGISTRY } from "@/lib/guidebook/render";
+import { DEFAULT_TEMPLATE_KEY, TEMPLATE_REGISTRY } from "@/lib/guidebook/render";
 import type { GuidebookRow } from "@/lib/guidebook/types";
 import type { Sql } from "./db";
 import { assertCanCreateGuidebook } from "./usage";
@@ -161,7 +161,7 @@ export async function createGuidebook(sql: Sql, userId: string, data: Dict): Pro
   const templateKey =
     typeof data.template_key === "string" && ALLOWED_TEMPLATE_KEYS.includes(data.template_key)
       ? data.template_key
-      : "template_original";
+      : DEFAULT_TEMPLATE_KEY;
 
   const thingsToDo = Array.isArray(data.things_to_do) ? data.things_to_do : [];
   const placesToEat = Array.isArray(data.places_to_eat) ? data.places_to_eat : [];
@@ -380,7 +380,7 @@ export async function updateGuidebook(sql: Sql, userId: string, id: string, inpu
     const hostBio = data.host_bio;
     const hostContact = data.host_contact;
     const hostPhoto = data.host_photo_url;
-    if (hostName || truthy(hostBio) || truthy(hostPhoto)) {
+    if (hostName || truthy(hostBio) || truthy(hostContact) || truthy(hostPhoto)) {
       let hostId: number | null = gb.host_id ?? null;
       if (hostId !== null) {
         const present = await tx`select id from host where id = ${hostId}`;

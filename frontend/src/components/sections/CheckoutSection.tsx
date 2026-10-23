@@ -1,7 +1,6 @@
 import React from "react";
 import EditableItemsSection, { EditableItem } from "./EditableItemsSection";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
+import { Card, CardHeader, Field, inputClass } from "@/components/editor/primitives";
 import { LIMITS } from "@/constants/limits";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
@@ -35,32 +34,28 @@ export default function CheckoutSection({
   onDelete
 }: CheckoutSectionProps) {
   const headerContent = (
-    <>
-      <Label htmlFor="checkOutTime">Checkout Time</Label>
-      <Input
-        id="checkOutTime"
-        type="time"
-        step={300}
-        value={checkoutTime}
-        onChange={e => onTimeChange(e.target.value)}
-        className="mb-2 mt-1 w-40"
-      />
-      <p className="text-sm text-gray-500 mb-4">Select your preferred checkout time (5-minute increments).</p>
-    </>
+    <Card>
+      <CardHeader title="Check-out time" description="Shown at the top of the guidebook and on the departure card." />
+      <Field label="Guests leave by" htmlFor="checkOutTime">
+        <input id="checkOutTime" type="time" step={300} value={checkoutTime} onChange={(e) => onTimeChange(e.target.value)} className={`${inputClass} sm:w-48`} />
+      </Field>
+    </Card>
   );
 
   return (
     <EditableItemsSection
-      title="Checkout Info"
+      title="Before you go"
+      description="Steps guests tick off before leaving."
       items={items}
+      addLabel="Add a step"
       suggestions={CHECKOUT_SUGGESTIONS}
       onChange={onChange}
       onAdd={onAdd}
       onAddWithValues={onAddWithValues}
       onDelete={onDelete}
       maxItems={LIMITS.maxCheckoutItems}
-      namePlaceholder="e.g. Trash & linens"
-      descriptionPlaceholder="What guests should know before checkout..."
+      namePlaceholder="e.g. Take out the trash"
+      descriptionPlaceholder="Details (optional)"
       nameLabel="Title"
       descriptionLabel="Description"
       nameMaxLength={LIMITS.checkoutName}

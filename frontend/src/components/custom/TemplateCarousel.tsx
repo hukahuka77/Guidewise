@@ -2,7 +2,7 @@
 
 export default function TemplateCarousel() {
   const templates = [
-    { src: "/images/URL_Classic_WhiteHouse.png", alt: "Guidewise Classic Template", name: "Guidewise Classic" },
+    { src: "/images/URL_Signature.webp", alt: "Signature Template", name: "Signature" },
     { src: "/images/URL_Lifestyle_WhiteHouse.png", alt: "Lifestyle Template", name: "Lifestyle" },
     { src: "/images/URL_Welcoming_WhiteHouse.png", alt: "Welcoming Template", name: "Welcoming" },
   ];

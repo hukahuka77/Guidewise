@@ -1,22 +1,10 @@
 import React from "react";
-import { DoorOpen } from "lucide-react";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { LIMITS } from "@/constants/limits";
-import QuickSuggestions, { QuickSuggestion } from "@/components/ui/quick-suggestions";
+import { Card, CardHeader, Field, SuggestionChips, inputClass, textareaClass } from "@/components/editor/primitives";
 
-const SAFETY_SUGGESTIONS: QuickSuggestion[] = [
-  {
-    field: "emergencyContact",
-    label: "Emergency Contact",
-    value: "In case of emergency, call: +1 (555) 123-4567"
-  },
-  {
-    field: "fireExtinguisherLocation",
-    label: "Fire Extinguisher",
-    value: "Located under the kitchen sink"
-  },
+const SAFETY_SUGGESTIONS: { field: "emergencyContact" | "fireExtinguisherLocation"; label: string; value: string }[] = [
+  { field: "emergencyContact", label: "Emergency contact", value: "In case of emergency, call: +1 (555) 123-4567" },
+  { field: "fireExtinguisherLocation", label: "Fire extinguisher", value: "Located under the kitchen sink" },
 ];
 
 interface CheckinSectionProps {
@@ -31,96 +19,61 @@ interface CheckinSectionProps {
 }
 
 export default function CheckinSection({ accessInfo, parkingInfo, checkInTime, emergencyContact, fireExtinguisherLocation, wifiNetwork, wifiPassword, onChange }: CheckinSectionProps) {
+  const safety = { emergencyContact, fireExtinguisherLocation };
   return (
-    <section className="mb-8">
-      <div className="flex items-center gap-2 mb-2">
-        <DoorOpen style={{ color: 'oklch(0.6923 0.22 21.05)' }} />
-        <h2 className="text-xl font-semibold">Check-in Info</h2>
-      </div>
-      <Label htmlFor="checkInTime">Check-in Time</Label>
-      <Input
-        id="checkInTime"
-        type="time"
-        value={checkInTime}
-        onChange={e => onChange("checkInTime", e.target.value)}
-        className="w-40 mb-2 mt-1"
-      />
-      <Label htmlFor="accessInfo">Access Info</Label>
-      <Textarea id="accessInfo" maxLength={LIMITS.accessInfo} value={accessInfo} onChange={e => onChange("access_info", e.target.value)} className="mb-2 mt-1" placeholder="Door code, lockbox location, entry instructions, or concierge details." />
-      <Label htmlFor="parkingInfo">Parking Info</Label>
-      <Textarea id="parkingInfo" maxLength={LIMITS.parkingInfo} value={parkingInfo} onChange={e => onChange("parkingInfo", e.target.value)} className="mb-2 mt-1" placeholder="Where to park, permit requirements, garage/spot number, and any restrictions." />
-
-      {/* Wi-Fi Info */}
-      <div className="mt-6">
-        <h3 className="font-semibold mb-2">Wi-Fi</h3>
-        <div className="grid grid-cols-1 gap-3">
-          <div>
-            <Label htmlFor="wifiNetwork">Network Name</Label>
-            <Input
-              id="wifiNetwork"
-              type="text"
-              maxLength={LIMITS.wifiNetwork}
-              value={wifiNetwork}
-              onChange={(e) => onChange("wifiNetwork", e.target.value)}
-              className="mt-1 w-full"
-              placeholder="Network name (SSID)"
-            />
-          </div>
-          <div>
-            <Label htmlFor="wifiPassword">Password</Label>
-            <Input
-              id="wifiPassword"
-              type="text"
-              maxLength={LIMITS.wifiPassword}
-              value={wifiPassword}
-              onChange={(e) => onChange("wifiPassword", e.target.value)}
-              className="mt-1 w-full"
-              placeholder="Wi-Fi password"
-            />
-          </div>
+    <div className="space-y-5">
+      <Card>
+        <CardHeader title="Arrival" description="When guests can arrive and how they get in." />
+        <div className="space-y-5">
+          <Field label="Check-in time" htmlFor="checkInTime">
+            <input id="checkInTime" type="time" value={checkInTime} onChange={(e) => onChange("checkInTime", e.target.value)} className={`${inputClass} sm:w-48`} />
+          </Field>
+          <Field label="Getting in" htmlFor="accessInfo" hint="Shown highlighted, so guests can find it quickly at the door." count={[accessInfo.length, LIMITS.accessInfo]}>
+            <textarea id="accessInfo" maxLength={LIMITS.accessInfo} value={accessInfo} onChange={(e) => onChange("access_info", e.target.value)} className={textareaClass} placeholder="Door code, lockbox location or entry steps." />
+          </Field>
+          <Field label="Parking" htmlFor="parkingInfo" count={[parkingInfo.length, LIMITS.parkingInfo]}>
+            <textarea id="parkingInfo" maxLength={LIMITS.parkingInfo} value={parkingInfo} onChange={(e) => onChange("parkingInfo", e.target.value)} className={textareaClass} rows={3} placeholder="Where to park, permits, spot numbers or restrictions." />
+          </Field>
         </div>
-      </div>
+      </Card>
 
-      {/* Safety Info */}
-      <div className="mt-6">
-        <h3 className="font-semibold mb-2">Safety Info</h3>
+      <Card>
+        <CardHeader title="Wi-Fi" description="Shown at the top of the guidebook with a one-tap copy button." />
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Field label="Network name" htmlFor="wifiNetwork">
+            <input id="wifiNetwork" type="text" maxLength={LIMITS.wifiNetwork} value={wifiNetwork} onChange={(e) => onChange("wifiNetwork", e.target.value)} className={inputClass} placeholder="e.g. WillowCottage" />
+          </Field>
+          <Field label="Password" htmlFor="wifiPassword">
+            <input id="wifiPassword" type="text" maxLength={LIMITS.wifiPassword} value={wifiPassword} onChange={(e) => onChange("wifiPassword", e.target.value)} className={`${inputClass} font-mono`} placeholder="Wi-Fi password" />
+          </Field>
+        </div>
+      </Card>
 
-        {/* Quick-add suggestions */}
-        <QuickSuggestions
-          suggestions={SAFETY_SUGGESTIONS}
-          selectedValues={{ emergencyContact, fireExtinguisherLocation }}
-          onChange={onChange}
+      <Card>
+        <CardHeader title="Safety" description="Emergency details guests should never have to search for." />
+        <SuggestionChips
+          items={SAFETY_SUGGESTIONS.map((s) => s.label)}
+          isActive={(label) => Boolean(safety[SAFETY_SUGGESTIONS.find((s) => s.label === label)!.field])}
+          onToggle={(label) => {
+            const s = SAFETY_SUGGESTIONS.find((x) => x.label === label)!;
+            onChange(s.field, safety[s.field] ? "" : s.value);
+          }}
         />
-
-        <div className="grid grid-cols-1 gap-3">
-          {emergencyContact && (
-            <div>
-              <Label htmlFor="emergencyContact">Emergency Contact</Label>
-              <Input
-                id="emergencyContact"
-                type="text"
-                value={emergencyContact}
-                onChange={(e) => onChange("emergencyContact", e.target.value)}
-                className="mt-1 w-full"
-                placeholder="Name and phone (e.g., Host +1 555-555-5555)"
-              />
-            </div>
-          )}
-          {fireExtinguisherLocation && (
-            <div>
-              <Label htmlFor="fireExtinguisherLocation">Fire Extinguisher Location</Label>
-              <Input
-                id="fireExtinguisherLocation"
-                type="text"
-                value={fireExtinguisherLocation}
-                onChange={(e) => onChange("fireExtinguisherLocation", e.target.value)}
-                className="mt-1 w-full"
-                placeholder="e.g., Under kitchen sink"
-              />
-            </div>
-          )}
-        </div>
-      </div>
-    </section>
+        {(emergencyContact || fireExtinguisherLocation) && (
+          <div className="grid gap-5 sm:grid-cols-2">
+            {emergencyContact && (
+              <Field label="Emergency contact" htmlFor="emergencyContact">
+                <input id="emergencyContact" type="text" value={emergencyContact} onChange={(e) => onChange("emergencyContact", e.target.value)} className={inputClass} placeholder="Name and phone number" />
+              </Field>
+            )}
+            {fireExtinguisherLocation && (
+              <Field label="Fire extinguisher" htmlFor="fireExtinguisherLocation">
+                <input id="fireExtinguisherLocation" type="text" value={fireExtinguisherLocation} onChange={(e) => onChange("fireExtinguisherLocation", e.target.value)} className={inputClass} placeholder="e.g. Under the kitchen sink" />
+              </Field>
+            )}
+          </div>
+        )}
+      </Card>
+    </div>
   );
 }

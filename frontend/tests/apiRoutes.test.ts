@@ -6,8 +6,9 @@ vi.mock("@/lib/server/auth", () => ({
   isAuthConfigured: () => true,
   getAuthedUser: async (request: Request) => {
     const header = request.headers.get("authorization");
-    if (header === "Bearer owner") return { id: "11111111-1111-4111-8111-aaaaaaaaaaaa", email: "owner@example.com" };
-    if (header === "Bearer other") return { id: "22222222-2222-4222-8222-bbbbbbbbbbbb", email: "other@example.com" };
+    if (header === "Bearer owner") return { id: "11111111-1111-4111-8111-aaaaaaaaaaaa", email: "owner@example.com", isGuest: false };
+    if (header === "Bearer other") return { id: "22222222-2222-4222-8222-bbbbbbbbbbbb", email: "other@example.com", isGuest: false };
+    if (header === "Bearer guest") return { id: "33333333-3333-4333-8333-cccccccccccc", email: null, isGuest: true };
     return null;
   },
 }));
@@ -19,7 +20,11 @@ import { GET as previewHtml } from "../src/app/api/guidebooks/[id]/html/route";
 import { POST as template } from "../src/app/api/guidebook/[id]/template/route";
 import { GET as hosts } from "../src/app/api/hosts/route";
 import { GET as billingSummaryRoute } from "../src/app/api/billing/summary/route";
+import { POST as guestTicket } from "../src/app/api/guest/ticket/route";
+import { POST as guestClaim } from "../src/app/api/guest/claim/route";
 import robots from "../src/app/robots";
+import { serveGuidebook } from "../src/lib/server/liveGuidebook";
+import { readClaimTicket } from "../src/lib/server/guestAccounts";
 import { setSqlForTests } from "../src/lib/server/db";
 import { guidebookResponse } from "../src/lib/server/guidebookResponse";
 import type { GuidebookRow } from "../src/lib/guidebook/types";
@@ -39,7 +44,8 @@ beforeEach(async () => {
 afterEach(() => setSqlForTests(db.sql));
 
 const url = (path: string) => `http://localhost${path}`;
-const req = (method: string, path: string, who: "owner" | "other" | null = "owner", body?: unknown) =>
+type Who = "owner" | "other" | "guest" | null;
+const req = (method: string, path: string, who: Who = "owner", body?: unknown) =>
   new Request(url(path), {
     method,
     headers: { ...(who ? { Authorization: `Bearer ${who}` } : {}), "Content-Type": "application/json" },
@@ -49,7 +55,7 @@ const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- loose JSON bodies in assertions
 const json = async (r: Response) => r.json() as Promise<Record<string, any>>;
 
-async function createVia(body: Record<string, unknown>, who: "owner" | "other" = "owner") {
+async function createVia(body: Record<string, unknown>, who: Exclude<Who, null> = "owner") {
   const res = await generate(req("POST", "/api/generate", who, body));
   return { res, body: await json(res) };
 }
@@ -91,7 +97,7 @@ describe("create, read, update, delete over HTTP", () => {
   it("POST /api/generate: 201 with ids and the public url on the free plan", async () => {
     const { res, body } = await createVia({ property_name: "Cozy Cabin", host_name: "Andrew" });
     expect(res.status).toBe(201);
-    expect(body).toMatchObject({ ok: true, template_key: "template_original" });
+    expect(body).toMatchObject({ ok: true, template_key: "template_signature" });
     expect(body.guidebook_id).toMatch(/^[0-9a-f-]{36}$/);
     expect(res.headers.get("X-Guidebook-Url")).toMatch(/^\/g\/cozy-cabin-[0-9a-f]{6}$/);
     expect(res.headers.get("X-Guidebook-Preview")).toBeNull();
@@ -283,5 +289,96 @@ describe("error handling", () => {
     } finally {
       spy.mockRestore();
     }
+  });
+});
+
+describe("guests: build first, create an account to save", () => {
+  const GUEST = "33333333-3333-4333-8333-cccccccccccc";
+  const load = async (id: string): Promise<GuidebookRow> => {
+    const [row] = await db.sql`
+      select g.*, to_jsonb(p) as property, to_jsonb(h) as host from guidebook g
+        left join property p on p.id = g.property_id left join host h on h.id = g.host_id where g.id = ${id}`;
+    const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : v);
+    return { ...row, created_time: iso(row.created_time), last_modified_time: iso(row.last_modified_time) } as unknown as GuidebookRow;
+  };
+  const previousKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  beforeEach(async () => {
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-key";
+    await db.sql`insert into auth.users (id, is_anonymous) values (${GUEST}::uuid, true), (${OWNER}::uuid, false)`;
+  });
+  afterAll(() => {
+    if (previousKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    else process.env.SUPABASE_SERVICE_ROLE_KEY = previousKey;
+  });
+
+  it("a guest can create, preview, edit and restyle a guidebook, but nothing that needs an account", async () => {
+    const { res, body } = await createVia({ property_name: "Guest House", host_name: "Sam" }, "guest");
+    expect(res.status).toBe(201);
+    const id = body.guidebook_id as string;
+    expect((await getOne(req("GET", `/api/guidebooks/${id}`, "guest"), ctx(id))).status).toBe(200);
+    expect((await PUT(req("PUT", `/api/guidebooks/${id}`, "guest", { welcome_message: "Hello from GuestNet" }), ctx(id))).status).toBe(200);
+    expect((await template(req("POST", `/api/guidebook/${id}/template`, "guest", { template_key: "template_generic" }), ctx(id))).status).toBe(200);
+    const preview = await previewHtml(req("GET", `/api/guidebooks/${id}/html`, "guest"), ctx(id));
+    expect(await preview.text()).toContain("GuestNet");
+
+    for (const blocked of [await hosts(req("GET", "/api/hosts", "guest")), await billingSummaryRoute(req("GET", "/api/billing/summary", "guest"))]) {
+      expect(blocked.status).toBe(403);
+      expect(await json(blocked)).toMatchObject({ code: "account_required" });
+    }
+  });
+
+  it("a guest can make a few guidebooks before an account is needed", async () => {
+    for (let i = 0; i < 3; i++) expect((await createVia({ property_name: `Try ${i}` }, "guest")).res.status).toBe(201);
+    const { res, body } = await createVia({ property_name: "One more" }, "guest");
+    expect(res.status).toBe(403);
+    expect(body).toMatchObject({ code: "account_required" });
+  });
+
+  it("a guest's guidebook isn't shown to guests until it's claimed by an account", async () => {
+    const { body } = await createVia({ property_name: "Unsaved House", host_name: "Sam" }, "guest");
+    const id = body.guidebook_id as string;
+    const hidden = await serveGuidebook(new Request(url("/g/x")), await load(id));
+    expect(hidden.status).toBe(404);
+    expect(await hidden.text()).toContain("isn&#39;t shared yet");
+
+    const ticketRes = await guestTicket(req("POST", "/api/guest/ticket", "guest"));
+    const { ticket } = await json(ticketRes);
+    expect(readClaimTicket(ticket)).toBe(GUEST);
+    expect((await guestTicket(req("POST", "/api/guest/ticket", "owner"))).status).toBe(400);
+    expect((await guestClaim(req("POST", "/api/guest/claim", "guest", { ticket }))).status).toBe(403); // must be signed in
+
+    const claimed = await guestClaim(req("POST", "/api/guest/claim", "owner", { ticket }));
+    expect(await json(claimed)).toEqual({ guidebook_ids: [id] });
+    const [row] = await db.sql`select g.user_id, h.user_id as host_user, p.user_id as property_user from guidebook g
+      join host h on h.id = g.host_id join property p on p.id = g.property_id where g.id = ${id}`;
+    expect(row).toEqual({ user_id: OWNER, host_user: OWNER, property_user: OWNER });
+    expect((await getOne(req("GET", `/api/guidebooks/${id}`, "owner"), ctx(id))).status).toBe(200);
+    expect((await serveGuidebook(new Request(url("/g/x")), await load(id))).status).toBe(200);
+  });
+
+  it("claiming lists the guest's newest guidebook first, so that's the one that opens", async () => {
+    const { body: first } = await createVia({ property_name: "First Try" }, "guest");
+    await db.sql`update guidebook set created_time = now() - interval '1 hour' where id = ${first.guidebook_id}`;
+    const { body: second } = await createVia({ property_name: "Second Try" }, "guest");
+    const { ticket } = await json(await guestTicket(req("POST", "/api/guest/ticket", "guest")));
+    expect(await json(await guestClaim(req("POST", "/api/guest/claim", "owner", { ticket })))).toEqual({
+      guidebook_ids: [second.guidebook_id, first.guidebook_id],
+    });
+  });
+
+  it("claim tickets can't be forged, reused for someone else's guidebooks, or used after they expire", async () => {
+    await createVia({ property_name: "Mine" }, "other");
+    const { ticket } = await json(await guestTicket(req("POST", "/api/guest/ticket", "guest")));
+    const [payload, mac] = (ticket as string).split(".");
+    const forged = `${Buffer.from(JSON.stringify({ g: "22222222-2222-4222-8222-bbbbbbbbbbbb", exp: Date.now() + 1e6 })).toString("base64url")}.${mac}`;
+    expect(readClaimTicket(forged)).toBeNull();
+    expect(readClaimTicket(`${payload}.x${mac.slice(1)}`)).toBeNull();
+    expect(readClaimTicket(ticket, Date.now() + 31 * 24 * 60 * 60 * 1000)).toBeNull();
+    expect((await guestClaim(req("POST", "/api/guest/claim", "owner", { ticket: forged }))).status).toBe(400);
+    // A ticket only moves guidebooks while their owner is still a guest
+    await db.sql`update auth.users set is_anonymous = false where id = ${GUEST}::uuid`;
+    expect(await json(await guestClaim(req("POST", "/api/guest/claim", "owner", { ticket })))).toEqual({ guidebook_ids: [] });
+    const [mine] = await db.sql`select user_id from guidebook`;
+    expect(mine.user_id).toBe("22222222-2222-4222-8222-bbbbbbbbbbbb");
   });
 });

@@ -1,8 +1,6 @@
-import React, { useEffect, useRef, useState } from "react";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Plus, Pencil, Check, X, Trash2 } from "lucide-react";
+import React, { useEffect, useRef } from "react";
+import { Trash2 } from "lucide-react";
+import { AddRowButton, Card, CardHeader, IconButton, SuggestionChips, inputClass, compactTextareaClass } from "@/components/editor/primitives";
 
 export interface EditableItem {
   name: string;
@@ -17,11 +15,13 @@ interface Suggestion {
 
 interface EditableItemsSectionProps {
   title: string;
+  /** Short helper line under the card title. */
+  description?: string;
   items: EditableItem[];
   suggestions?: Suggestion[];
   onChange: (index: number, field: keyof EditableItem, value: string | boolean) => void;
   onAdd: () => void;
-  onAddWithValues?: (item: Omit<EditableItem, 'checked'>) => void;
+  onAddWithValues?: (item: Omit<EditableItem, "checked">) => void;
   onDelete?: (index: number) => void;
   maxItems: number;
   namePlaceholder?: string;
@@ -30,14 +30,18 @@ interface EditableItemsSectionProps {
   descriptionLabel?: string;
   nameMaxLength?: number;
   descriptionMaxLength?: number;
+  /** Kept for compatibility; items are always edited inline now. */
   showCheckboxes?: boolean;
   autoEditIndex?: number | null;
   onAutoEditHandled?: () => void;
   headerContent?: React.ReactNode;
+  addLabel?: string;
 }
 
+/** A list of name + description rows (house rules, checkout steps), edited inline. */
 export default function EditableItemsSection({
   title,
+  description,
   items,
   suggestions = [],
   onChange,
@@ -45,257 +49,105 @@ export default function EditableItemsSection({
   onAddWithValues,
   onDelete,
   maxItems,
-  namePlaceholder = "Item name",
-  descriptionPlaceholder = "Item description",
-  nameLabel = "Name",
-  descriptionLabel = "Description",
+  namePlaceholder = "Title",
+  descriptionPlaceholder = "Details (optional)",
+  nameLabel = "Title",
+  descriptionLabel = "Details",
   nameMaxLength = 100,
   descriptionMaxLength = 500,
-  showCheckboxes = false,
-  autoEditIndex,
-  onAutoEditHandled,
   headerContent,
+  addLabel = "Add another",
 }: EditableItemsSectionProps) {
-  const [editing, setEditing] = useState<Set<number>>(new Set());
-  const prevLen = useRef<number>(items.length);
+  const visible = [...items.keys()].filter((i) => items[i].checked !== false);
+  const canAdd = items.length < maxItems;
 
-  // When a new item is added, automatically open it in edit mode
+  // Focus the title of a row the host just added
+  const prevLen = useRef(items.length);
+  const rowRefs = useRef<Record<number, HTMLInputElement | null>>({});
   useEffect(() => {
     if (items.length > prevLen.current) {
-      const newIdx = items.length - 1;
-      setEditing(prev => new Set(prev).add(newIdx));
-    } else if (items.length < prevLen.current) {
-      setEditing(prev => new Set(Array.from(prev).filter(i => i < items.length)));
+      const last = rowRefs.current[items.length - 1];
+      if (last && !last.value) last.focus();
     }
     prevLen.current = items.length;
   }, [items.length]);
 
-  // Parent-driven auto-edit trigger
-  useEffect(() => {
-    if (autoEditIndex != null && autoEditIndex >= 0 && autoEditIndex < items.length) {
-      setEditing(prev => new Set(prev).add(autoEditIndex));
-      onAutoEditHandled?.();
+  const findIndex = (name: string) => items.findIndex((it) => typeof it.name === "string" && it.name.toLowerCase() === name.toLowerCase());
+
+  const toggleSuggestion = (name: string) => {
+    const existing = findIndex(name);
+    if (existing >= 0) {
+      onDelete?.(existing);
+      return;
     }
-  }, [autoEditIndex, items.length, onAutoEditHandled]);
-
-  const startEdit = (idx: number) => setEditing(prev => new Set(prev).add(idx));
-  const finishEdit = (idx: number) => setEditing(prev => { const next = new Set(prev); next.delete(idx); return next; });
-  const cancelEdit = (idx: number) => finishEdit(idx);
-  const canAdd = items.length < maxItems;
-
-  // Check if a suggestion is already added
-  const isSuggestionActive = (suggestionName: string) => {
-    const target = suggestionName.toLowerCase();
-    return items.some(item => typeof item.name === 'string' && item.name.toLowerCase() === target);
-  };
-
-  // Add or remove a suggestion
-  const handleAddSuggestion = (suggestion: Suggestion) => {
-    const target = suggestion.name.toLowerCase();
-    const existingIndex = items.findIndex(item => typeof item.name === 'string' && item.name.toLowerCase() === target);
-    if (existingIndex >= 0) {
-      onDelete?.(existingIndex);
-    } else {
-      if (!canAdd) return;
-      if (onAddWithValues) {
-        onAddWithValues(suggestion);
-      } else {
-        onAdd();
-        setTimeout(() => {
-          const newIndex = items.length;
-          onChange(newIndex, "name", suggestion.name);
-          onChange(newIndex, "description", suggestion.description);
-          onChange(newIndex, "checked", true);
-        }, 10);
-      }
+    if (!canAdd) return;
+    const s = suggestions.find((x) => x.name === name);
+    if (!s) return;
+    if (onAddWithValues) onAddWithValues(s);
+    else {
+      const newIndex = items.length;
+      onAdd();
+      setTimeout(() => {
+        onChange(newIndex, "name", s.name);
+        onChange(newIndex, "description", s.description);
+        onChange(newIndex, "checked", true);
+      }, 10);
     }
-  };
-
-  const renderItemCard = (idx: number, isInactive: boolean = false) => {
-    const item = items[idx];
-    const isEditing = editing.has(idx);
-
-    return (
-      <div
-        key={idx}
-        className={`p-4 rounded-lg bg-white/80 shadow flex flex-col gap-3 relative ${isInactive ? 'opacity-60 grayscale' : ''}`}
-      >
-        <div className="absolute top-2 right-2 flex items-center gap-1">
-          {onDelete && (
-            <button
-              type="button"
-              aria-label="Delete item"
-              className="p-1 rounded hover:bg-red-100 transition"
-              onClick={() => onDelete(idx)}
-            >
-              <Trash2 style={{ color: '#ef4444' }} size={18} />
-            </button>
-          )}
-          {!isEditing ? (
-            <button
-              type="button"
-              aria-label="Edit item"
-              className="p-1 rounded hover:bg-[oklch(0.6923_0.22_21.05)]/10 transition"
-              onClick={() => startEdit(idx)}
-            >
-              <Pencil style={{ color: 'oklch(0.6923 0.22 21.05)' }} size={18} />
-            </button>
-          ) : (
-            <>
-              <button
-                type="button"
-                aria-label="Save item"
-                className="p-1 rounded hover:bg-[oklch(0.6923_0.22_21.05)]/10 transition"
-                onClick={() => finishEdit(idx)}
-              >
-                <Check style={{ color: 'oklch(0.6923 0.22 21.05)' }} size={18} />
-              </button>
-              <button
-                type="button"
-                aria-label="Cancel edit"
-                className="p-1 rounded hover:bg-[oklch(0.6923_0.22_21.05)]/10 transition"
-                onClick={() => cancelEdit(idx)}
-              >
-                <X style={{ color: 'oklch(0.6923 0.22 21.05)' }} size={18} />
-              </button>
-            </>
-          )}
-        </div>
-
-        {showCheckboxes ? (
-          <label className="flex items-start gap-3 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={item.checked}
-              onChange={e => onChange(idx, 'checked', e.target.checked)}
-              className="mt-1 accent-[oklch(0.6923_0.22_21.05)]"
-            />
-            {!isEditing ? (
-              <span>
-                <span className="font-medium">{item.name || 'Untitled'}</span>
-                <br />
-                <span className="text-sm text-gray-600">{item.description || 'No description'}</span>
-              </span>
-            ) : (
-              <div className="flex-1 flex flex-col gap-2">
-                <div>
-                  <Label>{nameLabel}</Label>
-                  <Input
-                    autoFocus
-                    maxLength={nameMaxLength}
-                    value={item.name}
-                    onChange={e => onChange(idx, 'name', e.target.value)}
-                    placeholder={namePlaceholder}
-                  />
-                </div>
-                <div>
-                  <Label>{descriptionLabel}</Label>
-                  <Textarea
-                    maxLength={descriptionMaxLength}
-                    value={item.description}
-                    onChange={e => onChange(idx, 'description', e.target.value)}
-                    placeholder={descriptionPlaceholder}
-                  />
-                </div>
-              </div>
-            )}
-          </label>
-        ) : (
-          <div className="flex-1">
-            {!isEditing ? (
-              <div>
-                <div className="font-medium">{item.name || 'Untitled'}</div>
-                <div className="text-sm text-gray-600 mt-1">{item.description || 'No description'}</div>
-              </div>
-            ) : (
-              <div className="flex-1 flex flex-col gap-2">
-                <div>
-                  <Label>{nameLabel}</Label>
-                  <Input
-                    autoFocus
-                    maxLength={nameMaxLength}
-                    value={item.name}
-                    onChange={e => onChange(idx, 'name', e.target.value)}
-                    placeholder={namePlaceholder}
-                  />
-                </div>
-                <div>
-                  <Label>{descriptionLabel}</Label>
-                  <Textarea
-                    maxLength={descriptionMaxLength}
-                    value={item.description}
-                    onChange={e => onChange(idx, 'description', e.target.value)}
-                    placeholder={descriptionPlaceholder}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    );
   };
 
   return (
-    <section className="mb-8">
-      <div className="flex items-center gap-2 mb-2">
-        <h2 className="text-xl font-semibold text-center">{title}</h2>
-      </div>
-
+    <div className="space-y-5">
       {headerContent}
+      <Card>
+        <CardHeader
+          title={title}
+          description={description}
+          action={<span className="rounded-full bg-[#F5EFE7] px-2.5 py-1 text-xs font-medium text-gray-600">{visible.length} of {maxItems}</span>}
+        />
+        <SuggestionChips items={suggestions.map((s) => s.name)} isActive={(n) => findIndex(n) >= 0} onToggle={toggleSuggestion} />
 
-      {/* Quick-add suggestions */}
-      {suggestions.length > 0 && (
-        <div className="mb-6 flex flex-col items-center">
-          <div className="flex flex-wrap justify-center gap-2 mb-2">
-            {suggestions.map((suggestion) => {
-              const isActive = isSuggestionActive(suggestion.name);
+        {visible.length > 0 && (
+          <ol className="mb-4 space-y-3">
+            {visible.map((idx, position) => {
+              const item = items[idx];
               return (
-                <button
-                  key={suggestion.name}
-                  type="button"
-                  onClick={() => handleAddSuggestion(suggestion)}
-                  className={`px-3 py-1.5 text-sm rounded-md border transition-colors ${
-                    isActive
-                      ? "bg-[oklch(0.6923_0.22_21.05)] text-white border-[oklch(0.6923_0.22_21.05)] hover:opacity-90"
-                      : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-[oklch(0.6923_0.22_21.05)]"
-                  }`}
-                >
-                  {isActive ? "✓ " : "+ "}{suggestion.name}
-                </button>
+                <li key={idx} className="group flex gap-3 rounded-xl border border-[#ECE5DB] bg-[#FDFBF8] p-3 sm:p-4">
+                  <span className="mt-2 flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">{position + 1}</span>
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <input
+                      ref={(el) => { rowRefs.current[idx] = el; }}
+                      aria-label={nameLabel}
+                      maxLength={nameMaxLength}
+                      value={item.name}
+                      onChange={(e) => onChange(idx, "name", e.target.value)}
+                      placeholder={namePlaceholder}
+                      className={`${inputClass} font-medium`}
+                    />
+                    <textarea
+                      aria-label={descriptionLabel}
+                      maxLength={descriptionMaxLength}
+                      value={item.description}
+                      onChange={(e) => onChange(idx, "description", e.target.value)}
+                      placeholder={descriptionPlaceholder}
+                      rows={2}
+                      className={compactTextareaClass}
+                    />
+                  </div>
+                  {onDelete && (
+                    <IconButton label="Remove" tone="danger" onClick={() => onDelete(idx)}>
+                      <Trash2 className="size-4" />
+                    </IconButton>
+                  )}
+                </li>
               );
             })}
-          </div>
-          <p className="text-sm text-gray-400 italic">Quick add suggestions</p>
-        </div>
-      )}
+          </ol>
+        )}
 
-      {/* Active items */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {[...items.keys()].filter(i => items[i].checked).map((idx) => renderItemCard(idx))}
-      </div>
-
-      <button
-        type="button"
-        onClick={() => {
-          if (!canAdd) return;
-          const newIdx = items.length;
-          onAdd();
-          setEditing(prev => new Set(prev).add(newIdx));
-        }}
-        disabled={!canAdd}
-        className={`flex items-center gap-2 px-4 py-2 border-2 border-dashed border-[oklch(0.6923_0.22_21.05)]/60 rounded-lg hover:bg-[oklch(0.6923_0.22_21.05)]/10 transition ${!canAdd ? 'opacity-50 cursor-not-allowed' : ''}`}
-      >
-        <Plus style={{ color: 'oklch(0.6923 0.22 21.05)' }} />
-        <span>Add another</span>
-      </button>
-
-      {/* Inactive items */}
-      {showCheckboxes && (
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {[...items.keys()].filter(i => !items[i].checked).map((idx) => renderItemCard(idx, true))}
-        </div>
-      )}
-    </section>
+        <AddRowButton onClick={() => canAdd && onAdd()} disabled={!canAdd}>
+          {canAdd ? addLabel : `Limit of ${maxItems} reached`}
+        </AddRowButton>
+      </Card>
+    </div>
   );
 }

@@ -1,0 +1,156 @@
+{
+  "id": "11111111-1111-4111-8111-000000000001",
+  "template_key": "template_signature",
+  "included_tabs": [
+    "welcome",
+    "checkin",
+    "property",
+    "food",
+    "activities",
+    "rules",
+    "checkout",
+    "custom_pets",
+    "custom_local_tips"
+  ],
+  "check_in_time": "15:00",
+  "check_out_time": "11:00",
+  "access_info": "Lockbox on the left of the door. Code is sent the morning of arrival.",
+  "parking_info": "Two spots in the driveway.\nStreet parking is free after 6pm.",
+  "welcome_info": "Welcome to our home! We hope you love it.\nSecond paragraph with <b>tags</b> & \"quotes\" and 'apostrophes'.",
+  "cover_image_url": "https://example.supabase.co/storage/v1/object/public/my_images/cover.jpg",
+  "safety_info": {
+    "emergency_contact": "Call 911. Host: 555-0100",
+    "fire_extinguisher_location": "Under the kitchen sink"
+  },
+  "things_to_do": [
+    {
+      "name": "Zilker Park",
+      "description": "Big park",
+      "address": "12 Main St, Austin, TX",
+      "image_url": "CmRaAAAAtemporaryRef123",
+      "place_id": "ChIJplace1",
+      "driving_minutes": 7
+    },
+    {
+      "name": "Hosted Photo Place",
+      "description": "Great coffee & pastries",
+      "address": "12 Main St, Austin, TX",
+      "image_url": "https://example.supabase.co/storage/v1/object/public/food-and-activities/a b.jpg",
+      "place_id": "",
+      "driving_minutes": 7
+    },
+    {
+      "name": "Legacy Google URL",
+      "description": "Great coffee & pastries",
+      "address": "12 Main St, Austin, TX",
+      "image_url": "https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=LEGACYREF%2Fabc&key=SECRET",
+      "place_id": "",
+      "driving_minutes": 7
+    },
+    {
+      "name": "No Photo",
+      "description": "Great coffee & pastries",
+      "address": "",
+      "image_url": "",
+      "place_id": "",
+      "driving_minutes": 7
+    }
+  ],
+  "places_to_eat": [
+    {
+      "name": "Franklin BBQ",
+      "description": "Great coffee & pastries",
+      "address": "12 Main St, Austin, TX",
+      "image_url": "RAWREF+with/chars=&",
+      "place_id": "ChIJbbq",
+      "driving_minutes": 7
+    },
+    {
+      "name": "Taco Spot (best!)",
+      "description": "Great coffee & pastries",
+      "address": "55 Elm St & 3rd, Austin, TX 78701",
+      "image_url": "https://example.com/p.jpg",
+      "place_id": "",
+      "driving_minutes": 7
+    }
+  ],
+  "checkout_info": [
+    {
+      "name": "Trash",
+      "description": "Take the bins to the curb"
+    },
+    {
+      "name": "Keys",
+      "description": "Leave on the counter"
+    }
+  ],
+  "house_manual": [
+    {
+      "name": "Thermostat",
+      "description": "Keep between 68 and 76",
+      "media_url": "",
+      "media_type": null
+    },
+    {
+      "name": "TV",
+      "description": "Use the black remote",
+      "media_url": "https://example.com/tv.mp4",
+      "media_type": "video"
+    }
+  ],
+  "rules_json": [
+    {
+      "name": "No smoking",
+      "description": "Anywhere on the property"
+    },
+    {
+      "name": "Quiet hours",
+      "description": "10pm - 8am"
+    }
+  ],
+  "wifi_json": {
+    "network": "HomeNet",
+    "password": "p@ss word!"
+  },
+  "custom_sections": {
+    "custom_pets": [
+      "Dogs welcome",
+      "Please clean up after them"
+    ],
+    "custom_local_tips": [
+      {
+        "name": "Farmers market",
+        "description": "Saturdays 9am"
+      },
+      "A plain string tip"
+    ]
+  },
+  "custom_tabs_meta": {
+    "custom_pets": {
+      "label": "Pets 🐶",
+      "icon": "🐾"
+    },
+    "custom_local_tips": {
+      "label": "",
+      "icon": ""
+    }
+  },
+  "created_time": "2026-01-01T00:00:00+00:00",
+  "last_modified_time": "2026-02-03T04:05:06.123456+00:00",
+  "user_id": "user-1",
+  "public_slug": "cozy-cabin-abc123-sig",
+  "property": {
+    "id": 1,
+    "name": "Cozy Cabin <Deluxe>",
+    "address_street": "123 Pine Rd",
+    "address_city_state": "Austin, TX",
+    "address_zip": "78701"
+  },
+  "host": {
+    "id": 1,
+    "name": "Andrew",
+    "bio": "Host since 2019.\nLove hosting!",
+    "contact": "andrew@example.com",
+    "host_image_url": "https://example.supabase.co/storage/v1/object/public/my_images/host.jpg"
+  }
+}

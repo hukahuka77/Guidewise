@@ -31,3 +31,7 @@ create index idx_guidebook_view_daily_user_day on guidebook_view_daily (user_id,
 create table view_dedupe (key text primary key, created_at timestamptz not null default now());
 create table ai_usage_monthly (user_id text not null, month date not null, used integer not null default 0, primary key (user_id, month));
 create table guidebook_pdf_plan (guidebook_id text primary key, content_hash text not null, version integer not null, plan jsonb not null, created_at timestamptz not null default now());
+
+-- Supabase's auth.users, reduced to what the app reads (guests are anonymous users)
+create schema if not exists auth;
+create table auth.users (id uuid primary key, is_anonymous boolean not null default false);

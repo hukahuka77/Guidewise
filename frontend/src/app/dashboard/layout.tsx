@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { ReactNode, useEffect } from "react";
+import { supabase } from "@/lib/supabaseClient";
+import { isGuestSession } from "@/lib/guest";
 
 function NavLink({ href, label }: { href: string; label: string }) {
   const pathname = usePathname();
@@ -22,6 +24,13 @@ function NavLink({ href, label }: { href: string; label: string }) {
 }
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
+  const router = useRouter();
+  // The dashboard is for accounts: a guest (built a guidebook without signing up) is asked to save it first
+  useEffect(() => {
+    supabase?.auth.getSession().then(({ data }) => {
+      if (isGuestSession(data.session)) router.replace("/signup?save=1");
+    });
+  }, [router]);
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#F8F5F1] to-white">
       <div className="mx-auto max-w-7xl px-4 md:px-6 lg:px-8 py-6">
@@ -32,6 +41,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               <div className="text-xs uppercase tracking-wide text-gray-500 mb-3">Dashboard</div>
               <nav className="space-y-1">
                 <NavLink href="/dashboard" label="Guidebooks" />
+                <NavLink href="/dashboard/analytics" label="Analytics" />
                 <NavLink href="/dashboard/profile" label="Profile" />
                 <NavLink href="/dashboard/billing" label="Billing" />
               </nav>
