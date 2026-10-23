@@ -37,7 +37,11 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     // The old template picker; the editor now switches styles itself
-    return [{ source: "/dashboard/url/:id", destination: "/edit/:id", permanent: false }];
+    return [
+      { source: "/dashboard/url/:id", destination: "/edit/:id", permanent: false },
+      // The PDF layouts page; the dashboard's "Download print version" replaces it
+      { source: "/dashboard/pdf/:id", destination: "/dashboard", permanent: false },
+    ];
   },
 };
 

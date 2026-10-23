@@ -567,7 +567,7 @@ export default function EditGuidebookPage() {
             type="button"
             onClick={() => switchTemplate(key)}
             aria-pressed={isCurrentStyle(key)}
-            className={`rounded-lg px-2 py-1.5 text-sm transition ${isCurrentStyle(key) ? "bg-white font-semibold text-gray-900 shadow-sm" : "text-gray-600 hover:text-gray-900"}`}
+            className={`inline-flex items-center justify-center whitespace-nowrap rounded-lg px-2 py-1.5 text-sm transition ${isCurrentStyle(key) ? "bg-white font-semibold text-gray-900 shadow-sm" : "text-gray-600 hover:text-gray-900"}`}
           >
             {label}
             {isPremiumStyle(key) && !premiumStyles && !isCurrentStyle(key) && (
