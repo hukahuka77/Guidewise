@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Lock } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +11,9 @@ import { Label } from "@/components/ui/label";
 import Spinner from "@/components/ui/spinner";
 import PlacesAutocomplete from "@/components/PlacesAutocomplete";
 import PhonePreview from "@/components/custom/PhonePreview";
-import { offerUpgrade, throwApiError } from "@/lib/upgrade";
+import { offerUpgrade, throwApiError, UpgradeRequiredError } from "@/lib/upgrade";
+import { usePremiumStyles } from "@/hooks/usePremiumStyles";
+import { isPremiumStyle, PREMIUM_STYLE_MESSAGE, PREMIUM_STYLE_PLAN } from "@/lib/guidebook/styles";
 import { ensureSession, finishClaim, hasPendingClaim, isGuestSession, savePendingBuild, takeClaimed, takePendingBuild, type PendingBuild, rememberGuestGuidebook } from "@/lib/guest";
 import { supabase } from "@/lib/supabaseClient";
 import ImportQuestions, { EMPTY_ANSWERS, ImportProgress, answersToPayload, type ImportAnswers } from "@/components/onboarding/ImportQuestions";
@@ -46,6 +49,13 @@ export default function OnboardingPage() {
   const accessToken = sessionToken ?? signedInToken;
   const [guest, setGuest] = useState(false);
   const isGuest = guest || guestSession;
+  // Lifestyle and Welcoming come with Power and Pro; everyone else builds on Signature
+  const premiumStyles = usePremiumStyles(accessToken, isGuest);
+  const lockedStyle = (key: string) => isPremiumStyle(key) && !premiumStyles;
+  const pickStyle = (key: string, apply: (key: string) => void) => {
+    if (lockedStyle(key)) offerUpgrade(new UpgradeRequiredError(PREMIUM_STYLE_MESSAGE));
+    else apply(key);
+  };
   // Just signed up or logged in after building a guidebook as a guest: bring it into the account
   const [claiming, setClaiming] = useState(false);
 
@@ -178,6 +188,8 @@ export default function OnboardingPage() {
     setFromImport(true);
     setQuestionStep(0);
     setQuestionsDone(false);
+    lastSaved.current = "";
+    savingAnswers.current = null;
     startProgress();
     try {
       const session = await sessionForCreate({ mode: "link", url });
@@ -215,16 +227,19 @@ export default function OnboardingPage() {
     }
   };
 
-  // Once the imported guidebook exists and the host is through the questions, save what they answered
+  // Save the answers onto the imported guidebook as the host moves through the questions (Next, Skip,
+  // Back or Done) and as soon as the guidebook exists, so the phone preview fills in step by step
   const createdId = created?.id;
+  const lastSaved = useRef("");
   useEffect(() => {
-    if (!fromImport || !createdId || !questionsDone || savingAnswers.current) return;
+    if (!fromImport || !createdId) return;
     const payload = answersToPayload(answers);
-    if (Object.keys(payload).length === 0) {
-      savingAnswers.current = Promise.resolve();
-      return;
-    }
-    savingAnswers.current = (async () => {
+    const key = JSON.stringify(payload);
+    if (key === lastSaved.current) return;
+    lastSaved.current = key;
+    const previous = savingAnswers.current ?? Promise.resolve();
+    savingAnswers.current = previous.then(async () => {
+      if (Object.keys(payload).length === 0) return;
       try {
         const res = await fetch(`/api/guidebooks/${createdId}`, { method: "PUT", headers: authHeaders(), body: JSON.stringify(payload) });
         if (!res.ok) throw new Error(String(res.status));
@@ -232,10 +247,10 @@ export default function OnboardingPage() {
       } catch {
         setError("We couldn't save some of your answers. You can add them in the editor.");
       }
-    })();
-    // authHeaders only reads the token, which is stable here
+    });
+    // Saves on step changes, not on every keystroke: answers are read when the step or the guidebook changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fromImport, createdId, questionsDone, answers]);
+  }, [fromImport, createdId, questionStep, questionsDone]);
 
   const inImportFlow = fromImport && (!created || !questionsDone);
 
@@ -285,11 +300,11 @@ export default function OnboardingPage() {
         headers: authHeaders(),
         body: JSON.stringify({ template_key: key }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) await throwApiError(res, "Could not change the style. Please try again.");
       setPreviewKey((k) => k + 1);
-    } catch {
+    } catch (e) {
       setStyle(previous);
-      setError("Could not change the style. Please try again.");
+      if (!offerUpgrade(e)) setError("Could not change the style. Please try again.");
     }
   };
 
@@ -406,11 +421,11 @@ export default function OnboardingPage() {
                         <button
                           key={s.key}
                           type="button"
-                          onClick={() => setStyle(s.key)}
+                          onClick={() => pickStyle(s.key, setStyle)}
                           disabled={busy}
                           className={`rounded-2xl border p-3 text-left transition ${style === s.key ? "border-teal-600 bg-teal-50 ring-1 ring-teal-600" : "border-gray-200 hover:bg-gray-50"}`}
                         >
-                          <div className="font-semibold text-gray-900">{s.label}</div>
+                          <div className="flex items-center gap-1.5 font-semibold text-gray-900">{s.label}{lockedStyle(s.key) && <PremiumBadge />}</div>
                           <div className="text-xs text-gray-500">{s.hint}</div>
                         </button>
                       ))}
@@ -468,10 +483,10 @@ export default function OnboardingPage() {
                     <button
                       key={s.key}
                       type="button"
-                      onClick={() => changeStyle(s.key)}
+                      onClick={() => pickStyle(s.key, changeStyle)}
                       className={`rounded-2xl border p-3 text-left transition ${style === s.key ? "border-teal-600 bg-teal-50 ring-1 ring-teal-600" : "border-gray-200 hover:bg-gray-50"}`}
                     >
-                      <div className="font-semibold text-gray-900">{s.label}</div>
+                      <div className="flex items-center gap-1.5 font-semibold text-gray-900">{s.label}{lockedStyle(s.key) && <PremiumBadge />}</div>
                       <div className="text-xs text-gray-500">{s.hint}</div>
                     </button>
                   ))}
@@ -539,5 +554,13 @@ function ModeButton({ selected, onClick, disabled, children }: { selected: boole
       </span>
       {children}
     </button>
+  );
+}
+
+function PremiumBadge() {
+  return (
+    <span className="inline-flex items-center gap-0.5 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary" title={PREMIUM_STYLE_MESSAGE}>
+      <Lock className="size-2.5" aria-hidden="true" /> {PREMIUM_STYLE_PLAN}
+    </span>
   );
 }

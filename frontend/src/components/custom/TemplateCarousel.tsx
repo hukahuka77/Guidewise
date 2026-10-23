@@ -2,9 +2,9 @@
 
 export default function TemplateCarousel() {
   const templates = [
-    { src: "/images/URL_Signature.webp", alt: "Signature Template", name: "Signature" },
-    { src: "/images/URL_Lifestyle_WhiteHouse.png", alt: "Lifestyle Template", name: "Lifestyle" },
-    { src: "/images/URL_Welcoming_WhiteHouse.png", alt: "Welcoming Template", name: "Welcoming" },
+    { src: "/images/URL_Signature.webp", alt: "Signature Template", name: "Signature", premium: false },
+    { src: "/images/URL_Lifestyle_WhiteHouse.png", alt: "Lifestyle Template", name: "Lifestyle", premium: true },
+    { src: "/images/URL_Welcoming_WhiteHouse.png", alt: "Welcoming Template", name: "Welcoming", premium: true },
   ];
 
   return (
@@ -35,7 +35,12 @@ export default function TemplateCarousel() {
                   alt={template.alt}
                   className="w-full h-auto rounded-2xl shadow-lg border border-gray-200"
                 />
-                <p className="text-center mt-3 font-medium text-gray-700">{template.name}</p>
+                <p className="text-center mt-3 font-medium text-gray-700">
+                  {template.name}
+                  <span className="ml-2 text-xs font-semibold uppercase tracking-wide text-[#CC7A52]">
+                    {template.premium ? "Power & Pro" : "Every plan"}
+                  </span>
+                </p>
               </div>
             ))}
           </div>

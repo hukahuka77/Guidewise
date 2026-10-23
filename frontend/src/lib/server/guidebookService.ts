@@ -4,7 +4,8 @@ import { stripSurrogates } from "@/lib/guidebook/pyCompat";
 import { DEFAULT_TEMPLATE_KEY, TEMPLATE_REGISTRY } from "@/lib/guidebook/render";
 import type { GuidebookRow } from "@/lib/guidebook/types";
 import type { Sql } from "./db";
-import { assertCanCreateGuidebook } from "./usage";
+import { isPremiumStyle, PREMIUM_STYLE_MESSAGE } from "@/lib/guidebook/styles";
+import { assertCanCreateGuidebook, getUserPlan } from "./usage";
 
 // Guidebook CRUD. Everything that touches several tables runs in one transaction.
 
@@ -158,10 +159,12 @@ export async function createGuidebook(sql: Sql, userId: string, data: Dict): Pro
   if (!propertyName.trim()) throw new ServiceError(400, "property_name is required");
   assertNameLength(propertyName);
 
-  const templateKey =
+  let templateKey =
     typeof data.template_key === "string" && ALLOWED_TEMPLATE_KEYS.includes(data.template_key)
       ? data.template_key
       : DEFAULT_TEMPLATE_KEY;
+  // Premium styles need a plan that includes them; otherwise start on Signature
+  if (isPremiumStyle(templateKey) && !(await getUserPlan(sql, userId)).premiumStyles) templateKey = DEFAULT_TEMPLATE_KEY;
 
   const thingsToDo = Array.isArray(data.things_to_do) ? data.things_to_do : [];
   const placesToEat = Array.isArray(data.places_to_eat) ? data.places_to_eat : [];
@@ -362,7 +365,12 @@ export async function updateGuidebook(sql: Sql, userId: string, id: string, inpu
       if (incoming in data) set[column] = jsonOrNull(tx, data[incoming]);
     }
     // template_key is NOT NULL; ignore anything that is not a string rather than failing the whole save
-    if (typeof data.template_key === "string" && data.template_key) set.template_key = data.template_key;
+    if (typeof data.template_key === "string" && data.template_key && data.template_key !== gb.template_key) {
+      // A premium style needs a plan that includes it (a guidebook already on one keeps it)
+      if (!isPremiumStyle(data.template_key) || (await getUserPlan(tx as unknown as Sql, userId)).premiumStyles) {
+        set.template_key = data.template_key;
+      }
+    }
 
     if ("safety_info" in data) {
       const si = truthy(data.safety_info) ? data.safety_info : {};
@@ -457,10 +465,13 @@ export async function deleteGuidebook(sql: Sql, userId: string, id: string): Pro
 }
 
 export async function setTemplateKey(sql: Sql, userId: string, id: string, templateKey: unknown): Promise<string> {
-  const [gb] = await sql`select id from guidebook where id = ${id} and user_id = ${userId}`;
+  const [gb] = await sql`select id, template_key from guidebook where id = ${id} and user_id = ${userId}`;
   if (!gb) throw new ServiceError(404, "Guidebook not found");
   if (typeof templateKey !== "string" || !ALLOWED_TEMPLATE_KEYS.includes(templateKey)) {
     throw new ServiceError(400, "Invalid template_key", { allowed: ALLOWED_TEMPLATE_KEYS });
+  }
+  if (isPremiumStyle(templateKey) && templateKey !== gb.template_key && !(await getUserPlan(sql, userId)).premiumStyles) {
+    throw new ServiceError(403, PREMIUM_STYLE_MESSAGE, { upgrade: true, quota: "styles" });
   }
   await sql`update guidebook set template_key = ${templateKey}, last_modified_time = now() where id = ${id}`;
   return templateKey;

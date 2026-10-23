@@ -169,9 +169,13 @@ describe("create, read, update, delete over HTTP", () => {
 });
 
 describe("template and public page over HTTP", () => {
-  it("template: validates and updates", async () => {
+  it("template: validates and updates; premium styles need Power or Pro", async () => {
     const { body } = await createVia({ property_name: "T" });
     const id = body.guidebook_id as string;
+    const locked = await template(req("POST", `/api/guidebook/${id}/template`, "owner", { template_key: "template_welcomebook" }), ctx(id));
+    expect(locked.status).toBe(403);
+    expect(await json(locked)).toMatchObject({ upgrade: true, quota: "styles" });
+    await setPlan(db.sql, OWNER, "power");
     const ok = await template(req("POST", `/api/guidebook/${id}/template`, "owner", { template_key: "template_welcomebook" }), ctx(id));
     expect(await json(ok)).toEqual({ ok: true, template_key: "template_welcomebook" });
     const bad = await template(req("POST", `/api/guidebook/${id}/template`, "owner", { template_key: "nope" }), ctx(id));
@@ -317,7 +321,8 @@ describe("guests: build first, create an account to save", () => {
     const id = body.guidebook_id as string;
     expect((await getOne(req("GET", `/api/guidebooks/${id}`, "guest"), ctx(id))).status).toBe(200);
     expect((await PUT(req("PUT", `/api/guidebooks/${id}`, "guest", { welcome_message: "Hello from GuestNet" }), ctx(id))).status).toBe(200);
-    expect((await template(req("POST", `/api/guidebook/${id}/template`, "guest", { template_key: "template_generic" }), ctx(id))).status).toBe(200);
+    expect((await template(req("POST", `/api/guidebook/${id}/template`, "guest", { template_key: "template_signature" }), ctx(id))).status).toBe(200);
+    expect((await template(req("POST", `/api/guidebook/${id}/template`, "guest", { template_key: "template_generic" }), ctx(id))).status).toBe(403);
     const preview = await previewHtml(req("GET", `/api/guidebooks/${id}/html`, "guest"), ctx(id));
     expect(await preview.text()).toContain("GuestNet");
 
