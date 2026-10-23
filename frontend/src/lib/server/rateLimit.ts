@@ -17,6 +17,11 @@ export function rateLimited(key: string, limit: number, windowMs = 60_000, now =
   return false;
 }
 
+/** The caller's IP: Vercel puts the real client address first in x-forwarded-for. */
+export function clientIp(request: Request): string {
+  return (request.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || request.headers.get("x-real-ip") || "";
+}
+
 export function resetRateLimitsForTests() {
   buckets.clear();
 }

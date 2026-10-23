@@ -32,6 +32,23 @@ export function periodSeconds(subscription: unknown): { start: number | null; en
 
 const toDate = (seconds: number | null) => (seconds ? new Date(seconds * 1000) : null);
 
+/**
+ * The user's Stripe customer: the one checkout recorded on their profile, else the customer with their
+ * verified sign-in email. Never an email the browser sent, which would open someone else's billing.
+ */
+async function findCustomerId(sql: Sql, stripe: Stripe, user: BillingUser): Promise<string | null> {
+  try {
+    const rows = await sql`select stripe_customer_id from public.profiles where user_id = ${user.id}::uuid`;
+    const stored = asString(rows[0]?.stripe_customer_id);
+    if (stored) return stored;
+  } catch {
+    // fall back to the email lookup
+  }
+  if (!user.email) return null;
+  const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+  return customers.data[0]?.id ?? null;
+}
+
 // ---------------------------------------------------------------------------------------------
 // Checkout
 // ---------------------------------------------------------------------------------------------
@@ -66,13 +83,11 @@ export async function createCheckoutSession(
 
   // ...or according to Stripe?
   try {
-    if (user.email) {
-      const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-      if (customers.data.length > 0) {
-        const subs = await stripe.subscriptions.list({ customer: customers.data[0].id, status: "active", limit: 1 });
-        if (subs.data.length > 0) {
-          throw new ServiceError(409, "An active subscription already exists", { redirect: "/dashboard/billing" });
-        }
+    const customerId = await findCustomerId(sql, stripe, user);
+    if (customerId) {
+      const subs = await stripe.subscriptions.list({ customer: customerId, status: "active", limit: 1 });
+      if (subs.data.length > 0) {
+        throw new ServiceError(409, "An active subscription already exists", { redirect: "/dashboard/billing" });
       }
     }
   } catch (error) {
@@ -130,20 +145,19 @@ export async function billingSummary(sql: Sql, stripe: Stripe | null, user: Bill
     invoices: [],
   };
 
-  if (stripe && user.email) {
+  if (stripe) {
     try {
-      const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-      if (customers.data.length > 0) {
-        const customer = customers.data[0];
-        stripeInfo.customer_id = customer.id;
+      const customerId = await findCustomerId(sql, stripe, user);
+      if (customerId) {
+        stripeInfo.customer_id = customerId;
 
-        const subs = await stripe.subscriptions.list({ customer: customer.id, status: "active", limit: 1 });
+        const subs = await stripe.subscriptions.list({ customer: customerId, status: "active", limit: 1 });
         if (subs.data.length > 0) {
           const sub = subs.data[0];
           stripeInfo.subscription = { id: sub.id, status: sub.status, current_period_end: periodSeconds(sub).end };
         }
 
-        const invoices = await stripe.invoices.list({ customer: customer.id, limit: 10 });
+        const invoices = await stripe.invoices.list({ customer: customerId, limit: 10 });
         stripeInfo.invoices = invoices.data.map((inv) => ({
           id: inv.id,
           status: inv.status,
@@ -182,20 +196,12 @@ export async function billingSummary(sql: Sql, stripe: Stripe | null, user: Bill
 // Customer portal
 // ---------------------------------------------------------------------------------------------
 
-export async function createPortalSession(
-  stripe: Stripe,
-  user: BillingUser,
-  body: Dict,
-  origin: string,
-): Promise<{ url: string }> {
-  const email = user.email || asString(body.email);
-  // Without an email, customers.list would return an arbitrary customer from the account.
-  if (!email) throw new ServiceError(400, "No email available for this account");
+export async function createPortalSession(sql: Sql, stripe: Stripe, user: BillingUser, origin: string): Promise<{ url: string }> {
   try {
-    const customers = await stripe.customers.list({ email, limit: 1 });
-    if (customers.data.length === 0) throw new ServiceError(404, "No Stripe customer found");
+    const customerId = await findCustomerId(sql, stripe, user);
+    if (!customerId) throw new ServiceError(404, "No Stripe customer found");
     const portal = await stripe.billingPortal.sessions.create({
-      customer: customers.data[0].id,
+      customer: customerId,
       return_url: `${origin}/dashboard/billing?updated=1`,
       ...(process.env.STRIPE_PORTAL_CONFIGURATION_ID ? { configuration: process.env.STRIPE_PORTAL_CONFIGURATION_ID } : {}),
     });
@@ -236,13 +242,16 @@ export async function handleStripeEvent(sql: Sql, stripe: Stripe | null, event: 
   const obj = asDict(event.data.object);
 
   switch (event.type) {
-    case "checkout.session.completed": {
+    case "checkout.session.completed":
+    case "checkout.session.async_payment_succeeded": {
       const metadata = asDict(obj.metadata);
       const userId = asString(metadata.user_id);
       const plan = normalizePlan(asString(metadata.plan) || "starter");
       const subscriptionId = asString(obj.subscription);
       const customerId = asString(obj.customer);
       if (!userId || !PURCHASABLE_PLANS.includes(plan)) return;
+      // Delayed payment methods complete the session before the money arrives
+      if (obj.payment_status === "unpaid") return;
 
       const limit = PLAN_CONFIGS[plan].guidebookLimit;
       const dates = subscriptionId && stripe ? await fetchSubscriptionDates(stripe, subscriptionId) : { starts: null, expires: null };
