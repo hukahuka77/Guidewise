@@ -5,19 +5,27 @@ import { usePathname, useRouter } from "next/navigation";
 import { ReactNode, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { isGuestSession } from "@/lib/guest";
+import { BarChart3, BookOpen, CreditCard, UserRound } from "lucide-react";
 
-function NavLink({ href, label }: { href: string; label: string }) {
+const NAV = [
+  { href: "/dashboard", label: "Guidebooks", icon: BookOpen },
+  { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/dashboard/profile", label: "Profile", icon: UserRound },
+  { href: "/dashboard/billing", label: "Billing", icon: CreditCard },
+];
+
+function NavLink({ href, label, icon: Icon }: (typeof NAV)[number]) {
   const pathname = usePathname();
   const isActive = pathname === href;
   return (
     <Link
       href={href}
-      className={`block px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-        isActive
-          ? "bg-[oklch(0.6923_0.22_21.05)] text-white"
-          : "text-gray-700 hover:bg-gray-100"
+      aria-current={isActive ? "page" : undefined}
+      className={`flex shrink-0 items-center gap-2.5 rounded-full px-3 py-2 md:px-3.5 text-sm font-medium no-underline transition-colors hover:no-underline ${
+        isActive ? "bg-[#fdf0f5] text-[#be185d]" : "text-[#5b524c] hover:bg-[#f6f2ee] hover:text-[#1f1a17]"
       }`}
     >
+      <Icon className="hidden h-4 w-4 md:block" />
       {label}
     </Link>
   );
@@ -32,24 +40,20 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     });
   }, [router]);
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#F8F5F1] to-white">
-      <div className="mx-auto max-w-7xl px-4 md:px-6 lg:px-8 py-6">
-        <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-6">
-          {/* Sidebar */}
-          <aside className="h-max md:sticky md:top-6">
-            <div className="bg-white border rounded-xl p-4 shadow-sm">
-              <div className="text-xs uppercase tracking-wide text-gray-500 mb-3">Dashboard</div>
-              <nav className="space-y-1">
-                <NavLink href="/dashboard" label="Guidebooks" />
-                <NavLink href="/dashboard/analytics" label="Analytics" />
-                <NavLink href="/dashboard/profile" label="Profile" />
-                <NavLink href="/dashboard/billing" label="Billing" />
-              </nav>
-            </div>
+    <div className="relative min-h-[calc(100svh-3.5rem)] overflow-hidden bg-[#F8F5F1]">
+      <div aria-hidden className="pointer-events-none absolute -right-48 -top-48 h-[36rem] w-[36rem] rounded-full bg-[radial-gradient(circle_at_center,rgba(249,115,22,0.12),rgba(219,39,119,0.05)_45%,transparent_70%)]" />
+      <div className="relative mx-auto max-w-7xl px-4 py-6 md:px-6 md:py-10 lg:px-8">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-[210px_1fr] md:gap-8">
+          {/* Sidebar: a row of pills on phones, a column on larger screens */}
+          <aside className="h-max md:sticky md:top-20">
+            <nav aria-label="Dashboard" className="flex gap-1 overflow-x-auto rounded-full bg-white p-1.5 shadow-[0_10px_30px_-20px_rgba(60,40,30,0.35)] ring-1 ring-black/5 md:flex-col md:rounded-3xl md:p-3">
+              {NAV.map((item) => (
+                <NavLink key={item.href} {...item} />
+              ))}
+            </nav>
           </aside>
 
-          {/* Main content */}
-          <main>{children}</main>
+          <main className="min-w-0">{children}</main>
         </div>
       </div>
     </div>
