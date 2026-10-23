@@ -4,14 +4,14 @@ export type Sql = postgres.Sql;
 
 let client: Sql | null | undefined;
 
-/** Accept the same DATABASE_URL Flask used (SQLAlchemy-style driver suffixes are stripped). */
+/** Accept SQLAlchemy-style URLs too (driver suffixes such as `+psycopg2` are stripped). */
 export function normalizeDatabaseUrl(url: string): string {
   return url.replace(/^postgres(?:ql)?\+\w+:\/\//, "postgresql://");
 }
 
 /**
  * Direct Postgres connection (Supabase pooler) for routes that need real transactions.
- * Returns null when DATABASE_URL is not configured so callers can fall back to Flask.
+ * Returns null when DATABASE_URL is not configured.
  */
 export function getSql(): Sql | null {
   if (client !== undefined) return client;

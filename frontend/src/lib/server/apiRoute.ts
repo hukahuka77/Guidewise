@@ -1,7 +1,6 @@
 import { getAuthedUser, isAuthConfigured, type AuthedUser } from "./auth";
 import { getSql, type Sql } from "./db";
 import { ServiceError } from "./guidebookService";
-import { backendFallbackDisabled, proxyToBackend } from "./proxy";
 import { rateLimited } from "./rateLimit";
 
 export interface ApiContext {
@@ -10,7 +9,7 @@ export interface ApiContext {
   request: Request;
 }
 
-/** Parse a JSON body like Flask's `request.json or {}` (a bad or missing body is an empty object). */
+/** Parse a JSON object body; a bad or missing body is an empty object. */
 export async function readJson(request: Request): Promise<Record<string, unknown>> {
   try {
     const body = await request.json();
@@ -20,10 +19,11 @@ export async function readJson(request: Request): Promise<Record<string, unknown
   }
 }
 
+/** A route whose configuration (database, auth, Stripe, API keys) is missing in this environment. */
+export const notConfigured = () => Response.json({ error: "This feature is not configured on the server." }, { status: 503 });
+
 interface Options {
-  /** Reads are safe to retry on Flask if something unexpected throws; writes are not. */
-  fallbackOnError?: boolean;
-  /** Extra configuration the route needs (e.g. Stripe); when it returns false Flask handles the request. */
+  /** Extra configuration the route needs (e.g. Stripe); when it returns false the route answers 503. */
   needs?: () => boolean;
   /** Per-user sliding-window limit (requests per minute). */
   rateLimit?: { name: string; limit: number };
@@ -31,9 +31,9 @@ interface Options {
 
 /**
  * Wrap an authenticated API route:
- *  - not configured (no DATABASE_URL / Supabase auth) -> let Flask handle it, like before the migration
+ *  - not configured (no DATABASE_URL / Supabase auth, or `needs` is false) -> 503
  *  - missing or invalid token -> 401
- *  - ServiceError -> `{ error }` with its status; anything else -> 500 (or Flask for reads)
+ *  - ServiceError -> `{ error }` with its status; anything else -> 500
  */
 export async function withUser(
   request: Request,
@@ -41,7 +41,7 @@ export async function withUser(
   options: Options = {},
 ): Promise<Response> {
   const sql = getSql();
-  if (!sql || !isAuthConfigured() || (options.needs && !options.needs())) return proxyToBackend(request);
+  if (!sql || !isAuthConfigured() || (options.needs && !options.needs())) return notConfigured();
 
   const user = await getAuthedUser(request);
   if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -53,7 +53,6 @@ export async function withUser(
       return Response.json({ error: error.message, ...error.extra }, { status: error.status });
     }
     console.error(`${request.method} ${new URL(request.url).pathname} failed`, error);
-    if (options.fallbackOnError && !backendFallbackDisabled()) return proxyToBackend(request);
     const detail = error instanceof Error ? `${error.name}: ${error.message}` : "unexpected error";
     return Response.json({ error: `Request failed: ${detail}` }, { status: 500 });
   }
@@ -61,14 +60,14 @@ export async function withUser(
 
 /**
  * Like `withUser` for routes that need auth but not the database (Places, AI, listing import).
- * Not configured (no Supabase auth, or `needs` is false) -> Flask handles it.
+ * Not configured (no Supabase auth, or `needs` is false) -> 503.
  */
 export async function withAuth(
   request: Request,
   handler: (user: AuthedUser) => Promise<Response>,
   options: Pick<Options, "needs" | "rateLimit"> = {},
 ): Promise<Response> {
-  if (!isAuthConfigured() || (options.needs && !options.needs())) return proxyToBackend(request);
+  if (!isAuthConfigured() || (options.needs && !options.needs())) return notConfigured();
   const user = await getAuthedUser(request);
   if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
   if (options.rateLimit && rateLimited(`${options.rateLimit.name}:${user.id}`, options.rateLimit.limit)) {

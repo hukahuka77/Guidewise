@@ -1,6 +1,6 @@
 import Stripe from "stripe";
 
-// Same Stripe API version the Flask backend's SDK used, so response shapes do not change.
+// Pinned Stripe API version, so response shapes do not change under us.
 export const STRIPE_API_VERSION = "2025-07-30.basil";
 
 let client: Stripe | null | undefined;

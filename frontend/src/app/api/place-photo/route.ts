@@ -1,15 +1,15 @@
+import { notConfigured } from "@/lib/server/apiRoute";
 import { isGoogleConfigured } from "@/lib/server/googlePlaces";
-import { proxyToBackend } from "@/lib/server/proxy";
 import { resolvePlacePhoto } from "@/lib/server/placesService";
 
 export const dynamic = "force-dynamic";
 export const preferredRegion = "iad1";
 
-// Public (no auth), like Flask: guidebook pages embed these URLs. The CDN caches the bytes for a week.
+// Public (no auth): guidebook pages embed these URLs. The CDN caches the bytes for a week.
 const CACHE_CONTROL = "public, max-age=604800, s-maxage=604800, stale-while-revalidate=86400";
 
 export async function GET(request: Request) {
-  if (!isGoogleConfigured()) return proxyToBackend(request);
+  if (!isGoogleConfigured()) return notConfigured();
 
   const params = new URL(request.url).searchParams;
   const photoReference = (params.get("photo_reference") || "").trim();

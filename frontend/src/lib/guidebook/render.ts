@@ -7,7 +7,7 @@ import { placePhotoUrl } from "./placePhotos";
 import { jinjaEscape, jinjaTitle, jinjaUrlencode, withPythonTruthiness } from "./pyCompat";
 import type { GuidebookRow } from "./types";
 
-/** Template keys accepted by the app, mapped to template files (same as Flask's TEMPLATE_REGISTRY). */
+/** Template keys accepted by the app, mapped to template files. */
 export const TEMPLATE_REGISTRY: Record<string, string> = {
   template_original: "templates_url/template_original.html",
   template_generic: "templates_url/template_generic.html",
@@ -19,8 +19,8 @@ export const DEFAULT_TEMPLATE_KEY = "template_original";
 
 const TEMPLATE_DIR = path.join(process.cwd(), "src", "templates", "guidebook");
 
-// Nunjucks escapes backslashes and writes &quot; where Jinja writes &#34;; match Jinja so the
-// migrated pages stay identical to the ones Flask rendered.
+// Nunjucks escapes backslashes and writes &quot; where Jinja writes &#34;; use Jinja's escaping so
+// pages stay byte-identical to the golden files.
 (nunjucks as unknown as { lib: { escape: (s: string) => string } }).lib.escape = jinjaEscape;
 
 let env: nunjucks.Environment | null = null;

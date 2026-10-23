@@ -29,9 +29,9 @@
       "reason": "Database migrations can irreversibly affect persisted data."
     },
     {
-      "path": "backend/app.py",
+      "path": "frontend/src/lib/server/**",
       "risk": "high",
-      "reason": "The API entry point contains authentication, billing, webhook, and maintenance behavior."
+      "reason": "Server code: authentication, billing, the Stripe webhook and plan limits."
     },
     {
       "path": "**/.env*",
@@ -47,16 +47,7 @@
         "npm ci",
         "npm run lint",
         "npm run typecheck",
-        "NEXT_PUBLIC_API_BASE_URL=http://localhost:5001 NEXT_PUBLIC_SITE_URL=http://localhost:3000 npm run build"
-      ]
-    },
-    "backend": {
-      "workingDirectory": "backend",
-      "runtime": "python 3.12",
-      "commands": [
-        "python -m pip install --upgrade pip",
-        "pip install -r requirements.txt",
-        "python -m compileall ."
+        "NEXT_PUBLIC_SITE_URL=http://localhost:3000 npm run build"
       ]
     },
     "localContract": "scripts/check.sh"

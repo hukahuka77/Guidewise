@@ -56,7 +56,7 @@ function getItemImageUrl(item: DynamicItem): string {
   if (photoReference) params.set("photo_reference", photoReference);
   const query = [item.name, item.address].filter(Boolean).join(", ");
   if (query) params.set("query", query);
-  return `${process.env.NEXT_PUBLIC_API_BASE_URL || ""}/api/place-photo?${params.toString()}`;
+  return `/api/place-photo?${params.toString()}`;
 }
 
 export default function DynamicItemList({ items, onChange, onAdd, onDelete, label }: DynamicItemListProps) {

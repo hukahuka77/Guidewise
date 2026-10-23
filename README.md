@@ -1,7 +1,7 @@
 # Guidewise
 
-Guidewise is a Next.js frontend and Flask backend for creating and publishing
-digital guidebooks.
+Guidewise is a Next.js application (in `frontend/`, deployed on Vercel, data in
+Supabase) for creating and publishing digital guidebooks.
 
 ## Development
 

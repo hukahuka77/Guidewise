@@ -33,7 +33,7 @@ export function sanitizeCustomTabsMeta(meta: unknown): Record<string, { label: s
   return out;
 }
 
-/** Port of `_build_ctx` from backend/app.py: the data every guidebook template renders. */
+/** The data every guidebook template renders. */
 export function buildGuidebookContext(gb: GuidebookRow): Record<string, unknown> {
   const safeMeta = sanitizeCustomTabsMeta(gb.custom_tabs_meta);
   return {

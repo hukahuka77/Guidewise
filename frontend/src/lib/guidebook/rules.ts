@@ -9,7 +9,7 @@ type Dict = Record<string, unknown>;
 const isDict = (v: unknown): v is Dict => typeof v === "object" && v !== null && !Array.isArray(v);
 
 /**
- * Port of backend/utils/rules.py `normalize_rules`: house rules arrive as proper dicts,
+ * Normalize house rules: they arrive as proper dicts,
  * nested dicts from an old bug, "Name: details" strings or python-dict-looking strings.
  */
 export function normalizeRules(rawRules: unknown): Rule[] {

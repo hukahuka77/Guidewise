@@ -4,7 +4,7 @@ type Dict = Record<string, unknown>;
 
 const pyStr = (v: unknown): string => (v ? String(v) : "");
 
-/** Port of backend/utils/place_photos.py `google_photo_reference`. */
+/** The Google photo reference stored in an item's image URL, if any. */
 export function googlePhotoReference(imageUrl: string): string {
   const value = (imageUrl || "").trim();
   if (!value) return "";

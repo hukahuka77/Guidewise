@@ -12,7 +12,6 @@ import { absoluteUrl } from "@/lib/publicUrl";
 import { offerUpgrade, throwApiError } from "@/lib/upgrade";
 import { cacheGet, cacheSet } from "@/lib/cache";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 
 type GuidebookItem = {
@@ -144,7 +143,7 @@ export default function DashboardPage() {
         try {
           const token2 = (await supabase.auth.getSession()).data.session?.access_token || null;
           if (token2) {
-            const r = await fetch(`${API_BASE}/api/billing/summary`, { headers: { Authorization: `Bearer ${token2}` } });
+            const r = await fetch(`/api/billing/summary`, { headers: { Authorization: `Bearer ${token2}` } });
             if (r.ok) {
               const j = await r.json();
               const userPlan = j?.plan || 'free';
@@ -154,7 +153,7 @@ export default function DashboardPage() {
               }
             }
             // Views per guidebook this month (every plan)
-            const v = await fetch(`${API_BASE}/api/analytics/views`, { headers: { Authorization: `Bearer ${token2}` } });
+            const v = await fetch(`/api/analytics/views`, { headers: { Authorization: `Bearer ${token2}` } });
             if (v.ok) {
               const vj = await v.json();
               const map: Record<string, number> = {};
@@ -171,7 +170,7 @@ export default function DashboardPage() {
           }
         } catch {}
 
-        const res = await fetch(`${API_BASE}/api/guidebooks`, {
+        const res = await fetch(`/api/guidebooks`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.status === 401) {
@@ -240,7 +239,7 @@ export default function DashboardPage() {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const res = await fetch(`${API_BASE}/api/guidebook/${id}/print-pdf?download=1`, {
+      const res = await fetch(`/api/guidebook/${id}/print-pdf?download=1`, {
         headers,
       });
 
@@ -356,7 +355,7 @@ export default function DashboardPage() {
         {!loading && !error && items.length > 0 && (
           <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {items.slice(0, visibleCount).map((gb) => {
-              const viewUrl = gb.public_slug ? `${API_BASE}/g/${gb.public_slug}` : null;
+              const viewUrl = gb.public_slug ? `/g/${gb.public_slug}` : null;
 
               return (
                 <li key={gb.id} className="group bg-white rounded-2xl border shadow-sm hover:shadow-md transition min-h-[360px] relative">
@@ -508,7 +507,7 @@ export default function DashboardPage() {
                 return;
               }
 
-              const res = await fetch(`${API_BASE}/api/guidebooks/${deleteId}`, {
+              const res = await fetch(`/api/guidebooks/${deleteId}`, {
                 method: 'DELETE',
                 headers: { Authorization: `Bearer ${token}` },
               });

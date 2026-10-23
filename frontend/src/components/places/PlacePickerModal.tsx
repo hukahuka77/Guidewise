@@ -25,11 +25,10 @@ type Props = {
   onClose: () => void;
   onSelect: (item: DynamicItem) => void;
   near?: string | null;
-  apiBase: string;
   title?: string;
 };
 
-export default function PlacePickerModal({ open, onClose, onSelect, near, apiBase, title }: Props) {
+export default function PlacePickerModal({ open, onClose, onSelect, near, title }: Props) {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +42,7 @@ export default function PlacePickerModal({ open, onClose, onSelect, near, apiBas
     setError(null);
     setResults([]);
     try {
-      const res = await fetch(`${apiBase}/api/places/search`, {
+      const res = await fetch(`/api/places/search`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
         body: JSON.stringify({ query, near: near || null }),
@@ -62,7 +61,7 @@ export default function PlacePickerModal({ open, onClose, onSelect, near, apiBas
     setLoading(true);
     setError(null);
     try {
-      const url = new URL(`${apiBase}/api/places/enrich`);
+      const url = new URL("/api/places/enrich", window.location.origin);
       url.searchParams.set('place_id', place_id);
       if (near) {
         url.searchParams.set('origin', near);

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# End-to-end check of the native guidebook routes against local stand-ins for Flask and Supabase.
+# End-to-end check of the guidebook routes against a local Supabase stand-in and PGlite.
 # Usage (from frontend/): bash tests/integration/native-routes.sh
 set -u
 cd "$(dirname "$0")/../.."
@@ -10,7 +10,7 @@ expect() { [ "$2" = "$3" ] && ok "$1" || bad "$1" "expected '$3', got '$2'"; }
 code() { curl -s -o /dev/null -w "%{http_code}" "$@"; }
 
 port_busy() { (exec 3<>/dev/tcp/127.0.0.1/"$1") 2>/dev/null; }
-for p in 3056 3057 3058 3059 5055 5056 5440; do
+for p in 3056 3057 3058 3059 5056 5440; do
   if port_busy $p; then echo "port $p is already in use; stop the other process and re-run"; exit 2; fi
 done
 
@@ -25,7 +25,7 @@ trap cleanup EXIT
 
 start_next() { # port, env...
   local port=$1; shift
-  setsid env BACKEND_URL=http://127.0.0.1:5055 NEXT_TELEMETRY_DISABLED=1 "$@" npx next dev -p "$port" >/tmp/next-$port.log 2>&1 & NEXT=$!
+  setsid env NEXT_TELEMETRY_DISABLED=1 "$@" npx next dev -p "$port" >/tmp/next-$port.log 2>&1 & NEXT=$!
   for _ in $(seq 1 60); do curl -s -o /dev/null "http://127.0.0.1:$port/api/health" && return 0; sleep 2; done
   echo "next dev did not start"; cat /tmp/next-$port.log | tail -20; exit 1
 }
@@ -41,8 +41,8 @@ expect "direct-by-id page (printed QR codes)"   "$(code $B/guidebook/$(python3 -
 expect "unknown slug"                          "$(code $B/g/nope)" 404
 ETAG=$(curl -s -D - -o /dev/null $B/g/cozy-cabin-abc123 | tr -d '\r' | awk -F': ' 'tolower($1)=="etag"{print $2}')
 expect "If-None-Match -> 304"                  "$(code -H "If-None-Match: $ETAG" $B/g/cozy-cabin-abc123)" 304
-expect "lookup error falls back to Flask"      "$(curl -s $B/g/broken-slug | head -c 11)" "FLASK-STUB "
-expect "unmigrated nested API proxied"         "$(curl -s $B/api/billing/summary | head -c 11)" "FLASK-STUB "
+expect "lookup error -> 500, not cached"        "$(code $B/g/broken-slug)" 500
+expect "unknown API path -> 404"               "$(code $B/api/does-not-exist)" 404
 stop_next
 
 echo "== authenticated API routes against a real database"
@@ -71,19 +71,19 @@ expect "owner DELETE -> 200"                   "$(code -X DELETE $B/api/guideboo
 expect "deleted -> 404"                        "$(code $B/api/guidebooks/$GID -H "$O")" 404
 stop_next
 
-echo "== API routes without DATABASE_URL (must fall back to Flask)"
+echo "== API routes without DATABASE_URL (503, not configured)"
 B=http://127.0.0.1:3057
 start_next 3057 SUPABASE_URL=http://127.0.0.1:5056 SUPABASE_SERVICE_ROLE_KEY=test-key
 for path in /api/guidebooks /api/hosts /api/guidebooks/abc; do
-  expect "GET $path falls back"                "$(curl -s $B$path | head -c 11)" "FLASK-STUB "
+  expect "GET $path -> 503"                    "$(code $B$path)" 503
 done
-expect "POST /api/generate falls back"         "$(curl -s -X POST $B/api/generate | head -c 11)" "FLASK-STUB "
+expect "POST /api/generate -> 503"             "$(code -X POST $B/api/generate)" 503
 stop_next
 
 echo "== nothing configured at all"
 B=http://127.0.0.1:3058
 start_next 3058
-expect "/g falls back to Flask"                "$(curl -s $B/g/cozy-cabin-abc123 | head -c 11)" "FLASK-STUB "
+expect "/g -> 503 when not configured"         "$(code $B/g/cozy-cabin-abc123)" 503
 
 echo; echo "passed: $PASS  failed: $FAIL"
 [ "$FAIL" = 0 ]

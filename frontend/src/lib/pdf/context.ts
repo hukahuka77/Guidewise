@@ -4,9 +4,8 @@ import { rulesAsText } from "@/lib/guidebook/rules";
 import type { GuidebookRow } from "@/lib/guidebook/types";
 import { normalizeRecommendations, type PhotoResolver } from "./recommendations";
 
-// Ports of the two context builders in backend/main.py (`create_guidebook_pdf` and
-// `create_print_pdf_from_web_template`). Two deliberate differences, both bug fixes: the PDF templates
-// read `ctx.wifi` and (for the PDF path) `ctx.house_manual`, which Flask never put in the context.
+// Context builders for the PDF and the print PDF. The PDF templates read `ctx.wifi` and (for the PDF
+// path) `ctx.house_manual`.
 
 type Dict = Record<string, unknown>;
 const orDefault = <T>(value: unknown, fallback: T): T => (pyTruthy(value) ? (value as T) : fallback);

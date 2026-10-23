@@ -10,7 +10,6 @@ vi.mock("@/lib/server/auth", () => ({
     return null;
   },
 }));
-vi.mock("@/lib/server/proxy", () => ({ proxyToBackend: vi.fn(async () => new Response("PROXIED")) }));
 
 const openaiCreate = vi.fn();
 vi.mock("openai", () => ({ default: class { chat = { completions: { create: openaiCreate } }; } }));

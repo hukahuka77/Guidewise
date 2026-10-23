@@ -1,7 +1,7 @@
 import { googlePhotoReference, placePhotoUrl } from "@/lib/guidebook/placePhotos";
 import { parsePythonLiteral, pyTruthy } from "@/lib/guidebook/pyCompat";
 
-// Port of `_normalize_recommendations` in backend/main.py: PDFs are rendered by a headless browser that
+// PDFs are rendered by a headless browser that
 // cannot call our photo proxy with the user's session, so Google photos are resolved to direct URLs.
 
 type Dict = Record<string, unknown>;
