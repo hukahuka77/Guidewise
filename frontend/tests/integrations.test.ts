@@ -109,9 +109,18 @@ describe("places search / enrich", () => {
     expect(body.items).toHaveLength(8);
     expect(body.items[0]).toEqual({ name: "P0", address: "A0", place_id: "id0" });
     const url = new URL(fetchMock.mock.calls[0][0] as string);
-    expect(url.searchParams.get("query")).toBe("pizza");
-    expect(url.searchParams.get("location")).toBe("Austin");
+    // Google's location parameter only takes coordinates, so an address goes into the query
+    expect(url.searchParams.get("query")).toBe("pizza near Austin");
+    expect(url.searchParams.get("location")).toBeNull();
     expect(url.searchParams.get("key")).toBe("gkey");
+  });
+
+  it("passes coordinates as the search location", async () => {
+    fetchMock.mockResolvedValueOnce(json({ results: [] }));
+    await searchRoute(post("/api/places/search", { query: "pizza", near: "30.27, -97.74" }));
+    const url = new URL(fetchMock.mock.calls[0][0] as string);
+    expect(url.searchParams.get("query")).toBe("pizza");
+    expect(url.searchParams.get("location")).toBe("30.27,-97.74");
   });
 
   it("returns 502 when Google fails", async () => {

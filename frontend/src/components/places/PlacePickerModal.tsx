@@ -33,6 +33,7 @@ export default function PlacePickerModal({ open, onClose, onSelect, near, title 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<PlaceSearchItem[]>([]);
+  const [searched, setSearched] = useState("");
 
   if (!open) return null;
 
@@ -50,6 +51,7 @@ export default function PlacePickerModal({ open, onClose, onSelect, near, title 
       if (!res.ok) throw new Error(`Search failed (${res.status})`);
       const json = await res.json();
       setResults(Array.isArray(json.items) ? json.items : []);
+      setSearched(query.trim());
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Search failed");
     } finally {
@@ -96,8 +98,10 @@ export default function PlacePickerModal({ open, onClose, onSelect, near, title 
         </div>
         {error && <div className="px-4 pb-2 text-red-600 text-sm">{error}</div>}
         <div className="max-h-[60vh] overflow-y-auto p-4">
-          {results.length === 0 && !loading && (
-            <div className="text-gray-500 text-sm">No results yet. Try a search above.</div>
+          {results.length === 0 && !loading && !error && (
+            <div className="text-gray-500 text-sm">
+              {searched ? `No places found for "${searched}". Try a different name or add more detail.` : "No results yet. Try a search above."}
+            </div>
           )}
           <ul className="space-y-2">
             {results.map((r) => (
