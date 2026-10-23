@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
-import { claimGuestGuidebooks } from "@/lib/guest";
+import { claimGuestGuidebooks, hasPendingBuild } from "@/lib/guest";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -20,11 +20,13 @@ export default function LoginPage() {
   const [newPassword, setNewPassword] = useState("");
   // Came from "Save your guidebook": the guidebook they built as a guest joins this account
   const [saving, setSaving] = useState(false);
+  const [pendingBuild, setPendingBuild] = useState(false);
 
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
     if (query.get("reset") === "1") setRecovering(true);
     if (query.get("save") === "1") setSaving(true);
+    setPendingBuild(hasPendingBuild());
     if (!supabase) return;
     const { data } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY") setRecovering(true);
@@ -66,7 +68,8 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       const claimed = await claimGuestGuidebooks();
-      router.push(claimed[0] ? `/edit/${claimed[0]}?new=true` : "/dashboard");
+      // A guidebook they started before logging in opens (or gets built) on /onboarding
+      router.push(claimed[0] ? `/edit/${claimed[0]}?new=true` : hasPendingBuild() ? "/onboarding" : "/dashboard");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Login failed";
       setError(msg);
@@ -231,7 +234,7 @@ export default function LoginPage() {
                   provider: 'google',
                   options: {
                     // /onboarding claims a guest's guidebook and opens it in the editor
-                    redirectTo: `${(process.env.NEXT_PUBLIC_SITE_URL || window.location.origin)}${saving ? "/onboarding" : "/dashboard"}`,
+                    redirectTo: `${(process.env.NEXT_PUBLIC_SITE_URL || window.location.origin)}${saving || pendingBuild ? "/onboarding" : "/dashboard"}`,
                     queryParams: { prompt: 'select_account' },
                   },
                 });
@@ -257,7 +260,7 @@ export default function LoginPage() {
           </button>
 
           <div className="mt-6 text-sm text-gray-600 text-center">
-            Don&#39;t have an account? <Link href={saving ? "/signup?save=1" : "/signup"} className="text-pink-700 hover:text-pink-800 underline-offset-2 hover:underline">Sign up</Link>
+            Don&#39;t have an account? <Link href={saving ? "/signup?save=1" : pendingBuild ? "/signup?build=1" : "/signup"} className="text-pink-700 hover:text-pink-800 underline-offset-2 hover:underline">Sign up</Link>
           </div>
         </div>
       </div>

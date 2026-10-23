@@ -69,16 +69,19 @@ export async function assertGuestCanCreate(sql: Sql, guestId: string): Promise<v
 
 /**
  * Move a guest's guidebooks (with their hosts and properties) to the account that now holds the
- * ticket. Returns the guidebook ids moved; an already-claimed ticket moves nothing.
+ * ticket. Returns the guidebook ids moved, newest first; an already-claimed ticket moves nothing.
  */
 export async function claimGuestGuidebooks(sql: Sql, guestId: string, userId: string): Promise<string[]> {
   if (guestId === userId) return [];
   if (!(await isGuestUser(sql, guestId))) return [];
   const moved = await sql.begin(async (tx) => {
-    const rows = await tx`update guidebook set user_id = ${userId} where user_id = ${guestId} returning id`;
+    const rows = await tx`update guidebook set user_id = ${userId} where user_id = ${guestId} returning id, created_time`;
     await tx`update host set user_id = ${userId} where user_id = ${guestId}`;
     await tx`update property set user_id = ${userId} where user_id = ${guestId}`;
-    return rows.map((r) => String(r.id));
+    // Newest first: the browser opens the one they just made
+    return [...rows]
+      .sort((x, y) => new Date(y.created_time).getTime() - new Date(x.created_time).getTime())
+      .map((r) => String(r.id));
   });
   // The anonymous user has nothing left; remove it so the ticket can't be used again (best effort)
   const admin = getSupabaseAdmin();
