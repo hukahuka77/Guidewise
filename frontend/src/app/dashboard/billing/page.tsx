@@ -118,23 +118,23 @@ export default function BillingPage() {
     };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#F8F5F1] to-white">
-      <div className="max-w-4xl mx-auto p-6 md:p-10 space-y-6">
+    <div>
+      <div className="max-w-4xl space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-800">Billing</h1>
-            <p className="text-gray-600 mt-1">Manage your subscription and invoices</p>
+            <h1 className="text-3xl font-semibold tracking-[-0.03em] text-[#1f1a17] sm:text-4xl">Billing</h1>
+            <p className="mt-1.5 text-[#5b524c]">Manage your subscription and invoices</p>
           </div>
         </div>
 
         {showSuccessBanner && (
-          <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 flex items-start justify-between">
+          <div className="flex items-start justify-between rounded-2xl bg-emerald-50 px-4 py-3 ring-1 ring-emerald-100">
             <div className="flex items-start gap-3">
               <svg className="w-5 h-5 text-green-600 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
               </svg>
               <div>
-                <p className="font-semibold text-green-800">Subscription Updated Successfully</p>
+                <p className="font-semibold text-green-800">Subscription updated</p>
                 <p className="text-sm text-green-700 mt-0.5">Your plan changes have been applied. Your new limits are now active.</p>
               </div>
             </div>
@@ -150,19 +150,19 @@ export default function BillingPage() {
         )}
 
         {loading ? (
-          <div className="bg-white rounded-xl border p-6 text-gray-700 flex items-center gap-3">
+          <div className="flex items-center gap-3 rounded-3xl bg-white p-6 ring-1 ring-black/5 text-[#5b524c]">
             <Spinner size={20} />
             <span>Loading…</span>
           </div>
         ) : error ? (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">{error}</div>
+          <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-800 ring-1 ring-red-100">{error}</div>
         ) : summary ? (
           <div className="space-y-6">
-            {/* Current Plan */}
-            <div className="bg-white rounded-xl border p-6">
+            {/* Current plan */}
+            <div className="rounded-3xl bg-white p-6 ring-1 ring-black/5">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
-                  <div className="text-sm text-gray-600">Current Plan</div>
+                  <div className="text-sm text-gray-600">Current plan</div>
                   <div className="mt-1 font-semibold text-2xl text-gray-800">
                     {summary.plan_display}
                   </div>
@@ -190,24 +190,22 @@ export default function BillingPage() {
                 </div>
                 <div className="flex flex-col gap-2">
                   {summary.plan !== 'free' && (
-                    <Button onClick={openPortal} disabled={portalLoading}>
-                      {portalLoading ? 'Opening…' : 'Manage Subscription'}
+                    <Button onClick={openPortal} disabled={portalLoading} className="rounded-full">
+                      {portalLoading ? 'Opening…' : 'Manage subscription'}
                     </Button>
                   )}
                   {summary.plan !== 'pro' && (
                     <Link href="/pricing">
-                      <Button variant={summary.plan === 'free' ? 'default' : 'outline'}>{summary.plan === 'free' ? 'Upgrade Plan' : 'Change Plan'}</Button>
+                      <Button variant={summary.plan === 'free' ? 'default' : 'outline'} className="w-full rounded-full">{summary.plan === 'free' ? 'Upgrade plan' : 'Change plan'}</Button>
                     </Link>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Upcoming Payment section removed per product decision */}
-
-            <div className="bg-white rounded-xl border p-6">
+            <div className="rounded-3xl bg-white p-6 ring-1 ring-black/5">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-lg font-semibold">Invoice History</h2>
+                <h2 className="text-lg font-semibold">Invoice history</h2>
               </div>
               {summary.stripe.invoices && summary.stripe.invoices.length > 0 ? (
                 <ul className="divide-y">
@@ -220,7 +218,7 @@ export default function BillingPage() {
                       <div className="flex items-center gap-2">
                         {inv.hosted_invoice_url ? (
                           <Link href={inv.hosted_invoice_url} target="_blank" rel="noopener noreferrer">
-                            <Button size="sm">View</Button>
+                            <Button size="sm" variant="outline" className="rounded-full">View</Button>
                           </Link>
                         ) : null}
                       </div>

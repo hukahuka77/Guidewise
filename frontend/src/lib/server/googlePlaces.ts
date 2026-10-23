@@ -20,10 +20,23 @@ async function fetchJson(url: string, init: RequestInit = {}): Promise<Dict> {
   return asDict(await res.json());
 }
 
-export function googlePlacesTextSearch(query: string, location?: string | null): Promise<Dict> {
+const LAT_LNG = /^\s*-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\s*$/;
+
+/**
+ * Text Search. `location` may be "lat,lng" or an address: Google's `location` parameter only takes
+ * coordinates (an address makes it answer INVALID_REQUEST with no results), so an address goes into
+ * the query text instead ("coffee near 12 Main St").
+ */
+export async function googlePlacesTextSearch(query: string, location?: string | null): Promise<Dict> {
   const params = new URLSearchParams({ query, key: googleApiKey() });
-  if (location) params.set("location", location);
-  return fetchJson(`${TEXT_SEARCH_URL}?${params}`);
+  if (location && LAT_LNG.test(location)) params.set("location", location.replace(/\s+/g, ""));
+  else if (location) params.set("query", `${query} near ${location}`);
+  const data = await fetchJson(`${TEXT_SEARCH_URL}?${params}`);
+  // Google reports problems in the body with HTTP 200; say so instead of quietly returning nothing
+  if (data.status && data.status !== "OK" && data.status !== "ZERO_RESULTS") {
+    console.warn("Google text search failed", data.status, typeof data.error_message === "string" ? data.error_message : "");
+  }
+  return data;
 }
 
 export function googlePlacesDetails(placeId: string): Promise<Dict> {
