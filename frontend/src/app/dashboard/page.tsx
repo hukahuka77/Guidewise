@@ -11,6 +11,7 @@ import ConfirmModal from "@/components/ui/ConfirmModal";
 import QRDownloadButton from "@/components/custom/QRDownloadButton";
 import { absoluteUrl } from "@/lib/publicUrl";
 import { offerUpgrade, throwApiError } from "@/lib/upgrade";
+import { notify } from "@/lib/dialog";
 import { cacheGet, cacheSet } from "@/lib/cache";
 import { claimGuestGuidebooks, isGuestSession } from "@/lib/guest";
 
@@ -294,7 +295,7 @@ export default function DashboardPage() {
       window.URL.revokeObjectURL(url);
     } catch (e) {
       console.error('PDF download error:', e);
-      if (!offerUpgrade(e)) alert(e instanceof Error && e.message ? e.message : 'Failed to generate PDF. Please try again.');
+      if (!offerUpgrade(e)) notify("Couldn't create the PDF", e instanceof Error && e.message ? e.message : 'Please try again.');
     } finally {
       setDownloadingPdf(null);
     }
@@ -456,7 +457,6 @@ export default function DashboardPage() {
                               ...(viewUrl ? [{ label: "View guidebook", onSelect: () => window.open(viewUrl, "_blank", "noopener") }] : []),
                               { label: "QR code", onSelect: () => setQrModalFor(gb.id) },
                               { label: downloadingPdf === gb.id ? "Generating print version…" : "Download print version", onSelect: () => downloadPrintPdf(gb.id, name), disabled: downloadingPdf === gb.id },
-                              { label: "PDF guidebook", onSelect: () => router.push(`/dashboard/pdf/${gb.id}`) },
                               { label: "Delete", onSelect: () => setDeleteId(gb.id), danger: true },
                             ]}
                           />
@@ -532,10 +532,6 @@ export default function DashboardPage() {
                           '📄 Download Print Version'
                         )}
                       </Button>
-
-                      <Link href={`/dashboard/pdf/${gb.id}`} className="col-span-2">
-                        <Button variant="outline" className="w-full whitespace-nowrap text-sm">📘 PDF Guidebook</Button>
-                      </Link>
 
                       {/* View the guidebook */}
                       <Link href={viewUrl || '#'} target="_blank" rel="noopener noreferrer" className="col-span-2" aria-disabled={!viewUrl}>

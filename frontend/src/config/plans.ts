@@ -26,7 +26,6 @@ export const PLAN_COPY: PlanCopy[] = [
       "Signature guidebook style",
       "AI content and place recommendations (3 runs / month)",
       "Airbnb & VRBO listing import",
-      "1 PDF layout",
     ],
   },
   {
@@ -36,7 +35,7 @@ export const PLAN_COPY: PlanCopy[] = [
     tagline: "For hosts with a place or two",
     features: [
       "Unlimited guest views",
-      "All PDF layouts, QR poster and print-ready PDF",
+      "Print-ready PDF of your guidebook",
       "30 AI recommendation runs / month",
       "Everything in Free",
     ],

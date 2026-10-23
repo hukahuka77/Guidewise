@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { notify } from "@/lib/dialog";
 import { Button } from "@/components/ui/button";
 
 interface QRDownloadButtonProps {
@@ -43,7 +44,7 @@ export default function QRDownloadButton({
       URL.revokeObjectURL(objectUrl);
     } catch (error) {
       console.error('Failed to download QR code:', error);
-      alert('Failed to download QR code. Please try again.');
+      notify('Couldn\'t download the QR code', 'Please try again.');
     } finally {
       setDownloading(false);
     }
