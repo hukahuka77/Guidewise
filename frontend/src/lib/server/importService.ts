@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { DEFAULT_TEMPLATE_KEY } from "@/lib/guidebook/render";
 import type { Sql } from "./db";
 import { MAX_PROPERTY_NAME, uniqueSlug } from "./guidebookService";
 import type { Recommendations } from "./importPopulate";
@@ -89,7 +90,7 @@ export async function createImportedGuidebook(
         ${wifi ? tx.json(wifi as never) : null}, ${tx.json(customSections as never)},
         ${customTabsMeta ? tx.json(customTabsMeta as never) : null},
         ${tx.json(tabs as never)},
-        'template_original', ${hostId}, ${propertyId}, ${userId}, ${publicSlug}
+        ${DEFAULT_TEMPLATE_KEY}, ${hostId}, ${propertyId}, ${userId}, ${publicSlug}
       )`;
     return id;
   });

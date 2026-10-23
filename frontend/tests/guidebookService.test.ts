@@ -169,7 +169,7 @@ describe("createGuidebook", () => {
 
   it("defaults the template and tabs, and ignores unknown template keys", async () => {
     const r = await createGuidebook(db.sql, OWNER, base({ template_key: "template_nope" }));
-    expect(r.templateKey).toBe("template_original");
+    expect(r.templateKey).toBe("template_signature");
     const [g] = await db.sql`select included_tabs from guidebook where id = ${r.guidebookId}`;
     expect(g.included_tabs).toEqual(["welcome", "checkin", "property", "food", "activities", "rules", "checkout"]);
   });
@@ -216,7 +216,7 @@ describe("read", () => {
     const { guidebookId } = await createGuidebook(db.sql, OWNER, base({ host_name: "Andrew", rules: [{ name: "A", description: "b" }], wifi_network: "N" }));
     const a = await getGuidebookPayload(db.sql, OWNER, guidebookId);
     expect(a).toMatchObject({
-      id: guidebookId, template_key: "template_original",
+      id: guidebookId, template_key: "template_signature",
       property: { name: "Cozy Cabin", address_street: null }, host: { name: "Andrew" },
       rules: [{ name: "A", description: "b" }], wifi_json: { network: "N" },
     });
@@ -303,7 +303,7 @@ describe("updateGuidebook", () => {
   it("ignores a non-string template_key and enforces ownership", async () => {
     const { guidebookId } = await createGuidebook(db.sql, OWNER, base());
     await updateGuidebook(db.sql, OWNER, guidebookId, { template_key: null, welcome_message: "ok" });
-    expect((await db.sql`select template_key from guidebook where id = ${guidebookId}`)[0].template_key).toBe("template_original");
+    expect((await db.sql`select template_key from guidebook where id = ${guidebookId}`)[0].template_key).toBe("template_signature");
     await rejects(updateGuidebook(db.sql, OTHER, guidebookId, { welcome_message: "hax" }), 404);
     await rejects(updateGuidebook(db.sql, OWNER, "nope", {}), 404);
     expect((await db.sql`select welcome_info from guidebook where id = ${guidebookId}`)[0].welcome_info).toBe("ok");

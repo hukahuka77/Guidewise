@@ -1,14 +1,11 @@
 import React, { useState } from "react";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { Plus, Trash2 } from "lucide-react";
+import { ImagePlus, Text, Trash2 } from "lucide-react";
 import { LIMITS } from "@/constants/limits";
-import Spinner from "@/components/ui/spinner";
+import { Card, CardHeader, Field, IconButton, inputClass, compactTextareaClass, textareaClass } from "@/components/editor/primitives";
+import { MediaSlot, pickMedia } from "./HouseManualList";
 
-export type CustomItemText = { type: 'text', content: string };
-export type CustomItemManual = { type: 'manual', name: string, description: string, mediaUrl?: string, mediaType?: "image" | "video" };
+export type CustomItemText = { type: "text"; content: string };
+export type CustomItemManual = { type: "manual"; name: string; description: string; mediaUrl?: string; mediaType?: "image" | "video" };
 export type CustomItem = CustomItemText | CustomItemManual;
 
 interface CustomSectionProps {
@@ -24,178 +21,86 @@ interface CustomSectionProps {
 
 export default function CustomSection({ sectionKey, icon, label, items, onChange, onLabelChange, onMediaSelect, onRemoveMedia }: CustomSectionProps) {
   const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
+  const full = items.length >= LIMITS.maxCustomSectionItems;
 
-  const handleAddTextField = () => {
-    onChange([...items, { type: 'text', content: '' }]);
-  };
+  const update = (index: number, next: CustomItem) => onChange(items.map((it, i) => (i === index ? next : it)));
+  const remove = (index: number) => onChange(items.filter((_, i) => i !== index));
 
-  const handleAddManualItem = () => {
-    onChange([...items, { type: 'manual', name: '', description: '' }]);
-  };
-
-  const handleUpdateTextItem = (index: number, content: string) => {
-    const updated = [...items];
-    updated[index] = { type: 'text', content };
-    onChange(updated);
-  };
-
-  const handleUpdateManualItem = (index: number, field: 'name' | 'description', value: string) => {
-    const updated = [...items];
-    const item = updated[index];
-    if (item.type === 'manual') {
-      updated[index] = { ...item, [field]: value };
-      onChange(updated);
-    }
-  };
-
-  const handleDeleteItem = (index: number) => {
-    onChange(items.filter((_, i) => i !== index));
-  };
-
-  const handleMediaUpload = async (idx: number) => {
-    if (!onMediaSelect) return;
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/*,video/*";
-    input.onchange = async () => {
-      const file = input.files && input.files[0] ? input.files[0] : null;
-      if (!file) return;
+  const attach = (idx: number) =>
+    pickMedia(async (file) => {
+      if (!onMediaSelect) return;
       try {
         setUploadingIdx(idx);
         await onMediaSelect(idx, file);
       } finally {
         setUploadingIdx(null);
       }
-    };
-    input.click();
-  };
+    });
 
   return (
-    <section className="mb-8">
-      <div className="flex items-center gap-3 mb-4">
-        <span className="text-2xl">{icon}</span>
-        <Input
-          value={label}
-          onChange={(e) => onLabelChange(e.target.value.slice(0, LIMITS.customTabTitle))}
-          placeholder="Section name"
-          maxLength={LIMITS.customTabTitle}
-          className="text-xl font-semibold max-w-xs"
-        />
-      </div>
-
-      {/* Items */}
-      <div className="space-y-4 mb-4">
-        {items.map((item, idx) => (
-          <div key={idx} className="relative">
-            {item.type === 'text' ? (
-              <div className="pr-10">
-                <Label htmlFor={`${sectionKey}-item-${idx}`}>
-                  Text Field {idx + 1}
-                </Label>
-                <Textarea
-                  id={`${sectionKey}-item-${idx}`}
-                  value={item.content}
-                  onChange={(e) => handleUpdateTextItem(idx, e.target.value)}
-                  placeholder="Enter text content..."
-                  className="mt-1"
-                  rows={4}
-                />
-                <button
-                  type="button"
-                  onClick={() => handleDeleteItem(idx)}
-                  className="absolute top-8 right-0 p-2 text-red-500 hover:bg-red-50 rounded transition-colors"
-                  aria-label="Delete item"
-                >
-                  <Trash2 size={18} />
-                </button>
-              </div>
-            ) : (
-              <div className="p-4 rounded-lg bg-white/80 shadow flex flex-col gap-2 relative">
-                <button
-                  type="button"
-                  onClick={() => handleDeleteItem(idx)}
-                  className="absolute top-2 right-2 p-1 rounded hover:bg-[oklch(0.6923_0.22_21.05)]/10 transition"
-                  aria-label="Delete item"
-                >
-                  <Trash2 style={{ color: "oklch(0.6923 0.22 21.05)" }} size={20} />
-                </button>
-                <Label>Name</Label>
-                <Input
-                  value={item.name}
-                  onChange={(e) => handleUpdateManualItem(idx, 'name', e.target.value)}
-                  placeholder="e.g. Appliance instructions"
-                />
-                <Label>Description</Label>
-                <Textarea
-                  value={item.description}
-                  onChange={(e) => handleUpdateManualItem(idx, 'description', e.target.value)}
-                  placeholder="Details, instructions, etc."
-                />
-                <div className="mt-2 flex items-center justify-between">
-                  {item.mediaUrl ? (
-                    <button
-                      type="button"
-                      className="text-sm text-red-600 underline-offset-2 hover:underline"
-                      onClick={() => onRemoveMedia?.(idx)}
-                    >
-                      {item.mediaType === "video" ? "Remove video" : "Remove image"}
-                    </button>
-                  ) : (
-                    uploadingIdx === idx ? (
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <Spinner size={16} colorClass="text-[oklch(0.6923_0.22_21.05)]" />
-                        <span>Uploading…</span>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        className="text-sm text-[oklch(0.6923_0.22_21.05)] underline-offset-2 hover:underline"
-                        onClick={() => handleMediaUpload(idx)}
-                      >
-                        + Add photo or video
-                      </button>
-                    )
-                  )}
-                </div>
-              </div>
-            )}
+    <div className="space-y-5">
+      <Card>
+        <CardHeader title="Section name" description="Shown as a tab and heading in your guidebook." />
+        <Field label="Name" htmlFor={`${sectionKey}-label`} count={[label.length, LIMITS.customTabTitle]}>
+          <div className="flex items-center gap-3">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-[#F5EFE7] text-xl" aria-hidden="true">{icon}</span>
+            <input
+              id={`${sectionKey}-label`}
+              value={label}
+              onChange={(e) => onLabelChange(e.target.value.slice(0, LIMITS.customTabTitle))}
+              placeholder="Section name"
+              maxLength={LIMITS.customTabTitle}
+              className={`${inputClass} max-w-xs font-medium`}
+            />
           </div>
-        ))}
-      </div>
+        </Field>
+      </Card>
 
-      {/* Add Buttons */}
-      <div className="flex gap-2 flex-wrap">
-        <Button
-          type="button"
-          onClick={handleAddTextField}
-          variant="outline"
-          className="flex items-center gap-2"
-          disabled={items.length >= LIMITS.maxCustomSectionItems}
-        >
-          <Plus size={18} />
-          Add text field
-        </Button>
-        <Button
-          type="button"
-          onClick={handleAddManualItem}
-          variant="outline"
-          className="flex items-center gap-2"
-          disabled={items.length >= LIMITS.maxCustomSectionItems}
-        >
-          <Plus size={18} />
-          Add manual item
-        </Button>
-      </div>
-
-      {items.length >= LIMITS.maxCustomSectionItems ? (
-        <p className="text-sm text-amber-600 mt-4">
-          Maximum of {LIMITS.maxCustomSectionItems} items reached for this section.
-        </p>
-      ) : (
-        <p className="text-sm text-gray-500 mt-4">
-          Add text fields or manual items (with photo/video) to organize your content.
-        </p>
-      )}
-    </section>
+      <Card>
+        <CardHeader title="Content" description="Mix paragraphs of text with items that have a photo or video." />
+        {items.length > 0 && (
+          <ul className="mb-4 space-y-3">
+            {items.map((item, idx) => (
+              <li key={idx} className="flex flex-col gap-3 rounded-xl border border-[#ECE5DB] bg-[#FDFBF8] p-3 sm:flex-row sm:p-4">
+                {item.type === "text" ? (
+                  <textarea
+                    id={`${sectionKey}-item-${idx}`}
+                    aria-label={`Text ${idx + 1}`}
+                    value={item.content}
+                    maxLength={LIMITS.customText}
+                    onChange={(e) => update(idx, { type: "text", content: e.target.value })}
+                    placeholder="Write anything guests should know…"
+                    rows={4}
+                    className={`${textareaClass} flex-1`}
+                  />
+                ) : (
+                  <>
+                    <MediaSlot url={item.mediaUrl} type={item.mediaType} uploading={uploadingIdx === idx} onAdd={() => attach(idx)} onRemove={() => onRemoveMedia?.(idx)} />
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <input aria-label="Title" value={item.name} onChange={(e) => update(idx, { ...item, name: e.target.value })} placeholder="Title" className={`${inputClass} font-medium`} />
+                      <textarea aria-label="Details" value={item.description} onChange={(e) => update(idx, { ...item, description: e.target.value })} placeholder="Details" rows={2} className={compactTextareaClass} />
+                    </div>
+                  </>
+                )}
+                <div className="flex justify-end sm:block">
+                  <IconButton label="Remove" tone="danger" onClick={() => remove(idx)}>
+                    <Trash2 className="size-4" />
+                  </IconButton>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="grid gap-2 sm:grid-cols-2">
+          <button type="button" disabled={full} onClick={() => onChange([...items, { type: "text", content: "" }])} className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-[#DCD2C4] bg-[#FBF8F4] px-4 py-3 text-sm font-medium text-gray-700 transition hover:border-primary/60 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50">
+            <Text className="size-4" /> Add text
+          </button>
+          <button type="button" disabled={full} onClick={() => onChange([...items, { type: "manual", name: "", description: "" }])} className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-[#DCD2C4] bg-[#FBF8F4] px-4 py-3 text-sm font-medium text-gray-700 transition hover:border-primary/60 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50">
+            <ImagePlus className="size-4" /> Add item with photo
+          </button>
+        </div>
+        {full && <p className="mt-3 text-sm text-amber-700">You&apos;ve reached the limit of {LIMITS.maxCustomSectionItems} items for this section.</p>}
+      </Card>
+    </div>
   );
 }

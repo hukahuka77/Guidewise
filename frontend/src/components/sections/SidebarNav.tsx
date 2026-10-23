@@ -1,17 +1,36 @@
 import React from "react";
+import { BookOpen, Compass, Eye, EyeOff, GripVertical, Home, KeyRound, ListChecks, Luggage, Plus, UtensilsCrossed, type LucideIcon } from "lucide-react";
 import { LIMITS } from "../../constants/limits";
+import { cn } from "@/lib/utils";
+import { EDIT_SECTIONS_ORDER } from "@/config/sections";
 
-const NAV_META: Record<string, { label: string; icon: string }> = {
-  welcome: { label: "Welcome", icon: "👋" },
-  checkin: { label: "Check-in Info", icon: "🏠" },
-  wifi: { label: "Wi-Fi", icon: "📶" },
-  hostinfo: { label: "Host Info", icon: "👤" },
-  property: { label: "House Manual", icon: "📘" },
-  food: { label: "Food", icon: "🍽️" },
-  activities: { label: "Activities", icon: "🎡" },
-  rules: { label: "House Rules", icon: "📋" },
-  checkout: { label: "Checkout Info", icon: "🧳" },
+/** Editor labels, icons and helper text for the built-in sections. */
+export const SECTION_META: Record<string, { label: string; icon: LucideIcon; description: string }> = {
+  welcome: { label: "Welcome", icon: Home, description: "Your place, a warm hello and who is hosting. This always opens the guidebook." },
+  checkin: { label: "Check-in", icon: KeyRound, description: "Everything guests need to arrive smoothly: timing, getting in, Wi-Fi and safety." },
+  property: { label: "House manual", icon: BookOpen, description: "How things work around the house. Photos and short videos help." },
+  food: { label: "Food & drink", icon: UtensilsCrossed, description: "Your favorite places to eat and drink nearby." },
+  activities: { label: "Things to do", icon: Compass, description: "Sights, walks and experiences worth the trip." },
+  rules: { label: "House rules", icon: ListChecks, description: "What you ask of guests, kept short and friendly." },
+  checkout: { label: "Check-out", icon: Luggage, description: "When to leave and what to do before going. Guests can tick steps off." },
 };
+
+/**
+ * Put a section that is being shown again back where it normally goes, instead of at the end:
+ * a built-in section goes right after the visible section that precedes it in the default order.
+ */
+export function insertInOrder(included: string[], section: string): string[] {
+  const rest = included.filter((k) => k !== section);
+  const rank = (k: string) => {
+    const i = EDIT_SECTIONS_ORDER.indexOf(k as (typeof EDIT_SECTIONS_ORDER)[number]);
+    return i === -1 ? Number.POSITIVE_INFINITY : i;
+  };
+  const target = rank(section);
+  if (!Number.isFinite(target)) return [...rest, section];
+  let after = -1;
+  rest.forEach((k, i) => { if (rank(k) < target) after = i; });
+  return [...rest.slice(0, after + 1), section, ...rest.slice(after + 1)];
+}
 
 interface SidebarNavProps {
   currentSection: string;
@@ -150,7 +169,7 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
     <li
       key={`dz-${listName}-${atIndex}`}
       role="separator"
-      className={`${dragOver.list === listName && dragOver.index === atIndex ? "h-[2px] bg-white/80 my-0.5" : "h-0"} mx-2 rounded`}
+      className={`${dragOver.list === listName && dragOver.index === atIndex ? "h-[2px] bg-primary my-0.5" : "h-0"} mx-2 rounded`}
       onDragOver={(e) => {
         onDragOver(e);
         setDragOver({ list: listName, index: atIndex });
@@ -174,20 +193,30 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
       if (idx >= 0) newIncluded.splice(idx, 1);
       newExcluded.push(section);
     } else {
-      // Move to included
+      // Move back to included, at its usual place
       const idx = newExcluded.indexOf(section);
       if (idx >= 0) newExcluded.splice(idx, 1);
-      newIncluded.push(section);
+      onUpdate(insertInOrder(newIncluded, section), newExcluded);
+      return;
     }
 
     onUpdate(newIncluded, newExcluded);
   };
 
+  const metaFor = (section: string) => {
+    const builtIn = SECTION_META[section];
+    if (builtIn) return { label: builtIn.label, Icon: builtIn.icon as LucideIcon | null, emoji: null as string | null };
+    const custom = customMeta[section];
+    return { label: custom?.label || "Custom section", Icon: null as LucideIcon | null, emoji: custom?.icon || "📝" };
+  };
+
   const renderItem = (section: string, index: number, listName: "included" | "excluded") => {
-    const meta: { icon: string; label: string } = NAV_META[section] ?? customMeta[section] ?? { icon: "📝", label: section };
+    const { label, Icon, emoji } = metaFor(section);
     const isEnabled = listName === "included" ? (!allowedSections || allowedSections.includes(section)) : true;
     const isWelcome = section === "welcome";
     const isDraggable = !isWelcome;
+    const active = currentSection === section;
+    const hidden = listName === "excluded";
     return (
       <li
         key={section}
@@ -214,26 +243,38 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
           const insertion = dragOver.list === listName ? dragOver.index : index;
           handleDropOnList(e, listName, insertion);
         }}
-        className={`flex items-center gap-0 md:gap-2 px-2 md:px-3 py-2 rounded-lg transition-colors ${
-          currentSection === section ? "bg-white/20" : "hover:bg-white/10"
-        } ${!isEnabled ? 'opacity-50 cursor-not-allowed' : isDraggable ? 'cursor-move' : 'cursor-pointer'}`}
+        className={cn(
+          "group relative flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm transition-colors",
+          active ? "bg-primary/10 font-semibold text-gray-900" : "text-gray-700 hover:bg-[#F5EFE7]",
+          hidden && !active && "text-gray-400",
+          !isEnabled ? "cursor-not-allowed opacity-50" : "cursor-pointer",
+        )}
         onClick={() => {
           if (!isEnabled) return;
           onSectionChange(section);
         }}
-        title={isWelcome ? "Welcome section (required)" : "Drag to reorder or move between lists"}
+        title={isWelcome ? "Welcome always opens your guidebook" : "Drag to reorder"}
       >
-        <span className="w-6 h-6 flex items-center justify-center text-lg" aria-hidden="true">{meta.icon}</span>
-        <span className="font-medium text-sm md:text-base hidden sm:inline flex-1">{meta.label}</span>
+        {active && <span className="absolute inset-y-2 left-0 w-1 rounded-full bg-primary" aria-hidden="true" />}
+        <span className={cn("w-3 shrink-0 text-gray-300 transition", isDraggable ? "cursor-grab opacity-0 group-hover:opacity-100" : "opacity-0")} aria-hidden="true">
+          <GripVertical className="size-3.5" />
+        </span>
+        <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-lg", active ? "bg-white text-primary shadow-sm" : "bg-[#F5EFE7] text-gray-600", hidden && "opacity-60")} aria-hidden="true">
+          {Icon ? <Icon className="size-4" /> : <span className="text-sm leading-none">{emoji}</span>}
+        </span>
+        <span className="min-w-0 flex-1 truncate">{label}</span>
         {!isWelcome && (
           <button
             type="button"
             onClick={(e) => handleToggleSection(e, section, listName)}
-            className="w-6 h-6 flex items-center justify-center text-white hover:bg-white/20 rounded transition-colors hidden sm:flex"
-            title={listName === "included" ? "Exclude section" : "Include section"}
-            aria-label={listName === "included" ? "Exclude section" : "Include section"}
+            className={cn(
+              "inline-flex size-7 shrink-0 items-center justify-center rounded-lg transition hover:bg-white hover:text-gray-900",
+              hidden ? "text-gray-400" : "text-gray-400 opacity-0 focus:opacity-100 group-hover:opacity-100",
+            )}
+            title={hidden ? "Show in guidebook" : "Hide from guidebook"}
+            aria-label={hidden ? `Show ${label} in guidebook` : `Hide ${label} from guidebook`}
           >
-            {listName === "included" ? "−" : "+"}
+            {hidden ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
           </button>
         )}
       </li>
@@ -243,83 +284,124 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
   return (
     <nav
       ref={containerRef}
-      className="h-full w-10 sm:w-20 md:w-56 text-white flex flex-col py-6 md:py-8 px-1 sm:px-3 md:px-4"
+      aria-label="Guidebook sections"
+      className="flex flex-col"
       onDragOver={onContainerDragOver}
     >
-      <div className="mb-4 text-xl md:text-2xl font-bold tracking-tight hidden sm:block">Guidebook</div>
-
-      {/* Included list */}
-      <ul
-        data-tutorial="sidebar-included"
-        className="flex flex-col gap-2 mb-4 min-h-4"
-        onDragOver={(e) => onDragOver(e)}
-        onDragLeave={(e) => onDragLeaveList(e, "included")}
-        onDrop={(e) => {
-          // Fallback: drop on whitespace of Included appends at current indicator or end
-          const idx = dragOver.list === "included" && dragOver.index >= 0 ? dragOver.index : included.length;
-          handleDropOnList(e, "included", idx);
-        }}
-      >
-        {renderDropZone("included", 0)}
-        {included.map((s, idx) => (
-          <React.Fragment key={`wrap-inc-${s}`}>
-            {renderItem(s, idx, "included")}
-            {renderDropZone("included", idx + 1)}
-          </React.Fragment>
-        ))}
-      </ul>
-
-      {/* Add custom button (below Included, above Excluded) */}
-      <button
-        type="button"
-        className={`mb-2 inline-flex items-center justify-center sm:justify-start gap-0 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 py-2 rounded bg-white/10 hover:bg-white/20 transition ${!canAddCustom ? 'opacity-50 cursor-not-allowed' : ''}`}
-        onClick={() => { if (!canAddCustom) return; setShowCustomModal(true); }}
-        aria-label="Add custom tab"
-        disabled={!canAddCustom}
-      >
-        <span className="text-base" aria-hidden="true">➕</span>
-        <span className="hidden sm:inline">Add custom</span>
-      </button>
-
-      {/* Divider for Excluded */}
-      <div
-        data-tutorial="excluded"
-        className="mt-2 mb-2 text-xs uppercase tracking-wider text-white/60"
-        onDragOver={(e) => {
-          onDragOver(e);
-          setDragOver({ list: "excluded", index: 0 });
-        }}
-        onDrop={(e) => handleDropOnList(e, "excluded", 0)}
-      >
-        Excluded
+      {/* Phones and small tablets: a scrollable strip of the visible sections */}
+      <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 md:hidden">
+        {included.map((section) => {
+          const { label, Icon, emoji } = metaFor(section);
+          const active = currentSection === section;
+          return (
+            <button
+              key={`chip-${section}`}
+              type="button"
+              onClick={() => onSectionChange(section)}
+              className={cn(
+                "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm",
+                active ? "border-primary bg-primary/10 font-semibold text-gray-900" : "border-[#E7DFD4] bg-white text-gray-700",
+              )}
+            >
+              {Icon ? <Icon className="size-4 text-primary" /> : <span aria-hidden="true">{emoji}</span>}
+              {label}
+            </button>
+          );
+        })}
+        {excluded.length > 0 && excluded.map((section) => {
+          const { label } = metaFor(section);
+          return (
+            <button key={`chip-x-${section}`} type="button" onClick={() => onSectionChange(section)} className={cn("inline-flex shrink-0 items-center gap-1.5 rounded-full border border-dashed px-3 py-1.5 text-sm text-gray-400", currentSection === section && "border-primary text-gray-700")}>
+              <EyeOff className="size-3.5" />
+              {label}
+            </button>
+          );
+        })}
+        {canAddCustom && (
+          <button type="button" onClick={() => setShowCustomModal(true)} className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-dashed border-primary/60 px-3 py-1.5 text-sm font-medium text-primary">
+            <Plus className="size-3.5" /> Section
+          </button>
+        )}
       </div>
 
-      {/* Excluded list */}
-      <ul
-        data-tutorial="sidebar-excluded"
-        className="flex flex-col gap-2 min-h-4"
-        onDragOver={(e) => onDragOver(e)}
-        onDragLeave={(e) => onDragLeaveList(e, "excluded")}
-        onDrop={(e) => {
-          const idx = dragOver.list === "excluded" && dragOver.index >= 0 ? dragOver.index : excluded.length;
-          handleDropOnList(e, "excluded", idx);
-        }}
-      >
-        {renderDropZone("excluded", 0)}
-        {excluded.map((s, idx) => (
-          <React.Fragment key={`wrap-exc-${s}`}>
-            {renderItem(s, idx, "excluded")}
-            {renderDropZone("excluded", idx + 1)}
-          </React.Fragment>
-        ))}
-      </ul>
+      <div className="hidden md:block">
+        <p className="mb-2 px-2.5 text-xs font-semibold uppercase tracking-wider text-gray-400">Sections</p>
+
+        {/* Included list */}
+        <ul
+          data-tutorial="sidebar-included"
+          className="flex min-h-4 flex-col gap-0.5"
+          onDragOver={(e) => onDragOver(e)}
+          onDragLeave={(e) => onDragLeaveList(e, "included")}
+          onDrop={(e) => {
+            // Fallback: drop on whitespace of Included appends at current indicator or end
+            const idx = dragOver.list === "included" && dragOver.index >= 0 ? dragOver.index : included.length;
+            handleDropOnList(e, "included", idx);
+          }}
+        >
+          {renderDropZone("included", 0)}
+          {included.map((s, idx) => (
+            <React.Fragment key={`wrap-inc-${s}`}>
+              {renderItem(s, idx, "included")}
+              {renderDropZone("included", idx + 1)}
+            </React.Fragment>
+          ))}
+        </ul>
+
+        <button
+          type="button"
+          className="mt-2 flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm font-medium text-primary transition hover:bg-primary/5 disabled:cursor-not-allowed disabled:text-gray-400 disabled:hover:bg-transparent"
+          onClick={() => { if (!canAddCustom) return; setShowCustomModal(true); }}
+          aria-label="Add custom section"
+          disabled={!canAddCustom}
+          title={canAddCustom ? undefined : `Up to ${LIMITS.maxCustomTabs} custom sections`}
+        >
+          <span className="w-3" aria-hidden="true" />
+          <span className="flex size-7 items-center justify-center rounded-lg border border-dashed border-current" aria-hidden="true"><Plus className="size-4" /></span>
+          Add a section
+        </button>
+
+        {/* Hidden sections */}
+        <div
+          data-tutorial="excluded"
+          className="mt-5 border-t border-[#ECE5DB] px-2.5 pt-4 text-xs font-semibold uppercase tracking-wider text-gray-400"
+          onDragOver={(e) => {
+            onDragOver(e);
+            setDragOver({ list: "excluded", index: 0 });
+          }}
+          onDrop={(e) => handleDropOnList(e, "excluded", 0)}
+        >
+          Hidden from guests
+        </div>
+
+        <ul
+          data-tutorial="sidebar-excluded"
+          className="mt-2 flex min-h-10 flex-col gap-0.5"
+          onDragOver={(e) => onDragOver(e)}
+          onDragLeave={(e) => onDragLeaveList(e, "excluded")}
+          onDrop={(e) => {
+            const idx = dragOver.list === "excluded" && dragOver.index >= 0 ? dragOver.index : excluded.length;
+            handleDropOnList(e, "excluded", idx);
+          }}
+        >
+          {renderDropZone("excluded", 0)}
+          {excluded.length === 0 && <li className="px-2.5 py-1 text-xs text-gray-400">Drag a section here to hide it.</li>}
+          {excluded.map((s, idx) => (
+            <React.Fragment key={`wrap-exc-${s}`}>
+              {renderItem(s, idx, "excluded")}
+              {renderDropZone("excluded", idx + 1)}
+            </React.Fragment>
+          ))}
+        </ul>
+      </div>
 
       {/* Custom Tab Modal */}
       {showCustomModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowCustomModal(false)} />
-          <div className="relative z-10 w-full max-w-sm rounded-lg bg-white text-gray-900 p-5 shadow-xl">
-            <div className="text-lg font-semibold mb-3">Add custom tab</div>
+          <div className="relative z-10 w-[92vw] max-w-sm rounded-2xl bg-white text-gray-900 p-6 shadow-xl">
+            <div className="text-lg font-semibold mb-1">Add a section</div>
+            <p className="mb-4 text-sm text-gray-500">For anything that doesn&apos;t fit elsewhere: a pool guide, a kids corner, local transport.</p>
             <div className="space-y-3">
               <div>
                 <label className="block text-sm font-medium mb-1">Emoji</label>
@@ -328,7 +410,7 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
                     <button
                       key={e}
                       type="button"
-                      className={`h-9 w-9 flex items-center justify-center rounded border text-lg hover:bg-gray-50 ${customEmoji === e ? 'ring-2 ring-[oklch(0.6923_0.22_21.05)]' : ''}`}
+                      className={`h-9 w-9 flex items-center justify-center rounded border text-lg hover:bg-gray-50 ${customEmoji === e ? 'ring-2 ring-primary' : ''}`}
                       onClick={() => setCustomEmoji(e)}
                       aria-label={`Choose ${e}`}
                     >
@@ -340,7 +422,7 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
                   type="text"
                   inputMode="text"
                   placeholder="Or type/paste an emoji (1 char)"
-                  className="w-full border rounded px-3 py-2"
+                  className="w-full rounded-lg border border-[#E7DFD4] px-3 py-2 outline-none focus:border-primary focus:ring-4 focus:ring-primary/15"
                   value={customEmoji}
                   maxLength={LIMITS.customTabEmojiChars}
                   onChange={(e) => setCustomEmoji(e.target.value.slice(0, LIMITS.customTabEmojiChars))}
@@ -351,8 +433,8 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
                 <label className="block text-sm font-medium mb-1">Title</label>
                 <input
                   type="text"
-                  placeholder="Custom section title"
-                  className="w-full border rounded px-3 py-2"
+                  placeholder="e.g. Pool & hot tub"
+                  className="w-full rounded-lg border border-[#E7DFD4] px-3 py-2 outline-none focus:border-primary focus:ring-4 focus:ring-primary/15"
                   value={customTitle}
                   maxLength={LIMITS.customTabTitle}
                   onChange={(e) => setCustomTitle(e.target.value.slice(0, LIMITS.customTabTitle))}
@@ -362,14 +444,14 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"
-                className="px-3 py-2 rounded border border-gray-300 text-gray-700 hover:bg-gray-50"
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
                 onClick={() => setShowCustomModal(false)}
               >
                 Cancel
               </button>
               <button
                 type="button"
-                className={`px-3 py-2 rounded bg-[oklch(0.6923_0.22_21.05)] text-white hover:opacity-90 ${!canAddCustom ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`px-4 py-2 rounded-lg bg-gradient-to-r from-[#db2777] to-[#f97316] font-medium text-white hover:opacity-90 ${!canAddCustom ? 'opacity-50 cursor-not-allowed' : ''}`}
                 onClick={() => {
                   const title = customTitle.trim().slice(0, LIMITS.customTabTitle);
                   const emoji = ((customEmoji || "").trim().slice(0, LIMITS.customTabEmojiChars)) || "📝";

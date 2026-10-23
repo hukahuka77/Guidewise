@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Cozy Cabin &lt;Deluxe&gt; · Guest guide</title>
+  <meta name="theme-color" content="#FAF6F0" />
+  <link rel="preload" href="/fonts/guidebook/inter-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/fonts/guidebook/playfair-display-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin />
+  <style>
+    @font-face { font-family: "GW Inter"; src: url("/fonts/guidebook/inter-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+    @font-face { font-family: "GW Inter"; src: url("/fonts/guidebook/inter-latin-500-normal.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+    @font-face { font-family: "GW Inter"; src: url("/fonts/guidebook/inter-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+    @font-face { font-family: "GW Display"; src: url("/fonts/guidebook/playfair-display-latin-500-normal.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+    @font-face { font-family: "GW Display"; src: url("/fonts/guidebook/playfair-display-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+    @font-face { font-family: "GW Display"; src: url("/fonts/guidebook/playfair-display-latin-500-italic.woff2") format("woff2"); font-weight: 500; font-style: italic; font-display: swap; }
+
+    :root {
+      --paper: #FAF6F0; --paper-2: #F3ECE2; --card: #FFFFFF; --line: #ECE3D7;
+      --ink: #221C17; --ink-2: #4A413A; --muted: #7B7067;
+      --accent: #B85C38; --accent-ink: #8E4226; --accent-soft: #F6E7DD;
+      --sage: #4E6B5B; --sage-soft: #E3ECE5;
+      --alert: #A9402D; --alert-soft: #FBECE7;
+      --radius: 20px;
+      --shadow: 0 1px 2px rgba(34, 28, 23, .04), 0 10px 28px -14px rgba(34, 28, 23, .18);
+      --sans: "GW Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --serif: "GW Display", "Iowan Old Style", Georgia, "Times New Roman", serif;
+    }
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font: 400 16px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
+    img, video { display: block; max-width: 100%; }
+    a { color: inherit; }
+    h1, h2, h3, p { margin: 0; }
+    .ic { flex: none; }
+    .pre { white-space: pre-line; }
+
+    /* Hero */
+    .hero { position: relative; height: clamp(380px, 64vh, 560px); overflow: hidden; background: #3b322b; color: #fff; }
+    .hero-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(20,15,11,.18) 0%, rgba(20,15,11,0) 30%, rgba(20,15,11,.25) 55%, rgba(20,15,11,.78) 100%); }
+    .hero-inner { position: absolute; z-index: 1; left: 0; right: 0; bottom: 0; max-width: 760px; margin: 0 auto; padding: 0 22px 76px; }
+    .hero-tag { position: absolute; z-index: 1; top: max(16px, env(safe-area-inset-top)); left: 18px; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: rgba(255,255,255,.16); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); font-size: 12px; font-weight: 500; letter-spacing: .02em; }
+    .eyebrow { display: block; font-size: 12px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; opacity: .85; margin-bottom: 10px; }
+    .hero h1 { font: 500 clamp(36px, 9vw, 58px)/1.02 var(--serif); letter-spacing: -.015em; text-wrap: balance; }
+    .hero-addr { display: inline-flex; align-items: center; gap: 6px; margin-top: 14px; font-size: 14.5px; text-decoration: none; opacity: .92; }
+    .hero-addr:hover { opacity: 1; text-decoration: underline; text-underline-offset: 3px; }
+
+    .wrap { max-width: 760px; margin: 0 auto; padding: 0 18px; }
+
+    /* Essentials */
+    .essentials { position: relative; z-index: 2; margin-top: -52px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px; background: var(--card); border-radius: 24px; box-shadow: var(--shadow); }
+    .tile { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 14px; border-radius: 16px; background: var(--paper-2); text-decoration: none; }
+    .tile-label { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+    .tile-value { font-size: 17px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+    a.tile:hover { background: #EEE5D8; }
+    .tile--wifi { grid-column: 1 / -1; background: var(--ink); color: #FBF6EE; display: grid; grid-template-columns: 1fr auto; grid-template-areas: "label copy" "net net" "pass pass"; align-items: center; gap: 2px 12px; }
+    .tile--wifi .tile-label { grid-area: label; }
+    .wifi-net { grid-area: net; }
+    .wifi-pass { grid-area: pass; }
+    .tile--wifi .tile-label { color: rgba(251,246,238,.62); }
+    .wifi-net { font-size: 15px; color: rgba(251,246,238,.85); }
+    .wifi-pass { margin-top: 2px; font: 600 20px/1.25 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .02em; overflow-wrap: anywhere; }
+    .copy { grid-area: copy; justify-self: end; display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border: 0; border-radius: 999px; background: var(--accent); color: #fff; font: 600 14px var(--sans); cursor: pointer; }
+    .copy.copied { background: var(--sage); }
+    .essentials--odd > .tile:last-child { grid-column: 1 / -1; }
+
+    /* Section tabs */
+    .tabs { position: sticky; top: 0; z-index: 10; display: flex; gap: 8px; overflow-x: auto; margin: 22px -18px 0; padding: 12px 18px; background: rgba(250,246,240,.92); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); scrollbar-width: none; }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tabs a { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); color: var(--ink-2); font-size: 14px; font-weight: 500; text-decoration: none; white-space: nowrap; transition: background .2s, color .2s, border-color .2s; }
+    .tabs a.on { background: var(--ink); border-color: var(--ink); color: #FBF6EE; }
+
+    /* Sections */
+    .sec { padding-top: 44px; scroll-margin-top: 64px; }
+    .sec-head { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+    .sec-badge { flex: none; display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-size: 22px; }
+    .sec-num { font-size: 12px; font-weight: 600; letter-spacing: .16em; color: var(--accent-ink); }
+    .sec-head h2 { font: 500 30px/1.1 var(--serif); letter-spacing: -.01em; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; box-shadow: 0 1px 2px rgba(34,28,23,.03); }
+    .stack > * + * { margin-top: 12px; }
+    .kicker { font-size: 11.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+
+    .lede { font-size: 18px; line-height: 1.65; color: var(--ink-2); white-space: pre-line; }
+    .lede::first-letter { float: left; font: 500 3.3em/.86 var(--serif); color: var(--accent); margin: 6px 10px 0 0; }
+
+    .host { display: flex; gap: 16px; align-items: flex-start; }
+    .avatar { flex: none; width: 64px; height: 64px; border-radius: 50%; object-fit: cover; background: var(--accent-soft); color: var(--accent-ink); display: grid; place-items: center; font: 500 26px var(--serif); }
+    .host-name { font: 500 21px/1.2 var(--serif); margin-top: 2px; }
+    .host-bio { margin-top: 6px; color: var(--ink-2); white-space: pre-line; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); color: var(--ink); font-size: 14px; font-weight: 500; text-decoration: none; }
+    .btn:hover { border-color: var(--accent); color: var(--accent-ink); }
+    .contact-raw { margin-top: 10px; color: var(--ink-2); white-space: pre-line; overflow-wrap: anywhere; }
+
+    .safety { background: var(--alert-soft); border-color: #F3D6CE; }
+    .safety-row { display: flex; gap: 12px; align-items: flex-start; }
+    .safety-row + .safety-row { margin-top: 12px; padding-top: 12px; border-top: 1px solid #F1D9D1; }
+    .safety .ic { color: var(--alert); margin-top: 2px; }
+    .safety-label { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--alert); }
+
+    .fact { display: grid; grid-template-columns: 42px 1fr; gap: 14px; align-items: start; }
+    .fact + .fact { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+    .fact-ic { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 13px; background: var(--paper-2); color: var(--accent); }
+    .fact-value { margin-top: 2px; white-space: pre-line; overflow-wrap: anywhere; }
+    .fact-value--big { font: 500 24px/1.2 var(--serif); }
+    .callout { margin-top: 6px; padding: 12px 14px; border-radius: 12px; background: var(--accent-soft); border-left: 3px solid var(--accent); white-space: pre-line; overflow-wrap: anywhere; }
+
+    .fold { background: var(--card); border: 1px solid var(--line); border-radius: 16px; }
+    .fold + .fold { margin-top: 10px; }
+    .fold summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px; font-weight: 600; cursor: pointer; list-style: none; }
+    .fold summary::-webkit-details-marker { display: none; }
+    .fold summary .ic { color: var(--muted); transition: transform .2s; }
+    .fold[open] summary .ic { transform: rotate(180deg); }
+    .fold-body { padding: 0 18px 18px; color: var(--ink-2); }
+    .fold-body > * + * { margin-top: 12px; }
+    .media { width: 100%; border-radius: 12px; background: var(--paper-2); }
+
+    .places { display: grid; grid-auto-flow: column; grid-auto-columns: 82%; gap: 12px; overflow-x: auto; margin: 0 -18px; padding: 2px 18px 8px; scroll-snap-type: x mandatory; scrollbar-width: none; }
+    .places::-webkit-scrollbar { display: none; }
+    .place { scroll-snap-align: start; display: flex; flex-direction: column; overflow: hidden; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
+    .place-img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: var(--paper-2); }
+    .place-img--blank { display: grid; place-items: center; font: 500 44px var(--serif); color: var(--accent); background: linear-gradient(135deg, var(--accent-soft), var(--paper-2)); }
+    .place-body { display: flex; flex-direction: column; gap: 6px; flex: 1; padding: 14px 16px 16px; }
+    .place-body h3 { font: 500 20px/1.25 var(--serif); }
+    .place-desc { font-size: 14.5px; line-height: 1.55; color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+    .place-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; padding-top: 8px; }
+    .pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; font-size: 13px; font-weight: 500; }
+    .pill--sage { background: var(--sage-soft); color: var(--sage); }
+    .place-link { display: inline-flex; align-items: center; gap: 6px; color: var(--accent-ink); font-size: 14px; font-weight: 600; text-decoration: none; }
+    .place-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+    .rules { list-style: none; margin: 0; padding: 0; }
+    .rules li { display: grid; grid-template-columns: 30px 1fr; gap: 12px; }
+    .rules li + li { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+    .tick { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--sage-soft); color: var(--sage); }
+    .rule-name { font-weight: 600; }
+    .rule-desc { color: var(--ink-2); font-size: 15px; white-space: pre-line; }
+
+    .depart { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px; border-radius: var(--radius); background: var(--ink); color: #FBF6EE; }
+    .depart-time { font: 500 32px/1.1 var(--serif); }
+    .depart .kicker { color: rgba(251,246,238,.62); }
+    .depart .ic { color: #E9B79B; }
+    .checklist-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+    .checklist-head h3 { font: 500 20px var(--serif); }
+    .progress { height: 6px; margin: 12px 0 6px; border-radius: 999px; background: var(--paper-2); overflow: hidden; }
+    .progress span { display: block; height: 100%; width: 0; border-radius: inherit; background: var(--sage); transition: width .3s; }
+    .check { display: grid; grid-template-columns: 26px 1fr; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); cursor: pointer; }
+    .check input { position: absolute; opacity: 0; pointer-events: none; }
+    .box { display: grid; place-items: center; width: 26px; height: 26px; border: 1.5px solid #CFC3B4; border-radius: 50%; color: transparent; transition: background .2s, border-color .2s; }
+    .check input:checked + .box { background: var(--sage); border-color: var(--sage); color: #fff; }
+    .check input:focus-visible + .box { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .check-name { font-weight: 600; }
+    .check input:checked ~ div .check-name { text-decoration: line-through; color: var(--muted); }
+    .check-desc { color: var(--ink-2); font-size: 15px; white-space: pre-line; }
+
+    .foot { text-align: center; padding: 64px 18px 44px; }
+    .foot-line { font: italic 500 26px/1.3 var(--serif); }
+    .foot-sig { margin-top: 6px; color: var(--muted); }
+    .brand { display: inline-block; margin-top: 28px; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); text-decoration: none; }
+    .brand b { color: var(--ink); font-weight: 600; }
+
+    @media (min-width: 640px) {
+      .places { grid-auto-flow: row; grid-auto-columns: auto; grid-template-columns: 1fr 1fr; overflow: visible; margin: 0; padding: 0; }
+      .essentials { display: flex; }
+      .essentials > .tile { flex: 1 1 0; }
+      .essentials > .tile--wifi { flex-grow: 2.4; }
+      .essentials > .tile--dir { display: none; }
+      .wifi-pass { overflow-wrap: normal; word-break: keep-all; }
+      .sec-head h2 { font-size: 34px; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <img class="hero-img" src="https://example.supabase.co/storage/v1/object/public/my_images/cover.jpg" alt="" fetchpriority="high" onerror="this.remove()" />
+    <span class="hero-tag"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>Guest guide</span>
+    <div class="hero-inner">
+      <span class="eyebrow">Welcome to</span>
+      <h1>Cozy Cabin &lt;Deluxe&gt;</h1>
+      <a class="hero-addr" href="https://www.google.com/maps/search/?api=1&amp;query=123%20Pine%20Rd%2C%20Austin%2C%20TX%2078701" target="_blank" rel="noopener noreferrer"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>123 Pine Rd, Austin, TX 78701</a>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="essentials essentials--odd" aria-label="Stay essentials">
+      <div class="tile tile--wifi">
+        <span class="tile-label"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><path d="M12 20h.01"/></svg>Wi-Fi</span><span class="wifi-net">HomeNet</span>
+        <span class="wifi-pass">p@ss word!</span>
+        <button class="copy" type="button" data-copy="p@ss word!"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span class="copy-label">Copy</span></button>
+      </div>
+      <div class="tile"><span class="tile-label"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Check-in</span><span class="tile-value">3:00 PM</span></div>
+      <div class="tile"><span class="tile-label"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="7" width="14" height="13" rx="2.5"/><path d="M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7"/><path d="M9 20v1.5M15 20v1.5M9 11v5M15 11v5"/></svg>Check-out</span><span class="tile-value">11:00 AM</span></div>
+      <a class="tile tile--dir" href="https://www.google.com/maps/search/?api=1&amp;query=123%20Pine%20Rd%2C%20Austin%2C%20TX%2078701" target="_blank" rel="noopener noreferrer"><span class="tile-label"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11 22 2l-9 19-2-8-8-2z"/></svg>Directions</span><span class="tile-value">Open in Maps</span></a>
+    </section>
+    <nav class="tabs" aria-label="Sections">
+      <a href="#welcome">Welcome</a>
+      <a href="#checkin">Arrival</a>
+      <a href="#property">House</a>
+      <a href="#food">Eat</a>
+      <a href="#activities">Explore</a>
+      <a href="#rules">Rules</a>
+      <a href="#checkout">Departure</a>
+      <a href="#custom_pets"><span aria-hidden="true">🐾</span>Pets 🐶</a>
+      <a href="#custom_local_tips">local tips</a>
+    </nav>
+    <section class="sec" id="welcome">
+      <header class="sec-head">
+        <span class="sec-badge"><svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/></svg></span>
+        <div><p class="sec-num">01</p><h2>Welcome</h2></div>
+      </header>
+      <div class="stack"><p class="lede">Welcome to our home! We hope you love it.
+Second paragraph with &lt;b&gt;tags&lt;/b&gt; &amp; &#34;quotes&#34; and &#39;apostrophes&#39;.</p>
+        <div class="card host"><img class="avatar" src="https://example.supabase.co/storage/v1/object/public/my_images/host.jpg" alt="Andrew" />
+          <div>
+            <p class="kicker">Your host</p><p class="host-name">Andrew</p><p class="host-bio">Host since 2019.
+Love hosting!</p>
+            <div class="actions"><a class="btn" href="mailto:andrew@example.com"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>Email</a>
+            </div>
+          </div>
+        </div>
+        <div class="card safety">
+          <div class="safety-row"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><div><p class="safety-label">In an emergency</p><p class="pre">Call 911. Host: 555-0100</p></div></div>
+          <div class="safety-row"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.4-.5-2-1-3-1.1-2.1-.2-4 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.2.4-2.3 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg><div><p class="safety-label">Fire extinguisher</p><p class="pre">Under the kitchen sink</p></div></div>
+        </div>
+      </div>
+    </section>
+    <section class="sec" id="checkin">
+      <header class="sec-head">
+        <span class="sec-badge"><svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7.5" cy="15.5" r="5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg></span>
+        <div><p class="sec-num">02</p><h2>Arrival</h2></div>
+      </header>
+      <div class="card">
+        <div class="fact"><span class="fact-ic"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><div><p class="kicker">Check-in from</p><p class="fact-value fact-value--big">3:00 PM</p></div></div>
+        <div class="fact"><span class="fact-ic"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7.5" cy="15.5" r="5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg></span><div><p class="kicker">Getting in</p><p class="callout">Lockbox on the left of the door. Code is sent the morning of arrival.</p></div></div>
+        <div class="fact"><span class="fact-ic"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 17V7h4a3 3 0 0 1 0 6H9"/></svg></span><div><p class="kicker">Parking</p><p class="fact-value">Two spots in the driveway.
+Street parking is free after 6pm.</p></div></div>
+      </div>
+    </section>
+    <section class="sec" id="property">
+      <header class="sec-head">
+        <span class="sec-badge"><svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg></span>
+        <div><p class="sec-num">03</p><h2>House guide</h2></div>
+      </header><details class="fold">
+  <summary><span>Thermostat</span><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
+  <div class="fold-body"><p class="pre">Keep between 68 and 76</p>
+  </div>
+</details><details class="fold">
+  <summary><span>TV</span><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
+  <div class="fold-body"><p class="pre">Use the black remote</p><video class="media" controls playsinline preload="metadata"><source src="https://example.com/tv.mp4" type="video/mp4" /></video>
+  </div>
+</details>
+    </section>
+    <section class="sec" id="food">
+      <header class="sec-head">
+        <span class="sec-badge"><svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7"/></svg></span>
+        <div><p class="sec-num">04</p><h2>Where to eat</h2></div>
+      </header>
+      <div class="places">
+  <article class="place">
+    <img class="place-img" src="/api/place-photo?maxwidth=800&amp;place_id=ChIJbbq&amp;photo_reference=RAWREF%2Bwith%2Fchars%3D%26&amp;query=Franklin+BBQ%2C+12+Main+St%2C+Austin%2C+TX" alt="Franklin BBQ" loading="lazy" onerror="this.classList.add('place-img--blank');this.removeAttribute('src');this.alt=''" />
+    <div class="place-body">
+      <h3>Franklin BBQ</h3><p class="place-desc">Great coffee &amp; pastries</p>
+      <div class="place-meta"><span class="pill pill--sage"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>7 min drive</span><a class="place-link" href="https://www.google.com/maps/search/?api=1&amp;query=12%20Main%20St%2C%20Austin%2C%20TX" target="_blank" rel="noopener noreferrer"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11 22 2l-9 19-2-8-8-2z"/></svg>Directions</a>
+      </div>
+    </div>
+  </article>
+  <article class="place">
+    <img class="place-img" src="https://example.com/p.jpg" alt="Taco Spot (best!)" loading="lazy" onerror="this.classList.add('place-img--blank');this.removeAttribute('src');this.alt=''" />
+    <div class="place-body">
+      <h3>Taco Spot (best!)</h3><p class="place-desc">Great coffee &amp; pastries</p>
+      <div class="place-meta"><span class="pill pill--sage"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>7 min drive</span><a class="place-link" href="https://www.google.com/maps/search/?api=1&amp;query=55%20Elm%20St%20%26%203rd%2C%20Austin%2C%20TX%2078701" target="_blank" rel="noopener noreferrer"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11 22 2l-9 19-2-8-8-2z"/></svg>Directions</a>
+      </div>
+    </div>
+  </article>
+</div>
+    </section>
+    <section class="sec" id="activities">
+      <header class="sec-head">
+        <span class="sec-badge"><svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m16.2 7.8-2.1 6.3-6.3 2.1 2.1-6.3z"/></svg></span>
+        <div><p class="sec-num">05</p><h2>Things to do</h2></div>
+      </header>
+      <div class="places">
+  <article class="place">
+    <img class="place-img" src="/api/place-photo?maxwidth=800&amp;place_id=ChIJplace1&amp;photo_reference=CmRaAAAAtemporaryRef123&amp;query=Zilker+Park%2C+12+Main+St%2C+Austin%2C+TX" alt="Zilker Park" loading="lazy" onerror="this.classList.add('place-img--blank');this.removeAttribute('src');this.alt=''" />
+    <div class="place-body">
+      <h3>Zilker Park</h3><p class="place-desc">Big park</p>
+      <div class="place-meta"><span class="pill pill--sage"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>7 min drive</span><a class="place-link" href="https://www.google.com/maps/search/?api=1&amp;query=12%20Main%20St%2C%20Austin%2C%20TX" target="_blank" rel="noopener noreferrer"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11 22 2l-9 19-2-8-8-2z"/></svg>Directions</a>
+      </div>
+    </div>
+  </article>
+  <article class="place">
+    <img class="place-img" src="https://example.supabase.co/storage/v1/object/public/food-and-activities/a b.jpg" alt="Hosted Photo Place" loading="lazy" onerror="this.classList.add('place-img--blank');this.removeAttribute('src');this.alt=''" />
+    <div class="place-body">
+      <h3>Hosted Photo Place</h3><p class="place-desc">Great coffee &amp; pastries</p>
+      <div class="place-meta"><span class="pill pill--sage"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>7 min drive</span><a class="place-link" href="https://www.google.com/maps/search/?api=1&amp;query=12%20Main%20St%2C%20Austin%2C%20TX" target="_blank" rel="noopener noreferrer"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11 22 2l-9 19-2-8-8-2z"/></svg>Directions</a>
+      </div>
+    </div>
+  </article>
+  <article class="place">
+    <img class="place-img" src="/api/place-photo?maxwidth=800&amp;photo_reference=LEGACYREF%2Fabc&amp;query=Legacy+Google+URL%2C+12+Main+St%2C+Austin%2C+TX" alt="Legacy Google URL" loading="lazy" onerror="this.classList.add('place-img--blank');this.removeAttribute('src');this.alt=''" />
+    <div class="place-body">
+      <h3>Legacy Google URL</h3><p class="place-desc">Great coffee &amp; pastries</p>
+      <div class="place-meta"><span class="pill pill--sage"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>7 min drive</span><a class="place-link" href="https://www.google.com/maps/search/?api=1&amp;query=12%20Main%20St%2C%20Austin%2C%20TX" target="_blank" rel="noopener noreferrer"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11 22 2l-9 19-2-8-8-2z"/></svg>Directions</a>
+      </div>
+    </div>
+  </article>
+  <article class="place">
+    <div class="place-img place-img--blank" aria-hidden="true">N</div>
+    <div class="place-body">
+      <h3>No Photo</h3><p class="place-desc">Great coffee &amp; pastries</p>
+      <div class="place-meta"><span class="pill pill--sage"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>7 min drive</span>
+      </div>
+    </div>
+  </article>
+</div>
+    </section>
+    <section class="sec" id="rules">
+      <header class="sec-head">
+        <span class="sec-badge"><svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
+        <div><p class="sec-num">06</p><h2>House rules</h2></div>
+      </header>
+      <ol class="card rules">
+        <li><span class="tick"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><div><p class="rule-name">No smoking</p><p class="rule-desc">Anywhere on the property</p></div></li>
+        <li><span class="tick"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><div><p class="rule-name">Quiet hours</p><p class="rule-desc">10pm - 8am</p></div></li>
+      </ol>
+    </section>
+    <section class="sec" id="checkout">
+      <header class="sec-head">
+        <span class="sec-badge"><svg class="ic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="7" width="14" height="13" rx="2.5"/><path d="M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7"/><path d="M9 20v1.5M15 20v1.5M9 11v5M15 11v5"/></svg></span>
+        <div><p class="sec-num">07</p><h2>Departure</h2></div>
+      </header>
+      <div class="stack">
+        <div class="depart"><div><p class="kicker">Check-out by</p><p class="depart-time">11:00 AM</p></div><svg class="ic" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="7" width="14" height="13" rx="2.5"/><path d="M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7"/><path d="M9 20v1.5M15 20v1.5M9 11v5M15 11v5"/></svg></div>
+        <div class="card" data-checklist="11111111-1111-4111-8111-000000000001">
+          <div class="checklist-head"><h3>Before you go</h3><span class="kicker" data-progress-label>2 things</span></div>
+          <div class="progress" aria-hidden="true"><span data-progress-bar></span></div>
+          <label class="check">
+            <input type="checkbox" data-i="0" />
+            <span class="box"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>
+            <div><p class="check-name">Trash</p><p class="check-desc">Take the bins to the curb</p></div>
+          </label>
+          <label class="check">
+            <input type="checkbox" data-i="1" />
+            <span class="box"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>
+            <div><p class="check-name">Keys</p><p class="check-desc">Leave on the counter</p></div>
+          </label>
+        </div>
+      </div>
+    </section>
+    <section class="sec" id="custom_pets">
+      <header class="sec-head">
+        <span class="sec-badge"><span aria-hidden="true">🐾</span></span>
+        <div><p class="sec-num">08</p><h2>Pets 🐶</h2></div>
+      </header><div class="card"><p class="pre">Dogs welcome</p></div><div class="card"><p class="pre">Please clean up after them</p></div>
+    </section>
+    <section class="sec" id="custom_local_tips">
+      <header class="sec-head">
+        <span class="sec-badge"><span aria-hidden="true">✦</span></span>
+        <div><p class="sec-num">09</p><h2>local tips</h2></div>
+      </header><div class="card"><p class="pre">A plain string tip</p></div>
+    </section>
+
+    <footer class="foot">
+      <p class="foot-line">Have a wonderful stay.</p><p class="foot-sig">— Andrew</p>
+      <a class="brand" href="https://guidewiseapp.com/" target="_blank" rel="noopener">Guidebook by <b>Guidewise</b></a>
+    </footer>
+  </main>
+
+  <script>
+  (function () {
+    function copyText(v) {
+      if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(v);
+      var t = document.createElement("textarea");
+      t.value = v; t.setAttribute("readonly", ""); t.style.position = "fixed"; t.style.opacity = "0";
+      document.body.appendChild(t); t.select();
+      try { document.execCommand("copy"); } catch (e) {}
+      document.body.removeChild(t);
+      return Promise.resolve();
+    }
+    [].forEach.call(document.querySelectorAll("[data-copy]"), function (b) {
+      b.addEventListener("click", function () {
+        var label = b.querySelector(".copy-label");
+        copyText(b.getAttribute("data-copy")).then(function () {
+          b.classList.add("copied");
+          if (label) label.textContent = "Copied";
+          setTimeout(function () { b.classList.remove("copied"); if (label) label.textContent = "Copy"; }, 1600);
+        });
+      });
+    });
+
+    var nav = document.querySelector(".tabs");
+    if (nav && "IntersectionObserver" in window) {
+      var links = {};
+      [].forEach.call(nav.querySelectorAll("a"), function (a) { links[a.getAttribute("href").slice(1)] = a; });
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (!e.isIntersecting) return;
+          var a = links[e.target.id];
+          if (!a) return;
+          [].forEach.call(nav.querySelectorAll("a.on"), function (x) { x.classList.remove("on"); });
+          a.classList.add("on");
+          nav.scrollTo({ left: a.offsetLeft - nav.clientWidth / 2 + a.clientWidth / 2, behavior: "smooth" });
+        });
+      }, { rootMargin: "-40% 0px -55% 0px" });
+      [].forEach.call(document.querySelectorAll(".sec"), function (s) { io.observe(s); });
+    }
+
+    [].forEach.call(document.querySelectorAll("[data-checklist]"), function (list) {
+      var key = "gw-checkout-" + list.getAttribute("data-checklist");
+      var boxes = list.querySelectorAll("input[type=checkbox]");
+      var bar = list.querySelector("[data-progress-bar]");
+      var label = list.querySelector("[data-progress-label]");
+      var saved = [];
+      try { saved = JSON.parse(localStorage.getItem(key) || "[]"); } catch (e) {}
+      function update() {
+        var done = [];
+        [].forEach.call(boxes, function (b) { if (b.checked) done.push(Number(b.getAttribute("data-i"))); });
+        if (bar) bar.style.width = (boxes.length ? (done.length / boxes.length) * 100 : 0) + "%";
+        if (label) label.textContent = done.length === boxes.length ? "All done, thank you!" : done.length + " of " + boxes.length + " done";
+        try { localStorage.setItem(key, JSON.stringify(done)); } catch (e) {}
+      }
+      [].forEach.call(boxes, function (b) {
+        if (saved.indexOf(Number(b.getAttribute("data-i"))) !== -1) b.checked = true;
+        b.addEventListener("change", update);
+      });
+      update();
+    });
+  })();
+  </script>
+</body>
+</html>
