@@ -249,7 +249,7 @@ describe("AI recommendations", () => {
     ]);
     const prompt = openaiCreate.mock.calls[0][0].messages[1].content as string;
     expect(prompt).toContain("exactly 10 items");
-    expect(openaiCreate.mock.calls[0][0].model).toBe("gpt-4-1106-preview");
+    expect(openaiCreate.mock.calls[0][0].model).toBe("gpt-4o");
     expect(openaiCreate.mock.calls[0][0].response_format).toEqual({ type: "json_object" });
   });
 
@@ -469,7 +469,6 @@ describe("listing import route", () => {
       access_info: "Self check-in with a keypad",
       wifi_network: "LakeCabin-5G",
       house_manual: [{ name: "Kitchen", description: "Fully equipped" }],
-      neighborhood: ["Walk to the lake in 5 minutes.", "Downtown is a 10 minute drive."],
     };
     const place = (name: string) => ({ name, address: `${name} St`, description: `About ${name}` });
     const wire = (opts: { extraction?: unknown } = {}) => {
@@ -489,22 +488,22 @@ describe("listing import route", () => {
       });
     };
 
-    it("stores host bio, address, access info, Wi-Fi, neighborhood tab, things to do and places to eat", async () => {
+    it("stores host bio, address, access info, Wi-Fi, things to do and places to eat, with no Neighborhood section", async () => {
       wire();
       const res = await run();
       expect(res.status).toBe(201);
       const body = await res.json();
       expect(body.recommendations).toEqual({ things_to_do: 2, places_to_eat: 2 });
       expect(body.imported).toEqual(
-        expect.arrayContaining(["host bio", "access instructions", "Wi-Fi network", "neighborhood notes", "things to do", "places to eat", "cover image"]),
+        expect.arrayContaining(["host bio", "access instructions", "Wi-Fi network", "things to do", "places to eat", "cover image"]),
       );
       const [gb] = await db.sql`select * from guidebook where id = ${body.guidebook_id}`;
       expect(gb.access_info).toBe("Self check-in with a keypad");
       expect(gb.wifi_json).toEqual({ network: "LakeCabin-5G" });
       expect(gb.house_manual).toEqual([{ name: "Kitchen", description: "Fully equipped" }]);
-      expect(gb.included_tabs).toContain("custom_neighborhood");
-      expect(gb.custom_sections).toEqual({ custom_neighborhood: ["Walk to the lake in 5 minutes.", "Downtown is a 10 minute drive."] });
-      expect(gb.custom_tabs_meta).toEqual({ custom_neighborhood: { label: "Neighborhood", icon: "🏘️" } });
+      expect(gb.included_tabs).toEqual(["welcome", "checkin", "property", "food", "activities", "rules", "checkout"]);
+      expect(gb.custom_sections).toEqual({});
+      expect(gb.custom_tabs_meta).toBeNull();
       expect(gb.things_to_do.map((i: { name: string }) => i.name)).toEqual(["Lake Trail", "Art Museum"]);
       expect(gb.things_to_do[0]).toMatchObject({ address: "1 Real Addr, Austin, TX", image_url: "PHOTOREF", driving_minutes: 10 });
       expect(gb.things_to_do[0].place_id).toMatch(/^pid-/);

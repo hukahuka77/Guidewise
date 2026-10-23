@@ -377,7 +377,6 @@ const SYSTEM_PROMPT =
   "wifi_network (the Wi-Fi network name only if explicitly stated; never a password), " +
   "house_rules (list of {name, description}: smoking, pets, parties, quiet hours, max guests, etc.), " +
   "house_manual (list of {name, description} for the space and amenities and how things work, e.g. Bedrooms and beds, Bathrooms, Kitchen, Heating and cooling, TV, Laundry, Workspace, Safety features such as smoke and carbon monoxide alarms), " +
-  "neighborhood (list of short paragraphs about the area, getting around and nearby highlights, from the listing), " +
   "checkout_info (list of {name, description} checkout instructions, e.g. trash, keys, lights).";
 
 export interface Item {
@@ -399,7 +398,6 @@ export interface ImportedFields {
   wifi_network: string;
   house_rules: Item[];
   house_manual: Item[];
-  neighborhood: string[];
   checkout_info: Item[];
 }
 
@@ -445,11 +443,6 @@ export function sanitizeExtractedFields(raw: unknown): ImportedFields {
     wifi_network: clean(r.wifi_network, 64),
     house_rules: cleanItems(r.house_rules),
     house_manual: cleanItems(r.house_manual, 30),
-    neighborhood: Array.isArray(r.neighborhood)
-      ? r.neighborhood.map((t) => clean(t, 800)).filter(Boolean).slice(0, 6)
-      : typeof r.neighborhood === "string" && clean(r.neighborhood, 800)
-        ? [clean(r.neighborhood, 800)]
-        : [],
     checkout_info: cleanItems(r.checkout_info),
   };
 }

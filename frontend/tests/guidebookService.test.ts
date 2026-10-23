@@ -138,7 +138,7 @@ describe("createGuidebook", () => {
       }),
     );
     expect(result.publicSlug).toMatch(/^cozy-cabin-[0-9a-f]{6}$/);
-    expect(result.templateKey).toBe("template_welcomebook");
+    expect(result.templateKey).toBe("template_signature"); // Welcoming is a premium style; Free starts on Signature
 
     const [g] = await db.sql`select * from guidebook where id = ${result.guidebookId}`;
     expect(g.user_id).toBe(OWNER);
@@ -340,8 +340,26 @@ describe("delete and template", () => {
     await rejects(deleteGuidebook(db.sql, OWNER, guidebookId), 404);
   });
 
-  it("changes the template for the owner with validation", async () => {
+  it("a premium style chosen at creation or in a save needs Power or Pro; a guidebook already on one keeps it", async () => {
+    const free = await createGuidebook(db.sql, OWNER, base({ template_key: "template_generic" }));
+    expect(free.templateKey).toBe("template_signature");
+    await updateGuidebook(db.sql, OWNER, free.guidebookId, { template_key: "template_welcomebook" });
+    expect((await db.sql`select template_key from guidebook where id = ${free.guidebookId}`)[0].template_key).toBe("template_signature");
+
+    await setPlan(db.sql, OWNER, "pro");
+    const paid = await createGuidebook(db.sql, OWNER, base({ template_key: "template_generic" }));
+    expect(paid.templateKey).toBe("template_generic");
+    await setPlan(db.sql, OWNER, "free"); // downgraded: the guidebook stays on its style and still saves
+    await updateGuidebook(db.sql, OWNER, paid.guidebookId, { template_key: "template_generic", welcome_message: "Still here" });
+    const [row] = await db.sql`select template_key, welcome_info from guidebook where id = ${paid.guidebookId}`;
+    expect(row).toEqual({ template_key: "template_generic", welcome_info: "Still here" });
+  });
+
+  it("changes the template for the owner with validation; premium styles need Power or Pro", async () => {
     const { guidebookId } = await createGuidebook(db.sql, OWNER, base());
+    const locked = await rejects(setTemplateKey(db.sql, OWNER, guidebookId, "template_lifestyle"), 403);
+    expect(locked.extra).toMatchObject({ upgrade: true, quota: "styles" });
+    await setPlan(db.sql, OWNER, "power");
     expect(await setTemplateKey(db.sql, OWNER, guidebookId, "template_lifestyle")).toBe("template_lifestyle");
     const err = await rejects(setTemplateKey(db.sql, OWNER, guidebookId, "template_nope"), 400);
     expect(err.extra.allowed).toEqual(ALLOWED_TEMPLATE_KEYS);

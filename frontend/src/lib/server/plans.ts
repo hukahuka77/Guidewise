@@ -19,6 +19,8 @@ export interface PlanConfig {
   printPdf: boolean;
   /** Per-guidebook view analytics (daily series). */
   analytics: boolean;
+  /** Premium guidebook styles (Lifestyle, Welcoming); every plan has Signature. */
+  premiumStyles: boolean;
 }
 
 export const PLAN_CONFIGS: Record<string, PlanConfig> = {
@@ -33,6 +35,7 @@ export const PLAN_CONFIGS: Record<string, PlanConfig> = {
     pdfTemplates: ["template_pdf_original"],
     printPdf: false,
     analytics: false,
+    premiumStyles: false,
   },
   starter: {
     key: "starter",
@@ -45,6 +48,7 @@ export const PLAN_CONFIGS: Record<string, PlanConfig> = {
     pdfTemplates: null,
     printPdf: true,
     analytics: false,
+    premiumStyles: false,
   },
   power: {
     key: "power",
@@ -57,6 +61,7 @@ export const PLAN_CONFIGS: Record<string, PlanConfig> = {
     pdfTemplates: null,
     printPdf: true,
     analytics: true,
+    premiumStyles: true,
   },
   pro: {
     key: "pro",
@@ -69,6 +74,7 @@ export const PLAN_CONFIGS: Record<string, PlanConfig> = {
     pdfTemplates: null,
     printPdf: true,
     analytics: true,
+    premiumStyles: true,
   },
 };
 

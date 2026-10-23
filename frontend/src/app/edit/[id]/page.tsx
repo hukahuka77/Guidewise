@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, ArrowRight, Check, ExternalLink, EyeOff, Loader2, Search, Smartphone, Sparkles, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ExternalLink, EyeOff, Loader2, Lock, Search, Smartphone, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/editor/primitives";
 
@@ -25,6 +25,9 @@ import { useGuidebookForm } from "@/hooks/useGuidebookForm";
 import { useAIRecommendations } from "@/hooks/useAIRecommendations";
 import { useImageUpload } from "@/hooks/useImageUpload";
 import { useAuth } from "@/hooks/useAuth";
+import { usePremiumStyles } from "@/hooks/usePremiumStyles";
+import { isPremiumStyle, PREMIUM_STYLE_MESSAGE, PREMIUM_STYLE_PLAN } from "@/lib/guidebook/styles";
+import { offerUpgrade, throwApiError, UpgradeRequiredError } from "@/lib/upgrade";
 import { useSectionNavigation } from "@/hooks/useSectionNavigation";
 import { buildGuidebookPayload } from "@/utils/guidebookPayload";
 import { EDIT_SECTIONS_ORDER } from "@/config/sections";
@@ -86,6 +89,7 @@ export default function EditGuidebookPage() {
   const { accessToken, authChecked: authReady, isGuest } = useAuth({
     requireAuth: false, // Edit doesn't redirect immediately, loads data first
   });
+  const premiumStyles = usePremiumStyles(accessToken, isGuest);
 
   // Use consolidated form hook
   const {
@@ -488,6 +492,10 @@ export default function EditGuidebookPage() {
 
   const switchTemplate = async (key: string) => {
     if (key === templateKey || !accessToken) return;
+    if (isPremiumStyle(key) && !premiumStyles) {
+      offerUpgrade(new UpgradeRequiredError(PREMIUM_STYLE_MESSAGE));
+      return;
+    }
     const previous = templateKey;
     setTemplateKey(key);
     try {
@@ -496,11 +504,11 @@ export default function EditGuidebookPage() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify({ template_key: key }),
       });
-      if (!res.ok) throw new Error(String(res.status));
+      if (!res.ok) await throwApiError(res, "Could not change the style. Please try again.");
       setPreviewKey((k) => k + 1);
-    } catch {
+    } catch (e) {
       setTemplateKey(previous);
-      setError("Could not change the style. Please try again.");
+      if (!offerUpgrade(e)) setError("Could not change the style. Please try again.");
     }
   };
 
@@ -562,6 +570,12 @@ export default function EditGuidebookPage() {
             className={`rounded-lg px-2 py-1.5 text-sm transition ${isCurrentStyle(key) ? "bg-white font-semibold text-gray-900 shadow-sm" : "text-gray-600 hover:text-gray-900"}`}
           >
             {label}
+            {isPremiumStyle(key) && !premiumStyles && !isCurrentStyle(key) && (
+              <span className="ml-1 inline-flex items-center gap-0.5 align-middle text-[10px] font-semibold uppercase text-primary" title={PREMIUM_STYLE_MESSAGE}>
+                <Lock className="size-3" aria-hidden="true" />
+                <span className="sr-only">{PREMIUM_STYLE_PLAN} plan</span>
+              </span>
+            )}
           </button>
         ))}
       </div>
