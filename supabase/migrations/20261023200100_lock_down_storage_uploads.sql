@@ -7,11 +7,14 @@ drop policy if exists "Insert images to prefixes (auth)" on storage.objects;
 drop policy if exists "Update images in prefixes (auth)" on storage.objects;
 drop policy if exists "Allow authenticated users to delete their uploads" on storage.objects;
 
+drop policy if exists "food_activities_insert_members" on storage.objects;
 create policy "food_activities_insert_members" on storage.objects for insert to authenticated
   with check (bucket_id = 'food-and-activities' and coalesce((auth.jwt() ->> 'is_anonymous')::boolean, false) = false);
+drop policy if exists "food_activities_update_own" on storage.objects;
 create policy "food_activities_update_own" on storage.objects for update to authenticated
   using (bucket_id = 'food-and-activities' and owner_id = auth.uid()::text)
   with check (bucket_id = 'food-and-activities' and owner_id = auth.uid()::text);
+drop policy if exists "food_activities_delete_own" on storage.objects;
 create policy "food_activities_delete_own" on storage.objects for delete to authenticated
   using (bucket_id = 'food-and-activities' and owner_id = auth.uid()::text);
 
@@ -20,10 +23,13 @@ drop policy if exists "Allow Auth users to upload/delete/select/update qcik30_1"
 drop policy if exists "Allow Auth users to upload/delete/select/update qcik30_2" on storage.objects;
 drop policy if exists "Allow Auth users to upload/delete/select/update qcik30_3" on storage.objects;
 
+drop policy if exists "user_videos_insert_members" on storage.objects;
 create policy "user_videos_insert_members" on storage.objects for insert to authenticated
   with check (bucket_id = 'User_videos' and coalesce((auth.jwt() ->> 'is_anonymous')::boolean, false) = false);
+drop policy if exists "user_videos_update_own" on storage.objects;
 create policy "user_videos_update_own" on storage.objects for update to authenticated
   using (bucket_id = 'User_videos' and owner_id = auth.uid()::text)
   with check (bucket_id = 'User_videos' and owner_id = auth.uid()::text);
+drop policy if exists "user_videos_delete_own" on storage.objects;
 create policy "user_videos_delete_own" on storage.objects for delete to authenticated
   using (bucket_id = 'User_videos' and owner_id = auth.uid()::text);
