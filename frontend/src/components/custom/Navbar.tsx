@@ -9,6 +9,13 @@ import { Marcellus } from "next/font/google";
 
 const marcellus = Marcellus({ subsets: ["latin"], weight: ["400"] });
 
+const NAV_LINKS = [
+  { href: "/#features", label: "Features" },
+  { href: "/#how", label: "How it works" },
+  { href: "/pricing", label: "Pricing" },
+  { href: "/contact", label: "Contact" },
+];
+
 export default function Navbar() {
   const [isAuthed, setIsAuthed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -33,27 +40,27 @@ export default function Navbar() {
     };
   }, []);
 
+  const navLink = "text-sm font-medium text-gray-700 no-underline hover:no-underline px-3 py-1.5 rounded-full hover:bg-pink-50 hover:text-pink-700 transition-colors";
+
   return (
-    <header className="sticky top-0 z-50 w-full px-4 lg:px-6 h-14 flex items-center bg-white shadow-sm">
-      <Link className="flex items-center justify-center" href="/" onClick={() => setMobileOpen(false)}>
+    <header className="sticky top-0 z-50 w-full px-4 lg:px-6 h-14 flex items-center md:grid md:grid-cols-[1fr_auto_1fr] bg-white/90 backdrop-blur border-b border-black/5">
+      <Link className="flex items-center justify-self-start" href="/" onClick={() => setMobileOpen(false)}>
         <span className={`${marcellus.className} text-2xl sm:text-3xl text-gray-900 tracking-[0.15em] uppercase leading-none`}>Guidewise</span>
       </Link>
 
-      {/* Desktop nav */}
-      <nav className="ml-auto hidden md:flex gap-2 sm:gap-3">
-        <Link className="text-sm font-medium no-underline hover:no-underline px-3 py-1 rounded-lg hover:bg-pink-50 hover:text-pink-700 transition-colors" href="/#features">
-          Features
-        </Link>
-        <Link className="text-sm font-medium no-underline hover:no-underline px-3 py-1 rounded-lg hover:bg-pink-50 hover:text-pink-700 transition-colors" href="/pricing">
-          Pricing
-        </Link>
-        <Link className="text-sm font-medium no-underline hover:no-underline px-3 py-1 rounded-lg hover:bg-pink-50 hover:text-pink-700 transition-colors" href="/#contact">
-          Contact
-        </Link>
-        <span className="mx-1 text-gray-300">|</span>
+      {/* Desktop nav, centred on the page */}
+      <nav className="hidden md:flex items-center gap-1" aria-label="Main">
+        {NAV_LINKS.map((l) => (
+          <Link key={l.href} className={navLink} href={l.href}>
+            {l.label}
+          </Link>
+        ))}
+      </nav>
+
+      <div className="hidden md:flex items-center justify-self-end gap-1">
         {isAuthed ? (
           <>
-            <Link className="text-sm font-medium no-underline hover:no-underline px-3 py-1 rounded-lg hover:bg-gray-100 transition-colors" href="/dashboard">
+            <Link className={navLink} href="/dashboard">
               Dashboard
             </Link>
             <button
@@ -64,22 +71,25 @@ export default function Navbar() {
                   router.push("/");
                 }
               }}
-              className="text-sm font-medium no-underline hover:no-underline px-3 py-1 rounded-lg hover:bg-gray-100 transition-colors"
+              className={navLink}
             >
               Logout
             </button>
           </>
         ) : (
           <>
-            <Link className="text-sm font-medium no-underline hover:no-underline px-3 py-1 rounded-lg hover:bg-gray-100 transition-colors" href="/login">
+            <Link className={navLink} href="/login">
               Login
             </Link>
-            <Link className="text-sm font-medium no-underline hover:no-underline px-3 py-1 rounded-lg hover:bg-gray-100 transition-colors" href="/signup">
+            <Link
+              className="text-sm font-semibold text-white no-underline hover:no-underline px-4 py-1.5 rounded-full bg-gray-900 hover:bg-gray-800 transition-colors"
+              href="/signup"
+            >
               Sign up
             </Link>
           </>
         )}
-      </nav>
+      </div>
 
       {/* Mobile hamburger */}
       <button
@@ -101,15 +111,11 @@ export default function Navbar() {
       {mobileOpen && (
         <div className="absolute top-14 inset-x-0 bg-white border-b shadow-md md:hidden">
           <div className="px-4 py-3 flex flex-col gap-1">
-            <Link href="/#features" className="px-3 py-2 rounded hover:bg-pink-50 hover:text-pink-700" onClick={() => setMobileOpen(false)}>
-              Features
-            </Link>
-            <Link href="/pricing" className="px-3 py-2 rounded hover:bg-pink-50 hover:text-pink-700" onClick={() => setMobileOpen(false)}>
-              Pricing
-            </Link>
-            <Link href="/#contact" className="px-3 py-2 rounded hover:bg-pink-50 hover:text-pink-700" onClick={() => setMobileOpen(false)}>
-              Contact
-            </Link>
+            {NAV_LINKS.map((l) => (
+              <Link key={l.href} href={l.href} className="px-3 py-2 rounded hover:bg-pink-50 hover:text-pink-700" onClick={() => setMobileOpen(false)}>
+                {l.label}
+              </Link>
+            ))}
             <div className="my-1 border-t" />
             {isAuthed ? (
               <>
