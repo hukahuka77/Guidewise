@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ExternalLink, LayoutGrid, List, MoreHorizontal } from "lucide-react";
+import { BookOpen, ExternalLink, LayoutGrid, List, MoreHorizontal, Plus, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import { Button } from "@/components/ui/button";
 import Spinner from "@/components/ui/spinner";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import QRDownloadButton from "@/components/custom/QRDownloadButton";
@@ -95,12 +94,12 @@ function RowMenu({ items }: { items: { label: string; onSelect: () => void; dang
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+        className={ICON_BUTTON}
       >
         <MoreHorizontal className="size-4" />
       </button>
       {open && (
-        <div role="menu" className="absolute right-0 z-20 mt-1 w-56 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
+        <div role="menu" className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-2xl bg-white py-1.5 shadow-[0_20px_40px_-16px_rgba(60,40,30,0.35)] ring-1 ring-black/5">
           {items.map((item) => (
             <button
               key={item.label}
@@ -121,6 +120,46 @@ function RowMenu({ items }: { items: { label: string; onSelect: () => void; dang
     </div>
   );
 }
+
+const STYLE_CHIP: Record<string, string> = {
+  Signature: "bg-[#fbeee6] text-[#8e4226]",
+  Lifestyle: "bg-sky-50 text-sky-800",
+  Welcoming: "bg-[#f1ede7] text-[#5b524c]",
+};
+
+function StyleChip({ templateKey }: { templateKey?: string | null }) {
+  const name = styleName(templateKey);
+  return <span className={`inline-flex shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${STYLE_CHIP[name] || "bg-gray-100 text-gray-700"}`}>{name}</span>;
+}
+
+function Cover({ url, className }: { url?: string | null; className: string }) {
+  return (
+    <span className={`block overflow-hidden bg-gradient-to-br from-[#fbeee6] to-[#f3ede7] ${className}`}>
+      {url && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={getCoverThumbUrl(url) || url} alt="" className="h-full w-full object-cover" />
+      )}
+    </span>
+  );
+}
+
+function Banner({ children, onClose }: { children: React.ReactNode; onClose?: () => void }) {
+  return (
+    <div role="status" className="flex items-center justify-between gap-3 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-900 ring-1 ring-emerald-100">
+      <p>{children}</p>
+      {onClose && (
+        <button type="button" onClick={onClose} aria-label="Dismiss" className="rounded-full p-1 text-emerald-700 hover:bg-emerald-100">
+          <X className="size-4" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+const EDIT_BUTTON =
+  "inline-flex h-9 items-center justify-center rounded-full bg-[#1f1a17] px-4 text-sm font-semibold text-white no-underline transition-colors hover:bg-[#3a312b] hover:no-underline";
+const ICON_BUTTON =
+  "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[#5b524c] ring-1 ring-[#1f1a17]/12 transition-colors hover:bg-[#faf7f4] hover:text-[#1f1a17]";
 
 export default function DashboardPage() {
   const [items, setItems] = useState<GuidebookItem[]>([]);
@@ -301,301 +340,231 @@ export default function DashboardPage() {
     }
   };
 
-  // No direct PDF building here; navigate to per-guidebook PDF page
+  const menuFor = (gb: GuidebookItem, name: string, viewUrl: string | null) => [
+    ...(viewUrl ? [{ label: "View guidebook", onSelect: () => window.open(viewUrl, "_blank", "noopener") }] : []),
+    { label: "QR code", onSelect: () => setQrModalFor(gb.id) },
+    { label: downloadingPdf === gb.id ? "Generating print version…" : "Download print version", onSelect: () => downloadPrintPdf(gb.id, name), disabled: downloadingPdf === gb.id },
+    { label: "Delete", onSelect: () => setDeleteId(gb.id), danger: true },
+  ];
+
+  const freeViews = plan && usage.viewsLimit !== null;
+  const viewsShare = freeViews && usage.viewsLimit ? Math.min(1, usage.viewsUsed / usage.viewsLimit) : 0;
+  const viewsOut = freeViews && usage.viewsLimit !== null && usage.viewsUsed >= usage.viewsLimit;
+  const planName = plan ? plan.charAt(0).toUpperCase() + plan.slice(1) : "";
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#F8F5F1] to-white">
-      {/* Success banner after payment */}
+    <div className="space-y-6">
       {syncSuccess && (
-        <div className="w-full bg-emerald-100 border-b border-emerald-300 text-emerald-800" role="alert">
-          <div className="px-4 py-3 text-center">
-            <strong className="font-bold">Payment successful!</strong>
-            <span className="block sm:inline"> Your subscription is being activated. Please refresh the page in a moment to see your new plan.</span>
-          </div>
-        </div>
+        <Banner>
+          <strong className="font-semibold">Payment successful!</strong> Your subscription is being activated. Refresh in a moment to see your new plan.
+        </Banner>
       )}
-
       {updateSuccess && (
-        <div className="w-full bg-emerald-100 border-b border-emerald-300 text-emerald-800" role="alert">
-          <div className="px-4 py-3 text-center flex items-center justify-center gap-2">
-            <strong className="font-bold">Guidebook updated successfully!</strong>
-            <button
-              onClick={() => setUpdateSuccess(false)}
-              className="ml-2 text-emerald-600 hover:text-emerald-900"
-              aria-label="Close"
-            >
-              ✕
-            </button>
+        <Banner onClose={() => setUpdateSuccess(false)}>
+          <strong className="font-semibold">Guidebook updated.</strong>
+        </Banner>
+      )}
+
+      <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-[-0.03em] text-[#1f1a17] sm:text-4xl">Your guidebooks</h1>
+          <p className="mt-1.5 text-[#5b524c]">Edit, share and print the guides your guests open.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {plan !== "pro" && plan !== "" && (
+            <Link href="/pricing" className="inline-flex h-11 items-center rounded-full px-5 text-sm font-semibold text-[#1f1a17] no-underline ring-1 ring-[#1f1a17]/15 transition-colors hover:bg-white hover:no-underline">
+              Upgrade
+            </Link>
+          )}
+          <Link href="/onboarding" className="inline-flex h-11 items-center gap-2 rounded-full bg-gradient-to-r from-[#db2777] to-[#f97316] px-5 text-sm font-semibold text-white no-underline shadow-[0_10px_24px_-12px_rgba(219,39,119,0.7)] transition-transform hover:-translate-y-0.5 hover:no-underline">
+            <Plus className="h-4 w-4" /> New guidebook
+          </Link>
+        </div>
+      </header>
+
+      {plan && (freeViews ? (
+        <section aria-label="Guest views" className="flex flex-col gap-4 rounded-3xl bg-white p-5 ring-1 ring-black/5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline justify-between gap-3 sm:justify-start">
+              <p className="text-sm font-medium text-[#1f1a17]">Guest views this month</p>
+              <p className={`text-sm font-semibold ${viewsOut ? "text-red-600" : viewsShare >= 0.8 ? "text-amber-700" : "text-[#1f1a17]"}`}>
+                {usage.viewsUsed} of {usage.viewsLimit}
+              </p>
+            </div>
+            <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-[#f3ede7] sm:max-w-md">
+              <div
+                className={`h-full rounded-full ${viewsOut ? "bg-red-500" : viewsShare >= 0.8 ? "bg-amber-500" : "bg-gradient-to-r from-[#db2777] to-[#f97316]"}`}
+                style={{ width: `${Math.max(viewsShare * 100, usage.viewsUsed ? 3 : 0)}%` }}
+              />
+            </div>
+            {viewsOut && <p className="mt-2 text-sm text-red-700">Your guidebooks are paused for guests until next month or until you upgrade.</p>}
+          </div>
+          <Link href="/pricing" className="shrink-0 text-sm font-semibold text-[#be185d] no-underline hover:underline">
+            Get unlimited views
+          </Link>
+        </section>
+      ) : (
+        <p className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm text-[#5b524c] ring-1 ring-black/5">
+          <span className="h-2 w-2 rounded-full bg-emerald-500" /> Unlimited guest views on the {planName} plan
+        </p>
+      ))}
+
+      {loading && (
+        <div className="flex items-center gap-3 rounded-3xl bg-white p-6 text-[#5b524c] ring-1 ring-black/5">
+          <Spinner size={20} colorClass="text-[#db2777]" />
+          <span>Loading your guidebooks…</span>
+        </div>
+      )}
+      {!loading && error && <div className="rounded-3xl bg-white p-6 text-red-700 ring-1 ring-red-100">{error}</div>}
+
+      {!loading && !error && items.length === 0 && (
+        <section className="flex flex-col items-center rounded-3xl bg-white px-6 py-14 text-center ring-1 ring-black/5">
+          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#fdf0f5] text-[#db2777]">
+            <BookOpen className="h-6 w-6" />
+          </span>
+          <h2 className="mt-5 text-2xl font-semibold tracking-[-0.02em] text-[#1f1a17]">Build your first guidebook</h2>
+          <p className="mt-2 max-w-sm text-[#5b524c]">Paste your Airbnb or VRBO link and Guidewise fills in Wi-Fi, check-in, house rules and places nearby.</p>
+          <Link href="/onboarding" className="mt-6 inline-flex h-11 items-center gap-2 rounded-full bg-gradient-to-r from-[#db2777] to-[#f97316] px-6 text-sm font-semibold text-white no-underline shadow-[0_10px_24px_-12px_rgba(219,39,119,0.7)] hover:no-underline">
+            <Plus className="h-4 w-4" /> New guidebook
+          </Link>
+        </section>
+      )}
+
+      {!loading && !error && items.length > 0 && (
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm text-[#8a7f77]">{items.length} {items.length === 1 ? "guidebook" : "guidebooks"}</p>
+          <div className="inline-flex rounded-full bg-white p-1 ring-1 ring-black/5" role="radiogroup" aria-label="Display as">
+            {([["table", "Table", List], ["cards", "Cards", LayoutGrid]] as const).map(([key, label, Icon]) => (
+              <button
+                key={key}
+                type="button"
+                role="radio"
+                aria-checked={view === key}
+                onClick={() => changeView(key)}
+                className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition ${view === key ? "bg-[#1f1a17] text-white" : "text-[#5b524c] hover:text-[#1f1a17]"}`}
+              >
+                <Icon className="size-4" /> {label}
+              </button>
+            ))}
           </div>
         </div>
       )}
 
-      <div className="max-w-6xl mx-auto py-2 sm:p-6 md:p-10">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-800">Your Guidebooks</h1>
-            <p className="text-gray-600 mt-1">Manage, share, and download your property guidebooks</p>
-            {plan && (
-              <p className="text-sm text-gray-500 mt-1">
-                {usage.viewsLimit !== null ? (
-                  <span>
-                    <span className={usage.viewsUsed >= usage.viewsLimit ? "font-semibold text-red-600" : usage.viewsUsed >= usage.viewsLimit * 0.8 ? "font-semibold text-amber-700" : "font-semibold"}>
-                      {usage.viewsUsed} / {usage.viewsLimit}
-                    </span>{" "}
-                    guest views used this month (Free plan)
-                    <Link href="/pricing" className="underline text-[#CC7A52] ml-1">Upgrade for unlimited views</Link>
-                    {usage.viewsUsed >= usage.viewsLimit && (
-                      <span className="block text-red-600 mt-1">Your guidebooks are paused for guests until next month or until you upgrade.</span>
+      {!loading && !error && items.length > 0 && view === "table" && (
+        <div className="rounded-3xl bg-white shadow-[0_20px_40px_-30px_rgba(60,40,30,0.35)] ring-1 ring-black/5">
+          <table className="w-full table-fixed text-left text-sm">
+            <thead className="border-b border-[#f0eae4] text-xs uppercase tracking-wide text-[#8a7f77]">
+              <tr>
+                <th scope="col" className="px-5 py-3.5 font-medium">Property</th>
+                <th scope="col" className="hidden w-36 px-4 py-3.5 font-medium md:table-cell">Style</th>
+                <th scope="col" className="hidden w-36 px-4 py-3.5 font-medium sm:table-cell">Updated</th>
+                <th scope="col" className="w-[120px] px-3 py-3.5 text-right font-medium sm:w-[190px] sm:px-5"><span className="sr-only">Actions</span></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#f3eee9]">
+              {items.map((gb) => {
+                const viewUrl = gb.public_slug ? `/g/${gb.public_slug}` : null;
+                const name = gb.property_name || "Untitled Property";
+                return (
+                  <tr key={gb.id} className="transition-colors hover:bg-[#fcfaf8]">
+                    <td className="px-5 py-3.5">
+                      <Link href={`/edit/${gb.id}`} className="flex min-w-0 items-center gap-3 no-underline hover:no-underline">
+                        <Cover url={gb.cover_image_url} className="hidden h-11 w-16 shrink-0 rounded-xl sm:block" />
+                        <span className="min-w-0">
+                          <span className="block truncate font-medium text-[#1f1a17]" title={name}>{name}</span>
+                          <span className="block truncate text-xs text-[#8a7f77] sm:hidden">{updatedLabel(gb)}</span>
+                        </span>
+                      </Link>
+                    </td>
+                    <td className="hidden px-4 py-3.5 md:table-cell"><StyleChip templateKey={gb.template_key} /></td>
+                    <td className="hidden px-4 py-3.5 text-[#5b524c] sm:table-cell">{updatedLabel(gb)}</td>
+                    <td className="px-3 py-3.5 sm:px-5">
+                      <div className="flex items-center justify-end gap-2">
+                        <Link href={`/edit/${gb.id}`} className={EDIT_BUTTON}>Edit</Link>
+                        {viewUrl && (
+                          <Link href={viewUrl} target="_blank" rel="noopener noreferrer" aria-label={`View ${name}`} title="View guidebook" className={`${ICON_BUTTON} hidden sm:flex`}>
+                            <ExternalLink className="size-4" />
+                          </Link>
+                        )}
+                        <RowMenu items={menuFor(gb, name, viewUrl)} />
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {!loading && !error && items.length > 0 && view === "cards" && (
+        <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+          {items.slice(0, visibleCount).map((gb) => {
+            const viewUrl = gb.public_slug ? `/g/${gb.public_slug}` : null;
+            const name = gb.property_name || "Untitled Property";
+            return (
+              <li key={gb.id} className="group relative rounded-3xl bg-white p-3 shadow-[0_20px_40px_-30px_rgba(60,40,30,0.35)] ring-1 ring-black/5 transition-shadow hover:shadow-[0_24px_48px_-28px_rgba(60,40,30,0.45)]">
+                <Link href={`/edit/${gb.id}`} className="block no-underline hover:no-underline">
+                  <Cover url={gb.cover_image_url} className="aspect-[16/10] w-full rounded-2xl" />
+                </Link>
+                <div className="px-2 pb-1 pt-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="truncate font-semibold text-[#1f1a17]" title={name}>{name}</h3>
+                      {updatedLabel(gb) && <p className="text-xs text-[#8a7f77]">Updated {updatedLabel(gb)}</p>}
+                    </div>
+                    <StyleChip templateKey={gb.template_key} />
+                  </div>
+                  <div className="mt-4 flex items-center gap-2">
+                    <Link href={`/edit/${gb.id}`} className={`${EDIT_BUTTON} flex-1`}>Edit</Link>
+                    {viewUrl && (
+                      <Link href={viewUrl} target="_blank" rel="noopener noreferrer" aria-label={`View ${name}`} title="View guidebook" className={ICON_BUTTON}>
+                        <ExternalLink className="size-4" />
+                      </Link>
                     )}
-                  </span>
-                ) : (
-                  <span className="font-semibold text-green-700">Unlimited guest views ({plan.charAt(0).toUpperCase() + plan.slice(1)} plan)</span>
-                )}
-              </p>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <Link href="/onboarding">
-              <Button>Create New</Button>
-            </Link>
-            {plan !== 'pro' && plan !== '' && (
-              <Link href="/pricing">
-                <Button variant="secondary">Upgrade</Button>
+                    <RowMenu items={menuFor(gb, name, viewUrl)} />
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {!loading && !error && view === "cards" && items.length > visibleCount && (
+        <div className="flex justify-center">
+          <button
+            type="button"
+            className="inline-flex h-10 items-center rounded-full bg-white px-6 text-sm font-semibold text-[#1f1a17] ring-1 ring-[#1f1a17]/15 hover:bg-[#faf7f4]"
+            onClick={() => setVisibleCount((prev) => Math.min(items.length, prev + 6))}
+          >
+            Load more
+          </button>
+        </div>
+      )}
+
+      {qrModalFor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setQrModalFor(null)}>
+          <div role="dialog" aria-modal="true" aria-label="Guidebook QR code" className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-[#1f1a17]">QR code</h3>
+              <button type="button" onClick={() => setQrModalFor(null)} aria-label="Close" className={ICON_BUTTON}>
+                <X className="size-4" />
+              </button>
+            </div>
+            <p className="mt-1 text-sm text-[#5b524c]">Print it for the fridge or the front door. It always opens the live guidebook.</p>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={getQrImageUrl(getQrTargetUrl(qrModalFor), 400)} alt="Guidebook QR code" className="mx-auto mt-5 h-[240px] w-[240px] rounded-2xl bg-white p-3 ring-1 ring-black/5" />
+            <div className="mt-5 flex flex-wrap justify-center gap-2">
+              <Link href={getQrTargetUrl(qrModalFor)} target="_blank" rel="noopener noreferrer" className="inline-flex h-10 items-center gap-2 rounded-full px-4 text-sm font-semibold text-[#1f1a17] no-underline ring-1 ring-[#1f1a17]/15 hover:bg-[#faf7f4] hover:no-underline">
+                <ExternalLink className="size-4" /> Open guidebook
               </Link>
-            )}
+              <QRDownloadButton targetUrl={getQrTargetUrl(qrModalFor)} propertyName={items.find((gb) => gb.id === qrModalFor)?.property_name || "guidebook"} className="h-10 rounded-full px-4" />
+            </div>
           </div>
         </div>
+      )}
 
-        {/* removed global PDF options per new UX */}
-
-        {loading && (
-          <div className="bg-white rounded-xl border p-6 text-gray-700 flex items-center gap-3">
-            <Spinner size={20} colorClass="text-[oklch(0.6923_0.22_21.05)]" />
-            <span>Loading…</span>
-          </div>
-        )}
-        {!loading && error && (
-          <div className="bg-white rounded-xl border p-6 text-red-600">{error}</div>
-        )}
-
-        {!loading && !error && items.length === 0 && (
-          <div className="bg-white rounded-2xl border p-8 text-center text-gray-600">No guidebooks yet. Create your first one!</div>
-        )}
-
-        {!loading && !error && items.length > 0 && (
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <p className="text-sm text-gray-500">{items.length} {items.length === 1 ? "guidebook" : "guidebooks"}</p>
-            <div className="inline-flex rounded-lg border border-gray-200 bg-white p-0.5" role="radiogroup" aria-label="Display as">
-              {([["table", "Table", List], ["cards", "Cards", LayoutGrid]] as const).map(([key, label, Icon]) => (
-                <button
-                  key={key}
-                  type="button"
-                  role="radio"
-                  aria-checked={view === key}
-                  onClick={() => changeView(key)}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition ${view === key ? "bg-gray-900 text-white" : "text-gray-600 hover:text-gray-900"}`}
-                >
-                  <Icon className="size-4" /> {label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {!loading && !error && items.length > 0 && view === "table" && (
-          <div className="rounded-2xl border bg-white shadow-sm">
-            <table className="w-full table-fixed text-left text-sm">
-              <thead className="border-b bg-gray-50/70 text-xs uppercase tracking-wide text-gray-500">
-                <tr>
-                  <th scope="col" className="rounded-tl-2xl px-4 py-3 font-medium">Property</th>
-                  <th scope="col" className="hidden w-32 px-4 py-3 font-medium md:table-cell">Style</th>
-                  <th scope="col" className="hidden w-36 px-4 py-3 font-medium sm:table-cell">Updated</th>
-                  <th scope="col" className="w-[120px] rounded-tr-2xl px-3 py-3 text-right font-medium sm:w-[190px] sm:px-4"><span className="sr-only">Actions</span></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {items.map((gb) => {
-                  const viewUrl = gb.public_slug ? `/g/${gb.public_slug}` : null;
-                  const name = gb.property_name || "Untitled Property";
-                  return (
-                    <tr key={gb.id} className="hover:bg-gray-50/60">
-                      <td className="px-4 py-3">
-                        <Link href={`/edit/${gb.id}`} className="flex min-w-0 items-center gap-3">
-                          <span className="hidden h-10 w-14 shrink-0 overflow-hidden rounded-md bg-gray-100 sm:block">
-                            {gb.cover_image_url && (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={getCoverThumbUrl(gb.cover_image_url) || gb.cover_image_url} alt="" className="h-full w-full object-cover" />
-                            )}
-                          </span>
-                          <span className="min-w-0">
-                            <span className="block truncate font-medium text-gray-900" title={name}>{name}</span>
-                            <span className="block truncate text-xs text-gray-500 sm:hidden">{updatedLabel(gb)}</span>
-                          </span>
-                        </Link>
-                      </td>
-                      <td className="hidden px-4 py-3 text-gray-600 md:table-cell">{styleName(gb.template_key)}</td>
-                      <td className="hidden px-4 py-3 text-gray-600 sm:table-cell">{updatedLabel(gb)}</td>
-                      <td className="px-3 py-3 sm:px-4">
-                        <div className="flex items-center justify-end gap-2">
-                          <Link href={`/edit/${gb.id}`}>
-                            <Button size="sm" className="h-9 px-4">Edit</Button>
-                          </Link>
-                          {viewUrl && (
-                            <Link
-                              href={viewUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              aria-label={`View ${name}`}
-                              title="View guidebook"
-                              className="hidden h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 sm:flex"
-                            >
-                              <ExternalLink className="size-4" />
-                            </Link>
-                          )}
-                          <RowMenu
-                            items={[
-                              ...(viewUrl ? [{ label: "View guidebook", onSelect: () => window.open(viewUrl, "_blank", "noopener") }] : []),
-                              { label: "QR code", onSelect: () => setQrModalFor(gb.id) },
-                              { label: downloadingPdf === gb.id ? "Generating print version…" : "Download print version", onSelect: () => downloadPrintPdf(gb.id, name), disabled: downloadingPdf === gb.id },
-                              { label: "Delete", onSelect: () => setDeleteId(gb.id), danger: true },
-                            ]}
-                          />
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {!loading && !error && items.length > 0 && view === "cards" && (
-          <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {items.slice(0, visibleCount).map((gb) => {
-              const viewUrl = gb.public_slug ? `/g/${gb.public_slug}` : null;
-
-              return (
-                <li key={gb.id} className="group bg-white rounded-2xl border shadow-sm hover:shadow-md transition min-h-[360px] relative">
-                  <div className="aspect-[16/9] w-full overflow-hidden rounded-t-2xl bg-gray-100">
-                    {gb.cover_image_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={getCoverThumbUrl(gb.cover_image_url) || gb.cover_image_url} alt="Cover" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-400">No cover</div>
-                    )}
-                  </div>
-                  <div className="p-5 pb-6">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <h3 className="font-semibold text-gray-800 truncate" title={gb.property_name || undefined}>{gb.property_name || "Untitled Property"}</h3>
-                        <div className="text-xs text-gray-500">
-                          {updatedLabel(gb) && `Updated ${updatedLabel(gb)}`}
-                        </div>
-                      </div>
-                      <span className="shrink-0 whitespace-nowrap text-[10px] px-2 py-1 bg-gray-100 rounded border text-gray-600">
-                        {styleName(gb.template_key)}
-                      </span>
-                    </div>
-
-                    <div className="mt-4 grid grid-cols-2 gap-2">
-                      {/* Delete in small outline slot */}
-                      <Button
-                        variant="outline"
-                        className="w-full whitespace-nowrap text-sm border-red-200 text-red-700 hover:bg-red-50"
-                        onClick={() => setDeleteId(gb.id)}
-                      >
-                        Delete
-                      </Button>
-                      <Link href={`/edit/${gb.id}`}>
-                        <Button className="w-full whitespace-nowrap text-sm">Edit</Button>
-                      </Link>
-                      <Button
-                        variant="outline"
-                        className="col-span-2 w-full whitespace-nowrap text-sm border-black text-gray-900 hover:bg-gray-50"
-                        onClick={() => setQrModalFor(gb.id)}
-                      >
-                        🔲 View QR Code
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="col-span-2 w-full whitespace-nowrap text-sm border-[#CC7A52] text-[#CC7A52] hover:bg-[#CC7A52]/10"
-                        onClick={() => downloadPrintPdf(gb.id, gb.property_name || 'guidebook')}
-                        disabled={downloadingPdf === gb.id}
-                      >
-                        {downloadingPdf === gb.id ? (
-                          <span className="flex items-center gap-2">
-                            <Spinner size={14} colorClass="text-[#CC7A52]" />
-                            Generating PDF...
-                          </span>
-                        ) : (
-                          '📄 Download Print Version'
-                        )}
-                      </Button>
-
-                      {/* View the guidebook */}
-                      <Link href={viewUrl || '#'} target="_blank" rel="noopener noreferrer" className="col-span-2" aria-disabled={!viewUrl}>
-                        <Button
-                          className="w-full whitespace-nowrap text-sm bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100"
-                          variant="outline"
-                        >
-                          View Guidebook
-                        </Button>
-                      </Link>
-                    </div>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-
-        {!loading && !error && view === "cards" && items.length > visibleCount && (
-          <div className="mt-6 flex justify-center">
-            <Button
-              variant="outline"
-              className="px-6 py-2 text-sm"
-              onClick={() => setVisibleCount((prev) => Math.min(items.length, prev + 6))}
-            >
-              Load more
-            </Button>
-          </div>
-        )}
-
-        {/* removed inline PDF modal; handled in dedicated PDF page */}
-
-        {/* QR Modal */}
-        {qrModalFor && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setQrModalFor(null)}>
-            <div className="bg-white rounded-xl shadow-2xl w-[95vw] max-w-md overflow-hidden" onClick={(e) => e.stopPropagation()}>
-              <div className="p-4 border-b flex items-center justify-between">
-                <h3 className="font-semibold">Guidebook QR Code</h3>
-                <Button size="sm" variant="outline" onClick={() => setQrModalFor(null)}>Close</Button>
-              </div>
-              <div className="p-6 flex flex-col items-center gap-4">
-                {qrModalFor && (
-                  <>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={getQrImageUrl(getQrTargetUrl(qrModalFor), 400)}
-                      alt="Guidebook QR"
-                      className="w-[260px] h-[260px] border rounded-xl p-3 bg-white"
-                    />
-                    <div className="flex gap-2">
-                      <Link href={getQrTargetUrl(qrModalFor)} target="_blank" rel="noopener noreferrer"><Button variant="outline">Open Live URL</Button></Link>
-                      <QRDownloadButton
-                        targetUrl={getQrTargetUrl(qrModalFor)}
-                        propertyName={items.find(gb => gb.id === qrModalFor)?.property_name || 'guidebook'}
-                      />
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Delete Guidebook Confirmation */}
         <ConfirmModal
           open={!!deleteId}
           title="Delete guidebook?"
@@ -613,8 +582,8 @@ export default function DashboardPage() {
             try {
               const token = (await supabase?.auth.getSession())?.data.session?.access_token || null;
               if (!token) {
-                console.error('Missing auth token for delete');
                 setDeleteLoading(false);
+                notify("Couldn't delete the guidebook", "Your session has expired. Log in again and retry.");
                 return;
               }
 
@@ -626,6 +595,7 @@ export default function DashboardPage() {
               if (!res.ok) {
                 console.error('Delete failed', await res.text());
                 setDeleteLoading(false);
+                notify("Couldn't delete the guidebook", "Please try again.");
                 return;
               }
 
@@ -634,12 +604,12 @@ export default function DashboardPage() {
               setDeleteId(null);
             } catch (e) {
               console.error('Delete guidebook error:', e);
+              notify("Couldn't delete the guidebook", "Please try again.");
             } finally {
               setDeleteLoading(false);
             }
           }}
         />
-      </div>
     </div>
   );
 }

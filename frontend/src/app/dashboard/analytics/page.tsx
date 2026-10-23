@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import { Button } from "@/components/ui/button";
 import Spinner from "@/components/ui/spinner";
 
 type Point = { day: string; views: number };
@@ -57,45 +56,44 @@ export default function AnalyticsPage() {
   }, [router]);
 
   return (
-    <div className="max-w-5xl mx-auto p-6 md:p-10">
+    <div className="max-w-5xl">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Guest views</h1>
-          <p className="text-gray-600 mt-1">How often guests open your guidebooks</p>
+          <h1 className="text-3xl font-semibold tracking-[-0.03em] text-[#1f1a17] sm:text-4xl">Guest views</h1>
+          <p className="mt-1.5 text-[#5b524c]">How often guests open your guidebooks</p>
         </div>
-        <Link href="/dashboard"><Button variant="outline">Back to Dashboard</Button></Link>
       </div>
 
-      {error && <div className="bg-white rounded-xl border p-6 text-red-600">{error}</div>}
+      {error && <div className="rounded-3xl bg-white p-6 ring-1 ring-black/5 text-red-700">{error}</div>}
       {!error && !stats && (
-        <div className="bg-white rounded-xl border p-6 flex items-center gap-3"><Spinner size={20} /> Loading…</div>
+        <div className="flex items-center gap-3 rounded-3xl bg-white p-6 ring-1 ring-black/5 text-[#5b524c]"><Spinner size={20} /> Loading…</div>
       )}
 
       {stats && (
         <div className="space-y-6">
-          <div className="bg-white rounded-xl border p-6">
+          <div className="rounded-3xl bg-white p-6 ring-1 ring-black/5">
             <div className="text-sm text-gray-600">This month</div>
-            <div className="text-4xl font-extrabold text-gray-900 mt-1">{stats.views_used}</div>
+            <div className="mt-1 text-4xl font-semibold tracking-[-0.03em] text-[#1f1a17]">{stats.views_used}</div>
             <div className="text-sm text-gray-500 mt-1">
               {stats.views_limit === null ? "guest views across all guidebooks (unlimited)" : `of ${stats.views_limit} guest views on the Free plan`}
             </div>
           </div>
 
           {!stats.analytics && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-amber-900">
+            <div className="rounded-3xl bg-amber-50 p-6 text-amber-900 ring-1 ring-amber-100">
               Daily charts for each guidebook are included with the Power and Pro plans.{" "}
               <Link href="/pricing" className="underline font-semibold">See plans</Link>
             </div>
           )}
 
-          {stats.guidebooks.length === 0 && <div className="bg-white rounded-xl border p-6 text-gray-600">No guidebooks yet.</div>}
+          {stats.guidebooks.length === 0 && <div className="rounded-3xl bg-white p-6 ring-1 ring-black/5 text-[#5b524c]">No guidebooks yet.</div>}
 
           {stats.guidebooks.map((gb) => {
             const days = stats.analytics ? series(gb.daily) : [];
             const max = Math.max(1, ...days.map((d) => d.views));
             const total30 = days.reduce((n, d) => n + d.views, 0);
             return (
-              <div key={gb.id} className="bg-white rounded-xl border p-6">
+              <div key={gb.id} className="rounded-3xl bg-white p-6 ring-1 ring-black/5">
                 <div className="flex items-baseline justify-between gap-4">
                   <h2 className="font-semibold text-gray-800 truncate">{gb.property_name || "Untitled Property"}</h2>
                   <div className="text-sm text-gray-600 whitespace-nowrap">
@@ -109,7 +107,7 @@ export default function AnalyticsPage() {
                       <div
                         key={d.day}
                         title={`${d.day}: ${d.views} view${d.views === 1 ? "" : "s"}`}
-                        className="flex-1 rounded-t bg-[#CC7A52]/80"
+                        className="flex-1 rounded-t bg-gradient-to-t from-[#db2777] to-[#f97316]"
                         style={{ height: `${Math.max(d.views === 0 ? 2 : 6, (d.views / max) * 100)}%`, opacity: d.views === 0 ? 0.25 : 1 }}
                       />
                     ))}

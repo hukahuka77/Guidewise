@@ -88,82 +88,82 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#F8F5F1] to-white">
-      <div className="max-w-3xl mx-auto p-6 md:p-10">
+    <div>
+      <div className="max-w-3xl">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-800">Your Profile</h1>
-            <p className="text-gray-600 mt-1">View and edit your account details</p>
+            <h1 className="text-3xl font-semibold tracking-[-0.03em] text-[#1f1a17] sm:text-4xl">Your profile</h1>
+            <p className="mt-1.5 text-[#5b524c]">View and edit your account details</p>
           </div>
         </div>
 
         {loading ? (
-          <div className="bg-white rounded-xl border p-6 text-gray-700 flex items-center gap-3">
-            <Spinner size={20} colorClass="text-[oklch(0.6923_0.22_21.05)]" />
+          <div className="flex items-center gap-3 rounded-3xl bg-white p-6 ring-1 ring-black/5 text-[#5b524c]">
+            <Spinner size={20} colorClass="text-[#db2777]" />
             <span>Loading…</span>
           </div>
         ) : (
-          <div className="bg-white rounded-xl border p-6 space-y-6">
+          <div className="rounded-3xl bg-white p-6 ring-1 ring-black/5 space-y-6 sm:p-8">
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">{error}</div>
+              <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-800 ring-1 ring-red-100">{error}</div>
             )}
             {message && (
-              <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded">{message}</div>
+              <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800 ring-1 ring-emerald-100">{message}</div>
             )}
 
             <div>
-              <label className="block text-sm font-medium">Email</label>
+              <label className="block text-sm font-medium text-[#1f1a17]">Email</label>
               <input
                 type="email"
                 disabled
                 value={email}
                 onChange={() => {}}
-                className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 text-gray-600"
+                className="mt-1.5 w-full rounded-xl border-0 bg-[#f6f2ee] px-4 py-3 text-[15px] text-[#8a7f77]"
               />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium">Full Name</label>
+                <label className="block text-sm font-medium text-[#1f1a17]">Full Name</label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Your name"
-                  className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-200 focus:border-pink-300"
+                  className="mt-1.5 w-full rounded-xl border-0 bg-[#f6f2ee] px-4 py-3 text-[15px] text-[#1f1a17] placeholder:text-[#a0958d] outline-none ring-1 ring-transparent transition focus:bg-white focus:ring-2 focus:ring-[#db2777]/50"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium">Company</label>
+                <label className="block text-sm font-medium text-[#1f1a17]">Company</label>
                 <input
                   type="text"
                   value={company}
                   onChange={(e) => setCompany(e.target.value)}
                   placeholder="Company or team"
-                  className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-200 focus:border-pink-300"
+                  className="mt-1.5 w-full rounded-xl border-0 bg-[#f6f2ee] px-4 py-3 text-[15px] text-[#1f1a17] placeholder:text-[#a0958d] outline-none ring-1 ring-transparent transition focus:bg-white focus:ring-2 focus:ring-[#db2777]/50"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium">Phone</label>
+                <label className="block text-sm font-medium text-[#1f1a17]">Phone</label>
                 <input
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="(555) 555-5555"
-                  className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-200 focus:border-pink-300"
+                  className="mt-1.5 w-full rounded-xl border-0 bg-[#f6f2ee] px-4 py-3 text-[15px] text-[#1f1a17] placeholder:text-[#a0958d] outline-none ring-1 ring-transparent transition focus:bg-white focus:ring-2 focus:ring-[#db2777]/50"
                 />
               </div>
             </div>
 
             <div className="pt-2">
-              <Button onClick={onSave} disabled={saving} className="px-6">
+              <Button onClick={onSave} disabled={saving} className="h-11 rounded-full px-6">
                 {saving ? (
                   <span className="inline-flex items-center gap-2">
                     <Spinner size={18} />
                     Saving…
                   </span>
                 ) : (
-                  "Save Changes"
+                  "Save changes"
                 )}
               </Button>
             </div>
