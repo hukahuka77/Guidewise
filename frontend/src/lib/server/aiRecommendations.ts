@@ -88,7 +88,7 @@ async function enrichOne(item: unknown, location: string): Promise<EnrichedItem 
   const placeId = place.place_id;
   if (typeof placeId !== "string" || !placeId) return null;
 
-  const details = asDict((await googlePlacesDetails(placeId)).result);
+  const details = asDict((await googlePlacesDetails(placeId, "address")).result);
   const realAddress =
     (typeof details.formatted_address === "string" && details.formatted_address) ||
     (typeof place.formatted_address === "string" && place.formatted_address) ||
