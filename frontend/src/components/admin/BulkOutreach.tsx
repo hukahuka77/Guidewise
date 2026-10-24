@@ -106,7 +106,7 @@ export default function BulkOutreach({ token }: { token: string }) {
           const res = await fetch("/api/admin/gifts", {
             method: "POST",
             headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ url: row.listing }),
+            body: JSON.stringify({ url: row.listing, email: row.email }),
           });
           if (res.status === 429 && attempt < 2) {
             await pause(60_000);
@@ -213,7 +213,7 @@ export default function BulkOutreach({ token }: { token: string }) {
                       : r.status === "skipped" ? <span className="text-[#8a7f77]">Skipped: {r.error}</span>
                       : <span className="text-[#8a7f77]">Waiting</span>}
                   </td>
-                  <td className="py-2">{r.giftUrl ? <a href={r.giftUrl} target="_blank" rel="noreferrer" className="font-medium text-[#be185d]">Open</a> : ""}</td>
+                  <td className="py-2">{r.giftUrl ? <a href={`${r.giftUrl}&preview=1`} target="_blank" rel="noreferrer" className="font-medium text-[#be185d]">Open</a> : ""}</td>
                 </tr>
               ))}
             </tbody>

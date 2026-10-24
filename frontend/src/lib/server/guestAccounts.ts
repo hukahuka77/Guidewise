@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import type { Sql } from "./db";
 import { ServiceError } from "./guidebookService";
 import { getSupabaseAdmin } from "./supabaseAdmin";
+import { recordGiftClaimed } from "./gifts";
 
 /**
  * Guests: anyone can build a guidebook before creating an account. They get a Supabase anonymous
@@ -83,6 +84,7 @@ export async function claimGuestGuidebooks(sql: Sql, guestId: string, userId: st
       .sort((x, y) => new Date(y.created_time).getTime() - new Date(x.created_time).getTime())
       .map((r) => String(r.id));
   });
+  if (moved.length > 0) await recordGiftClaimed(sql, guestId, userId);
   // The anonymous user has nothing left; remove it so the ticket can't be used again (best effort)
   const admin = getSupabaseAdmin();
   if (admin) {

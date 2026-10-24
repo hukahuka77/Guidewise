@@ -96,6 +96,50 @@ describe("gifts", () => {
     expect((await giftHtml(new Request("http://x"), ctx(ticket))).status).toBe(404);
   });
 
+  it("records outreach results: the prospect's email when built, real opens (not bots or previews), and the claim", async () => {
+    const res = await makeGift(post("admin", { url: "https://www.airbnb.com/rooms/1", email: " sam@host.com " }));
+    const ticket = decodeURIComponent(new URL((await res.json()).gift_url).pathname.split("/").at(-1)!);
+    const row = async () => (await db.sql`select * from outreach_gift where guest_id = ${GUEST}::uuid`)[0];
+    expect(await row()).toMatchObject({ property_name: "Willow Cottage", prospect_email: "sam@host.com", opens: 0, first_opened_at: null, claimed_at: null });
+
+    const browser = { "user-agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)" };
+    await giftInfo(new Request("http://x", { headers: { "user-agent": "Slackbot-LinkExpanding 1.0" } }), ctx(ticket));
+    await giftInfo(new Request("http://x?preview=1", { headers: browser }), ctx(ticket));
+    await giftInfo(new Request("http://x"), ctx(ticket));
+    expect((await row()).opens).toBe(0);
+    await giftInfo(new Request("http://x", { headers: browser }), ctx(ticket));
+    await giftInfo(new Request("http://x", { headers: browser }), ctx(ticket));
+    const opened = await row();
+    expect(opened.opens).toBe(2);
+    expect(opened.first_opened_at).not.toBeNull();
+
+    await claimGuestGuidebooks(db.sql, GUEST, OWNER);
+    expect(await row()).toMatchObject({ claimed_by: OWNER });
+    expect((await row()).claimed_at).not.toBeNull();
+
+    await db.sql`update auth.users set email = 'owner@example.com' where id = ${OWNER}::uuid`;
+    const stats = await (await statsRoute(new Request("http://x", { headers: { Authorization: "Bearer admin" } }))).json();
+    expect(stats.outreach).toEqual([expect.objectContaining({ property_name: "Willow Cottage", prospect_email: "sam@host.com", opens: 2, claimed_by_email: "owner@example.com" })]);
+  });
+
+  it("a gift without a usable email is still tracked, and a missing table doesn't break gifts", async () => {
+    await makeGift(post("admin", { url: "https://www.airbnb.com/rooms/1", email: "not an email" }));
+    expect((await db.sql`select prospect_email from outreach_gift`)[0].prospect_email).toBeNull();
+    await db.reset();
+    await db.sql`insert into auth.users (id, is_anonymous) values (${GUEST}::uuid, true)`;
+    await db.sql`alter table outreach_gift rename to outreach_gift_gone`;
+    try {
+      const res = await makeGift(post("admin", { url: "https://www.airbnb.com/rooms/1" }));
+      expect(res.status).toBe(201);
+      const ticket = decodeURIComponent(new URL((await res.json()).gift_url).pathname.split("/").at(-1)!);
+      expect((await giftInfo(new Request("http://x", { headers: { "user-agent": "Mozilla/5.0" } }), ctx(ticket))).status).toBe(200);
+      const stats = await (await statsRoute(new Request("http://x", { headers: { Authorization: "Bearer admin" } }))).json();
+      expect(stats.outreach).toEqual([]);
+    } finally {
+      await db.sql`alter table outreach_gift_gone rename to outreach_gift`;
+    }
+  });
+
   it("admin stats count accounts, sources, plans and views, for admins only", async () => {
     await db.sql`insert into auth.users (id, is_anonymous, email, created_at, raw_user_meta_data) values
       ('66666666-6666-4666-8666-ffffffffffff'::uuid, false, 'new@host.com', now() - interval '2 days', '{"signup_source":{"source":"outreach"},"heard_about":"A message from Guidewise"}'::jsonb),

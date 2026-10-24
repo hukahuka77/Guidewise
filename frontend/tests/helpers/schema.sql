@@ -31,6 +31,11 @@ create table guidebook_view_daily (
 create index idx_guidebook_view_daily_user_day on guidebook_view_daily (user_id, day);
 create table view_dedupe (key text primary key, created_at timestamptz not null default now());
 create table ai_usage_monthly (user_id text not null, month date not null, used integer not null default 0, primary key (user_id, month));
+create table outreach_gift (
+  guest_id uuid primary key, guidebook_id text, property_name text, prospect_email text,
+  created_at timestamptz not null default now(), first_opened_at timestamptz, last_opened_at timestamptz,
+  opens integer not null default 0, claimed_at timestamptz, claimed_by uuid
+);
 create table guidebook_pdf_plan (guidebook_id text primary key, content_hash text not null, version integer not null, plan jsonb not null, created_at timestamptz not null default now());
 
 -- Supabase's auth.users, reduced to what the app reads (guests are anonymous users)
