@@ -89,12 +89,13 @@ export async function recordGiftClaimed(sql: Sql, guestId: string, userId: strin
 export async function outreachResults(sql: Sql) {
   const rows = await sql`
     select o.guest_id, o.guidebook_id, o.property_name, o.prospect_email, o.created_at, o.first_opened_at,
-           o.last_opened_at, o.opens, o.claimed_at, u.email as claimed_by_email
+           o.last_opened_at, o.opens, o.claimed_at, o.reply_status, o.replied_at, o.reply_note, u.email as claimed_by_email
       from public.outreach_gift o left join auth.users u on u.id = o.claimed_by
      order by o.created_at desc
      limit 500`.catch(() => []);
   const iso = (v: unknown) => (v ? new Date(v as string).toISOString() : null);
   return rows.map((r) => ({
+    guest_id: String(r.guest_id),
     property_name: (r.property_name as string) ?? null,
     prospect_email: (r.prospect_email as string) ?? null,
     created_at: iso(r.created_at),
@@ -103,5 +104,34 @@ export async function outreachResults(sql: Sql) {
     opens: Number(r.opens) || 0,
     claimed_at: iso(r.claimed_at),
     claimed_by_email: (r.claimed_by_email as string) ?? null,
+    reply_status: (r.reply_status as ReplyStatus | null) ?? null,
+    replied_at: iso(r.replied_at),
+    reply_note: (r.reply_note as string) ?? null,
   }));
+}
+
+export const REPLY_STATUSES = ["replied", "interested", "declined"] as const;
+export type ReplyStatus = (typeof REPLY_STATUSES)[number];
+
+/**
+ * Record how a prospect answered (null clears it). The reply time is kept when only the note or the
+ * status changes, and set to now if none was given. False when there's no such gift.
+ */
+export async function setOutreachReply(
+  sql: Sql,
+  guestId: string,
+  reply: { status: ReplyStatus | null; note?: string | null; repliedAt?: string | null },
+): Promise<boolean> {
+  const note = typeof reply.note === "string" ? reply.note.trim().slice(0, 500) || null : null;
+  const at = reply.repliedAt && !Number.isNaN(Date.parse(reply.repliedAt)) ? new Date(reply.repliedAt).toISOString() : null;
+  const rows = reply.status
+    ? await sql`
+        update public.outreach_gift
+           set reply_status = ${reply.status}, reply_note = ${note},
+               replied_at = coalesce(${at}::timestamptz, replied_at, now())
+         where guest_id = ${guestId}::uuid returning guest_id`
+    : await sql`
+        update public.outreach_gift set reply_status = null, reply_note = null, replied_at = null
+         where guest_id = ${guestId}::uuid returning guest_id`;
+  return rows.length > 0;
 }

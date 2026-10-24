@@ -28,6 +28,7 @@ import { GET as adminCheck, POST as makeGift } from "../src/app/api/admin/gifts/
 import { GET as giftInfo } from "../src/app/api/gift/[ticket]/route";
 import { GET as giftHtml } from "../src/app/api/gift/[ticket]/html/route";
 import { GET as statsRoute } from "../src/app/api/admin/stats/route";
+import { PATCH as replyRoute } from "../src/app/api/admin/outreach/[guestId]/route";
 import { isAdmin } from "../src/lib/server/gifts";
 import { claimGuestGuidebooks } from "../src/lib/server/guestAccounts";
 import { setSqlForTests } from "../src/lib/server/db";
@@ -138,6 +139,23 @@ describe("gifts", () => {
     } finally {
       await db.sql`alter table outreach_gift_gone rename to outreach_gift`;
     }
+  });
+
+  it("admins mark how a prospect replied; it shows in the outreach results", async () => {
+    await makeGift(post("admin", { url: "https://www.airbnb.com/rooms/1", email: "sam@host.com" }));
+    const patch = (token: string, body: unknown, id = GUEST) =>
+      replyRoute(new Request(`http://x/api/admin/outreach/${id}`, { method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify(body) }), { params: Promise.resolve({ guestId: id }) });
+    expect((await patch("owner", { reply_status: "declined" })).status).toBe(404);
+    expect((await patch("admin", { reply_status: "maybe" })).status).toBe(400);
+    expect((await patch("admin", { reply_status: "declined" }, "66666666-6666-4666-8666-000000000000")).status).toBe(404);
+    expect((await patch("admin", { reply_status: "declined", reply_note: "No thanks", replied_at: "2026-10-24T20:40:01Z" })).status).toBe(200);
+    const stats = async () => (await (await statsRoute(new Request("http://x", { headers: { Authorization: "Bearer admin" } }))).json()).outreach[0];
+    expect(await stats()).toMatchObject({ guest_id: GUEST, reply_status: "declined", reply_note: "No thanks", replied_at: "2026-10-24T20:40:01.000Z" });
+    // changing the status keeps when they replied; clearing it removes everything
+    await patch("admin", { reply_status: "interested", reply_note: "No thanks" });
+    expect(await stats()).toMatchObject({ reply_status: "interested", replied_at: "2026-10-24T20:40:01.000Z" });
+    await patch("admin", { reply_status: null });
+    expect(await stats()).toMatchObject({ reply_status: null, replied_at: null, reply_note: null });
   });
 
   it("admin stats count accounts, sources, plans and views, for admins only", async () => {
