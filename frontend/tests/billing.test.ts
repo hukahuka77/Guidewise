@@ -93,12 +93,12 @@ describe("plans and period dates", () => {
     expect(planForPriceId("price_power")).toBe("power");
     expect(planForPriceId("price_unknown")).toBeNull();
     expect(planForPriceId(undefined)).toBeNull();
-    expect(PLAN_CONFIGS.starter.guidebookLimit).toBe(5);
-    expect(PLAN_CONFIGS.power.guidebookLimit).toBe(100);
-    expect(PLAN_CONFIGS.pro.guidebookLimit).toBeNull();
+    expect(PLAN_CONFIGS.starter.guidebookLimit).toBe(3);
+    expect(PLAN_CONFIGS.power.guidebookLimit).toBe(15);
+    expect(PLAN_CONFIGS.pro.guidebookLimit).toBe(50);
     expect(PLAN_CONFIGS.free.viewsPerMonth).toBe(30);
     expect(PLAN_CONFIGS.starter.viewsPerMonth).toBeNull();
-    expect([5, 15, 30]).toEqual([PLAN_CONFIGS.starter.priceUsd, PLAN_CONFIGS.power.priceUsd, PLAN_CONFIGS.pro.priceUsd]);
+    expect([5, 15, 39]).toEqual([PLAN_CONFIGS.starter.priceUsd, PLAN_CONFIGS.power.priceUsd, PLAN_CONFIGS.pro.priceUsd]);
     // old stored names keep working
     expect([normalizePlan("trial"), normalizePlan("growth"), normalizePlan("enterprise"), normalizePlan(null), normalizePlan("weird")]).toEqual(["free", "power", "pro", "free", "free"]);
   });
@@ -207,8 +207,8 @@ describe("billingSummary", () => {
     });
     const out = await billingSummary(db.sql, stripe, user);
     expect(out).toMatchObject({
-      plan: "power", guidebook_limit: 100, guidebook_count: 2, can_create_more: true, plan_display: "Power",
-      price_usd: 15, views_limit: null, ai_limit: 150, features: { all_pdf_templates: true, print_pdf: true, analytics: true },
+      plan: "power", guidebook_limit: 15, guidebook_count: 2, can_create_more: true, plan_display: "Power",
+      price_usd: 15, views_limit: null, ai_limit: 50, features: { all_pdf_templates: true, print_pdf: true, analytics: true },
     });
     expect(out.stripe).toEqual({
       customer_id: "cus_9",
@@ -219,16 +219,16 @@ describe("billingSummary", () => {
 
   it("maps old plan names, reports caps and usage, and survives Stripe failures", async () => {
     await setPlan(db.sql, OWNER, "enterprise");
-    expect(await billingSummary(db.sql, null, user)).toMatchObject({ plan: "pro", guidebook_limit: null, can_create_more: true });
+    expect(await billingSummary(db.sql, null, user)).toMatchObject({ plan: "pro", guidebook_limit: 50, can_create_more: true });
     await setPlan(db.sql, OWNER, "growth");
-    expect(await billingSummary(db.sql, null, user)).toMatchObject({ plan: "power", guidebook_limit: 100 });
+    expect(await billingSummary(db.sql, null, user)).toMatchObject({ plan: "power", guidebook_limit: 15 });
     await setPlan(db.sql, OWNER, "starter");
     const [{ id: propertyId }] = await db.sql`insert into property (name, user_id) values ('P', ${OWNER}) returning id`;
-    for (let i = 0; i < 5; i++) await db.sql`insert into guidebook (id, property_id, user_id, template_key) values (${`c${i}`}, ${propertyId}, ${OWNER}, 'template_original')`;
+    for (let i = 0; i < 3; i++) await db.sql`insert into guidebook (id, property_id, user_id, template_key) values (${`c${i}`}, ${propertyId}, ${OWNER}, 'template_original')`;
     await db.sql`insert into guidebook_view_daily (guidebook_id, user_id, day, views) values ('c0', ${OWNER}, (now() at time zone 'utc')::date, 7)`;
     await db.sql`insert into ai_usage_monthly (user_id, month, used) values (${OWNER}, date_trunc('month', now() at time zone 'utc')::date, 4)`;
     expect(await billingSummary(db.sql, null, user)).toMatchObject({
-      plan: "starter", guidebook_limit: 5, guidebook_count: 5, can_create_more: false, views_used: 7, views_limit: null, ai_used: 4, ai_limit: 30,
+      plan: "starter", guidebook_limit: 3, guidebook_count: 3, can_create_more: false, views_used: 7, views_limit: null, ai_used: 4, ai_limit: 15,
     });
     await setPlan(db.sql, OWNER, "legacy", 7);
     expect(await billingSummary(db.sql, null, user)).toMatchObject({ plan: "free", plan_display: "Free" });
@@ -280,7 +280,7 @@ describe("handleStripeEvent", () => {
     const stripe = fakeStripe({ subscriptions: { retrieve: vi.fn(async () => sub()), list: vi.fn() } });
     await handleStripeEvent(db.sql, stripe, ev("checkout.session.completed", { metadata: { user_id: OWNER, plan: "pro" }, subscription: "sub_1", customer: "cus_1" }));
     const [p] = await db.sql`select * from profiles where user_id = ${OWNER}::uuid`;
-    expect(p).toMatchObject({ plan: "pro", guidebook_limit: null, stripe_customer_id: "cus_1", stripe_subscription_id: "sub_1" });
+    expect(p).toMatchObject({ plan: "pro", guidebook_limit: 50, stripe_customer_id: "cus_1", stripe_subscription_id: "sub_1" });
     expect(p.pro_starts_at.toISOString()).toBe("2023-11-14T22:13:20.000Z");
     expect(p.pro_expires_at.toISOString()).toBe("2023-12-14T22:13:20.000Z");
   });
@@ -290,7 +290,7 @@ describe("handleStripeEvent", () => {
     const stripe = fakeStripe({ subscriptions: { retrieve: vi.fn(async () => { throw new Error("No such subscription"); }), list: vi.fn() } });
     await handleStripeEvent(db.sql, stripe, ev("checkout.session.completed", { metadata: { user_id: OWNER, plan: "starter" }, subscription: "sub_x", customer: "cus_x" }));
     const [p] = await db.sql`select * from profiles where user_id = ${OWNER}::uuid`;
-    expect(p).toMatchObject({ plan: "starter", guidebook_limit: 5, stripe_subscription_id: "sub_x", pro_starts_at: null });
+    expect(p).toMatchObject({ plan: "starter", guidebook_limit: 3, stripe_subscription_id: "sub_x", pro_starts_at: null });
     expect((await db.sql`select count(*)::int as n from profiles`)[0].n).toBe(1);
   });
 
@@ -361,11 +361,11 @@ describe("handleStripeEvent", () => {
                  values (${OWNER}::uuid, 'starter', 5, 'sub_1', '2023-01-01T00:00:00Z', '2023-02-01T00:00:00Z')`;
     await handleStripeEvent(db.sql, null, ev("customer.subscription.updated", sub({ items: { data: [{ price: { id: "price_power" } }] } })));
     let [p] = await db.sql`select * from profiles`;
-    expect(p).toMatchObject({ plan: "power", guidebook_limit: 100 });
+    expect(p).toMatchObject({ plan: "power", guidebook_limit: 15 });
     expect(p.pro_expires_at.toISOString()).toBe("2023-02-01T00:00:00.000Z"); // no dates in the event: kept
     await handleStripeEvent(db.sql, null, ev("customer.subscription.updated", sub()));
     [p] = await db.sql`select * from profiles`;
-    expect(p).toMatchObject({ plan: "pro", guidebook_limit: null });
+    expect(p).toMatchObject({ plan: "pro", guidebook_limit: 50 });
     expect(p.pro_expires_at.toISOString()).toBe("2023-12-14T22:13:20.000Z");
   });
 

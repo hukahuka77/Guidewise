@@ -8,7 +8,7 @@ export interface PlanConfig {
   /** Environment variable holding the Stripe price id for this plan (null = not purchasable). */
   priceEnv: string | null;
   priceUsd: number;
-  /** Total guidebooks the account can hold (not advertised on the pricing page, fine print only). */
+  /** Total guidebooks the account can hold (shown on the pricing page). */
   guidebookLimit: number | null;
   /** Guest views per calendar month (UTC), summed across all of the account's guidebooks. */
   viewsPerMonth: number | null;
@@ -42,9 +42,9 @@ export const PLAN_CONFIGS: Record<string, PlanConfig> = {
     name: "Starter",
     priceEnv: "STRIPE_STARTER_PRICE_ID",
     priceUsd: 5,
-    guidebookLimit: 5,
+    guidebookLimit: 3,
     viewsPerMonth: null,
-    aiPerMonth: 30,
+    aiPerMonth: 15,
     pdfTemplates: null,
     printPdf: true,
     analytics: false,
@@ -55,9 +55,9 @@ export const PLAN_CONFIGS: Record<string, PlanConfig> = {
     name: "Power",
     priceEnv: "STRIPE_POWER_PRICE_ID",
     priceUsd: 15,
-    guidebookLimit: 100,
+    guidebookLimit: 15,
     viewsPerMonth: null,
-    aiPerMonth: 150,
+    aiPerMonth: 50,
     pdfTemplates: null,
     printPdf: true,
     analytics: true,
@@ -67,10 +67,10 @@ export const PLAN_CONFIGS: Record<string, PlanConfig> = {
     key: "pro",
     name: "Pro",
     priceEnv: "STRIPE_PRO_PRICE_ID",
-    priceUsd: 30,
-    guidebookLimit: null,
+    priceUsd: 39,
+    guidebookLimit: 50, // more than this: contact us
     viewsPerMonth: null,
-    aiPerMonth: 500, // fair-use ceiling
+    aiPerMonth: 150,
     pdfTemplates: null,
     printPdf: true,
     analytics: true,

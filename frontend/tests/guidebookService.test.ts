@@ -66,32 +66,32 @@ describe("plans, caps and creation limits", () => {
     expect((await getUserPlan(db.sql, "not-a-uuid")).key).toBe("free");
   });
 
-  it("caps total guidebooks per plan (free unlimited, starter 5, power 100, pro unlimited)", async () => {
+  it("caps total guidebooks per plan (free unlimited, starter 3, power 15, pro 50)", async () => {
     const [{ id: pid }] = await db.sql`insert into property (name, user_id) values ('P', ${OWNER}) returning id`;
     const fill = async (n: number) => {
       await db.sql`delete from guidebook where user_id = ${OWNER}`;
       for (let i = 0; i < n; i++) await db.sql`insert into guidebook (id, property_id, user_id, template_key, created_time) values (${`g${i}`}, ${pid}, ${OWNER}, 'template_original', now() - interval '2 days')`;
     };
     await setPlan(db.sql, OWNER, "starter");
-    await fill(4);
+    await fill(2);
     await expect(assertCanCreateGuidebook(db.sql, OWNER)).resolves.toBeUndefined();
-    await fill(5);
+    await fill(3);
     const err = await rejects(assertCanCreateGuidebook(db.sql, OWNER), 403);
-    expect(err.message).toBe("Your Starter plan includes up to 5 guidebooks. Upgrade your plan to create more.");
+    expect(err.message).toBe("Your Starter plan includes up to 3 guidebooks. Upgrade your plan to create more.");
     expect(err.extra).toMatchObject({ upgrade: true, quota: "guidebooks" });
     await rejects(createGuidebook(db.sql, OWNER, base()), 403);
 
-    await setPlan(db.sql, OWNER, "power");
-    await fill(99);
-    await expect(assertCanCreateGuidebook(db.sql, OWNER)).resolves.toBeUndefined();
-    await fill(100);
-    await rejects(assertCanCreateGuidebook(db.sql, OWNER), 403);
-
-    for (const plan of ["pro", "free"]) {
+    for (const [plan, cap] of [["power", 15], ["pro", 50]] as const) {
       await setPlan(db.sql, OWNER, plan);
-      await fill(150);
+      await fill(cap - 1);
       await expect(assertCanCreateGuidebook(db.sql, OWNER)).resolves.toBeUndefined();
+      await fill(cap);
+      await rejects(assertCanCreateGuidebook(db.sql, OWNER), 403);
     }
+
+    await setPlan(db.sql, OWNER, "free");
+    await fill(150);
+    await expect(assertCanCreateGuidebook(db.sql, OWNER)).resolves.toBeUndefined();
   });
 
   it("rate limits creation per hour and per day on every plan to stop automation", async () => {
