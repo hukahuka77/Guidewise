@@ -63,7 +63,7 @@ export async function recommendationsForListing(
 
   try {
     const [food, activities] = await withTimeout(
-      Promise.all([getAiRecommendations("food", location, 6), getAiRecommendations("activities", location, 6)]),
+      Promise.all([getAiRecommendations("food", location), getAiRecommendations("activities", location)]),
       RECOMMENDATION_TIMEOUT_MS,
       [[], []] as [EnrichedItem[], EnrichedItem[]],
     );

@@ -83,9 +83,10 @@ describe("rate limiting helpers", () => {
     expect(clampItems(999)).toBe(10);
     expect(clampItems(0)).toBe(1);
     expect(clampItems(-4)).toBe(1);
-    expect(clampItems("abc")).toBe(5);
-    expect(clampItems(null)).toBe(5);
+    expect(clampItems("abc")).toBe(3);
+    expect(clampItems(null)).toBe(3);
     expect(clampItems(3.9)).toBe(3);
+    expect(clampItems(undefined)).toBe(3); // the default: each generated place costs paid Google lookups
   });
 });
 

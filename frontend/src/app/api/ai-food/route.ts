@@ -20,7 +20,7 @@ export function POST(request: Request) {
       }
       const sql = getSql();
       if (sql) await consumeAiQuota(sql, user.id);
-      const recs = await getAiRecommendations("food", String(address), clampItems(data.num_places_to_eat ?? 5));
+      const recs = await getAiRecommendations("food", String(address), clampItems(data.num_places_to_eat));
       if (sql && recs.length === 0) await refundAiQuota(sql, user.id);
       return Response.json(recs.length ? recs : { error: "Could not get recommendations" });
     },
