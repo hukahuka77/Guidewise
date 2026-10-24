@@ -1,3 +1,4 @@
+import { driveOrigin } from "@/lib/driveOrigin";
 // Small presentation helpers for the guidebook templates (registered as Nunjucks filters in render.ts).
 
 type Dict = Record<string, unknown>;
@@ -48,11 +49,24 @@ export function addressLine(address: unknown): string {
   return [street, [cityState, zip].filter(Boolean).join(" ")].filter(Boolean).join(", ");
 }
 
+/**
+ * Google Maps link for a place: driving directions from the guidebook's address when it has a street
+ * address, otherwise the place itself (there's no exact starting point to route from).
+ */
+export function directionsUrl(destination: unknown, address: unknown): string {
+  const dest = text(destination);
+  const from = isDict(address) && text(address.street) ? driveOrigin(address.street, address.city_state, address.zip) : null;
+  const params = from
+    ? new URLSearchParams({ api: "1", origin: from, destination: dest, travelmode: "driving" })
+    : new URLSearchParams({ api: "1", query: dest });
+  return `https://www.google.com/maps/${from ? "dir" : "search"}/?${params}`;
+}
+
 export interface GuideSection {
   key: string;
   label: string;
   short: string;
-  /** Icon name for built-in sections; null for custom sections, which use `emoji`. */
+  /** Icon name; custom sections all share the generic "section" icon. */
   icon: string | null;
   emoji: string | null;
   num: string;
@@ -104,7 +118,7 @@ export function guideSections(ctx: unknown): GuideSection[] {
       if (!customHasContent(custom[key])) continue;
       const m = isDict(meta[key]) ? meta[key] : {};
       const label = text(m.label) || key.replace(/^custom_/, "").replace(/_/g, " ");
-      shown.push({ key, label, short: label, icon: null, emoji: text(m.icon) || null });
+      shown.push({ key, label, short: label, icon: "section", emoji: null });
       continue;
     }
     const base = BUILT_IN[key];

@@ -59,7 +59,7 @@ const DEFAULT_FORM_DATA: FormData = {
   wifiNetwork: '',
   wifiPassword: '',
   wifiNotes: 'WiFi works best in the living room and kitchen. Please let us know if you have any issues.',
-  checkInTime: '15:00',
+  checkInTime: '16:00',
   checkOutTime: '11:00',
   emergencyContact: '',
   fireExtinguisherLocation: '',

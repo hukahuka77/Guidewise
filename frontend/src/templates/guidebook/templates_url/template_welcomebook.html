@@ -817,7 +817,7 @@
           <p>{{ place.description }}</p>
           {% endif %}
           {% if place.address %}
-          <a href="https://maps.google.com/maps?q={{ place.address | urlencode }}" target="_blank"
+          <a href="{{ place.address | directions_url(ctx.address) }}" target="_blank"
             rel="noopener noreferrer" class="place-address" style="text-decoration: none; color: inherit;">
             <i data-lucide="map-pin" class="place-address-icon"></i>
             <span>{{ place.address }}</span>
@@ -853,7 +853,7 @@
           <p>{{ activity.description }}</p>
           {% endif %}
           {% if activity.address %}
-          <a href="https://maps.google.com/maps?q={{ activity.address | urlencode }}" target="_blank"
+          <a href="{{ activity.address | directions_url(ctx.address) }}" target="_blank"
             rel="noopener noreferrer" class="place-address" style="text-decoration: none; color: inherit;">
             <i data-lucide="map-pin" class="place-address-icon"></i>
             <span>{{ activity.address }}</span>

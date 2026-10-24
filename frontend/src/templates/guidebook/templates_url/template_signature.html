@@ -8,6 +8,7 @@
 {%- elif name == 'pin' -%}<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>
 {%- elif name == 'nav' -%}<path d="M3 11 22 2l-9 19-2-8-8-2z"/>
 {%- elif name == 'sun' -%}<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/>
+{%- elif name == 'section' -%}<path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>
 {%- elif name == 'book' -%}<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>
 {%- elif name == 'utensils' -%}<path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7"/>
 {%- elif name == 'compass' -%}<circle cx="12" cy="12" r="9"/><path d="m16.2 7.8-2.1 6.3-6.3 2.1 2.1-6.3z"/>
@@ -44,7 +45,7 @@
       {%- if place.driving_minutes or place.address %}
       <div class="place-meta">
         {%- if place.driving_minutes %}<span class="pill pill--sage">{{ icon('car', 15) }}{{ place.driving_minutes }} min drive</span>{% endif %}
-        {%- if place.address %}<a class="place-link" href="{{ maps_url(place.address) }}" target="_blank" rel="noopener noreferrer">{{ icon('nav', 14) }}Directions</a>{% endif %}
+        {%- if place.address %}<a class="place-link" href="{{ place.address | directions_url(ctx.address) }}" target="_blank" rel="noopener noreferrer">{{ icon('nav', 14) }}Directions</a>{% endif %}
       </div>
       {%- endif %}
     </div>

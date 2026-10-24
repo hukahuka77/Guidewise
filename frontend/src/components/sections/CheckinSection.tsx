@@ -1,6 +1,7 @@
 import React from "react";
 import { LIMITS } from "@/constants/limits";
 import { Card, CardHeader, Field, SuggestionChips, inputClass, textareaClass } from "@/components/editor/primitives";
+import TimePicker from "@/components/editor/TimePicker";
 
 const SAFETY_SUGGESTIONS: { field: "emergencyContact" | "fireExtinguisherLocation"; label: string; value: string }[] = [
   { field: "emergencyContact", label: "Emergency contact", value: "In case of emergency, call: +1 (555) 123-4567" },
@@ -26,7 +27,7 @@ export default function CheckinSection({ accessInfo, parkingInfo, checkInTime, e
         <CardHeader title="Arrival" description="When guests can arrive and how they get in." />
         <div className="space-y-5">
           <Field label="Check-in time" htmlFor="checkInTime">
-            <input id="checkInTime" type="time" value={checkInTime} onChange={(e) => onChange("checkInTime", e.target.value)} className={`${inputClass} sm:w-48`} />
+            <TimePicker id="checkInTime" value={checkInTime} onChange={(v) => onChange("checkInTime", v)} />
           </Field>
           <Field label="Getting in" htmlFor="accessInfo" hint="Shown highlighted, so guests can find it quickly at the door." count={[accessInfo.length, LIMITS.accessInfo]}>
             <textarea id="accessInfo" maxLength={LIMITS.accessInfo} value={accessInfo} onChange={(e) => onChange("access_info", e.target.value)} className={textareaClass} placeholder="Door code, lockbox location or entry steps." />

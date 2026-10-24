@@ -10,7 +10,6 @@ export type CustomItem = CustomItemText | CustomItemManual;
 
 interface CustomSectionProps {
   sectionKey: string;
-  icon: string;
   label: string;
   items: CustomItem[];
   onChange: (items: CustomItem[]) => void;
@@ -19,7 +18,7 @@ interface CustomSectionProps {
   onRemoveMedia?: (idx: number) => void;
 }
 
-export default function CustomSection({ sectionKey, icon, label, items, onChange, onLabelChange, onMediaSelect, onRemoveMedia }: CustomSectionProps) {
+export default function CustomSection({ sectionKey, label, items, onChange, onLabelChange, onMediaSelect, onRemoveMedia }: CustomSectionProps) {
   const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
   const full = items.length >= LIMITS.maxCustomSectionItems;
 
@@ -43,7 +42,6 @@ export default function CustomSection({ sectionKey, icon, label, items, onChange
         <CardHeader title="Section name" description="Shown as a tab and heading in your guidebook." />
         <Field label="Name" htmlFor={`${sectionKey}-label`} count={[label.length, LIMITS.customTabTitle]}>
           <div className="flex items-center gap-3">
-            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-[#F5EFE7] text-xl" aria-hidden="true">{icon}</span>
             <input
               id={`${sectionKey}-label`}
               value={label}

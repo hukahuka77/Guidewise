@@ -76,7 +76,7 @@ export interface EnrichedItem {
   driving_minutes: number | null;
 }
 
-async function enrichOne(item: unknown, location: string): Promise<EnrichedItem | null> {
+async function enrichOne(item: unknown, location: string, driveFrom: string | null): Promise<EnrichedItem | null> {
   const it = asDict(item);
   const name = it.name;
   const itemAddress = it.address;
@@ -97,7 +97,7 @@ async function enrichOne(item: unknown, location: string): Promise<EnrichedItem 
   const ref = asDict(photos[0]).photo_reference;
 
   let drivingMinutes: number | null = null;
-  if (location && realAddress) drivingMinutes = (await googleDistanceMatrix(location, realAddress)).durationMinutes;
+  if (driveFrom && realAddress) drivingMinutes = (await googleDistanceMatrix(driveFrom, realAddress)).durationMinutes;
 
   return {
     name,
@@ -109,11 +109,15 @@ async function enrichOne(item: unknown, location: string): Promise<EnrichedItem 
   };
 }
 
-/** Enrich in parallel; an item that fails to enrich is skipped. */
-export async function enrichWithGooglePlaces(items: unknown[], location: string): Promise<EnrichedItem[]> {
+/**
+ * Enrich in parallel; an item that fails to enrich is skipped. Drive times are measured from
+ * `driveFrom`, the guidebook's exact address; with none (a listing only shows the rough area) they
+ * are left out rather than guessed from the area.
+ */
+export async function enrichWithGooglePlaces(items: unknown[], location: string, driveFrom: string | null = location): Promise<EnrichedItem[]> {
   const results = await Promise.all(
     items.map((item) =>
-      enrichOne(item, location).catch((error) => {
+      enrichOne(item, location, driveFrom).catch((error) => {
         console.warn("Skipping recommendation that failed to enrich", error);
         return null;
       }),
@@ -123,7 +127,12 @@ export async function enrichWithGooglePlaces(items: unknown[], location: string)
 }
 
 /** Any failure while calling OpenAI/Places yields an empty list; an unknown type throws. */
-export async function getAiRecommendations(type: string, address: string, numItems = DEFAULT_AI_ITEMS): Promise<EnrichedItem[]> {
+export async function getAiRecommendations(
+  type: string,
+  address: string,
+  numItems = DEFAULT_AI_ITEMS,
+  { driveFrom = address }: { driveFrom?: string | null } = {},
+): Promise<EnrichedItem[]> {
   if (!isKnownType(type)) {
     throw new RangeError(
       `Unknown recommendation type: ${type}. Available types: ${Object.keys(RECOMMENDATION_CONFIGS).join(", ")}`,
@@ -139,7 +148,7 @@ export async function getAiRecommendations(type: string, address: string, numIte
     const parsed = JSON.parse(content ?? "null");
     const items = extractItems(parsed, config.responseKeys);
     if (items.length === 0) return [];
-    return await enrichWithGooglePlaces(items, address);
+    return await enrichWithGooglePlaces(items, address, driveFrom);
   } catch (error) {
     console.error(`get_ai_recommendations(${type}) failed`, error);
     return [];

@@ -80,7 +80,7 @@ export async function createImportedGuidebook(
         checkout_info, rules_json, things_to_do, places_to_eat, wifi_json, custom_sections, custom_tabs_meta,
         included_tabs, template_key, host_id, property_id, user_id, public_slug
       ) values (
-        ${id}, ${fields.check_in_time || "15:00"}, ${fields.check_out_time || "11:00"}, ${fields.access_info || null},
+        ${id}, ${fields.check_in_time || "16:00"}, ${fields.check_out_time || "11:00"}, ${fields.access_info || null},
         ${fields.welcome_message || null}, ${fields.parking_info || null}, ${fields.cover_image_url || null},
         ${json(fields.house_manual)}, ${json(fields.checkout_info)}, ${json(fields.house_rules)},
         ${tx.json(recommendations.things_to_do as never)}, ${tx.json(recommendations.places_to_eat as never)},
@@ -95,6 +95,9 @@ export async function createImportedGuidebook(
   return {
     ok: true,
     guidebook_id: guidebookId,
+    // So the import questions start from the listing's own times instead of the usual 4 PM / 11 AM
+    check_in_time: fields.check_in_time || null,
+    check_out_time: fields.check_out_time || null,
     imported: LABELS.filter(([k]) => filled(all[k as keyof typeof all])).map(([, label]) => label),
     missing: LABELS.filter(([k]) => !filled(all[k as keyof typeof all])).map(([, label]) => label),
     recommendations: {
