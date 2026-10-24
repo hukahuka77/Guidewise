@@ -1,0 +1,140 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
+import OutreachPanel from "@/components/admin/OutreachPanel";
+
+interface Stats {
+  users: { members: number; new_7d: number; new_30d: number; guests: number };
+  guidebooks: { total: number; new_7d: number; unclaimed: number };
+  plans: Record<string, number>;
+  mrr_usd: number;
+  views_month: number;
+  ai_runs_month: number;
+  top_guidebooks: { id: string; property_name: string | null; views: number }[];
+  sources: { source: string; signups: number }[];
+  heard_about: { answer: string; signups: number }[];
+  recent_signups: { email: string | null; created_at: string | null; source: string; heard_about: string | null; plan: string; guidebooks: number }[];
+}
+
+const card = "rounded-[2rem] bg-white p-6 shadow-[0_20px_50px_-30px_rgba(60,40,30,0.35)] ring-1 ring-black/5";
+const PLAN_NAMES: Record<string, string> = { starter: "Starter", power: "Power", pro: "Pro" };
+
+function Stat({ label, value, note }: { label: string; value: string | number; note?: string }) {
+  return (
+    <div className={card}>
+      <p className="text-sm font-medium text-[#8a7f77]">{label}</p>
+      <p className="mt-2 text-3xl font-semibold tracking-[-0.02em] text-[#1f1a17]">{value}</p>
+      {note && <p className="mt-1 text-sm text-[#5b524c]">{note}</p>}
+    </div>
+  );
+}
+
+function Breakdown({ title, rows, empty }: { title: string; rows: { label: string; value: number }[]; empty: string }) {
+  const max = Math.max(1, ...rows.map((r) => r.value));
+  return (
+    <div className={card}>
+      <h3 className="font-semibold text-[#1f1a17]">{title}</h3>
+      {rows.length === 0 ? (
+        <p className="mt-3 text-sm text-[#8a7f77]">{empty}</p>
+      ) : (
+        <ul className="mt-4 space-y-3">
+          {rows.map((r) => (
+            <li key={r.label}>
+              <div className="flex justify-between gap-3 text-sm">
+                <span className="truncate text-[#3d3530]">{r.label}</span>
+                <span className="font-semibold text-[#1f1a17]">{r.value}</span>
+              </div>
+              <div className="mt-1 h-1.5 rounded-full bg-[#f6f2ee]">
+                <div className="h-full rounded-full bg-gradient-to-r from-[#db2777] to-[#f97316]" style={{ width: `${(r.value / max) * 100}%` }} />
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "");
+
+/** Admin tab: how Guidewise is doing, plus the outreach gift builder. Only admins (ADMIN_EMAILS) see it. */
+export default function AdminPage() {
+  const [token, setToken] = useState<string | null>(null);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [state, setState] = useState<"loading" | "ok" | "denied" | "error">("loading");
+
+  useEffect(() => {
+    (async () => {
+      const session = (await supabase?.auth.getSession())?.data.session;
+      if (!session || session.user.is_anonymous) return setState("denied");
+      setToken(session.access_token);
+      const res = await fetch("/api/admin/stats", { headers: { Authorization: `Bearer ${session.access_token}` } });
+      if (res.status === 404 || res.status === 401) return setState("denied");
+      if (!res.ok) return setState("error");
+      setStats(await res.json());
+      setState("ok");
+    })().catch(() => setState("error"));
+  }, []);
+
+  if (state === "loading") return <p className="text-[#8a7f77]">Loading…</p>;
+  if (state === "denied") return <p className="text-[#5b524c]">This page isn&apos;t available.</p>;
+
+  const paying = stats ? Object.values(stats.plans).reduce((a, b) => a + b, 0) : 0;
+  return (
+    <div className="space-y-10">
+      <div>
+        <h1 className="text-3xl font-semibold tracking-[-0.03em] text-[#1f1a17]">Admin</h1>
+        <p className="mt-1 text-[15px] text-[#5b524c]">How Guidewise is doing, and gift guidebooks for outreach. Only admins see this tab.</p>
+      </div>
+
+      {state === "error" && <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-800 ring-1 ring-red-100">Couldn&apos;t load the stats. The outreach tool below still works.</p>}
+
+      {stats && (
+        <>
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <Stat label="Accounts" value={stats.users.members} note={`+${stats.users.new_7d} this week · +${stats.users.new_30d} in 30 days`} />
+            <Stat label="Guidebooks" value={stats.guidebooks.total} note={`+${stats.guidebooks.new_7d} this week · ${stats.guidebooks.unclaimed} not yet claimed`} />
+            <Stat label="Paying hosts" value={paying} note={`$${stats.mrr_usd.toLocaleString()} / month`} />
+            <Stat label="Guest views this month" value={stats.views_month.toLocaleString()} note={`${stats.ai_runs_month} AI runs this month`} />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <Breakdown title="Where signups came from (30 days)" rows={stats.sources.map((s) => ({ label: s.source, value: s.signups }))} empty="No signups in the last 30 days." />
+            <Breakdown title="How did you hear about us? (30 days)" rows={stats.heard_about.map((h) => ({ label: h.answer, value: h.signups }))} empty="No answers yet." />
+            <Breakdown title="Paid plans" rows={Object.entries(stats.plans).map(([k, n]) => ({ label: PLAN_NAMES[k] ?? k, value: n }))} empty="No paid plans yet." />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_2fr]">
+            <Breakdown title="Most viewed guidebooks this month" rows={stats.top_guidebooks.map((g) => ({ label: g.property_name || "Untitled", value: g.views }))} empty="No guest views yet this month." />
+            <div className={`${card} overflow-x-auto`}>
+              <h3 className="font-semibold text-[#1f1a17]">Recent signups</h3>
+              {stats.recent_signups.length === 0 ? (
+                <p className="mt-3 text-sm text-[#8a7f77]">No accounts yet.</p>
+              ) : (
+                <table className="mt-4 w-full min-w-[520px] text-left text-sm">
+                  <thead className="text-[#8a7f77]">
+                    <tr><th className="pb-2 font-medium">Email</th><th className="pb-2 font-medium">Joined</th><th className="pb-2 font-medium">Source</th><th className="pb-2 font-medium">Plan</th><th className="pb-2 text-right font-medium">Guidebooks</th></tr>
+                  </thead>
+                  <tbody className="text-[#3d3530]">
+                    {stats.recent_signups.map((u, i) => (
+                      <tr key={`${u.email}-${i}`} className="border-t border-[#1f1a17]/5">
+                        <td className="max-w-[220px] truncate py-2 pr-3">{u.email || "—"}</td>
+                        <td className="whitespace-nowrap py-2 pr-3">{day(u.created_at)}</td>
+                        <td className="max-w-[180px] truncate py-2 pr-3" title={u.heard_about ? `Heard: ${u.heard_about}` : undefined}>{u.source}</td>
+                        <td className="py-2 pr-3 capitalize">{u.plan}</td>
+                        <td className="py-2 text-right">{u.guidebooks}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {token && <OutreachPanel token={token} />}
+    </div>
+  );
+}

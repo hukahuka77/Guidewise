@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ReactNode, useEffect } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { isGuestSession } from "@/lib/guest";
-import { BarChart3, BookOpen, CreditCard, UserRound } from "lucide-react";
+import { BarChart3, BookOpen, CreditCard, ShieldCheck, UserRound } from "lucide-react";
 
 const NAV = [
   { href: "/dashboard", label: "Guidebooks", icon: BookOpen },
@@ -13,6 +13,7 @@ const NAV = [
   { href: "/dashboard/profile", label: "Profile", icon: UserRound },
   { href: "/dashboard/billing", label: "Billing", icon: CreditCard },
 ];
+const ADMIN_NAV = { href: "/dashboard/admin", label: "Admin", icon: ShieldCheck };
 
 function NavLink({ href, label, icon: Icon }: (typeof NAV)[number]) {
   const pathname = usePathname();
@@ -33,10 +34,18 @@ function NavLink({ href, label, icon: Icon }: (typeof NAV)[number]) {
 
 export default function DashboardShell({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const [admin, setAdmin] = useState(false);
   // The dashboard is for accounts: a guest (built a guidebook without signing up) is asked to save it first
   useEffect(() => {
     supabase?.auth.getSession().then(({ data }) => {
-      if (isGuestSession(data.session)) router.replace("/signup?save=1");
+      if (isGuestSession(data.session)) return router.replace("/signup?save=1");
+      const token = data.session?.access_token;
+      // The Admin tab shows only when the server says this account is an admin
+      if (token) {
+        fetch("/api/admin/gifts", { headers: { Authorization: `Bearer ${token}` } })
+          .then((res) => setAdmin(res.ok))
+          .catch(() => undefined);
+      }
     });
   }, [router]);
   return (
@@ -47,7 +56,7 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
           {/* Sidebar: a row of pills on phones, a column on larger screens */}
           <aside className="h-max md:sticky md:top-20">
             <nav aria-label="Dashboard" className="flex gap-1 overflow-x-auto rounded-full bg-white p-1.5 shadow-[0_10px_30px_-20px_rgba(60,40,30,0.35)] ring-1 ring-black/5 md:flex-col md:rounded-3xl md:p-3">
-              {NAV.map((item) => (
+              {(admin ? [...NAV, ADMIN_NAV] : NAV).map((item) => (
                 <NavLink key={item.href} {...item} />
               ))}
             </nav>
