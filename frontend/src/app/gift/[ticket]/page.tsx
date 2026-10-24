@@ -18,7 +18,9 @@ export default function GiftPage({ params }: { params: Promise<{ ticket: string 
   const [missing, setMissing] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/gift/${encodeURIComponent(ticket)}`)
+    // An admin's own look from the Admin tab (?preview=1) isn't counted as the host opening it
+    const preview = new URLSearchParams(window.location.search).get("preview") === "1" ? "?preview=1" : "";
+    fetch(`/api/gift/${encodeURIComponent(ticket)}${preview}`)
       .then(async (res) => (res.ok ? setGift(await res.json()) : setMissing(true)))
       .catch(() => setMissing(true));
   }, [ticket]);

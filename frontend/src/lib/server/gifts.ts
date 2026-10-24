@@ -51,3 +51,57 @@ export async function findGift(sql: Sql, ticket: unknown): Promise<Gift | null> 
   if (!rows[0]) return null;
   return { guestId, guidebookId: rows[0].id, propertyName: rows[0].property_name ?? null, hostName: rows[0].host_name ?? null };
 }
+
+// ---------------------------------------------------------------------------------------------
+// Outreach results: each gift's row is stamped when it's built, opened and claimed. Recording is best
+// effort: a tracking failure never breaks building, opening or claiming a gift.
+// ---------------------------------------------------------------------------------------------
+
+const cleanEmail = (value: unknown) => {
+  const email = typeof value === "string" ? value.trim().slice(0, 254) : "";
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
+};
+
+export async function recordGiftCreated(
+  sql: Sql,
+  gift: { guestId: string; guidebookId: string; propertyName: string | null; prospectEmail?: unknown },
+): Promise<void> {
+  await sql`
+    insert into public.outreach_gift (guest_id, guidebook_id, property_name, prospect_email)
+    values (${gift.guestId}::uuid, ${gift.guidebookId}, ${gift.propertyName}, ${cleanEmail(gift.prospectEmail)})
+    on conflict (guest_id) do nothing`.catch((error) => console.warn("outreach: could not record a gift", error));
+}
+
+export async function recordGiftOpened(sql: Sql, guestId: string): Promise<void> {
+  await sql`
+    update public.outreach_gift
+       set opens = opens + 1, first_opened_at = coalesce(first_opened_at, now()), last_opened_at = now()
+     where guest_id = ${guestId}::uuid`.catch((error) => console.warn("outreach: could not record an open", error));
+}
+
+export async function recordGiftClaimed(sql: Sql, guestId: string, userId: string): Promise<void> {
+  await sql`
+    update public.outreach_gift set claimed_at = coalesce(claimed_at, now()), claimed_by = ${userId}::uuid
+     where guest_id = ${guestId}::uuid`.catch((error) => console.warn("outreach: could not record a claim", error));
+}
+
+/** Every gift, newest first, with who claimed it; empty if the table isn't there yet. */
+export async function outreachResults(sql: Sql) {
+  const rows = await sql`
+    select o.guest_id, o.guidebook_id, o.property_name, o.prospect_email, o.created_at, o.first_opened_at,
+           o.last_opened_at, o.opens, o.claimed_at, u.email as claimed_by_email
+      from public.outreach_gift o left join auth.users u on u.id = o.claimed_by
+     order by o.created_at desc
+     limit 500`.catch(() => []);
+  const iso = (v: unknown) => (v ? new Date(v as string).toISOString() : null);
+  return rows.map((r) => ({
+    property_name: (r.property_name as string) ?? null,
+    prospect_email: (r.prospect_email as string) ?? null,
+    created_at: iso(r.created_at),
+    first_opened_at: iso(r.first_opened_at),
+    last_opened_at: iso(r.last_opened_at),
+    opens: Number(r.opens) || 0,
+    claimed_at: iso(r.claimed_at),
+    claimed_by_email: (r.claimed_by_email as string) ?? null,
+  }));
+}

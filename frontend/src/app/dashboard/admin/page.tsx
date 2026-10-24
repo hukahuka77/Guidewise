@@ -16,6 +16,60 @@ interface Stats {
   sources: { source: string; signups: number }[];
   heard_about: { answer: string; signups: number }[];
   recent_signups: { email: string | null; created_at: string | null; source: string; heard_about: string | null; plan: string; guidebooks: number }[];
+  outreach?: OutreachGift[];
+}
+
+interface OutreachGift {
+  property_name: string | null;
+  prospect_email: string | null;
+  created_at: string | null;
+  first_opened_at: string | null;
+  last_opened_at: string | null;
+  opens: number;
+  claimed_at: string | null;
+  claimed_by_email: string | null;
+}
+
+/** Each gift sent: did the host open it, and did they claim it. */
+function OutreachResults({ gifts }: { gifts: OutreachGift[] }) {
+  const opened = gifts.filter((g) => g.opens > 0).length;
+  const claimed = gifts.filter((g) => g.claimed_at).length;
+  const pct = (n: number) => (gifts.length ? `${Math.round((n / gifts.length) * 100)}%` : undefined);
+  return (
+    <section id="outreach-results" className="space-y-4">
+      <h2 className="text-2xl font-semibold tracking-[-0.02em] text-[#1f1a17]">Outreach results</h2>
+      <div className="grid grid-cols-3 gap-4">
+        <Stat label="Gifts sent" value={gifts.length} />
+        <Stat label="Opened" value={opened} note={pct(opened)} />
+        <Stat label="Claimed" value={claimed} note={pct(claimed)} />
+      </div>
+      <div className={`${card} overflow-x-auto`}>
+        {gifts.length === 0 ? (
+          <p className="text-sm text-[#8a7f77]">No gifts yet. Gifts built below show up here.</p>
+        ) : (
+          <table className="w-full min-w-[720px] text-left text-sm">
+            <thead className="text-[#8a7f77]">
+              <tr><th className="pb-2 font-medium">Property</th><th className="pb-2 font-medium">Email</th><th className="pb-2 font-medium">Sent</th><th className="pb-2 font-medium">Opens</th><th className="pb-2 font-medium">Last opened</th><th className="pb-2 font-medium">Claimed</th></tr>
+            </thead>
+            <tbody className="text-[#3d3530]">
+              {gifts.map((g, i) => (
+                <tr key={i} className="border-t border-[#1f1a17]/5">
+                  <td className="max-w-[220px] truncate py-2 pr-3">{g.property_name || "Untitled"}</td>
+                  <td className="max-w-[200px] truncate py-2 pr-3">{g.prospect_email || "—"}</td>
+                  <td className="whitespace-nowrap py-2 pr-3">{day(g.created_at)}</td>
+                  <td className="py-2 pr-3">{g.opens || <span className="text-[#8a7f77]">Not yet</span>}</td>
+                  <td className="whitespace-nowrap py-2 pr-3">{day(g.last_opened_at)}</td>
+                  <td className="max-w-[220px] truncate py-2">
+                    {g.claimed_at ? <span className="text-emerald-700" title={g.claimed_by_email || undefined}>{day(g.claimed_at)}{g.claimed_by_email ? ` · ${g.claimed_by_email}` : ""}</span> : ""}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </section>
+  );
 }
 
 const card = "rounded-[2rem] bg-white p-6 shadow-[0_20px_50px_-30px_rgba(60,40,30,0.35)] ring-1 ring-black/5";
@@ -135,6 +189,7 @@ export default function AdminPage() {
         </>
       )}
 
+      {stats?.outreach && <OutreachResults gifts={stats.outreach} />}
       {token && <OutreachPanel token={token} />}
       {token && <BulkOutreach token={token} />}
     </div>
