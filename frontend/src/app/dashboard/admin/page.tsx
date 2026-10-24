@@ -19,7 +19,10 @@ interface Stats {
   outreach?: OutreachGift[];
 }
 
+type ReplyStatus = "replied" | "interested" | "declined";
+
 interface OutreachGift {
+  guest_id: string;
   property_name: string | null;
   prospect_email: string | null;
   created_at: string | null;
@@ -28,37 +31,88 @@ interface OutreachGift {
   opens: number;
   claimed_at: string | null;
   claimed_by_email: string | null;
+  reply_status: ReplyStatus | null;
+  replied_at: string | null;
+  reply_note: string | null;
+}
+
+const REPLY_LABELS: Record<ReplyStatus, string> = { replied: "Replied", interested: "Interested", declined: "Declined" };
+const REPLY_STYLES: Record<ReplyStatus, string> = {
+  replied: "bg-sky-50 text-sky-800 ring-sky-100",
+  interested: "bg-emerald-50 text-emerald-800 ring-emerald-100",
+  declined: "bg-[#f3eee9] text-[#5b524c] ring-[#e7dfd4]",
+};
+
+/** How the prospect answered, saved as soon as it's picked. */
+function ReplyPicker({ gift, token, onSaved }: { gift: OutreachGift; token: string | null; onSaved: (g: OutreachGift) => void }) {
+  const [saving, setSaving] = useState(false);
+  const status = gift.reply_status;
+  return (
+    <select
+      aria-label={`Reply from ${gift.property_name || "this host"}`}
+      value={status ?? ""}
+      disabled={!token || saving}
+      title={gift.reply_note || undefined}
+      onChange={async (e) => {
+        const next = (e.target.value || null) as ReplyStatus | null;
+        setSaving(true);
+        try {
+          const res = await fetch(`/api/admin/outreach/${gift.guest_id}`, {
+            method: "PATCH",
+            headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ reply_status: next, reply_note: gift.reply_note }),
+          });
+          if (res.ok) onSaved({ ...gift, reply_status: next, replied_at: next ? gift.replied_at ?? new Date().toISOString() : null });
+        } finally {
+          setSaving(false);
+        }
+      }}
+      className={`cursor-pointer rounded-full border-0 py-1 pl-2.5 pr-7 text-xs font-medium ring-1 disabled:opacity-60 ${status ? REPLY_STYLES[status] : "bg-white text-[#8a7f77] ring-[#1f1a17]/10"}`}
+    >
+      <option value="">No reply</option>
+      {(Object.keys(REPLY_LABELS) as ReplyStatus[]).map((k) => <option key={k} value={k}>{REPLY_LABELS[k]}</option>)}
+    </select>
+  );
 }
 
 /** Each gift sent: did the host open it, and did they claim it. */
-function OutreachResults({ gifts }: { gifts: OutreachGift[] }) {
+function OutreachResults({ gifts: initial, token }: { gifts: OutreachGift[]; token: string | null }) {
+  const [gifts, setGifts] = useState(initial);
   const opened = gifts.filter((g) => g.opens > 0).length;
+  const replied = gifts.filter((g) => g.reply_status).length;
+  const declined = gifts.filter((g) => g.reply_status === "declined").length;
+  const interested = gifts.filter((g) => g.reply_status === "interested").length;
   const claimed = gifts.filter((g) => g.claimed_at).length;
   const pct = (n: number) => (gifts.length ? `${Math.round((n / gifts.length) * 100)}%` : undefined);
   return (
     <section id="outreach-results" className="space-y-4">
       <h2 className="text-2xl font-semibold tracking-[-0.02em] text-[#1f1a17]">Outreach results</h2>
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Stat label="Gifts sent" value={gifts.length} />
         <Stat label="Opened" value={opened} note={pct(opened)} />
+        <Stat label="Replied" value={replied} note={replied ? `${interested} interested · ${declined} declined` : pct(replied)} />
         <Stat label="Claimed" value={claimed} note={pct(claimed)} />
       </div>
       <div className={`${card} overflow-x-auto`}>
         {gifts.length === 0 ? (
           <p className="text-sm text-[#8a7f77]">No gifts yet. Gifts built below show up here.</p>
         ) : (
-          <table className="w-full min-w-[720px] text-left text-sm">
+          <table className="w-full min-w-[840px] text-left text-sm">
             <thead className="text-[#8a7f77]">
-              <tr><th className="pb-2 font-medium">Property</th><th className="pb-2 font-medium">Email</th><th className="pb-2 font-medium">Sent</th><th className="pb-2 font-medium">Opens</th><th className="pb-2 font-medium">Last opened</th><th className="pb-2 font-medium">Claimed</th></tr>
+              <tr><th className="pb-2 font-medium">Property</th><th className="pb-2 font-medium">Email</th><th className="pb-2 font-medium">Sent</th><th className="pb-2 font-medium">Opens</th><th className="pb-2 font-medium">Last opened</th><th className="pb-2 font-medium">Reply</th><th className="pb-2 font-medium">Claimed</th></tr>
             </thead>
             <tbody className="text-[#3d3530]">
-              {gifts.map((g, i) => (
-                <tr key={i} className="border-t border-[#1f1a17]/5">
+              {gifts.map((g) => (
+                <tr key={g.guest_id} className="border-t border-[#1f1a17]/5">
                   <td className="max-w-[220px] truncate py-2 pr-3">{g.property_name || "Untitled"}</td>
                   <td className="max-w-[200px] truncate py-2 pr-3">{g.prospect_email || "—"}</td>
                   <td className="whitespace-nowrap py-2 pr-3">{day(g.created_at)}</td>
                   <td className="py-2 pr-3">{g.opens || <span className="text-[#8a7f77]">Not yet</span>}</td>
                   <td className="whitespace-nowrap py-2 pr-3">{day(g.last_opened_at)}</td>
+                  <td className="whitespace-nowrap py-2 pr-3">
+                    <ReplyPicker gift={g} token={token} onSaved={(saved) => setGifts((list) => list.map((x) => (x.guest_id === saved.guest_id ? saved : x)))} />
+                    {g.replied_at && <span className="ml-2 text-xs text-[#8a7f77]">{day(g.replied_at)}</span>}
+                  </td>
                   <td className="max-w-[220px] truncate py-2">
                     {g.claimed_at ? <span className="text-emerald-700" title={g.claimed_by_email || undefined}>{day(g.claimed_at)}{g.claimed_by_email ? ` · ${g.claimed_by_email}` : ""}</span> : ""}
                   </td>
@@ -189,7 +243,7 @@ export default function AdminPage() {
         </>
       )}
 
-      {stats?.outreach && <OutreachResults gifts={stats.outreach} />}
+      {stats?.outreach && <OutreachResults gifts={stats.outreach} token={token} />}
       {token && <OutreachPanel token={token} />}
       {token && <BulkOutreach token={token} />}
     </div>
