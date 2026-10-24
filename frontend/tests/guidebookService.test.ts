@@ -13,6 +13,7 @@ import {
   updateGuidebook,
 } from "../src/lib/server/guidebookService";
 import { assertCanCreateGuidebook, getUserPlan } from "../src/lib/server/usage";
+import { normalizePlan } from "../src/lib/server/plans";
 import { OTHER, OWNER, setPlan, startTestDb, type TestDb } from "./helpers/testDb";
 
 let db: TestDb;
@@ -59,11 +60,13 @@ describe("slugify and rules input", () => {
 describe("plans, caps and creation limits", () => {
   it("resolves the plan, treating missing, legacy and unknown names sensibly", async () => {
     expect((await getUserPlan(db.sql, OWNER)).key).toBe("free"); // no profile
-    for (const [stored, expected] of [["starter", "starter"], ["power", "power"], ["growth", "power"], ["pro", "pro"], ["enterprise", "pro"], ["trial", "free"], ["???", "free"]]) {
+    for (const [stored, expected] of [["starter", "starter"], ["power", "power"], ["growth", "power"], ["pro", "pro"], ["enterprise", "pro"], ["trial", "free"]]) {
       await setPlan(db.sql, OWNER, stored);
       expect((await getUserPlan(db.sql, OWNER)).key).toBe(expected);
     }
     expect((await getUserPlan(db.sql, "not-a-uuid")).key).toBe("free");
+    // The database only stores known names; anything else read from elsewhere is free
+    expect(normalizePlan("???")).toBe("free");
   });
 
   it("caps total guidebooks per plan (free unlimited, starter 3, power 15, pro 50)", async () => {

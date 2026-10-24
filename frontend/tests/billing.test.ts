@@ -230,7 +230,7 @@ describe("billingSummary", () => {
     expect(await billingSummary(db.sql, null, user)).toMatchObject({
       plan: "starter", guidebook_limit: 3, guidebook_count: 3, can_create_more: false, views_used: 7, views_limit: null, ai_used: 4, ai_limit: 15,
     });
-    await setPlan(db.sql, OWNER, "legacy", 7);
+    await setPlan(db.sql, OWNER, "trial", 7);
     expect(await billingSummary(db.sql, null, user)).toMatchObject({ plan: "free", plan_display: "Free" });
     const broken = fakeStripe({ customers: { list: vi.fn(async () => { throw new Error("nope"); }) } });
     const out = await billingSummary(db.sql, broken, user);
