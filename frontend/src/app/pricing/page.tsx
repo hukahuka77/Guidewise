@@ -10,18 +10,35 @@ import { Check } from "lucide-react";
 import { PLAN_COPY, PRICING_FINE_PRINT } from "@/config/plans";
 
 const CheckIcon = () => <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#db2777]" strokeWidth={2.5} aria-hidden />;
+const planButton = "mt-6 inline-flex h-12 w-full items-center justify-center rounded-full text-[15px] font-semibold transition";
+const planButtonColors = (popular?: boolean) =>
+  popular
+    ? "bg-gradient-to-r from-[#db2777] to-[#f97316] text-white shadow-[0_10px_24px_-10px_rgba(219,39,119,0.7)] hover:-translate-y-0.5"
+    : "bg-white text-[#1f1a17] ring-1 ring-[#1f1a17]/20 hover:bg-[#faf7f4]";
 
 export default function PricingPage() {
   const [isAuthed, setIsAuthed] = useState(false);
   const [loadingPlan, setLoadingPlan] = useState<PaidPlan | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // The signed-in account's plan, so its card says so; plan changes for subscribers go through billing
+  const [currentPlan, setCurrentPlan] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
-      const sess = await supabase?.auth.getSession();
-      setIsAuthed(!!sess?.data.session && !isGuestSession(sess?.data.session));
+      const session = (await supabase?.auth.getSession())?.data.session;
+      const authed = !!session && !isGuestSession(session);
+      setIsAuthed(authed);
+      if (!authed) return;
+      try {
+        const res = await fetch("/api/billing/summary", { headers: { Authorization: `Bearer ${session.access_token}` } });
+        const json = res.ok ? ((await res.json()) as { plan?: string }) : null;
+        if (json?.plan) setCurrentPlan(json.plan);
+      } catch {
+        // Without it the cards just offer every plan
+      }
     })();
   }, []);
+  const subscribed = !!currentPlan && currentPlan !== "free";
 
   const handlePlanSelect = async (plan: PaidPlan) => {
     setError(null);
@@ -76,20 +93,27 @@ export default function PricingPage() {
                 <span className="text-5xl font-semibold tracking-[-0.03em] text-[#1f1a17]">${plan.price}</span>
                 <span className="text-lg font-medium text-[#5b524c]">/month</span>
               </div>
-              <button
-                type="button"
-                onClick={() => handlePlanSelect(plan.key as PaidPlan)}
-                disabled={loadingPlan !== null}
-                className={`mt-6 inline-flex h-12 w-full items-center justify-center rounded-full text-[15px] font-semibold transition disabled:opacity-60 ${
-                  plan.popular
-                    ? "bg-gradient-to-r from-[#db2777] to-[#f97316] text-white shadow-[0_10px_24px_-10px_rgba(219,39,119,0.7)] hover:-translate-y-0.5"
-                    : "bg-white text-[#1f1a17] ring-1 ring-[#1f1a17]/20 hover:bg-[#faf7f4]"
-                }`}
-              >
-                {loadingPlan === plan.key ? (
-                  <span className="flex items-center gap-2"><Spinner size={16} /> Loading…</span>
-                ) : isAuthed ? `Get ${plan.name}` : `Sign up for ${plan.name}`}
-              </button>
+              {currentPlan === plan.key ? (
+                <button type="button" disabled className={`${planButton} cursor-default bg-[#1f1a17]/5 text-[#5b524c] ring-1 ring-[#1f1a17]/10`}>
+                  <Check className="mr-2 h-4 w-4" strokeWidth={2.5} aria-hidden /> Your current plan
+                </button>
+              ) : subscribed ? (
+                // Already paying: switching plans happens in the billing portal, not a second checkout
+                <Link href="/dashboard/billing" className={`${planButton} no-underline hover:no-underline ${planButtonColors(plan.popular)}`}>
+                  Switch to {plan.name}
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handlePlanSelect(plan.key as PaidPlan)}
+                  disabled={loadingPlan !== null}
+                  className={`${planButton} disabled:opacity-60 ${planButtonColors(plan.popular)}`}
+                >
+                  {loadingPlan === plan.key ? (
+                    <span className="flex items-center gap-2"><Spinner size={16} /> Loading…</span>
+                  ) : isAuthed ? `Get ${plan.name}` : `Sign up for ${plan.name}`}
+                </button>
+              )}
               <div className="my-7 h-px bg-[#1f1a17]/10" />
               {plan.includes && <p className="mb-4 text-[15px] font-semibold text-[#1f1a17]">Everything in {plan.includes} +</p>}
               <ul className="space-y-3 text-[15px] text-[#3d3530]">
@@ -111,12 +135,18 @@ export default function PricingPage() {
                 <span className="text-lg font-medium text-[#5b524c]">/month, forever</span>
               </div>
             </div>
-            <Link
-              href="/onboarding"
-              className="inline-flex h-12 w-full items-center justify-center rounded-full bg-[#1f1a17] px-8 text-[15px] font-semibold text-white no-underline transition hover:bg-black hover:no-underline md:w-auto"
-            >
-              {isAuthed ? "Create a guidebook" : "Create your free guidebook"}
-            </Link>
+            {currentPlan === "free" ? (
+              <button type="button" disabled className="inline-flex h-12 w-full cursor-default items-center justify-center rounded-full bg-[#1f1a17]/5 px-8 text-[15px] font-semibold text-[#5b524c] ring-1 ring-[#1f1a17]/10 md:w-auto">
+                <Check className="mr-2 h-4 w-4" strokeWidth={2.5} aria-hidden /> Your current plan
+              </button>
+            ) : (
+              <Link
+                href="/onboarding"
+                className="inline-flex h-12 w-full items-center justify-center rounded-full bg-[#1f1a17] px-8 text-[15px] font-semibold text-white no-underline transition hover:bg-black hover:no-underline md:w-auto"
+              >
+                {isAuthed ? "Create a guidebook" : "Create your free guidebook"}
+              </Link>
+            )}
           </div>
           <ul className="mt-8 grid grid-cols-1 gap-x-8 gap-y-3 border-t border-[#1f1a17]/10 pt-7 text-[15px] text-[#3d3530] sm:grid-cols-2 lg:grid-cols-3">
             {free.features.map((f) => (

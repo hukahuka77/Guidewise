@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { loginPath } from "@/lib/nextPath";
 import Spinner from "@/components/ui/spinner";
 
 type Point = { day: string; views: number };
@@ -38,13 +39,13 @@ export default function AnalyticsPage() {
     (async () => {
       const token = (await supabase?.auth.getSession())?.data.session?.access_token;
       if (!token) {
-        router.push("/login");
+        router.push(loginPath());
         return;
       }
       try {
         const res = await fetch(`/api/analytics/views`, { headers: { Authorization: `Bearer ${token}` } });
         if (res.status === 401) {
-          router.push("/login");
+          router.push(loginPath());
           return;
         }
         if (!res.ok) throw new Error(`Failed to load analytics (${res.status})`);
