@@ -760,7 +760,7 @@ export default function EditGuidebookPage() {
           disabled={busy || needsAddress || full}
           title={needsAddress ? "Add your address in Welcome first" : undefined}
           onClick={async () => {
-            const suggested = kind === "food" ? await fetchFoodRecommendations(formData.location, 5) : await fetchActivityRecommendations(formData.location, 5);
+            const suggested = kind === "food" ? await fetchFoodRecommendations(formData.location) : await fetchActivityRecommendations(formData.location);
             if (kind === "food") setFoodItems((prev) => mergeSuggestions(prev, suggested));
             else setActivityItems((prev) => mergeSuggestions(prev, suggested));
           }}

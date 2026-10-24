@@ -310,8 +310,8 @@ describe("AI recommendation quota", () => {
     process.env.OPENAI_API_KEY = "k";
     globalThis.fetch = vi.fn(async (input: string | URL | Request) => {
       const u = String(input);
-      if (u.includes("textsearch")) return new Response(JSON.stringify({ results: [{ place_id: "p1" }] }));
-      if (u.includes("details")) return new Response(JSON.stringify({ result: { formatted_address: "addr" } }));
+      if (u.includes("places:searchText")) return new Response(JSON.stringify({ places: [{ id: "p1" }] }));
+      if (u.includes("/v1/places/")) return new Response(JSON.stringify({ formattedAddress: "addr" }));
       return new Response(JSON.stringify({ routes: [] }));
     }) as unknown as typeof fetch;
   });

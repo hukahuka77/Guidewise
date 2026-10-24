@@ -83,9 +83,10 @@ describe("rate limiting helpers", () => {
     expect(clampItems(999)).toBe(10);
     expect(clampItems(0)).toBe(1);
     expect(clampItems(-4)).toBe(1);
-    expect(clampItems("abc")).toBe(5);
-    expect(clampItems(null)).toBe(5);
+    expect(clampItems("abc")).toBe(3);
+    expect(clampItems(null)).toBe(3);
     expect(clampItems(3.9)).toBe(3);
+    expect(clampItems(undefined)).toBe(3); // the default: each generated place costs paid Google lookups
   });
 });
 
@@ -103,25 +104,30 @@ describe("places search / enrich", () => {
 
   it("validates input and normalizes at most 8 results", async () => {
     expect((await searchRoute(post("/api/places/search", { query: "  " }))).status).toBe(400);
-    const results = Array.from({ length: 12 }, (_, i) => ({ name: `P${i}`, formatted_address: `A${i}`, place_id: `id${i}`, extra: 1 }));
-    fetchMock.mockResolvedValueOnce(json({ results }));
+    const places = Array.from({ length: 12 }, (_, i) => ({ id: `id${i}`, displayName: { text: `P${i}` }, formattedAddress: `A${i}` }));
+    fetchMock.mockResolvedValueOnce(json({ places }));
     const res = await searchRoute(post("/api/places/search", { query: "pizza", near: "Austin" }));
     const body = await res.json();
     expect(body.items).toHaveLength(8);
     expect(body.items[0]).toEqual({ name: "P0", address: "A0", place_id: "id0" });
-    const url = new URL(fetchMock.mock.calls[0][0] as string);
-    // Google's location parameter only takes coordinates, so an address goes into the query
-    expect(url.searchParams.get("query")).toBe("pizza near Austin");
-    expect(url.searchParams.get("location")).toBeNull();
-    expect(url.searchParams.get("key")).toBe("gkey");
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("https://places.googleapis.com/v1/places:searchText");
+    const headers = init.headers as Record<string, string>;
+    expect(headers["X-Goog-Api-Key"]).toBe("gkey");
+    // the place picker needs names, so this search is billed as Text Search Pro, not the free ids-only tier
+    expect(headers["X-Goog-FieldMask"]).toBe("places.id,places.displayName,places.formattedAddress");
+    // an address goes into the query text; only coordinates can bias the search
+    expect(JSON.parse(init.body as string)).toEqual({ textQuery: "pizza near Austin" });
   });
 
-  it("passes coordinates as the search location", async () => {
-    fetchMock.mockResolvedValueOnce(json({ results: [] }));
+  it("biases the search towards coordinates", async () => {
+    fetchMock.mockResolvedValueOnce(json({}));
     await searchRoute(post("/api/places/search", { query: "pizza", near: "30.27, -97.74" }));
-    const url = new URL(fetchMock.mock.calls[0][0] as string);
-    expect(url.searchParams.get("query")).toBe("pizza");
-    expect(url.searchParams.get("location")).toBe("30.27,-97.74");
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(JSON.parse(init.body as string)).toEqual({
+      textQuery: "pizza",
+      locationBias: { circle: { center: { latitude: 30.27, longitude: -97.74 }, radius: 50000 } },
+    });
   });
 
   it("returns 502 when Google fails", async () => {
@@ -140,7 +146,7 @@ describe("places search / enrich", () => {
   it("enriches a place with description, photo reference and driving minutes", async () => {
     fetchMock
       .mockResolvedValueOnce(
-        json({ result: { name: "Joe's", formatted_address: "1 Main St", website: "https://joes.test", rating: 4.5, types: ["italian_restaurant"], photos: [{ photo_reference: "REF" }] } }),
+        json({ displayName: { text: "Joe's" }, formattedAddress: "1 Main St", websiteUri: "https://joes.test", rating: 4.5, types: ["italian_restaurant"], photos: [{ name: "places/pid/photos/REF" }] }),
       )
       .mockResolvedValueOnce(json({ routes: [{ duration: "905s", distanceMeters: 5000 }] }));
     const res = await enrichRoute(get("/api/places/enrich?place_id=pid&origin=Home", "owner"));
@@ -149,18 +155,21 @@ describe("places search / enrich", () => {
       address: "1 Main St",
       description: "Rating 4.5 • Italian Restaurant • https://joes.test",
       place_id: "pid",
-      image_url: "REF",
+      image_url: "places/pid/photos/REF",
       driving_minutes: 15,
     });
+    expect(fetchMock.mock.calls[0][0]).toBe("https://places.googleapis.com/v1/places/pid");
+    const routeInit = fetchMock.mock.calls[1][1] as RequestInit;
+    // typical (not live-traffic) driving time is billed as Routes Essentials
+    expect(JSON.parse(routeInit.body as string).routingPreference).toBe("TRAFFIC_UNAWARE");
   });
 
-  it("falls back to the Distance Matrix API when Routes fails", async () => {
+  it("leaves the drive time out when Routes fails", async () => {
     fetchMock
-      .mockResolvedValueOnce(json({ result: { name: "N", formatted_address: "A" } }))
-      .mockResolvedValueOnce(new Response("denied", { status: 403 }))
-      .mockResolvedValueOnce(json({ status: "OK", rows: [{ elements: [{ status: "OK", duration: { value: 600 }, distance: { value: 1 } }] }] }));
+      .mockResolvedValueOnce(json({ displayName: { text: "N" }, formattedAddress: "A" }))
+      .mockResolvedValueOnce(new Response("denied", { status: 403 }));
     const res = await enrichRoute(get("/api/places/enrich?place_id=pid&origin=Home", "owner"));
-    expect((await res.json()).driving_minutes).toBe(10);
+    expect(await res.json()).toMatchObject({ name: "N", address: "A", driving_minutes: null });
   });
 
   it("requires place_id", async () => {
@@ -178,7 +187,7 @@ describe("place photo", () => {
 
   it("serves the stored reference without a Details lookup, with long-lived cache headers and no auth", async () => {
     fetchMock.mockResolvedValueOnce(img());
-    const res = await photoRoute(get("/api/place-photo?place_id=pid&photo_reference=STORED&maxwidth=5000"));
+    const res = await photoRoute(get("/api/place-photo?place_id=pid&photo_reference=places%2Fpid%2Fphotos%2FSTORED&maxwidth=5000"));
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("image/png");
     expect(res.headers.get("cache-control")).toContain("s-maxage=604800");
@@ -186,25 +195,48 @@ describe("place photo", () => {
     expect([...new Uint8Array(await res.arrayBuffer())]).toEqual([1, 2, 3]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const photoUrl = new URL(fetchMock.mock.calls[0][0] as string);
-    expect(photoUrl.searchParams.get("photo_reference")).toBe("STORED");
-    expect(photoUrl.searchParams.get("maxwidth")).toBe("1600");
+    expect(photoUrl.pathname).toBe("/v1/places/pid/photos/STORED/media");
+    expect(photoUrl.searchParams.get("maxWidthPx")).toBe("1600");
   });
 
   it("refreshes the reference from the place id only when the stored one has expired", async () => {
     fetchMock
       .mockResolvedValueOnce(new Response("x", { status: 403 })) // expired stored reference
-      .mockResolvedValueOnce(json({ result: { photos: [{ photo_reference: "FRESH" }] } }))
+      .mockResolvedValueOnce(json({ photos: [{ name: "places/pid/photos/FRESH" }] }))
       .mockResolvedValueOnce(img());
-    const res = await photoRoute(get("/api/place-photo?place_id=pid&photo_reference=STALE"));
+    const res = await photoRoute(get("/api/place-photo?place_id=pid&photo_reference=places%2Fpid%2Fphotos%2FSTALE"));
     expect(res.status).toBe(200);
-    expect(new URL(fetchMock.mock.calls[2][0] as string).searchParams.get("photo_reference")).toBe("FRESH");
+    // the refresh asks for photos only (Place Details Essentials)
+    expect((fetchMock.mock.calls[1][1] as RequestInit & { headers: Record<string, string> }).headers["X-Goog-FieldMask"]).toBe("photos");
+    expect(new URL(fetchMock.mock.calls[2][0] as string).pathname).toBe("/v1/places/pid/photos/FRESH/media");
+  });
+
+  it("never sends a malformed reference to Google", async () => {
+    fetchMock.mockResolvedValue(img());
+    const res = await photoRoute(get(`/api/place-photo?photo_reference=${encodeURIComponent("places/x/../../places:searchText")}`));
+    expect(res.status).toBe(404);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("logs Google's reason when a call is refused", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    fetchMock.mockResolvedValueOnce(json({ error: { message: "Places API (New) has not been used in project 1" } }, { status: 403 }));
+    await photoRoute(get("/api/place-photo?place_id=pid"));
+    expect(String(warn.mock.calls[0]?.[1])).toContain("Places API (New) has not been used");
+    warn.mockRestore();
+  });
+
+  it("refreshes a reference saved by the legacy Places API without trying to fetch it", async () => {
+    fetchMock.mockResolvedValueOnce(json({ photos: [{ name: "places/pid/photos/NEW" }] })).mockResolvedValueOnce(img());
+    const res = await photoRoute(get("/api/place-photo?place_id=pid&photo_reference=AUc7legacyRef"));
+    expect(res.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("recovers legacy photos by searching the query", async () => {
     fetchMock
-      .mockResolvedValueOnce(new Response("x", { status: 400 })) // expired stored reference
-      .mockResolvedValueOnce(json({ results: [{ place_id: "found" }] }))
-      .mockResolvedValueOnce(json({ result: { photos: [{ photo_reference: "RECOVERED" }] } }))
+      .mockResolvedValueOnce(json({ places: [{ id: "found" }] }))
+      .mockResolvedValueOnce(json({ photos: [{ name: "places/found/photos/RECOVERED" }] }))
       .mockResolvedValueOnce(img());
     const signed = placePhotoUrl({ image_url: "OLD", name: "Joe's Pizza" });
     expect(signed).toContain("sig=");
@@ -214,14 +246,14 @@ describe("place photo", () => {
 
   it("won't run the paid name search for a query our pages didn't sign", async () => {
     fetchMock.mockResolvedValueOnce(new Response("x", { status: 400 })); // the reference fails
-    const forged = await photoRoute(get("/api/place-photo?photo_reference=OLD&query=anything%20at%20all&sig=nope"));
+    const forged = await photoRoute(get("/api/place-photo?photo_reference=places%2Fx%2Fphotos%2FOLD&query=anything%20at%20all&sig=nope"));
     expect(forged.status).toBe(404);
     expect(fetchMock).toHaveBeenCalledTimes(1); // no Text Search, Details or Photo calls
   });
 
   it("rejects non-image upstream responses with 404", async () => {
     fetchMock.mockResolvedValueOnce(new Response("<html>", { status: 200, headers: { "content-type": "text/html" } }));
-    expect((await photoRoute(get("/api/place-photo?photo_reference=R"))).status).toBe(404);
+    expect((await photoRoute(get("/api/place-photo?photo_reference=places%2Fp%2Fphotos%2FR"))).status).toBe(404);
   });
 
   it("answers 503 when Google is not configured", async () => {
@@ -235,8 +267,8 @@ describe("AI recommendations", () => {
   const placeFlow = (name: string, id: string) => {
     fetchMock.mockImplementation(async (input: string) => {
       const u = String(input);
-      if (u.includes("textsearch")) return json({ results: [{ place_id: id, formatted_address: "search addr" }] });
-      if (u.includes("details")) return json({ result: { formatted_address: `${name} real addr`, photos: [{ photo_reference: `ref-${id}` }] } });
+      if (u.includes("places:searchText")) return json({ places: [{ id }] });
+      if (u.includes("/v1/places/")) return json({ formattedAddress: `${name} real addr`, photos: [{ name: `places/${id}/photos/ref` }] });
       if (u.includes("routes.googleapis")) return json({ routes: [{ duration: "1200s" }] });
       return new Response("?", { status: 404 });
     });
@@ -263,7 +295,7 @@ describe("AI recommendations", () => {
     );
     const res = await aiRecs(post("/api/ai-recommendations", { type: "food", location: "Austin, TX", num_items: 500 }));
     expect(await res.json()).toEqual([
-      { name: "Joe", address: "Joe real addr", description: "Great", place_id: "p1", photo_reference: "ref-p1", driving_minutes: 20 },
+      { name: "Joe", address: "Joe real addr", description: "Great", place_id: "p1", photo_reference: "places/p1/photos/ref", driving_minutes: 20 },
     ]);
     const prompt = openaiCreate.mock.calls[0][0].messages[1].content as string;
     expect(prompt).toContain("exactly 10 items");
@@ -289,13 +321,13 @@ describe("AI recommendations", () => {
 
   it("skips an item whose Places lookup fails without failing the rest", async () => {
     let call = 0;
-    fetchMock.mockImplementation(async (input: string) => {
+    fetchMock.mockImplementation(async (input: string, init?: RequestInit) => {
       const u = String(input);
-      if (u.includes("textsearch")) {
-        if (u.includes("Bad")) throw new Error("network");
-        return json({ results: [{ place_id: "ok" }] });
+      if (u.includes("places:searchText")) {
+        if (String(init?.body).includes("Bad")) throw new Error("network");
+        return json({ places: [{ id: "ok" }] });
       }
-      if (u.includes("details")) return json({ result: { formatted_address: "addr" } });
+      if (u.includes("/v1/places/")) return json({ formattedAddress: "addr" });
       call++;
       return json({ routes: [] });
     });
@@ -495,11 +527,11 @@ describe("listing import route", () => {
     };
     const place = (name: string) => ({ name, address: `${name} St`, description: `About ${name}` });
     const wire = (opts: { extraction?: unknown } = {}) => {
-      fetchMock.mockImplementation(async (input: string) => {
+      fetchMock.mockImplementation(async (input: string, init?: RequestInit) => {
         const u = String(input);
         if (/muscache\.com/.test(u)) return png();
-        if (u.includes("textsearch")) return json({ results: [{ place_id: `pid-${new URL(u).searchParams.get("query")?.split(",")[0]}` }] });
-        if (u.includes("details")) return json({ result: { formatted_address: "1 Real Addr, Austin, TX", photos: [{ photo_reference: "PHOTOREF" }] } });
+        if (u.includes("places:searchText")) return json({ places: [{ id: `pid-${JSON.parse(String(init?.body)).textQuery.split(",")[0]}` }] });
+        if (u.includes("/v1/places/")) return json({ formattedAddress: "1 Real Addr, Austin, TX", photos: [{ name: "places/x/photos/PHOTOREF" }] });
         if (u.includes("routes.googleapis")) return json({ routes: [{ duration: "600s" }] });
         return new Response(page, { status: 200 });
       });
@@ -528,7 +560,7 @@ describe("listing import route", () => {
       expect(gb.custom_sections).toEqual({});
       expect(gb.custom_tabs_meta).toBeNull();
       expect(gb.things_to_do.map((i: { name: string }) => i.name)).toEqual(["Lake Trail", "Art Museum"]);
-      expect(gb.things_to_do[0]).toMatchObject({ address: "1 Real Addr, Austin, TX", image_url: "PHOTOREF", driving_minutes: 10 });
+      expect(gb.things_to_do[0]).toMatchObject({ address: "1 Real Addr, Austin, TX", image_url: "places/x/photos/PHOTOREF", driving_minutes: 10 });
       expect(gb.things_to_do[0].place_id).toMatch(/^pid-/);
       expect(gb.places_to_eat.map((i: { name: string }) => i.name)).toEqual(["Taco Hut", "Pizza Barn"]);
       const [host] = await db.sql`select bio from host where id = ${gb.host_id}`;

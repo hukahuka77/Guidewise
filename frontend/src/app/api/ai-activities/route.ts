@@ -20,7 +20,7 @@ export function POST(request: Request) {
       }
       const sql = getSql();
       if (sql) await consumeAiQuota(sql, user.id);
-      const activities = await getAiRecommendations("activities", String(address), clampItems(data.num_things_to_do ?? 5));
+      const activities = await getAiRecommendations("activities", String(address), clampItems(data.num_things_to_do));
       if (sql && activities.length === 0) await refundAiQuota(sql, user.id);
       // Always {"activities": [...]}, even when the list is empty
       return Response.json({ activities });
