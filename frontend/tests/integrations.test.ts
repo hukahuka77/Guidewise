@@ -206,11 +206,9 @@ describe("place photo", () => {
       .mockResolvedValueOnce(json({ results: [{ place_id: "found" }] }))
       .mockResolvedValueOnce(json({ result: { photos: [{ photo_reference: "RECOVERED" }] } }))
       .mockResolvedValueOnce(img());
-    process.env.PHOTO_SIGNING_SECRET = "test-secret";
     const signed = placePhotoUrl({ image_url: "OLD", name: "Joe's Pizza" });
     expect(signed).toContain("sig=");
     const res = await photoRoute(get(signed));
-    delete process.env.PHOTO_SIGNING_SECRET;
     expect(res.status).toBe(200);
   });
 
