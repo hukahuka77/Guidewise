@@ -15,6 +15,7 @@ import { notify } from "@/lib/dialog";
 import { cacheGet, cacheSet } from "@/lib/cache";
 import { claimGuestGuidebooks, isGuestSession } from "@/lib/guest";
 import { useDialog } from "@/hooks/useDialog";
+import { loginPath, takeRememberedNextPath } from "@/lib/nextPath";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 
@@ -237,11 +238,17 @@ export default function DashboardPage() {
       const { data } = await supabase.auth.getSession();
       const token = data.session?.access_token || null;
       if (!token) {
-        router.push("/login");
+        router.push(loginPath());
         return;
       }
       if (isGuestSession(data.session)) {
         router.push("/signup?save=1");
+        return;
+      }
+      // Google sign-in lands here; go on to the page that sent them to log in
+      const remembered = takeRememberedNextPath();
+      if (remembered && remembered !== "/dashboard") {
+        router.replace(remembered);
         return;
       }
       // Guidebooks built as a guest before signing up join the account first
@@ -267,7 +274,7 @@ export default function DashboardPage() {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.status === 401) {
-          router.push("/login");
+          router.push(loginPath());
           return;
         }
         if (!res.ok) throw new Error(`Failed to load guidebooks (${res.status})`);

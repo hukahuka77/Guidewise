@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { loginPath, safeNextPath } from "../src/lib/nextPath";
+import { loginPath, rememberNextPath, safeNextPath, takeRememberedNextPath } from "../src/lib/nextPath";
 
 describe("safeNextPath", () => {
   it("keeps paths on this site, with their query", () => {
@@ -25,5 +25,23 @@ describe("loginPath", () => {
   it("adds the page to come back to", () => {
     expect(loginPath("/edit/12?new=true")).toBe("/login?next=%2Fedit%2F12%3Fnew%3Dtrue");
     expect(loginPath("//evil.com")).toBe("/login");
+  });
+});
+
+describe("remembering where to go across a Google sign-in", () => {
+  it("keeps one safe path and hands it back once", () => {
+    const store = new Map<string, string>();
+    (globalThis as { localStorage?: unknown }).localStorage = {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+      removeItem: (k: string) => void store.delete(k),
+    };
+    rememberNextPath("/edit/12");
+    expect(takeRememberedNextPath()).toBe("/edit/12");
+    expect(takeRememberedNextPath()).toBeNull();
+    rememberNextPath("//evil.com");
+    expect(takeRememberedNextPath()).toBeNull();
+    delete (globalThis as { localStorage?: unknown }).localStorage;
+    expect(takeRememberedNextPath()).toBeNull(); // no storage: the usual page
   });
 });

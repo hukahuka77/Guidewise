@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { claimGuestGuidebooks, hasPendingBuild } from "@/lib/guest";
-import { safeNextPath } from "@/lib/nextPath";
+import { rememberNextPath, safeNextPath } from "@/lib/nextPath";
 import AuthShell, { AuthAlert, OrDivider, authInput, authLabel, authLink, authPrimary, authSecondary } from "@/components/custom/AuthShell";
 
 export default function LoginPage() {
@@ -201,11 +201,13 @@ export default function LoginPage() {
               }
               try {
                 setOauthLoading(true);
+                if (!saving && !pendingBuild) rememberNextPath(next);
                 await supabase.auth.signInWithOAuth({
                   provider: 'google',
                   options: {
-                    // /onboarding claims a guest's guidebook and opens it in the editor
-                    redirectTo: `${(process.env.NEXT_PUBLIC_SITE_URL || window.location.origin)}${saving || pendingBuild ? "/onboarding" : next || "/dashboard"}`,
+                    // /onboarding claims a guest's guidebook and opens it in the editor; otherwise the
+                    // dashboard (an allowed redirect) sends them on to the page they came from
+                    redirectTo: `${(process.env.NEXT_PUBLIC_SITE_URL || window.location.origin)}${saving || pendingBuild ? "/onboarding" : "/dashboard"}`,
                     queryParams: { prompt: 'select_account' },
                   },
                 });

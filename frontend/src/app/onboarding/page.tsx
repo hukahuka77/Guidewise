@@ -14,10 +14,10 @@ import PhonePreview from "@/components/custom/PhonePreview";
 import { offerUpgrade, throwApiError, UpgradeRequiredError } from "@/lib/upgrade";
 import { usePremiumStyles } from "@/hooks/usePremiumStyles";
 import { isPremiumStyle, PREMIUM_STYLE_MESSAGE, PREMIUM_STYLE_PLAN } from "@/lib/guidebook/styles";
-import { ensureSession, finishClaim, hasPendingClaim, isGuestSession, savePendingBuild, takeClaimed, takePendingBuild, type PendingBuild, rememberGuestGuidebook } from "@/lib/guest";
+import { ensureSession, finishClaim, hasPendingBuild, hasPendingClaim, isGuestSession, savePendingBuild, takeClaimed, takePendingBuild, type PendingBuild, rememberGuestGuidebook } from "@/lib/guest";
 import { supabase } from "@/lib/supabaseClient";
 import { parsePaidPlan, startStripeCheckout } from "@/lib/billing";
-import { loginPath } from "@/lib/nextPath";
+import { loginPath, takeRememberedNextPath } from "@/lib/nextPath";
 import ImportQuestions, { EMPTY_ANSWERS, ImportProgress, answersToPayload, type ImportAnswers } from "@/components/onboarding/ImportQuestions";
 
 type Mode = "link" | "manual";
@@ -100,6 +100,20 @@ export default function OnboardingPage() {
       const ids = takeClaimed();
       if (ids[0]) router.replace(`/edit/${ids[0]}?new=true`);
       else setClaiming(false);
+    })();
+    return () => { cancelled = true; };
+  }, [router]);
+
+  // Signed up after being sent to log in from another page (Google and email confirmation return here):
+  // go back to that page, unless there's a guidebook to claim or build, or a plan to check out
+  useEffect(() => {
+    if (!supabase || hasPendingClaim() || hasPendingBuild() || parsePaidPlan(new URLSearchParams(window.location.search).get("plan"))) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase!.auth.getSession();
+      if (cancelled || !data.session || isGuestSession(data.session)) return;
+      const next = takeRememberedNextPath();
+      if (next && next !== "/onboarding") router.replace(next);
     })();
     return () => { cancelled = true; };
   }, [router]);

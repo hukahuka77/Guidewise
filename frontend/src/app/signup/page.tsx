@@ -6,7 +6,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { rememberHeardAbout } from "@/lib/attribution";
 import { parsePaidPlan, type PaidPlan } from "@/lib/billing";
-import { safeNextPath } from "@/lib/nextPath";
+import { rememberNextPath, safeNextPath } from "@/lib/nextPath";
 import AuthShell, { AuthAlert, OrDivider, authInput, authLabel, authLink, authPrimary, authSecondary } from "@/components/custom/AuthShell";
 
 const HEARD_OPTIONS = ["A message from Guidewise", "Facebook group", "Reddit", "Google search", "TikTok, Instagram or YouTube", "A guest guidebook I saw", "A friend or co-host", "Other"];
@@ -36,6 +36,8 @@ export default function SignupPage() {
     setNext(safeNextPath(query.get("next")));
   }, []);
   const afterSignup = plan ? `/onboarding?plan=${plan}` : saving || building ? "/onboarding" : next || "/onboarding";
+  // Email confirmation and Google return to a fixed, allowed page; a `next` path is remembered instead
+  const returnTo = plan ? `/onboarding?plan=${plan}` : "/onboarding";
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,7 +58,8 @@ export default function SignupPage() {
       if (typeof window !== 'undefined') {
         // Prefer runtime origin in the browser to avoid using a prod URL during local dev
         const baseUrl = window.location.origin || process.env.NEXT_PUBLIC_SITE_URL;
-        emailRedirectTo = `${baseUrl}${afterSignup}`;
+        emailRedirectTo = `${baseUrl}${returnTo}`;
+        if (!plan && !saving && !building) rememberNextPath(next);
       }
       const { error, data } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo } });
       if (error) {
@@ -160,10 +163,11 @@ export default function SignupPage() {
           }
           try {
             setOauthLoading(true);
+            if (!plan && !saving && !building) rememberNextPath(next);
             await supabase.auth.signInWithOAuth({
               provider: 'google',
               options: {
-                redirectTo: `${(typeof window !== 'undefined' ? window.location.origin : process.env.NEXT_PUBLIC_SITE_URL)}${afterSignup}`,
+                redirectTo: `${(typeof window !== 'undefined' ? window.location.origin : process.env.NEXT_PUBLIC_SITE_URL)}${returnTo}`,
                 queryParams: { prompt: 'select_account' },
               },
             });
