@@ -23,7 +23,11 @@ export const isGoogleConfigured = () => googleApiKey() !== "";
 
 async function fetchJson(url: string, init: RequestInit = {}): Promise<Dict> {
   const res = await fetch(url, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS) });
-  if (!res.ok) throw new Error(`Google API ${res.status} for ${new URL(url).pathname}`);
+  if (!res.ok) {
+    // Google's reason ("API not enabled", "referer blocked", ...) makes a key setup problem obvious in the logs
+    const reason = str(asDict(asDict(await res.json().catch(() => null)).error).message).slice(0, 200);
+    throw new Error(`Google API ${res.status} for ${new URL(url).pathname}${reason ? `: ${reason}` : ""}`);
+  }
   return asDict(await res.json());
 }
 
@@ -97,10 +101,13 @@ export async function googlePlacesDetails(placeId: string, fields: DetailFields 
  * Image URL for a photo reference ("places/<id>/photos/<id>"). References saved by the legacy API
  * can't be fetched any more; the photo proxy then gets a fresh one from the item's place id.
  */
+const PHOTO_REFERENCE = /^places\/[A-Za-z0-9_-]+\/photos\/[A-Za-z0-9_-]+$/;
+
 export function googlePlacesPhotoUrl(photoReference: string, maxwidth = 800): string {
-  if (!photoReference.startsWith("places/")) return "";
+  // References reach the photo proxy from public URLs: anything else (legacy references, "..") is refused
+  if (!PHOTO_REFERENCE.test(photoReference)) return "";
   const params = new URLSearchParams({ maxWidthPx: String(maxwidth), key: googleApiKey() });
-  return `${PHOTO_MEDIA_URL}${photoReference.split("/").map(encodeURIComponent).join("/")}/media?${params}`;
+  return `${PHOTO_MEDIA_URL}${photoReference}/media?${params}`;
 }
 
 /** Current photo reference for a durable place id (references expire; place ids do not). */

@@ -210,6 +210,21 @@ describe("place photo", () => {
     expect(new URL(fetchMock.mock.calls[2][0] as string).pathname).toBe("/v1/places/pid/photos/FRESH/media");
   });
 
+  it("never sends a malformed reference to Google", async () => {
+    fetchMock.mockResolvedValue(img());
+    const res = await photoRoute(get(`/api/place-photo?photo_reference=${encodeURIComponent("places/x/../../places:searchText")}`));
+    expect(res.status).toBe(404);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("logs Google's reason when a call is refused", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    fetchMock.mockResolvedValueOnce(json({ error: { message: "Places API (New) has not been used in project 1" } }, { status: 403 }));
+    await photoRoute(get("/api/place-photo?place_id=pid"));
+    expect(String(warn.mock.calls[0]?.[1])).toContain("Places API (New) has not been used");
+    warn.mockRestore();
+  });
+
   it("refreshes a reference saved by the legacy Places API without trying to fetch it", async () => {
     fetchMock.mockResolvedValueOnce(json({ photos: [{ name: "places/pid/photos/NEW" }] })).mockResolvedValueOnce(img());
     const res = await photoRoute(get("/api/place-photo?place_id=pid&photo_reference=AUc7legacyRef"));
