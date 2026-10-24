@@ -34,7 +34,8 @@ create table ai_usage_monthly (user_id text not null, month date not null, used 
 create table outreach_gift (
   guest_id uuid primary key, guidebook_id text, property_name text, prospect_email text,
   created_at timestamptz not null default now(), first_opened_at timestamptz, last_opened_at timestamptz,
-  opens integer not null default 0, claimed_at timestamptz, claimed_by uuid
+  opens integer not null default 0, claimed_at timestamptz, claimed_by uuid,
+  reply_status text check (reply_status is null or reply_status in ('replied', 'interested', 'declined')), replied_at timestamptz, reply_note text
 );
 create table guidebook_pdf_plan (guidebook_id text primary key, content_hash text not null, version integer not null, plan jsonb not null, created_at timestamptz not null default now());
 

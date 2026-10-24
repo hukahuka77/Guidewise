@@ -231,10 +231,10 @@ function invoiceSubscriptionId(invoice: Dict): string | null {
 }
 
 /** Subscription statuses that mean it is over: the account goes back to Free. */
-const ENDED_STATUSES: string[] = ["canceled", "unpaid", "incomplete_expired", "paused"];
+export const ENDED_STATUSES: string[] = ["canceled", "unpaid", "incomplete_expired", "paused"];
 
 /** The plan a subscription item's price sells: current prices by env, older ones by the plan in their metadata. */
-function planForPrice(price: Dict): string | null {
+export function planForPrice(price: Dict): string | null {
   const byEnv = planForPriceId(asString(price.id));
   if (byEnv) return byEnv;
   const tagged = normalizePlan(asDict(price.metadata).plan);
