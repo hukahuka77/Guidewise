@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, ArrowRight, Check, ExternalLink, EyeOff, Loader2, Lock, Search, Smartphone, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Bookmark, Check, ExternalLink, EyeOff, Loader2, Lock, Search, Smartphone, Sparkles, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/editor/primitives";
 
@@ -744,7 +744,7 @@ export default function EditGuidebookPage() {
   const sectionMeta = SECTION_META[currentSection];
   const sectionLabel = sectionMeta?.label || customTabsMeta[currentSection]?.label || "Custom section";
   const sectionDescription = sectionMeta?.description || "Anything else guests should know.";
-  const SectionIcon = sectionMeta?.icon;
+  const SectionIcon = sectionMeta?.icon ?? Bookmark; // added sections share the bookmark icon
   const sectionShown = included.includes(currentSection);
   const setSectionShown = (show: boolean) => {
     if (currentSection === "welcome") return;
@@ -899,7 +899,7 @@ export default function EditGuidebookPage() {
           <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex items-start gap-4">
               <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-white text-primary shadow-sm ring-1 ring-[#ECE5DB]" aria-hidden="true">
-                {SectionIcon ? <SectionIcon className="size-6" /> : <span className="text-2xl">{customTabsMeta[currentSection]?.icon || "📝"}</span>}
+                <SectionIcon className="size-6" />
               </span>
               <div>
                 <h1 className="text-2xl font-semibold tracking-tight text-gray-900">{sectionLabel}</h1>
@@ -1083,14 +1083,13 @@ export default function EditGuidebookPage() {
           {isCustom && (
             <CustomSection
               sectionKey={currentSection}
-              icon={customTabsMeta[currentSection]?.icon || "📝"}
               label={customTabsMeta[currentSection]?.label || "Custom Section"}
               items={customSections[currentSection] || []}
               onChange={(items) => setCustomSections(prev => ({ ...prev, [currentSection]: items }))}
               onLabelChange={(newLabel) => setCustomTabsMeta(prev => ({
                 ...prev,
                 [currentSection]: {
-                  icon: prev[currentSection]?.icon || "📝",
+                  icon: prev[currentSection]?.icon || "",
                   label: newLabel
                 }
               }))}
