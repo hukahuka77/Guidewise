@@ -36,8 +36,7 @@ export const PLAN_COPY: PlanCopy[] = [
     tagline: "For hosts with a place or two",
     includes: "Free",
     features: [
-      "Up to 3 guidebooks",
-      "Unlimited guest views",
+      "Unlimited guest views on up to 3 guidebooks",
       "Print-ready PDF of your guidebook",
       "15 AI recommendation runs / month",
     ],
