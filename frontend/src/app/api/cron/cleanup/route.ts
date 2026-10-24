@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export const preferredRegion = "iad1";
 export const maxDuration = 300;
 
-/** Vercel Cron calls this daily with `Authorization: Bearer $CRON_SECRET`; nobody else can run it. */
+/** Vercel Cron calls this weekly with `Authorization: Bearer $CRON_SECRET`; nobody else can run it. */
 function authorized(request: Request): boolean {
   const secret = process.env.CRON_SECRET;
   if (!secret) return false;
