@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import Spinner from "@/components/ui/spinner";
 import { cacheGet, cacheSet } from "@/lib/cache";
+import { loginPath } from "@/lib/nextPath";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -43,7 +44,7 @@ export default function ProfilePage() {
         const { data } = await supabase.auth.getUser();
         const user = data.user;
         if (!user) {
-          router.push("/login");
+          router.push(loginPath());
           return;
         }
         const emailVal = user.email || "";

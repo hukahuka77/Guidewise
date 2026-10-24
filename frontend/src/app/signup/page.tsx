@@ -6,6 +6,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { rememberHeardAbout } from "@/lib/attribution";
 import { parsePaidPlan, type PaidPlan } from "@/lib/billing";
+import { safeNextPath } from "@/lib/nextPath";
 import AuthShell, { AuthAlert, OrDivider, authInput, authLabel, authLink, authPrimary, authSecondary } from "@/components/custom/AuthShell";
 
 const HEARD_OPTIONS = ["A message from Guidewise", "Facebook group", "Reddit", "Google search", "TikTok, Instagram or YouTube", "A guest guidebook I saw", "A friend or co-host", "Other"];
@@ -25,13 +26,16 @@ export default function SignupPage() {
   const [building, setBuilding] = useState(false);
   // Came from a paid plan on /pricing: checkout starts on /onboarding once they're signed in
   const [plan, setPlan] = useState<PaidPlan | null>(null);
+  // Sent from a page that needs an account (via login): back there afterwards, unless there's a guidebook to save or build
+  const [next, setNext] = useState<string | null>(null);
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
     setSaving(query.get("save") === "1");
     setBuilding(query.get("build") === "1");
     setPlan(parsePaidPlan(query.get("plan")));
+    setNext(safeNextPath(query.get("next")));
   }, []);
-  const afterSignup = plan ? `/onboarding?plan=${plan}` : "/onboarding";
+  const afterSignup = plan ? `/onboarding?plan=${plan}` : saving || building ? "/onboarding" : next || "/onboarding";
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -179,7 +183,7 @@ export default function SignupPage() {
 
       <p className="mt-6 text-center text-sm text-[#5b524c]">
         Already have an account?{" "}
-        <Link href={saving ? "/login?save=1" : building ? "/login?build=1" : "/login"} className={authLink}>
+        <Link href={saving ? "/login?save=1" : building ? "/login?build=1" : next ? `/login?next=${encodeURIComponent(next)}` : "/login"} className={authLink}>
           Log in
         </Link>
       </p>

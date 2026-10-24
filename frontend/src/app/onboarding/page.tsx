@@ -17,6 +17,7 @@ import { isPremiumStyle, PREMIUM_STYLE_MESSAGE, PREMIUM_STYLE_PLAN } from "@/lib
 import { ensureSession, finishClaim, hasPendingClaim, isGuestSession, savePendingBuild, takeClaimed, takePendingBuild, type PendingBuild, rememberGuestGuidebook } from "@/lib/guest";
 import { supabase } from "@/lib/supabaseClient";
 import { parsePaidPlan, startStripeCheckout } from "@/lib/billing";
+import { loginPath } from "@/lib/nextPath";
 import ImportQuestions, { EMPTY_ANSWERS, ImportProgress, answersToPayload, type ImportAnswers } from "@/components/onboarding/ImportQuestions";
 
 type Mode = "link" | "manual";
@@ -227,7 +228,7 @@ export default function OnboardingPage() {
         body: JSON.stringify({ url }),
       });
       if (res.status === 401) {
-        router.push("/login");
+        router.push(loginPath());
         return;
       }
       if (!res.ok) await throwApiError(res, "We couldn't import that listing. You can start with a template instead.");
@@ -299,7 +300,7 @@ export default function OnboardingPage() {
         }),
       });
       if (res.status === 401) {
-        router.push("/login");
+        router.push(loginPath());
         return;
       }
       if (!res.ok) await throwApiError(res, "We couldn't create your guidebook. Please try again.");

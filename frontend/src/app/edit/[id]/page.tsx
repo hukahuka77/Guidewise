@@ -35,6 +35,7 @@ import { EDIT_SECTIONS_ORDER } from "@/config/sections";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import { useDialog } from "@/hooks/useDialog";
 import { showDialog } from "@/lib/dialog";
+import { loginPath } from "@/lib/nextPath";
 
 const BUCKET_NAME = process.env.NEXT_PUBLIC_SUPABASE_FOOD_ACTIVITIES_BUCKET as string;
 const HOUSE_MEDIA_BUCKET = process.env.NEXT_PUBLIC_SUPABASE_USER_VIDEOS_BUCKET as string;
@@ -224,7 +225,7 @@ export default function EditGuidebookPage() {
   useEffect(() => {
     if (!guidebookId || !authReady) return;
     if (!signedIn) {
-      router.push("/login");
+      router.push(loginPath());
       return;
     }
     // Editing is for saved guidebooks: guests create a free account first (their guidebook comes with them)
@@ -246,7 +247,7 @@ export default function EditGuidebookPage() {
         });
         if (cancelled) return;
         // 401 shouldn't occur because we verified accessToken above; still handle just in case
-        if (res.status === 401) { router.push("/login"); return; }
+        if (res.status === 401) { router.push(loginPath()); return; }
         if (res.status === 404 || res.status === 400) { setNotFound(true); return; }
         if (!res.ok) throw new Error(`Failed to load guidebook (${res.status})`);
         const data: GuidebookDetail = await res.json();
@@ -432,7 +433,7 @@ export default function EditGuidebookPage() {
       keepalive,
     });
     if (res.status === 401) {
-      router.push("/login");
+      router.push(loginPath());
       return false;
     }
     if (!res.ok) {
