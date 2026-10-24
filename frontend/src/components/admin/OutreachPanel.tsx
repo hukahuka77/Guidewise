@@ -27,6 +27,7 @@ function message(made: Made, sender: string): string {
 /** Outreach: build a guidebook from a host's listing and copy a message with its gift link. Admins only. */
 export default function OutreachPanel({ token }: { token: string }) {
   const [url, setUrl] = useState("");
+  const [email, setEmail] = useState("");
   const [sender, setSender] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,12 +46,13 @@ export default function OutreachPanel({ token }: { token: string }) {
       const res = await fetch("/api/admin/gifts", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ url: url.trim() }),
+        body: JSON.stringify({ url: url.trim(), email: email.trim() }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || `Failed (${res.status})`);
       setMade((list) => [{ url: json.gift_url, property: json.property_name, host: json.host_name, missing: json.missing || [] }, ...list]);
       setUrl("");
+      setEmail("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not build the guidebook");
     } finally {
@@ -74,6 +76,10 @@ export default function OutreachPanel({ token }: { token: string }) {
             <input className={authInput} required value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://www.airbnb.com/rooms/…" />
           </label>
           <label className="block">
+            <span className={authLabel}>Their email (optional, for Outreach results)</span>
+            <input className={authInput} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="host@example.com" />
+          </label>
+          <label className="block">
             <span className={authLabel}>Sign the message as</span>
             <input className={authInput} value={sender} placeholder="Your first name"
               onChange={(e) => { setSender(e.target.value); try { localStorage.setItem(SENDER_KEY, e.target.value); } catch { } }} />
@@ -91,7 +97,7 @@ export default function OutreachPanel({ token }: { token: string }) {
               <div key={m.url} className="rounded-2xl bg-white p-5 ring-1 ring-black/5">
                 <div className="flex items-center justify-between gap-3">
                   <p className="font-semibold text-[#1f1a17]">{m.property || "Guidebook"}{m.host ? ` · ${m.host}` : ""}</p>
-                  <a href={m.url} target="_blank" rel="noreferrer" className="shrink-0 text-sm font-medium text-[#be185d]">Open gift</a>
+                  <a href={`${m.url}&preview=1`} target="_blank" rel="noreferrer" className="shrink-0 text-sm font-medium text-[#be185d]">Open gift</a>
                 </div>
                 {m.missing.length > 0 && <p className="mt-1 text-xs text-[#8a7f77]">Not found in the listing: {m.missing.join(", ")}</p>}
                 <pre className="mt-3 whitespace-pre-wrap rounded-xl bg-[#f6f2ee] p-4 font-sans text-sm text-[#1f1a17]">{text}</pre>

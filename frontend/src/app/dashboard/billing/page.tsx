@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
+import { loginPath } from "@/lib/nextPath";
 import { Button } from "@/components/ui/button";
 import Spinner from "@/components/ui/spinner";
 
@@ -68,7 +69,7 @@ export default function BillingPage() {
         if (!supabase) throw new Error("Supabase not initialized");
         const sess = await supabase.auth.getSession();
         const token = sess.data.session?.access_token || null;
-        if (!token) { router.replace("/login"); return; }
+        if (!token) { router.replace(loginPath()); return; }
         const res = await fetch(`/api/billing/summary`, {
           headers: { Authorization: `Bearer ${token}` },
         });

@@ -1,5 +1,6 @@
 import type { Sql } from "./db";
 import { normalizePlan, PLAN_CONFIGS } from "./plans";
+import { outreachResults } from "./gifts";
 import { monthStart } from "./usage";
 
 // Numbers for the admin dashboard tab. Reads Supabase's auth.users directly (server only).
@@ -65,7 +66,10 @@ export async function adminStats(sql: Sql) {
      order by u.created_at desc nulls last
      limit 15`);
 
+  const outreach = await outreachResults(sql);
+
   return {
+    outreach,
     users,
     guidebooks: books,
     plans,

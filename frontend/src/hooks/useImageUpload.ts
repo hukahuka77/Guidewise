@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabaseClient";
+import { compressImage } from "@/utils/compressImage";
 
 export interface UseImageUploadOptions {
   bucketName: string;
@@ -30,12 +31,6 @@ export function useImageUpload(options: UseImageUploadOptions) {
 
       // Verify user is authenticated before uploading
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      console.log('Upload auth check:', {
-        hasSession: !!session,
-        sessionError,
-        userId: session?.user?.id,
-        accessToken: session?.access_token?.substring(0, 20) + '...'
-      });
 
       if (sessionError || !session) {
         console.error('User must be authenticated to upload files', sessionError);
@@ -57,14 +52,17 @@ export function useImageUpload(options: UseImageUploadOptions) {
         throw new Error('File size exceeds 250MB limit');
       }
 
+      // Big photos are scaled down first (videos, GIFs and SVGs go up as they are)
+      const upload = await compressImage(file);
+
       // Sanitize filename to prevent issues
-      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const safeName = upload.name.replace(/[^a-zA-Z0-9._-]/g, '_');
       const path = `${prefix}/${Date.now()}-${safeName}`;
 
       const { error } = await supabase.storage
         .from(bucketName)
-        .upload(path, file, {
-          contentType: file.type,
+        .upload(path, upload, {
+          contentType: upload.type,
           upsert: true
         });
 

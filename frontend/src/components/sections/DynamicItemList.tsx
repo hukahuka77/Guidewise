@@ -3,6 +3,7 @@ import React, { useRef, useState } from "react";
 import { Car, ImagePlus, MapPin, Trash2, X } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { LIMITS } from "@/constants/limits";
+import { compressImage } from "@/utils/compressImage";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import Spinner from "@/components/ui/spinner";
 import { Card, CardHeader, IconButton, inputClass, compactTextareaClass } from "@/components/editor/primitives";
@@ -62,9 +63,11 @@ export default function DynamicItemList({ items, onChange, onAdd, onDelete, labe
   const fileInputs = useRef<Record<number, HTMLInputElement | null>>({});
   const full = items.length >= LIMITS.maxFoodActivityItems;
 
-  const uploadImage = async (idx: number, file: File) => {
+  const uploadImage = async (idx: number, original: File) => {
+    setUploadingIdx(idx);
+    // Big photos are scaled down first (this falls back to the original, never fails)
+    const file = await compressImage(original);
     try {
-      setUploadingIdx(idx);
       if (!supabase) throw new Error("Supabase not configured");
       if (!BUCKET_NAME) throw new Error("Supabase bucket not configured (NEXT_PUBLIC_SUPABASE_FOOD_ACTIVITIES_BUCKET)");
       const ext = file.name.split(".").pop() || "jpg";

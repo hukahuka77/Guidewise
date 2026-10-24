@@ -1,6 +1,6 @@
 import { readJson, withUser } from "@/lib/server/apiRoute";
 import { SITE_ORIGIN } from "@/lib/server/env";
-import { createGiftOwner, isAdmin } from "@/lib/server/gifts";
+import { createGiftOwner, isAdmin, recordGiftCreated } from "@/lib/server/gifts";
 import { createClaimTicket } from "@/lib/server/guestAccounts";
 import { createImportedGuidebook } from "@/lib/server/importService";
 import { recommendationsForListing } from "@/lib/server/importPopulate";
@@ -36,6 +36,7 @@ export function POST(request: Request) {
       if (!guestId || !ticket) return Response.json({ error: "Could not create the gift. Try again." }, { status: 503 });
       const recommendations = await recommendationsForListing(sql, guestId, fields.address_city_state);
       const created = await createImportedGuidebook(sql, guestId, fields, recommendations);
+      await recordGiftCreated(sql, { guestId, guidebookId: created.guidebook_id, propertyName: fields.property_name || null, prospectEmail: data.email });
       const origin = SITE_ORIGIN || new URL(request.url).origin;
       return Response.json(
         {

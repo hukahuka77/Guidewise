@@ -139,7 +139,7 @@ export async function buildGuideModel(
     wifi,
     emergencyContact: str(safety.emergency_contact),
     fireExtinguisher: str(safety.fire_extinguisher_location),
-    qrSrc: qrImageSrc(options.qrUrl),
+    qrSrc: await qrImageSrc(options.qrUrl),
     tabs,
     manual: textItems(gb.house_manual),
     rules: normalizeRules(gb.rules_json).map((r) => ({ name: r.name, description: r.description })),

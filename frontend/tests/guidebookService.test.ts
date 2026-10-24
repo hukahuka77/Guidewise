@@ -13,6 +13,7 @@ import {
   updateGuidebook,
 } from "../src/lib/server/guidebookService";
 import { assertCanCreateGuidebook, getUserPlan, isGuidebookLocked } from "../src/lib/server/usage";
+import { removeGuidebookUploads } from "../src/lib/server/uploadCleanup";
 import { normalizePlan } from "../src/lib/server/plans";
 import { OTHER, OWNER, setPlan, startTestDb, type TestDb } from "./helpers/testDb";
 
@@ -368,6 +369,35 @@ describe("delete and template", () => {
     await deleteGuidebook(db.sql, OWNER, guidebookId);
     expect((await db.sql`select count(*)::int as n from guidebook`)[0].n).toBe(0);
     await rejects(deleteGuidebook(db.sql, OWNER, guidebookId), 404);
+  });
+
+  it("deleting removes the cached PDF layout and the guidebook's own uploads, but keeps view counts and shared photos", async () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://proj.supabase.co";
+    const file = (bucket: string, name: string) => `https://proj.supabase.co/storage/v1/object/public/${bucket}/${OWNER}/${name}`;
+    await setPlan(db.sql, OWNER, "pro");
+    const shared = file("food-and-activities", "shared.jpg");
+    const gone = await createGuidebook(db.sql, OWNER, base({
+      cover_image_url: file("food-and-activities", "cover.jpg"),
+      things_to_do: [{ name: "Trail", image_url: shared }, { name: "Lake", image_url: file("food-and-activities", "lake%20view.jpg") }],
+      places_to_eat: [{ name: "Diner", image_url: "https://proj.supabase.co/storage/v1/object/public/my_images/home_placeholder.jpg" }],
+    }));
+    await createGuidebook(db.sql, OWNER, base({ property_name: "Other", things_to_do: [{ name: "Trail", image_url: shared }] }));
+    await db.sql`insert into guidebook_pdf_plan (guidebook_id, content_hash, version, plan) values (${gone.guidebookId}, 'h', 1, '{}'::jsonb)`;
+    await db.sql`insert into guidebook_view_daily (guidebook_id, user_id, day, views) values (${gone.guidebookId}, ${OWNER}, current_date, 4)`;
+    const removed: [string, string[]][] = [];
+    await deleteGuidebook(db.sql, OWNER, gone.guidebookId, (deleted, others) =>
+      removeGuidebookUploads(deleted, others, async (bucket, paths) => { removed.push([bucket, paths]); }));
+    expect(removed).toEqual([["food-and-activities", [`${OWNER}/cover.jpg`, `${OWNER}/lake view.jpg`]]]);
+    expect(await db.sql`select 1 from guidebook_pdf_plan where guidebook_id = ${gone.guidebookId}`).toHaveLength(0);
+    expect((await db.sql`select views from guidebook_view_daily where guidebook_id = ${gone.guidebookId}`)[0].views).toBe(4);
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+  });
+
+  it("guidebooks created at the same moment can't get past the plan's cap", async () => {
+    await setPlan(db.sql, OWNER, "starter");
+    const results = await Promise.allSettled(Array.from({ length: 6 }, (_, i) => createGuidebook(db.sql, OWNER, base({ property_name: `Race ${i}` }))));
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(3);
+    expect((await db.sql`select count(*)::int as n from guidebook where user_id = ${OWNER}`)[0].n).toBe(3);
   });
 
   it("a premium style chosen at creation or in a save needs Power or Pro; a guidebook already on one keeps it", async () => {

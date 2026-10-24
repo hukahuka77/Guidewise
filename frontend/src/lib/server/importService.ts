@@ -4,7 +4,7 @@ import type { Sql } from "./db";
 import { MAX_PROPERTY_NAME, uniqueSlug } from "./guidebookService";
 import type { Recommendations } from "./importPopulate";
 import type { ImportedFields } from "./listingImport";
-import { assertCanCreateGuidebook } from "./usage";
+import { assertCanCreateGuidebook, lockGuidebookCreation } from "./usage";
 
 // DB half of `/api/import-listing`: the imported guidebook is live at its slug straight away.
 
@@ -40,6 +40,7 @@ export async function createImportedGuidebook(
   const propertyName = (fields.property_name || "My Property").slice(0, MAX_PROPERTY_NAME);
 
   const guidebookId = await sql.begin(async (tx) => {
+    await lockGuidebookCreation(tx as unknown as Sql, userId);
     let hostId: number | null = null;
     if (fields.host_name) {
       const found = await tx`select id, bio from host where name = ${fields.host_name} and user_id = ${userId} order by id limit 1`;
