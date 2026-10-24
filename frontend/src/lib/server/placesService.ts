@@ -13,7 +13,7 @@ const str = (v: unknown) => (typeof v === "string" ? v : "");
 
 /** Port of `places_search`: minimal normalized items, at most 8. */
 export async function searchPlaces(query: string, near: string | null) {
-  const resp = await googlePlacesTextSearch(query, near || null);
+  const resp = await googlePlacesTextSearch(query, near || null, "summary");
   return asList(resp.results)
     .slice(0, 8)
     .map((r) => {
@@ -53,8 +53,10 @@ export interface PhotoBytes {
 }
 
 async function fetchPhoto(reference: string, maxwidth: number): Promise<PhotoBytes | null> {
+  const url = googlePlacesPhotoUrl(reference, maxwidth);
+  if (!url) return null; // a reference from the legacy API: the caller refreshes it from the place id
   try {
-    const res = await fetch(googlePlacesPhotoUrl(reference, maxwidth), { signal: AbortSignal.timeout(10_000) });
+    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
     if (!res.ok) return null;
     const contentType = res.headers.get("content-type") || "image/jpeg";
     if (!contentType.toLowerCase().startsWith("image/")) return null;
