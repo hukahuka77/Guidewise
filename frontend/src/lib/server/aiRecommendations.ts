@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { jsonCompletion } from "./aiModel";
 import { googleDistanceMatrix, googlePlacesDetails, googlePlacesTextSearch, isGoogleConfigured } from "./googlePlaces";
+import { DEFAULT_AI_ITEMS } from "./rateLimit";
 
 // AI recommendations for places to eat and things to do, enriched with Google Places data.
 
@@ -122,7 +123,7 @@ export async function enrichWithGooglePlaces(items: unknown[], location: string)
 }
 
 /** Any failure while calling OpenAI/Places yields an empty list; an unknown type throws. */
-export async function getAiRecommendations(type: string, address: string, numItems = 5): Promise<EnrichedItem[]> {
+export async function getAiRecommendations(type: string, address: string, numItems = DEFAULT_AI_ITEMS): Promise<EnrichedItem[]> {
   if (!isKnownType(type)) {
     throw new RangeError(
       `Unknown recommendation type: ${type}. Available types: ${Object.keys(RECOMMENDATION_CONFIGS).join(", ")}`,
