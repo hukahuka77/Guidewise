@@ -170,18 +170,33 @@ describe("createCheckoutSession", () => {
     await setPlan(db.sql, OWNER, "free"); // "free" is not a paid plan, so it falls through to the Stripe check
     const stripe = fakeStripe({
       customers: { list: vi.fn(async () => ({ data: [{ id: "cus_1" }] })) },
-      subscriptions: { list: vi.fn(async () => ({ data: [{ id: "sub_1" }] })), retrieve: vi.fn() },
+      subscriptions: { list: vi.fn(async () => ({ data: [{ id: "sub_1", status: "past_due" }] })), retrieve: vi.fn() },
     });
+    // A subscription being retried after a failed payment still counts, so nobody pays twice
     const e2 = await rejects(createCheckoutSession(db.sql, stripe, user, { plan: "pro" }, origin), 409);
-    expect(e2.message).toBe("An active subscription already exists");
+    expect(e2.message).toBe("You already have a subscription. Use the billing portal to change plans.");
+    expect(stripe.subscriptions.list).toHaveBeenCalledWith({ customer: "cus_1", status: "all", limit: 10 });
+  });
+
+  it("checks out an existing customer as that customer once their old subscription has ended", async () => {
+    const stripe = fakeStripe({
+      customers: { list: vi.fn(async () => ({ data: [{ id: "cus_1" }] })) },
+      subscriptions: { list: vi.fn(async () => ({ data: [{ id: "sub_old", status: "canceled" }] })), retrieve: vi.fn() },
+    });
+    await createCheckoutSession(db.sql, stripe, user, { plan: "pro" }, origin);
+    const args = (stripe.checkout.sessions.create as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(args.customer).toBe("cus_1");
+    expect(args.customer_email).toBeUndefined();
   });
 
   it("ignores failures of the pre-checks and reports Stripe errors as 500", async () => {
     const flaky = fakeStripe({ customers: { list: vi.fn(async () => { throw new Error("stripe down"); }) } });
     expect((await createCheckoutSession(db.sql, flaky, user, { plan: "pro" }, origin)).url).toBe("https://checkout.stripe.test/s1");
     const failing = fakeStripe({ checkout: { sessions: { create: vi.fn(async () => { throw new Error("card_declined_ish"); }) } } });
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
     const err = await rejects(createCheckoutSession(db.sql, failing, user, { plan: "pro" }, origin), 500);
-    expect(err.message).toBe("card_declined_ish");
+    expect(err.message).toBe("Couldn't start checkout. Please try again."); // Stripe's own text stays in the logs
+    error.mockRestore();
   });
 });
 
@@ -337,8 +352,31 @@ describe("handleStripeEvent", () => {
     expect((await db.sql`select plan from profiles`)[0].plan).toBe("pro");
   });
 
-  it("subscription deleted, or canceled/unpaid/past_due, returns to the free plan and leaves guidebooks untouched", async () => {
-    for (const [type, status] of [["customer.subscription.deleted", "canceled"], ["customer.subscription.updated", "past_due"], ["customer.subscription.updated", "unpaid"], ["customer.subscription.updated", "canceled"]]) {
+  it("past_due keeps the plan while Stripe retries, and a retried payment on an older price keeps it too", async () => {
+    await db.sql`insert into profiles (user_id, plan, guidebook_limit, stripe_subscription_id) values (${OWNER}::uuid, 'pro', 50, 'sub_1')`;
+    await handleStripeEvent(db.sql, null, ev("customer.subscription.updated", sub({ status: "past_due" })));
+    expect((await db.sql`select plan from profiles`)[0].plan).toBe("pro");
+    // The $30 Pro price is no longer the env price, but its metadata names the plan
+    const oldPrice = { items: { data: [{ price: { id: "price_old_pro", metadata: { plan: "pro" } } }] } };
+    await setPlan(db.sql, OWNER, "starter");
+    await db.sql`update profiles set stripe_subscription_id = 'sub_1'`;
+    await handleStripeEvent(db.sql, null, ev("customer.subscription.updated", sub(oldPrice)));
+    expect((await db.sql`select plan from profiles`)[0].plan).toBe("pro");
+  });
+
+  it("acts on the subscription as Stripe has it now, not a stale or late event", async () => {
+    await db.sql`insert into profiles (user_id, plan, guidebook_limit, stripe_subscription_id) values (${OWNER}::uuid, 'pro', 50, 'sub_1')`;
+    // An old "active" event arrives after the subscription was canceled
+    const stripe = fakeStripe({ subscriptions: { list: vi.fn(), retrieve: vi.fn(async () => sub({ status: "canceled" })) } });
+    await handleStripeEvent(db.sql, stripe, ev("customer.subscription.updated", sub({ status: "active" })));
+    expect((await db.sql`select plan from profiles`)[0].plan).toBe("free");
+    // A late retry of checkout.session.completed doesn't bring the plan back
+    await handleStripeEvent(db.sql, stripe, ev("checkout.session.completed", { metadata: { user_id: OWNER, plan: "pro" }, subscription: "sub_1", customer: "cus_1" }));
+    expect((await db.sql`select plan from profiles`)[0].plan).toBe("free");
+  });
+
+  it("subscription deleted, or canceled/unpaid/paused/expired, returns to the free plan and leaves guidebooks untouched", async () => {
+    for (const [type, status] of [["customer.subscription.deleted", "canceled"], ["customer.subscription.updated", "unpaid"], ["customer.subscription.updated", "canceled"], ["customer.subscription.updated", "paused"], ["customer.subscription.updated", "incomplete_expired"]]) {
       await db.reset();
       await db.sql`insert into profiles (user_id, plan, guidebook_limit, stripe_subscription_id) values (${OWNER}::uuid, 'pro', 10, 'sub_1'), (${OTHER}::uuid, 'pro', 10, 'sub_other')`;
       const [{ id: pid }] = await db.sql`insert into property (name, user_id) values ('P', ${OWNER}) returning id`;

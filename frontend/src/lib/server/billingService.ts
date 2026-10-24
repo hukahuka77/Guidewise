@@ -81,13 +81,15 @@ export async function createCheckoutSession(
     if (error instanceof ServiceError) throw error;
   }
 
-  // ...or according to Stripe?
+  // ...or according to Stripe? Any subscription that hasn't ended counts (one being retried after a
+  // failed payment too), so nobody ends up paying for two.
+  let customerId: string | null = null;
   try {
-    const customerId = await findCustomerId(sql, stripe, user);
+    customerId = await findCustomerId(sql, stripe, user);
     if (customerId) {
-      const subs = await stripe.subscriptions.list({ customer: customerId, status: "active", limit: 1 });
-      if (subs.data.length > 0) {
-        throw new ServiceError(409, "An active subscription already exists", { redirect: "/dashboard/billing" });
+      const subs = await stripe.subscriptions.list({ customer: customerId, status: "all", limit: 10 });
+      if (subs.data.some((sub) => !ENDED_STATUSES.includes(sub.status))) {
+        throw new ServiceError(409, "You already have a subscription. Use the billing portal to change plans.", { redirect: "/dashboard/billing" });
       }
     }
   } catch (error) {
@@ -107,7 +109,8 @@ export async function createCheckoutSession(
     }
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
-      customer_email: user.email ?? undefined,
+      // The existing customer keeps every subscription in one billing portal
+      ...(customerId ? { customer: customerId } : { customer_email: user.email ?? undefined }),
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${origin}/dashboard?upgraded=1`,
       cancel_url: `${origin}/pricing?canceled=1`,
@@ -116,7 +119,8 @@ export async function createCheckoutSession(
     });
     return { url: session.url };
   } catch (error) {
-    throw new ServiceError(500, message(error));
+    console.error("Stripe checkout failed", error);
+    throw new ServiceError(500, "Couldn't start checkout. Please try again.");
   }
 }
 
@@ -208,7 +212,8 @@ export async function createPortalSession(sql: Sql, stripe: Stripe, user: Billin
     return { url: portal.url };
   } catch (error) {
     if (error instanceof ServiceError) throw error;
-    throw new ServiceError(500, message(error));
+    console.error("Stripe billing portal failed", error);
+    throw new ServiceError(500, "Couldn't open the billing portal. Please try again.");
   }
 }
 
@@ -225,15 +230,26 @@ function invoiceSubscriptionId(invoice: Dict): string | null {
   );
 }
 
+/** Subscription statuses that mean it is over: the account goes back to Free. */
+const ENDED_STATUSES: string[] = ["canceled", "unpaid", "incomplete_expired", "paused"];
+
+/** The plan a subscription item's price sells: current prices by env, older ones by the plan in their metadata. */
+function planForPrice(price: Dict): string | null {
+  const byEnv = planForPriceId(asString(price.id));
+  if (byEnv) return byEnv;
+  const tagged = normalizePlan(asDict(price.metadata).plan);
+  return PURCHASABLE_PLANS.includes(tagged) ? tagged : null;
+}
+
 async function fetchSubscriptionDates(stripe: Stripe, subscriptionId: string) {
   try {
     const subscription = await stripe.subscriptions.retrieve(subscriptionId);
     const { start, end } = periodSeconds(subscription);
-    return { starts: toDate(start), expires: toDate(end) };
+    return { starts: toDate(start), expires: toDate(end), status: subscription.status as string };
   } catch (error) {
     // Not created yet, or a transient failure: later events fill the dates in.
     console.warn(`could not fetch subscription ${subscriptionId}: ${message(error)}`);
-    return { starts: null, expires: null };
+    return { starts: null, expires: null, status: null };
   }
 }
 
@@ -254,7 +270,9 @@ export async function handleStripeEvent(sql: Sql, stripe: Stripe | null, event: 
       if (obj.payment_status === "unpaid") return;
 
       const limit = PLAN_CONFIGS[plan].guidebookLimit;
-      const dates = subscriptionId && stripe ? await fetchSubscriptionDates(stripe, subscriptionId) : { starts: null, expires: null };
+      const dates = subscriptionId && stripe ? await fetchSubscriptionDates(stripe, subscriptionId) : { starts: null, expires: null, status: null };
+      // A late retry of this event must not bring back a subscription that has since ended
+      if (dates.status && ENDED_STATUSES.includes(dates.status)) return;
       await sql`
         insert into public.profiles (user_id, plan, guidebook_limit, stripe_customer_id, stripe_subscription_id, pro_starts_at, pro_expires_at)
         values (${userId}::uuid, ${plan}, ${limit}, ${customerId}, ${subscriptionId}, ${dates.starts}, ${dates.expires})
@@ -302,26 +320,36 @@ export async function handleStripeEvent(sql: Sql, stripe: Stripe | null, event: 
     case "customer.subscription.updated":
     case "customer.subscription.deleted": {
       const subscriptionId = asString(obj.id);
-      const status = asString(obj.status);
       if (!subscriptionId) return;
+      // Events can arrive out of order or late, so act on the subscription as it is now
+      let sub = obj;
+      if (event.type === "customer.subscription.updated" && stripe) {
+        try {
+          sub = asDict(await stripe.subscriptions.retrieve(subscriptionId));
+        } catch (error) {
+          console.warn(`could not fetch subscription ${subscriptionId}; using the event: ${message(error)}`);
+        }
+      }
+      const status = asString(sub.status);
 
-      if (event.type === "customer.subscription.deleted" || (status && ["canceled", "unpaid", "past_due"].includes(status))) {
-        // Back to the free plan. Guidebooks stay live (free hosts get a monthly view allowance).
+      if (event.type === "customer.subscription.deleted" || (status && ENDED_STATUSES.includes(status))) {
+        // Back to the free plan. Guidebooks stay (beyond Free's one, they're paused for guests).
         await sql`update public.profiles set plan = 'free', guidebook_limit = null where stripe_subscription_id = ${subscriptionId}`;
         return;
       }
 
-      if (event.type === "customer.subscription.updated" && status === "active") {
+      // past_due: Stripe is retrying the payment, and the customer keeps their plan meanwhile
+      if (status === "active" || status === "trialing") {
         // Plan change (upgrade/downgrade): map the price back to a plan
-        const item = asDict(asList(asDict(obj.items).data)[0]);
-        const priceId = asString(asDict(item.price).id);
-        if (!priceId) return;
-        const newPlan = planForPriceId(priceId);
+        const item = asDict(asList(asDict(sub.items).data)[0]);
+        const price = asDict(item.price);
+        if (!asString(price.id)) return;
+        const newPlan = planForPrice(price);
         if (!newPlan) {
-          console.warn(`Could not map price ${priceId} to a plan`);
+          console.warn(`Could not map price ${asString(price.id)} to a plan`);
           return;
         }
-        const { start, end } = periodSeconds(obj);
+        const { start, end } = periodSeconds(sub);
         await sql`
           update public.profiles
              set plan = ${newPlan},
