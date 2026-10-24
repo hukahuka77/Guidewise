@@ -5,7 +5,7 @@ import { getSupabaseAdmin } from "./supabaseAdmin";
 /**
  * Guest accounts (someone building before signing up, or an outreach gift) are only removed when they're
  * claimed. This clears out the ones nobody came back for, with their guidebooks, uploads, hosts and
- * properties. Run daily by the cleanup cron.
+ * properties. Run weekly (Mondays) by the cleanup cron.
  *
  * - With guidebooks: once the account is older than GUEST_MIN_AGE_DAYS (gift links last 30 days, so every
  *   gift link has expired by then) and none of its guidebooks was edited in the last GUEST_IDLE_DAYS.
@@ -14,8 +14,8 @@ import { getSupabaseAdmin } from "./supabaseAdmin";
 export const GUEST_MIN_AGE_DAYS = 37;
 export const GUEST_IDLE_DAYS = 30;
 export const EMPTY_GUEST_IDLE_DAYS = 7;
-/** Per run, so one run stays well inside the function time limit; the rest go the next day. */
-const BATCH = 100;
+/** Per run, so one run stays well inside the function time limit; the rest go the next week. */
+const BATCH = 300;
 
 export interface CleanupResult {
   guests: number;
