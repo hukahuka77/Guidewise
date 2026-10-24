@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { jsonCompletion } from "./aiModel";
 import { googleDistanceMatrix, googlePlacesDetails, googlePlacesTextSearch, isGoogleConfigured } from "./googlePlaces";
 
 // AI recommendations for places to eat and things to do, enriched with Google Places data.
@@ -8,7 +9,6 @@ const asDict = (v: unknown): Dict => (typeof v === "object" && v !== null && !Ar
 const asList = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 
 interface Config {
-  model: string;
   systemPrompt: string;
   prompt: (address: string, n: number, key: string) => string;
   responseKeys: string[];
@@ -19,7 +19,6 @@ const NO_IMAGES = "Do NOT include any image URLs or keys for images.";
 
 export const RECOMMENDATION_CONFIGS: Record<string, Config> = {
   food: {
-    model: "gpt-4o",
     systemPrompt: "You are a helpful assistant that provides diverse, highly-rated restaurant and food recommendations.",
     prompt: (address, n, key) =>
       `Provide a JSON object with a key '${key}' containing a list of ${n} diverse, highly-rated restaurants or food spots near ${address}.
@@ -31,7 +30,6 @@ ${NO_IMAGES}`,
     defaultKey: "places_to_eat",
   },
   activities: {
-    model: "gpt-4o",
     systemPrompt: "You are a helpful assistant that provides local activities and things to do in a strict JSON format.",
     prompt: (address, n, key) =>
       `For the vacation rental located at ${address},
@@ -45,7 +43,6 @@ ${NO_IMAGES}`,
     defaultKey: "activities",
   },
   nightlife: {
-    model: "gpt-4o",
     systemPrompt: "You are a helpful assistant that provides nightlife and entertainment recommendations.",
     prompt: (address, n, key) =>
       `Provide a JSON object with a key '${key}' containing a list of ${n} popular nightlife spots, bars, clubs, or entertainment venues near ${address}.
@@ -134,15 +131,11 @@ export async function getAiRecommendations(type: string, address: string, numIte
   const config = RECOMMENDATION_CONFIGS[type];
   try {
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    const response = await client.chat.completions.create({
-      model: config.model,
-      messages: [
-        { role: "system", content: config.systemPrompt },
-        { role: "user", content: config.prompt(address, numItems, config.defaultKey) },
-      ],
-      response_format: { type: "json_object" },
-    });
-    const parsed = JSON.parse(response.choices[0]?.message?.content ?? "null");
+    const content = await jsonCompletion(client, [
+      { role: "system", content: config.systemPrompt },
+      { role: "user", content: config.prompt(address, numItems, config.defaultKey) },
+    ]);
+    const parsed = JSON.parse(content ?? "null");
     const items = extractItems(parsed, config.responseKeys);
     if (items.length === 0) return [];
     return await enrichWithGooglePlaces(items, address);

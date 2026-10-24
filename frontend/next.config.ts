@@ -59,6 +59,8 @@ const nextConfig: NextConfig = {
       { source: "/dashboard/url/:id", destination: "/edit/:id", permanent: false },
       // The PDF layouts page; the dashboard's "Download print version" replaces it
       { source: "/dashboard/pdf/:id", destination: "/dashboard", permanent: false },
+      // The outreach tool moved into the dashboard's Admin tab
+      { source: "/admin/outreach", destination: "/dashboard/admin", permanent: false },
     ];
   },
 };

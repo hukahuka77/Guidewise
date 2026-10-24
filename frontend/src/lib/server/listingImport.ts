@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { jsonCompletion } from "./aiModel";
 import { resolvesToPublicIp } from "./ssrf";
 
 // Listing import: reads the data embedded in the page (not just the visible text) and returns a
@@ -450,15 +451,11 @@ export function sanitizeExtractedFields(raw: unknown): ImportedFields {
 async function extractGuidebookFields(context: string): Promise<ImportedFields> {
   try {
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY, timeout: 60_000 });
-    const response = await client.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: `Listing page content:\n\n${context}` },
-      ],
-      response_format: { type: "json_object" },
-    });
-    return sanitizeExtractedFields(JSON.parse(response.choices[0]?.message?.content ?? "null"));
+    const content = await jsonCompletion(client, [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: `Listing page content:\n\n${context}` },
+    ]);
+    return sanitizeExtractedFields(JSON.parse(content ?? "null"));
   } catch (error) {
     console.error("listing import: extraction failed", error);
     throw new ListingImportError("We couldn't process that listing. Please try again.", "extract_failed", 502);

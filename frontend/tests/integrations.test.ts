@@ -175,29 +175,28 @@ describe("place photo", () => {
     expect((await photoRoute(get("/api/place-photo?photo_reference=r&maxwidth=abc"))).status).toBe(400);
   });
 
-  it("serves a freshly resolved reference with long-lived cache headers and no auth", async () => {
-    fetchMock
-      .mockResolvedValueOnce(json({ result: { photos: [{ photo_reference: "FRESH" }] } }))
-      .mockResolvedValueOnce(img());
-    const res = await photoRoute(get("/api/place-photo?place_id=pid&photo_reference=STALE&maxwidth=5000"));
+  it("serves the stored reference without a Details lookup, with long-lived cache headers and no auth", async () => {
+    fetchMock.mockResolvedValueOnce(img());
+    const res = await photoRoute(get("/api/place-photo?place_id=pid&photo_reference=STORED&maxwidth=5000"));
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("image/png");
     expect(res.headers.get("cache-control")).toContain("s-maxage=604800");
     expect(res.headers.get("access-control-allow-origin")).toBe("*");
     expect([...new Uint8Array(await res.arrayBuffer())]).toEqual([1, 2, 3]);
-    const photoUrl = new URL(fetchMock.mock.calls[1][0] as string);
-    expect(photoUrl.searchParams.get("photo_reference")).toBe("FRESH");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const photoUrl = new URL(fetchMock.mock.calls[0][0] as string);
+    expect(photoUrl.searchParams.get("photo_reference")).toBe("STORED");
     expect(photoUrl.searchParams.get("maxwidth")).toBe("1600");
   });
 
-  it("falls back to the stored reference when the fresh one fails", async () => {
+  it("refreshes the reference from the place id only when the stored one has expired", async () => {
     fetchMock
+      .mockResolvedValueOnce(new Response("x", { status: 403 })) // expired stored reference
       .mockResolvedValueOnce(json({ result: { photos: [{ photo_reference: "FRESH" }] } }))
-      .mockResolvedValueOnce(new Response("x", { status: 403 }))
       .mockResolvedValueOnce(img());
-    const res = await photoRoute(get("/api/place-photo?place_id=pid&photo_reference=STORED"));
+    const res = await photoRoute(get("/api/place-photo?place_id=pid&photo_reference=STALE"));
     expect(res.status).toBe(200);
-    expect(new URL(fetchMock.mock.calls[2][0] as string).searchParams.get("photo_reference")).toBe("STORED");
+    expect(new URL(fetchMock.mock.calls[2][0] as string).searchParams.get("photo_reference")).toBe("FRESH");
   });
 
   it("recovers legacy photos by searching the query", async () => {
@@ -258,7 +257,8 @@ describe("AI recommendations", () => {
     ]);
     const prompt = openaiCreate.mock.calls[0][0].messages[1].content as string;
     expect(prompt).toContain("exactly 10 items");
-    expect(openaiCreate.mock.calls[0][0].model).toBe("gpt-4o");
+    expect(openaiCreate.mock.calls[0][0].model).toBe("gpt-6-luna");
+    expect(openaiCreate.mock.calls[0][0].reasoning_effort).toBe("none");
     expect(openaiCreate.mock.calls[0][0].response_format).toEqual({ type: "json_object" });
   });
 
