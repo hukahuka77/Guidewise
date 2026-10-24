@@ -11,6 +11,3 @@ Work agreed but on hold (Oct 24, 2026). Pick these up in a later round.
 - **Guidebooks of deleted users, and account deletion.** Guidebooks whose owner no longer exists in
   `auth.users` stay public (8 from 7 users on Oct 24). Add a delete-account flow that removes the user's
   guidebooks, hosts, properties, view rows and uploads, and decide what to do with the existing orphans.
-- **Clean up abandoned guest and gift accounts.** Anonymous users (onboarding guests, gift owners) are
-  only removed when claimed. Remove unclaimed ones and their guidebooks a while after their links expire
-  (gift links last 30 days).
