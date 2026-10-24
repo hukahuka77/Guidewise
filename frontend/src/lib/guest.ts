@@ -44,6 +44,13 @@ function ticketGuest(ticket: string): string | null {
   }
 }
 
+/** Keep a claim ticket handed over some other way (a gift link) so signing up claims its guidebook. */
+export function addClaimTicket(ticket: string): void {
+  const guest = ticketGuest(ticket);
+  if (!guest) return;
+  writeTickets([...readTickets().filter((t) => ticketGuest(t) !== guest), ticket]);
+}
+
 /** After a guest creates a guidebook, keep a ticket so they can claim it once they have an account. */
 export async function rememberGuestGuidebook(token: string): Promise<void> {
   try {

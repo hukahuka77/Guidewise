@@ -4,6 +4,7 @@ import "./globals.css";
 import Navbar from "@/components/custom/Navbar";
 import Footer from "@/components/custom/Footer";
 import DialogHost from "@/components/ui/DialogHost";
+import Attribution from "@/components/custom/Attribution";
 import Script from "next/script";
 
 const geistSans = Geist({
@@ -69,6 +70,7 @@ export default function RootLayout({
         {children}
         <Footer />
         <DialogHost />
+        <Attribution />
       </body>
     </html>
   );
