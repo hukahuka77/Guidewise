@@ -40,4 +40,4 @@ create table guidebook_pdf_plan (guidebook_id text primary key, content_hash tex
 
 -- Supabase's auth.users, reduced to what the app reads (guests are anonymous users)
 create schema if not exists auth;
-create table auth.users (id uuid primary key, is_anonymous boolean not null default false, email text, created_at timestamptz default now(), raw_user_meta_data jsonb);
+create table auth.users (id uuid primary key, is_anonymous boolean not null default false, email text, created_at timestamptz default now(), last_sign_in_at timestamptz, raw_user_meta_data jsonb);
