@@ -3,6 +3,7 @@
 import React from "react";
 import { ArrowLeft, Check } from "lucide-react";
 import PlacesAutocomplete from "@/components/PlacesAutocomplete";
+import TimePicker from "@/components/editor/TimePicker";
 import { Button } from "@/components/ui/button";
 import { inputClass, textareaClass } from "@/components/editor/primitives";
 import { LIMITS } from "@/constants/limits";
@@ -19,7 +20,7 @@ export interface ImportAnswers {
 }
 
 export const EMPTY_ANSWERS: ImportAnswers = {
-  address: "", wifiNetwork: "", wifiPassword: "", checkIn: "", checkOut: "", access: "", hostName: "", hostContact: "",
+  address: "", wifiNetwork: "", wifiPassword: "", checkIn: "16:00", checkOut: "11:00", access: "", hostName: "", hostContact: "",
 };
 
 /** Only what the host actually answered, in the shape PUT /api/guidebooks/:id expects. */
@@ -70,14 +71,14 @@ const QUESTIONS: Question[] = [
     answered: (a) => Boolean(a.checkIn || a.checkOut),
     render: (a, set) => (
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="space-y-1.5 text-sm font-medium text-gray-700">
+        <div className="space-y-1.5 text-sm font-medium text-gray-700">
           <span>Check-in from</span>
-          <input type="time" value={a.checkIn} onChange={(e) => set({ checkIn: e.target.value })} className={inputClass} />
-        </label>
-        <label className="space-y-1.5 text-sm font-medium text-gray-700">
+          <TimePicker aria-label="Check-in from" value={a.checkIn} onChange={(v) => set({ checkIn: v })} className="sm:w-full" />
+        </div>
+        <div className="space-y-1.5 text-sm font-medium text-gray-700">
           <span>Check-out by</span>
-          <input type="time" value={a.checkOut} onChange={(e) => set({ checkOut: e.target.value })} className={inputClass} />
-        </label>
+          <TimePicker aria-label="Check-out by" value={a.checkOut} onChange={(v) => set({ checkOut: v })} className="sm:w-full" />
+        </div>
       </div>
     ),
   },

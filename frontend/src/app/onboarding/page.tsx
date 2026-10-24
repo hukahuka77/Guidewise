@@ -19,6 +19,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { parsePaidPlan, startStripeCheckout } from "@/lib/billing";
 import { loginPath, takeRememberedNextPath } from "@/lib/nextPath";
 import ImportQuestions, { EMPTY_ANSWERS, ImportProgress, answersToPayload, type ImportAnswers } from "@/components/onboarding/ImportQuestions";
+import { parseTime } from "@/components/editor/TimePicker";
 
 type Mode = "link" | "manual";
 
@@ -248,6 +249,13 @@ export default function OnboardingPage() {
       if (!res.ok) await throwApiError(res, "We couldn't import that listing. You can start with a template instead.");
       const json = await res.json();
       remember(json.guidebook_id, session);
+      // The listing's own check-in and check-out times beat the defaults, unless the host already changed them
+      const listed = (value: unknown, fallback: string) => (typeof value === "string" && parseTime(value)) || fallback;
+      setAnswers((a) => ({
+        ...a,
+        checkIn: a.checkIn === EMPTY_ANSWERS.checkIn ? listed(json.check_in_time, a.checkIn) : a.checkIn,
+        checkOut: a.checkOut === EMPTY_ANSWERS.checkOut ? listed(json.check_out_time, a.checkOut) : a.checkOut,
+      }));
       setCreated({
         id: json.guidebook_id,
         slug: await slugFor(json.guidebook_id, token),

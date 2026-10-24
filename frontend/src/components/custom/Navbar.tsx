@@ -86,10 +86,10 @@ export default function Navbar() {
               Login
             </Link>
             <Link
-              className="text-sm font-semibold text-white no-underline hover:no-underline px-4 py-1.5 rounded-full bg-gray-900 hover:bg-gray-800 transition-colors"
-              href="/signup"
+              className="rounded-full bg-gradient-to-r from-[#db2777] to-[#f97316] px-4 py-1.5 text-sm font-semibold text-white no-underline shadow-[0_8px_20px_-10px_rgba(219,39,119,0.8)] transition-all hover:-translate-y-px hover:no-underline hover:shadow-[0_10px_24px_-10px_rgba(219,39,119,0.9)]"
+              href="/onboarding"
             >
-              Sign up
+              Build guidebook
             </Link>
           </>
         )}
@@ -146,8 +146,8 @@ export default function Navbar() {
                 <Link href="/login" className="px-3 py-2 rounded hover:bg-gray-100" onClick={() => setMobileOpen(false)}>
                   Login
                 </Link>
-                <Link href="/signup" className="px-3 py-2 rounded hover:bg-gray-100" onClick={() => setMobileOpen(false)}>
-                  Sign up
+                <Link href="/onboarding" className="mt-1 rounded-full bg-gradient-to-r from-[#db2777] to-[#f97316] px-4 py-2.5 text-center font-semibold text-white no-underline hover:no-underline" onClick={() => setMobileOpen(false)}>
+                  Build guidebook
                 </Link>
               </>
             )}

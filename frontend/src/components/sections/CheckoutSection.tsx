@@ -2,6 +2,7 @@ import React from "react";
 import EditableItemsSection, { EditableItem } from "./EditableItemsSection";
 import { Card, CardHeader, Field, inputClass } from "@/components/editor/primitives";
 import { LIMITS } from "@/constants/limits";
+import TimePicker from "@/components/editor/TimePicker";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface CheckoutInfoItem extends EditableItem {}
@@ -37,7 +38,7 @@ export default function CheckoutSection({
     <Card>
       <CardHeader title="Check-out time" description="Shown at the top of the guidebook and on the departure card." />
       <Field label="Guests leave by" htmlFor="checkOutTime">
-        <input id="checkOutTime" type="time" step={300} value={checkoutTime} onChange={(e) => onTimeChange(e.target.value)} className={`${inputClass} sm:w-48`} />
+        <TimePicker id="checkOutTime" value={checkoutTime} onChange={onTimeChange} />
       </Field>
     </Card>
   );

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, ArrowRight, Check, ExternalLink, EyeOff, Loader2, Lock, Search, Smartphone, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Bookmark, Check, ExternalLink, EyeOff, Loader2, Lock, Search, Smartphone, Sparkles, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/editor/primitives";
 
@@ -13,6 +13,8 @@ import CheckinSection from "@/components/sections/CheckinSection";
 import WelcomeSection from "@/components/sections/WelcomeSection";
 import Spinner from "@/components/ui/spinner";
 import DynamicItemList, { DynamicItem } from "@/components/sections/DynamicItemList";
+import { driveOrigin } from "@/lib/driveOrigin";
+import { getAuthHeaders } from "@/lib/authHeaders";
 import HouseManualList from "@/components/sections/HouseManualList";
 import RulesSection from "@/components/sections/RulesSection";
 import CheckoutSection from "@/components/sections/CheckoutSection";
@@ -307,6 +309,7 @@ export default function EditGuidebookPage() {
           description: i.description || "",
           image_url: i.image_url || "",
           place_id: i.place_id || "",
+          driving_minutes: i.driving_minutes ?? null,
         })));
         setActivityItems((data.things_to_do || []).map((i: Partial<DynamicItem>) => ({
           name: i.name || "",
@@ -314,6 +317,7 @@ export default function EditGuidebookPage() {
           description: i.description || "",
           image_url: i.image_url || "",
           place_id: i.place_id || "",
+          driving_minutes: i.driving_minutes ?? null,
         })));
         setCheckoutItems((data.checkout_info || []).map(i => ({ ...i, checked: true })));
         setHouseManualItems((data.house_manual || []).map(i => ({
@@ -593,6 +597,48 @@ export default function EditGuidebookPage() {
     });
   }, [included, setCustomSections]);
 
+  // Drive times are measured from the exact address: when it changes (or places still lack a time),
+  // re-measure every place in one request, a moment after the host stops typing
+  const listsRef = useRef({ foodItems, activityItems });
+  listsRef.current = { foodItems, activityItems };
+  const measuredFrom = useRef<string | null>(null);
+  const origin = !loaded ? null : driveOrigin(formData.location, formData.address_city_state, formData.address_zip);
+  useEffect(() => {
+    if (!loaded) return;
+    const { foodItems: food, activityItems: acts } = listsRef.current;
+    const missing = [...food, ...acts].some((i) => i.address && i.driving_minutes == null);
+    if (measuredFrom.current === null) {
+      measuredFrom.current = origin ?? ""; // the times loaded with the guidebook were measured from here
+      if (!origin || !missing) return;
+    } else if ((origin ?? "") === measuredFrom.current) {
+      return;
+    }
+    const timer = setTimeout(async () => {
+      measuredFrom.current = origin ?? "";
+      const current = listsRef.current;
+      const addresses = [...new Set([...current.foodItems, ...current.activityItems].map((i) => i.address.trim()).filter(Boolean))];
+      let byAddress = new Map<string, number | null>();
+      if (origin && addresses.length > 0) {
+        try {
+          const res = await fetch("/api/places/drive-times", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
+            body: JSON.stringify({ origin, destinations: addresses }),
+          });
+          if (!res.ok) return;
+          const { minutes } = (await res.json()) as { minutes: (number | null)[] };
+          byAddress = new Map(addresses.map((a, i) => [a, minutes[i] ?? null]));
+        } catch {
+          return;
+        }
+      }
+      const apply = (items: DynamicItem[]) => items.map((i) => ({ ...i, driving_minutes: byAddress.get(i.address.trim()) ?? null }));
+      setFoodItems(apply);
+      setActivityItems(apply);
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [origin, loaded, setFoodItems, setActivityItems]);
+
   // Keep address_street synced with location text input
   useEffect(() => {
     setFormData(prev => {
@@ -698,7 +744,7 @@ export default function EditGuidebookPage() {
   const sectionMeta = SECTION_META[currentSection];
   const sectionLabel = sectionMeta?.label || customTabsMeta[currentSection]?.label || "Custom section";
   const sectionDescription = sectionMeta?.description || "Anything else guests should know.";
-  const SectionIcon = sectionMeta?.icon;
+  const SectionIcon = sectionMeta?.icon ?? Bookmark; // added sections share the bookmark icon
   const sectionShown = included.includes(currentSection);
   const setSectionShown = (show: boolean) => {
     if (currentSection === "welcome") return;
@@ -853,7 +899,7 @@ export default function EditGuidebookPage() {
           <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex items-start gap-4">
               <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-white text-primary shadow-sm ring-1 ring-[#ECE5DB]" aria-hidden="true">
-                {SectionIcon ? <SectionIcon className="size-6" /> : <span className="text-2xl">{customTabsMeta[currentSection]?.icon || "📝"}</span>}
+                <SectionIcon className="size-6" />
               </span>
               <div>
                 <h1 className="text-2xl font-semibold tracking-tight text-gray-900">{sectionLabel}</h1>
@@ -1037,14 +1083,13 @@ export default function EditGuidebookPage() {
           {isCustom && (
             <CustomSection
               sectionKey={currentSection}
-              icon={customTabsMeta[currentSection]?.icon || "📝"}
               label={customTabsMeta[currentSection]?.label || "Custom Section"}
               items={customSections[currentSection] || []}
               onChange={(items) => setCustomSections(prev => ({ ...prev, [currentSection]: items }))}
               onLabelChange={(newLabel) => setCustomTabsMeta(prev => ({
                 ...prev,
                 [currentSection]: {
-                  icon: prev[currentSection]?.icon || "📝",
+                  icon: prev[currentSection]?.icon || "",
                   label: newLabel
                 }
               }))}

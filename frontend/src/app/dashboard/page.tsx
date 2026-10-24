@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { BookOpen, ExternalLink, LayoutGrid, List, Lock, MoreHorizontal, Plus, X } from "lucide-react";
+import { BookOpen, Check, ChevronDown, ExternalLink, LayoutGrid, List, Lock, MoreHorizontal, Plus, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
@@ -10,7 +10,8 @@ import ConfirmModal from "@/components/ui/ConfirmModal";
 import QRDownloadButton from "@/components/custom/QRDownloadButton";
 import { useQrCode } from "@/hooks/useQrCode";
 import { absoluteUrl } from "@/lib/publicUrl";
-import { offerUpgrade, throwApiError } from "@/lib/upgrade";
+import { offerUpgrade, throwApiError, UpgradeRequiredError } from "@/lib/upgrade";
+import { isPremiumStyle, PREMIUM_STYLE_MESSAGE, PREMIUM_STYLE_PLAN } from "@/lib/guidebook/styles";
 import { notify } from "@/lib/dialog";
 import { cacheGet, cacheSet } from "@/lib/cache";
 import { claimGuestGuidebooks, isGuestSession } from "@/lib/guest";
@@ -127,11 +128,12 @@ function RowMenu({ items, busy = false }: { items: { label: string; onSelect: ()
   );
 }
 
-const STYLE_CHIP: Record<string, string> = {
-  Signature: "bg-[#fbeee6] text-[#8e4226]",
-  Lifestyle: "bg-sky-50 text-sky-800",
-  Welcoming: "bg-[#f1ede7] text-[#5b524c]",
-};
+/** The styles a host can switch to (Classic is no longer offered, but a guidebook on it still shows it). */
+const STYLE_OPTIONS: { key: string; name: string; note: string }[] = [
+  { key: "template_signature", name: "Signature", note: "Elegant and easy to use" },
+  { key: "template_generic", name: "Lifestyle", note: "Light and modern" },
+  { key: "template_welcomebook", name: "Welcoming", note: "Warm and editorial" },
+];
 
 function LockedTag() {
   return (
@@ -141,9 +143,76 @@ function LockedTag() {
   );
 }
 
-function StyleChip({ templateKey }: { templateKey?: string | null }) {
-  const name = styleName(templateKey);
-  return <span className={`inline-flex shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${STYLE_CHIP[name] || "bg-gray-100 text-gray-700"}`}>{name}</span>;
+/** The guidebook's style as plain text; clicking it opens a menu to switch styles right there. */
+function StylePicker({ templateKey, premium, onChange, align = "left" }: {
+  templateKey?: string | null;
+  premium: boolean;
+  onChange: (key: string) => void;
+  align?: "left" | "right";
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent | KeyboardEvent) => {
+      if (e instanceof KeyboardEvent ? e.key === "Escape" : !ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", close);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", close);
+    };
+  }, [open]);
+  const current = templateKey === "template_lifestyle" ? "template_generic" : templateKey || "template_signature";
+  return (
+    <div className="relative inline-block" ref={ref}>
+      <button
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`Style: ${styleName(templateKey)}. Change style`}
+        onClick={() => setOpen((o) => !o)}
+        className="-mx-2 inline-flex items-center gap-1 whitespace-nowrap rounded-lg px-2 py-1 text-sm text-[#3d3530] transition-colors hover:bg-[#f3eee9] hover:text-[#1f1a17] aria-expanded:bg-[#f3eee9]"
+      >
+        {styleName(templateKey)}
+        <ChevronDown className={`size-3.5 text-[#8a7f77] transition-transform ${open ? "rotate-180" : ""}`} aria-hidden />
+      </button>
+      {open && (
+        <div role="menu" className={`absolute ${align === "right" ? "right-0" : "-left-2"} z-20 mt-2 w-60 rounded-2xl bg-white p-1.5 shadow-[0_20px_40px_-16px_rgba(60,40,30,0.35)] ring-1 ring-black/5`}>
+          {STYLE_OPTIONS.map((option) => {
+            const selected = option.key === current;
+            const locked = isPremiumStyle(option.key) && !premium;
+            return (
+              <button
+                key={option.key}
+                type="button"
+                role="menuitemradio"
+                aria-checked={selected}
+                onClick={() => {
+                  setOpen(false);
+                  if (!selected) onChange(option.key);
+                }}
+                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition-colors ${selected ? "bg-[#faf6f2]" : "hover:bg-[#faf7f4]"}`}
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-medium text-[#1f1a17]">{option.name}</span>
+                  <span className="block text-xs text-[#8a7f77]">{option.note}</span>
+                </span>
+                {selected ? (
+                  <Check className="size-4 shrink-0 text-[#db2777]" aria-hidden />
+                ) : locked ? (
+                  <span title={PREMIUM_STYLE_MESSAGE} className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#fbeee6] px-2 py-0.5 text-[11px] font-semibold text-[#8e4226]">
+                    <Lock className="size-3" aria-hidden /> {PREMIUM_STYLE_PLAN}
+                  </span>
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function Cover({ url, className }: { url?: string | null; className: string }) {
@@ -368,6 +437,36 @@ export default function DashboardPage() {
     { label: "Delete", onSelect: () => setDeleteId(gb.id), danger: true },
   ];
 
+  const premiumStyles = plan === "power" || plan === "pro";
+
+  /** Switch a guidebook's style from the list; it shows at once and goes back if the save fails. */
+  const changeStyle = async (id: string, key: string) => {
+    if (isPremiumStyle(key) && !premiumStyles) {
+      offerUpgrade(new UpgradeRequiredError(PREMIUM_STYLE_MESSAGE));
+      return;
+    }
+    const previous = items.find((gb) => gb.id === id)?.template_key ?? null;
+    const setKey = (value: string | null) =>
+      setItems((list) => {
+        const next = list.map((gb) => (gb.id === id ? { ...gb, template_key: value } : gb));
+        cacheSet("dashboard:guidebooks", next, 5 * 60_000);
+        return next;
+      });
+    setKey(key);
+    try {
+      const token = (await supabase?.auth.getSession())?.data.session?.access_token;
+      const res = await fetch(`/api/guidebook/${id}/template`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ template_key: key }),
+      });
+      if (!res.ok) await throwApiError(res, "Could not change the style. Please try again.");
+    } catch (e) {
+      setKey(previous);
+      if (!offerUpgrade(e)) notify("Couldn't change the style", e instanceof Error && e.message ? e.message : "Please try again.");
+    }
+  };
+
   const freeViews = plan && usage.viewsLimit !== null;
   const viewsShare = freeViews && usage.viewsLimit ? Math.min(1, usage.viewsUsed / usage.viewsLimit) : 0;
   const viewsOut = freeViews && usage.viewsLimit !== null && usage.viewsUsed >= usage.viewsLimit;
@@ -514,7 +613,7 @@ export default function DashboardPage() {
                         </span>
                       </Link>
                     </td>
-                    <td className="hidden px-4 py-3.5 md:table-cell"><StyleChip templateKey={gb.template_key} /></td>
+                    <td className="hidden px-4 py-3.5 md:table-cell"><StylePicker templateKey={gb.template_key} premium={premiumStyles} onChange={(key) => changeStyle(gb.id, key)} /></td>
                     <td className="hidden px-4 py-3.5 text-[#5b524c] sm:table-cell">{updatedLabel(gb)}</td>
                     <td className="px-3 py-3.5 sm:px-5">
                       <div className="flex items-center justify-end gap-2">
@@ -552,7 +651,7 @@ export default function DashboardPage() {
                       {updatedLabel(gb) && <p className="text-xs text-[#8a7f77]">Updated {updatedLabel(gb)}</p>}
                       {gb.locked && <div className="mt-2"><LockedTag /></div>}
                     </div>
-                    <StyleChip templateKey={gb.template_key} />
+                    <StylePicker templateKey={gb.template_key} premium={premiumStyles} onChange={(key) => changeStyle(gb.id, key)} align="right" />
                   </div>
                   <div className="mt-4 flex items-center gap-2">
                     <Link href={`/edit/${gb.id}`} className={`${EDIT_BUTTON} flex-1`}>Edit</Link>
