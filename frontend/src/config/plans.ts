@@ -11,6 +11,8 @@ export interface PlanCopy {
   price: number;
   tagline: string;
   features: string[];
+  /** The plan whose features this one also has ("Everything in Free +"). */
+  includes?: string;
   popular?: boolean;
 }
 
@@ -19,7 +21,7 @@ export const PLAN_COPY: PlanCopy[] = [
     key: "free",
     name: "Free",
     price: 0,
-    tagline: "Everything you need to try Guidewise",
+    tagline: "Everything you need to share a guidebook. No credit card, no trial clock.",
     features: [
       "Unlimited guidebooks",
       "30 guest views per month",
@@ -33,11 +35,11 @@ export const PLAN_COPY: PlanCopy[] = [
     name: "Starter",
     price: 5,
     tagline: "For hosts with a place or two",
+    includes: "Free",
     features: [
       "Unlimited guest views",
       "Print-ready PDF of your guidebook",
       "30 AI recommendation runs / month",
-      "Everything in Free",
     ],
   },
   {
@@ -45,13 +47,13 @@ export const PLAN_COPY: PlanCopy[] = [
     name: "Power",
     price: 15,
     tagline: "For growing portfolios",
+    includes: "Starter",
     popular: true,
     features: [
       "Up to 100 guidebooks",
       "Premium guidebook styles: Lifestyle and Welcoming",
       "View analytics for every guidebook",
       "150 AI recommendation runs / month",
-      "Everything in Starter",
     ],
   },
   {
@@ -59,14 +61,14 @@ export const PLAN_COPY: PlanCopy[] = [
     name: "Pro",
     price: 30,
     tagline: "For professional property managers",
+    includes: "Power",
     features: [
       "Unlimited guidebooks",
       "Highest AI allowance (500 runs / month)",
       "Priority support",
-      "Everything in Power",
     ],
   },
 ];
 
 export const PRICING_FINE_PRINT =
-  "Guest views are counted per visitor (repeat visits within 30 minutes count once, and search engines and link previews are not counted) across all of your guidebooks, each calendar month. When a Free account reaches its monthly views, its guidebooks show a temporary \"unavailable\" notice to guests until the next month or until the host upgrades. Starter includes up to 5 guidebooks and Power up to 100. Free and Starter guidebooks use the Signature style; the Lifestyle and Welcoming styles come with Power and Pro. AI allowances reset monthly. Prices in USD, billed monthly. Cancel anytime; guidebooks stay online on the Free plan.";
+  "Guest views are counted per visitor (each visitor counts once per guidebook per day, and search engines and link previews are not counted) across all of your guidebooks, each calendar month. When a Free account reaches its monthly views, its guidebooks show a temporary \"unavailable\" notice to guests until the next month or until the host upgrades. Starter includes up to 5 guidebooks and Power up to 100. Free and Starter guidebooks use the Signature style; the Lifestyle and Welcoming styles come with Power and Pro. AI allowances reset monthly. Prices in USD, billed monthly. Cancel anytime; guidebooks stay online on the Free plan.";

@@ -4,7 +4,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
+import { rememberHeardAbout } from "@/lib/attribution";
 import AuthShell, { AuthAlert, OrDivider, authInput, authLabel, authLink, authPrimary, authSecondary } from "@/components/custom/AuthShell";
+
+const HEARD_OPTIONS = ["A message from Guidewise", "Facebook group", "Reddit", "Google search", "TikTok, Instagram or YouTube", "A guest guidebook I saw", "A friend or co-host", "Other"];
 
 export default function SignupPage() {
   const router = useRouter();
@@ -14,6 +17,7 @@ export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [oauthLoading, setOauthLoading] = useState(false);
+  const [heard, setHeard] = useState("");
   // Came from "Save your guidebook": /onboarding moves the guest's guidebook into the new account
   const [saving, setSaving] = useState(false);
   // Came from "Build my guidebook" when guests aren't available: /onboarding builds it once they're in
@@ -122,6 +126,13 @@ export default function SignupPage() {
             aria-describedby="password-hint"
           />
           <span id="password-hint" className="mt-1.5 block text-xs text-[#8a7f77]">Upper and lower case letters and at least one number.</span>
+        </label>
+        <label className="block">
+          <span className={authLabel}>How did you hear about us? <span className="font-normal text-[#8a7f77]">(optional)</span></span>
+          <select value={heard} onChange={(e) => { setHeard(e.target.value); rememberHeardAbout(e.target.value); }} className={authInput}>
+            <option value="">Choose one</option>
+            {HEARD_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+          </select>
         </label>
         <button type="submit" disabled={loading} className={authPrimary}>
           {loading ? "Creating your account…" : "Create free account"}

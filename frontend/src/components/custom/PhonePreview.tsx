@@ -36,6 +36,8 @@ interface Props {
   message?: string | null;
   /** Style of the sample guidebook shown before the host has one. */
   sampleTemplate?: string;
+  /** Render this URL's HTML instead of the owner's copy (no token needed, e.g. a gift link). */
+  htmlUrl?: string | null;
   className?: string;
 }
 
@@ -43,20 +45,20 @@ interface Props {
  * The guidebook in a phone, exactly as guests see it and fully interactive. It renders the owner's copy
  * (`/api/guidebooks/<id>/html`), so previewing never counts as a guest view.
  */
-export default function PhonePreview({ guidebookId, accessToken, refreshKey = 0, message, sampleTemplate, className = "" }: Props) {
+export default function PhonePreview({ guidebookId, accessToken, refreshKey = 0, message, sampleTemplate, htmlUrl, className = "" }: Props) {
   const [html, setHtml] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    if (!guidebookId || !accessToken) return;
+    if (!htmlUrl && (!guidebookId || !accessToken)) return;
     let cancelled = false;
     setRefreshing(true);
     (async () => {
       try {
-        const res = await fetch(`/api/guidebooks/${guidebookId}/html`, {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
+        const res = htmlUrl
+          ? await fetch(htmlUrl)
+          : await fetch(`/api/guidebooks/${guidebookId}/html`, { headers: { Authorization: `Bearer ${accessToken}` } });
         if (!res.ok) throw new Error(String(res.status));
         const text = await res.text();
         if (!cancelled) {
@@ -72,7 +74,7 @@ export default function PhonePreview({ guidebookId, accessToken, refreshKey = 0,
     return () => {
       cancelled = true;
     };
-  }, [guidebookId, accessToken, refreshKey]);
+  }, [guidebookId, accessToken, refreshKey, htmlUrl]);
 
   return (
     <div className={`relative mx-auto aspect-[9/19] w-full max-w-[340px] rounded-[2.6rem] bg-neutral-900 p-[10px] shadow-2xl ring-1 ring-black/10 ${className}`}>
