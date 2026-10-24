@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import BulkOutreach from "@/components/admin/BulkOutreach";
 import OutreachPanel from "@/components/admin/OutreachPanel";
 
 interface Stats {
@@ -135,6 +136,7 @@ export default function AdminPage() {
       )}
 
       {token && <OutreachPanel token={token} />}
+      {token && <BulkOutreach token={token} />}
     </div>
   );
 }
