@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { Copy, Loader2 } from "lucide-react";
-import { supabase } from "@/lib/supabaseClient";
 import { authInput, authLabel, authPrimary, AuthAlert } from "@/components/custom/AuthShell";
 
 interface Made {
@@ -26,9 +25,7 @@ function message(made: Made, sender: string): string {
 }
 
 /** Outreach: build a guidebook from a host's listing and copy a message with its gift link. Admins only. */
-export default function OutreachPage() {
-  const [token, setToken] = useState<string | null>(null);
-  const [allowed, setAllowed] = useState<boolean | null>(null);
+export default function OutreachPanel({ token }: { token: string }) {
   const [url, setUrl] = useState("");
   const [sender, setSender] = useState("");
   const [busy, setBusy] = useState(false);
@@ -38,18 +35,10 @@ export default function OutreachPage() {
 
   useEffect(() => {
     try { setSender(localStorage.getItem(SENDER_KEY) || ""); } catch { }
-    (async () => {
-      const session = (await supabase?.auth.getSession())?.data.session;
-      if (!session || session.user.is_anonymous) return setAllowed(false);
-      setToken(session.access_token);
-      const res = await fetch("/api/admin/gifts", { headers: { Authorization: `Bearer ${session.access_token}` } });
-      setAllowed(res.ok);
-    })().catch(() => setAllowed(false));
   }, []);
 
   const build = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!token) return;
     setBusy(true);
     setError(null);
     try {
@@ -73,22 +62,13 @@ export default function OutreachPage() {
     try { await navigator.clipboard.writeText(text); setCopied(i); setTimeout(() => setCopied(null), 1500); } catch { }
   };
 
-  if (allowed === null) return <main className="min-h-[60vh] bg-[#F8F5F1]" />;
-  if (!allowed) {
-    return (
-      <main className="flex min-h-[60vh] items-center justify-center bg-[#F8F5F1] px-4">
-        <p className="text-[#5b524c]">This page isn&apos;t available.</p>
-      </main>
-    );
-  }
-
   return (
-    <main className="min-h-[calc(100svh-3.5rem)] bg-[#F8F5F1] px-4 py-12 sm:px-6">
-      <div className="mx-auto max-w-2xl">
-        <h1 className="text-3xl font-semibold tracking-[-0.03em] text-[#1f1a17]">Outreach</h1>
+    <section id="outreach">
+      <div className="max-w-2xl">
+        <h2 className="text-2xl font-semibold tracking-[-0.02em] text-[#1f1a17]">Outreach</h2>
         <p className="mt-2 text-[15px] text-[#5b524c]">Paste a host&apos;s Airbnb or VRBO link. You get a gift link and a message to send them. The guidebook stays private until they claim it.</p>
 
-        <form onSubmit={build} className="mt-8 space-y-5 rounded-[2rem] bg-white p-6 shadow-[0_30px_60px_-30px_rgba(60,40,30,0.35)] ring-1 ring-black/5 sm:p-8">
+        <form onSubmit={build} className="mt-6 space-y-5 rounded-[2rem] bg-white p-6 shadow-[0_30px_60px_-30px_rgba(60,40,30,0.35)] ring-1 ring-black/5 sm:p-8">
           <label className="block">
             <span className={authLabel}>Listing link</span>
             <input className={authInput} required value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://www.airbnb.com/rooms/…" />
@@ -123,6 +103,6 @@ export default function OutreachPage() {
           })}
         </div>
       </div>
-    </main>
+    </section>
   );
 }

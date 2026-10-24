@@ -27,6 +27,7 @@ vi.mock("@/lib/server/gifts", async (importOriginal) => ({
 import { GET as adminCheck, POST as makeGift } from "../src/app/api/admin/gifts/route";
 import { GET as giftInfo } from "../src/app/api/gift/[ticket]/route";
 import { GET as giftHtml } from "../src/app/api/gift/[ticket]/html/route";
+import { GET as statsRoute } from "../src/app/api/admin/stats/route";
 import { isAdmin } from "../src/lib/server/gifts";
 import { claimGuestGuidebooks } from "../src/lib/server/guestAccounts";
 import { setSqlForTests } from "../src/lib/server/db";
@@ -93,5 +94,31 @@ describe("gifts", () => {
     expect(await claimGuestGuidebooks(db.sql, GUEST, OWNER)).toHaveLength(1);
     expect((await giftInfo(new Request("http://x"), ctx(ticket))).status).toBe(404);
     expect((await giftHtml(new Request("http://x"), ctx(ticket))).status).toBe(404);
+  });
+
+  it("admin stats count accounts, sources, plans and views, for admins only", async () => {
+    await db.sql`insert into auth.users (id, is_anonymous, email, created_at, raw_user_meta_data) values
+      ('66666666-6666-4666-8666-ffffffffffff'::uuid, false, 'new@host.com', now() - interval '2 days', '{"signup_source":{"source":"outreach"},"heard_about":"A message from Guidewise"}'::jsonb),
+      ('77777777-7777-4777-8777-777777777777'::uuid, false, 'old@host.com', now() - interval '60 days', '{"signup_source":{"referrer":"google.com"}}'::jsonb)`;
+    await db.sql`update auth.users set email = 'owner@example.com', created_at = now() - interval '10 days' where id = ${OWNER}::uuid`;
+    await db.sql`insert into public.profiles (user_id, plan) values (${OWNER}::uuid, 'power'), ('66666666-6666-4666-8666-ffffffffffff'::uuid, 'growth')`;
+    const [{ id: pid }] = await db.sql`insert into property (name, user_id) values ('Willow', ${GUEST}) returning id`;
+    await db.sql`insert into guidebook (id, property_id, user_id, template_key) values ('gift1', ${pid}, ${GUEST}, 'template_signature'), ('own1', ${pid}, ${OWNER}, 'template_signature')`;
+    await db.sql`insert into guidebook_view_daily (guidebook_id, user_id, day, views) values ('own1', ${OWNER}, (now() at time zone 'utc')::date, 9)`;
+
+    expect((await statsRoute(new Request("http://x", { headers: { Authorization: "Bearer owner" } }))).status).toBe(404);
+    const res = await statsRoute(new Request("http://x", { headers: { Authorization: "Bearer admin" } }));
+    expect(res.status).toBe(200);
+    const s = await res.json();
+    expect(s.users).toEqual({ members: 3, new_7d: 1, new_30d: 2, guests: 1 });
+    expect(s.guidebooks).toMatchObject({ total: 2, unclaimed: 1 });
+    expect(s.plans).toEqual({ power: 2 });
+    expect(s.mrr_usd).toBe(30);
+    expect(s.views_month).toBe(9);
+    expect(s.top_guidebooks[0]).toEqual({ id: "own1", property_name: "Willow", views: 9 });
+    expect(s.sources).toEqual(expect.arrayContaining([{ source: "outreach", signups: 1 }, { source: "direct / unknown", signups: 1 }]));
+    expect(s.heard_about).toEqual([{ answer: "A message from Guidewise", signups: 1 }]);
+    expect(s.recent_signups[0]).toMatchObject({ email: "new@host.com", source: "outreach", plan: "power", guidebooks: 0 });
+    expect(s.recent_signups.find((u: { email: string }) => u.email === "old@host.com").source).toBe("referral: google.com");
   });
 });
