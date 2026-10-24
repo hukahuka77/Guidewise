@@ -82,7 +82,7 @@ export default function SuccessPage() {
           <p className="mt-2 text-[15px] text-[#5b524c] sm:text-base">Share the link or print the QR code. Changes you make later show up straight away.</p>
         </header>
 
-        <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-12">
+        <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-8 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-12">
           {/* Share: on wide screens it sits beside the guidebook, so the QR code is visible without scrolling */}
           <section className={`${card} lg:sticky lg:top-8`} aria-labelledby="share-title">
             <h2 id="share-title" className="text-xl font-semibold tracking-[-0.02em] text-[#1f1a17]">Share it with guests</h2>
