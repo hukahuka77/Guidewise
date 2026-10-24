@@ -62,8 +62,10 @@ export async function recommendationsForListing(
   }
 
   try {
+    // A listing only gives the rough area, so no drive times yet: they're added once the exact address is in
+    const rough = { driveFrom: null };
     const [food, activities] = await withTimeout(
-      Promise.all([getAiRecommendations("food", location), getAiRecommendations("activities", location)]),
+      Promise.all([getAiRecommendations("food", location, undefined, rough), getAiRecommendations("activities", location, undefined, rough)]),
       RECOMMENDATION_TIMEOUT_MS,
       [[], []] as [EnrichedItem[], EnrichedItem[]],
     );

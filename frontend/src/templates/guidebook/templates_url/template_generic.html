@@ -44,7 +44,7 @@
     <div class="place-body">
       <h3>{{ place.name }}</h3>
       {%- if place.description %}<p class="place-desc">{{ place.description }}</p>{% endif %}
-      {%- if place.address %}<a class="link" href="{{ maps_url(place.address) }}" target="_blank" rel="noopener noreferrer">{{ icon('nav', 14) }}Directions</a>{% endif %}
+      {%- if place.address %}<a class="link" href="{{ place.address | directions_url(ctx.address) }}" target="_blank" rel="noopener noreferrer">{{ icon('nav', 14) }}Directions</a>{% endif %}
     </div>
   </article>
   {%- endfor %}

@@ -1,3 +1,4 @@
+import { driveOrigin } from "@/lib/driveOrigin";
 // Small presentation helpers for the guidebook templates (registered as Nunjucks filters in render.ts).
 
 type Dict = Record<string, unknown>;
@@ -46,6 +47,19 @@ export function addressLine(address: unknown): string {
   const cityState = text(address.city_state);
   const zip = text(address.zip);
   return [street, [cityState, zip].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+}
+
+/**
+ * Google Maps link for a place: driving directions from the guidebook's address when it has a street
+ * address, otherwise the place itself (there's no exact starting point to route from).
+ */
+export function directionsUrl(destination: unknown, address: unknown): string {
+  const dest = text(destination);
+  const from = isDict(address) && text(address.street) ? driveOrigin(address.street, address.city_state, address.zip) : null;
+  const params = from
+    ? new URLSearchParams({ api: "1", origin: from, destination: dest, travelmode: "driving" })
+    : new URLSearchParams({ api: "1", query: dest });
+  return `https://www.google.com/maps/${from ? "dir" : "search"}/?${params}`;
 }
 
 export interface GuideSection {

@@ -9,6 +9,9 @@ const SEARCH_TEXT_URL = "https://places.googleapis.com/v1/places:searchText";
 const PLACE_URL = "https://places.googleapis.com/v1/places/";
 const PHOTO_MEDIA_URL = "https://places.googleapis.com/v1/";
 const ROUTES_API_URL = "https://routes.googleapis.com/directions/v2:computeRoutes";
+const ROUTE_MATRIX_URL = "https://routes.googleapis.com/distanceMatrix/v2:computeRouteMatrix";
+// Google allows at most 50 origin x destination pairs per matrix call when they are addresses
+const MATRIX_MAX_DESTINATIONS = 50;
 const TIMEOUT_MS = 10_000;
 // A coordinate search prefers results within this distance (Google's maximum)
 const BIAS_RADIUS_METERS = 50_000;
@@ -145,4 +148,38 @@ export async function googleDistanceMatrix(origin: string, destination: string):
   } catch {
     return { durationMinutes: null, distanceMeters: null };
   }
+}
+
+/**
+ * Typical driving minutes from one origin to many destinations in one Route Matrix call (billed per
+ * pair as Essentials). Each entry is null when Google found no route; all are null if the call fails.
+ */
+export async function googleDriveMinutes(origin: string, destinations: string[]): Promise<(number | null)[]> {
+  const minutes: (number | null)[] = destinations.map(() => null);
+  const wanted = destinations.map((d, i) => ({ d: d.trim(), i })).filter((x) => x.d).slice(0, MATRIX_MAX_DESTINATIONS);
+  if (!origin.trim() || wanted.length === 0) return minutes;
+  try {
+    const res = await fetch(ROUTE_MATRIX_URL, {
+      method: "POST",
+      headers: headers("destinationIndex,duration,condition"),
+      body: JSON.stringify({
+        origins: [{ waypoint: { address: origin } }],
+        destinations: wanted.map((w) => ({ waypoint: { address: w.d } })),
+        travelMode: "DRIVE",
+        routingPreference: "TRAFFIC_UNAWARE",
+      }),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    if (!res.ok) throw new Error(`Google API ${res.status} for route matrix`);
+    for (const raw of asList(await res.json())) {
+      const el = asDict(raw);
+      const target = wanted[typeof el.destinationIndex === "number" ? el.destinationIndex : 0 /* omitted when 0 */];
+      const duration = str(el.duration);
+      const seconds = duration.endsWith("s") ? Number.parseInt(duration.slice(0, -1), 10) : NaN;
+      if (target && el.condition === "ROUTE_EXISTS" && Number.isFinite(seconds)) minutes[target.i] = Math.max(1, Math.round(seconds / 60));
+    }
+  } catch (error) {
+    console.warn("Drive times unavailable", error instanceof Error ? error.message : error);
+  }
+  return minutes;
 }

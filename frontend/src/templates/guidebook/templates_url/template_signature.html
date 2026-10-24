@@ -44,7 +44,7 @@
       {%- if place.driving_minutes or place.address %}
       <div class="place-meta">
         {%- if place.driving_minutes %}<span class="pill pill--sage">{{ icon('car', 15) }}{{ place.driving_minutes }} min drive</span>{% endif %}
-        {%- if place.address %}<a class="place-link" href="{{ maps_url(place.address) }}" target="_blank" rel="noopener noreferrer">{{ icon('nav', 14) }}Directions</a>{% endif %}
+        {%- if place.address %}<a class="place-link" href="{{ place.address | directions_url(ctx.address) }}" target="_blank" rel="noopener noreferrer">{{ icon('nav', 14) }}Directions</a>{% endif %}
       </div>
       {%- endif %}
     </div>

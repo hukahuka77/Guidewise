@@ -4,7 +4,7 @@ import path from "node:path";
 import nunjucks from "nunjucks";
 import { buildGuidebookContext, sanitizeCustomTabsMeta } from "./context";
 import { placePhotoUrl } from "./placePhotos";
-import { addressLine, contactLinks, formatTime12, guideSections } from "./format";
+import { addressLine, directionsUrl, contactLinks, formatTime12, guideSections } from "./format";
 import { jinjaEscape, jinjaTitle, jinjaUrlencode, withPythonTruthiness } from "./pyCompat";
 import type { GuidebookRow } from "./types";
 
@@ -44,6 +44,7 @@ function getEnv(): nunjucks.Environment {
     env.addFilter("time12", (value: unknown) => formatTime12(value));
     env.addFilter("contact_links", (value: unknown) => contactLinks(value));
     env.addFilter("address_line", (value: unknown) => addressLine(value));
+    env.addFilter("directions_url", (value: unknown, address: unknown) => directionsUrl(value, address));
     env.addFilter("guide_sections", (value: unknown) => guideSections(value));
   }
   return env;

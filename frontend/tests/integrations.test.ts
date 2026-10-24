@@ -24,6 +24,7 @@ import { GET as photoRoute } from "../src/app/api/place-photo/route";
 import { placePhotoUrl } from "../src/lib/guidebook/placePhotos";
 import { GET as enrichRoute } from "../src/app/api/places/enrich/route";
 import { POST as searchRoute } from "../src/app/api/places/search/route";
+import { PUT as guidebookPut } from "../src/app/api/guidebooks/[id]/route";
 import { setSqlForTests } from "../src/lib/server/db";
 import { canonicalListingUrl, extractListingContext, hostAllowed, sanitizeExtractedFields, validateListingUrl } from "../src/lib/server/listingImport";
 import { clampItems, rateLimited, resetRateLimitsForTests } from "../src/lib/server/rateLimit";
@@ -560,7 +561,7 @@ describe("listing import route", () => {
       expect(gb.custom_sections).toEqual({});
       expect(gb.custom_tabs_meta).toBeNull();
       expect(gb.things_to_do.map((i: { name: string }) => i.name)).toEqual(["Lake Trail", "Art Museum"]);
-      expect(gb.things_to_do[0]).toMatchObject({ address: "1 Real Addr, Austin, TX", image_url: "places/x/photos/PHOTOREF", driving_minutes: 10 });
+      expect(gb.things_to_do[0]).toMatchObject({ address: "1 Real Addr, Austin, TX", image_url: "places/x/photos/PHOTOREF", driving_minutes: null });
       expect(gb.things_to_do[0].place_id).toMatch(/^pid-/);
       expect(gb.places_to_eat.map((i: { name: string }) => i.name)).toEqual(["Taco Hut", "Pizza Barn"]);
       const [host] = await db.sql`select bio from host where id = ${gb.host_id}`;
@@ -568,6 +569,30 @@ describe("listing import route", () => {
       const [prop] = await db.sql`select address_zip, address_city_state from property where id = ${gb.property_id}`;
       expect(prop).toEqual({ address_zip: "78701", address_city_state: "Austin, TX" });
       expect(await aiUsage(db.sql, OWNER)).toBe(1); // one allowance covers both lists
+      // the listing only gave the rough area, so no drive times were guessed from it
+      expect(fetchMock.mock.calls.some(([u]) => String(u).includes("routes.googleapis"))).toBe(false);
+    });
+
+    it("measures drive times once the exact address is saved, and directions route from it", async () => {
+      wire();
+      const { guidebook_id: id } = await (await run()).json();
+      const matrix = vi.fn(async (_u: string, init?: RequestInit) => {
+        const { origins, destinations } = JSON.parse(String(init?.body));
+        expect(origins).toEqual([{ waypoint: { address: "12 Lake Rd, Austin, TX 78701, USA" } }]);
+        return json(destinations.map((_: unknown, i: number) => ({ ...(i ? { destinationIndex: i } : {}), condition: "ROUTE_EXISTS", duration: `${(i + 1) * 300}s` })));
+      });
+      fetchMock.mockImplementation(async (input: string, init?: RequestInit) =>
+        String(input).includes("computeRouteMatrix") ? matrix(String(input), init) : new Response("?", { status: 404 }));
+      const put = (body: unknown) =>
+        guidebookPut(new Request(`https://x.test/api/guidebooks/${id}`, { method: "PUT", headers: { authorization: "Bearer owner", "content-type": "application/json" }, body: JSON.stringify(body) }), { params: Promise.resolve({ id }) });
+      expect((await put({ address_street: "12 Lake Rd, Austin, TX 78701, USA", wifi_password: "pw" })).status).toBe(200);
+      const [gb] = await db.sql`select things_to_do, places_to_eat from guidebook where id = ${id}`;
+      expect(gb.things_to_do.map((i: { driving_minutes: number }) => i.driving_minutes)).toEqual([5, 10]);
+      expect(gb.places_to_eat.map((i: { driving_minutes: number }) => i.driving_minutes)).toEqual([15, 20]);
+      expect(matrix).toHaveBeenCalledTimes(1); // every place in one request
+      // saving the same address again doesn't measure again
+      await put({ address_street: "12 Lake Rd, Austin, TX 78701, USA", wifi_network: "net" });
+      expect(matrix).toHaveBeenCalledTimes(1);
     });
 
     it("uses the city for the searches and asks for restaurants and activities", async () => {
@@ -772,5 +797,18 @@ describe("listing import: cover photo discovery", () => {
     expect(canonicalListingUrl("https://www.airbnb.com/rooms/123?adults=2&check_in=x")).toBe("https://www.airbnb.com/rooms/123");
     expect(canonicalListingUrl("https://www.airbnb.co.uk/rooms/plus/456?x=1")).toBe("https://www.airbnb.co.uk/rooms/456");
     expect(canonicalListingUrl("https://www.vrbo.com/12345?x=1")).toBe("https://www.vrbo.com/12345?x=1");
+  });
+});
+
+describe("directions links", () => {
+  it("route from the guidebook's street address, or just find the place without one", async () => {
+    const { directionsUrl } = await import("../src/lib/guidebook/format");
+    const routed = new URL(directionsUrl("1 Cafe St", { street: "12 Lake Rd", city_state: "Austin, TX", zip: "78701" }));
+    expect(routed.pathname).toBe("/maps/dir/");
+    expect(routed.searchParams.get("origin")).toBe("12 Lake Rd, Austin, TX, 78701");
+    expect(routed.searchParams.get("destination")).toBe("1 Cafe St");
+    const found = new URL(directionsUrl("1 Cafe St", { city_state: "Austin, TX" }));
+    expect(found.pathname).toBe("/maps/search/");
+    expect(found.searchParams.get("query")).toBe("1 Cafe St");
   });
 });
