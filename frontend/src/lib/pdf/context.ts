@@ -3,6 +3,7 @@ import { pyTruthy } from "@/lib/guidebook/pyCompat";
 import { rulesAsText } from "@/lib/guidebook/rules";
 import type { GuidebookRow } from "@/lib/guidebook/types";
 import { normalizeRecommendations, type PhotoResolver } from "./recommendations";
+import { qrSvgDataUrl } from "@/lib/qr";
 
 // Context builders for the PDF and the print PDF. The PDF templates read `ctx.wifi` and (for the PDF
 // path) `ctx.house_manual`.
@@ -10,14 +11,9 @@ import { normalizeRecommendations, type PhotoResolver } from "./recommendations"
 type Dict = Record<string, unknown>;
 const orDefault = <T>(value: unknown, fallback: T): T => (pyTruthy(value) ? (value as T) : fallback);
 
-/** Python's `urllib.parse.quote(value, safe="")`. */
-function quoteAll(value: string): string {
-  return encodeURIComponent(value).replace(/[!'()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
-}
-
-export function qrImageSrc(qrUrl: string | null | undefined): string | null {
-  if (!qrUrl) return null;
-  return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${quoteAll(qrUrl)}`;
+/** The QR code image for a PDF, drawn locally as SVG (null without a link). */
+export async function qrImageSrc(qrUrl: string | null | undefined): Promise<string | null> {
+  return qrUrl ? qrSvgDataUrl(qrUrl) : null;
 }
 
 export async function buildPdfContext(
@@ -62,6 +58,6 @@ export async function buildPdfContext(
     custom_sections: orDefault(gb.custom_sections, {}),
     custom_tabs_meta: orDefault(gb.custom_tabs_meta, {}),
     cover_image_url: gb.cover_image_url,
-    qr_img_src: qrImageSrc(options.qrUrl),
+    qr_img_src: await qrImageSrc(options.qrUrl),
   };
 }

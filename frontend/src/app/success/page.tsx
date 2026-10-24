@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabaseClient';
 import QRDownloadButton from '@/components/custom/QRDownloadButton';
 import PhonePreview from '@/components/custom/PhonePreview';
 import { absoluteUrl } from '@/lib/publicUrl';
+import { useQrCode } from "@/hooks/useQrCode";
 
 // Shown after a new guidebook is created and its template chosen. The guidebook is already live.
 export default function SuccessPage() {
@@ -37,8 +38,7 @@ export default function SuccessPage() {
     })();
   }, [guidebookId]);
 
-  const qrImageUrl = (url: string, size = 400) =>
-    `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(url)}`;
+  const qrSrc = useQrCode(liveUrl);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#F8F5F1] to-white flex flex-col items-center p-4 sm:p-6 md:p-10">
@@ -81,7 +81,7 @@ export default function SuccessPage() {
             </div>
             <div className="flex flex-col items-center">
               <div className="bg-white p-6 rounded-xl border-2 border-gray-200 shadow-sm">
-                <img src={qrImageUrl(liveUrl)} alt="Guidebook QR Code" className="w-64 h-64" />
+                {qrSrc ? <img src={qrSrc} alt="Guidebook QR Code" className="w-64 h-64" /> : <div aria-hidden className="w-64 h-64 rounded-xl bg-gray-100" />}
               </div>
               <QRDownloadButton targetUrl={liveUrl} propertyName="guidebook" className="mt-4" />
             </div>
