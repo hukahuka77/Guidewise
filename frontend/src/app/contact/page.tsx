@@ -4,7 +4,7 @@ import { ArrowRight } from "lucide-react";
 import ContactForm from "@/components/custom/ContactForm";
 
 export const metadata: Metadata = {
-  title: "Contact | Guidewise",
+  title: "Contact",
   description: "Questions about Guidewise, ideas, or help setting up your guidebook. Send us a note.",
 };
 
