@@ -65,8 +65,9 @@ async function fetchPhoto(reference: string, maxwidth: number): Promise<PhotoByt
 }
 
 /**
- * Port of `get_place_photo`: prefer a fresh reference resolved from the durable place id, then the
- * stored reference, then (legacy guidebooks only) recover via a text search of `query`.
+ * A place photo: the stored reference first (one billed Photo request), and only if Google has
+ * expired it, a fresh reference from the durable place id (a Details request on top). Legacy
+ * guidebooks without a place id recover via a text search of `query`.
  */
 export async function resolvePlacePhoto(args: {
   photoReference: string;
@@ -75,20 +76,20 @@ export async function resolvePlacePhoto(args: {
   maxwidth: number;
 }): Promise<PhotoBytes | null> {
   const { photoReference, placeId, query, maxwidth } = args;
-  const references: string[] = [];
+  if (photoReference) {
+    const photo = await fetchPhoto(photoReference, maxwidth);
+    if (photo) return photo;
+  }
   if (placeId) {
     try {
       const current = await googlePlacesPhotoReference(placeId);
-      if (current) references.push(current);
+      if (current && current !== photoReference) {
+        const photo = await fetchPhoto(current, maxwidth);
+        if (photo) return photo;
+      }
     } catch (error) {
       console.warn(`Could not refresh photo for place_id ${placeId}`, error);
     }
-  }
-  if (photoReference && !references.includes(photoReference)) references.push(photoReference);
-
-  for (const reference of references) {
-    const photo = await fetchPhoto(reference, maxwidth);
-    if (photo) return photo;
   }
 
   if (query && !placeId) {

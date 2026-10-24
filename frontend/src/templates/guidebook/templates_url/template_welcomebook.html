@@ -809,7 +809,7 @@
       <div class="place-card">
         {% if place.image_url %}
         <img src="{{ place | place_photo_url }}"
-          alt="{{ place.name }}" class="place-card-image" />
+          alt="{{ place.name }}" class="place-card-image" loading="lazy" />
         {% endif %}
         <div class="place-card-content">
           <h5>{{ place.name }}</h5>
@@ -845,7 +845,7 @@
       <div class="place-card">
         {% if activity.image_url %}
         <img src="{{ activity | place_photo_url }}"
-          alt="{{ activity.name }}" class="place-card-image" />
+          alt="{{ activity.name }}" class="place-card-image" loading="lazy" />
         {% endif %}
         <div class="place-card-content">
           <h5>{{ activity.name }}</h5>
