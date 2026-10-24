@@ -112,6 +112,17 @@ describe("helpers", () => {
     expect(visitorBlock("9.9.9.9")).toBe("9.9.9.9");
   });
 
+  it("now and then drops view counts older than the history window", async () => {
+    await db.sql`insert into guidebook_view_daily (guidebook_id, user_id, day, views) values
+      (${gbId}, ${OWNER}, current_date - 500, 9), (${gbId}, ${OWNER}, current_date - 100, 5)`;
+    const roll = vi.spyOn(Math, "random").mockReturnValue(0); // the 1-in-100 cleanup runs
+    expect(await recordView(db.sql, gbId, OWNER, "cleanup")).toBe(true);
+    roll.mockRestore();
+    await new Promise((r) => setTimeout(r, 50)); // the cleanup runs after the view is recorded
+    const days = await db.sql`select views from guidebook_view_daily where guidebook_id = ${gbId} order by day`;
+    expect(days.map((d) => d.views)).toEqual([5, 1]);
+  });
+
   it("the same visitor counts again only after six hours", async () => {
     expect(await recordView(db.sql, gbId, OWNER, "repeat")).toBe(true);
     expect(await recordView(db.sql, gbId, OWNER, "repeat")).toBe(false);

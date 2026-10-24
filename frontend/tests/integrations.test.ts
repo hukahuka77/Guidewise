@@ -546,19 +546,37 @@ describe("listing import route", () => {
       expect(prompts.some((p) => p.includes("Austin, TX") && p.includes("activities"))).toBe(true);
     });
 
-    it("still imports when the free AI allowance is used up, and says so", async () => {
+    it("an import costs one AI run, which also covers the places; with none left it stops before reading the listing", async () => {
       wire();
       await setPlan(db.sql, OWNER, "free");
-      await db.sql`insert into ai_usage_monthly (user_id, month, used) values (${OWNER}, ${monthStart()}::date, 3)`;
-      const body = await (await run()).json();
-      expect(body.recommendations).toEqual({ things_to_do: 0, places_to_eat: 0, skipped: "quota" });
-      expect(body.missing).toEqual(expect.arrayContaining(["things to do", "places to eat"]));
-      expect(body.imported).toContain("property name");
-      const [gb] = await db.sql`select things_to_do, places_to_eat from guidebook where id = ${body.guidebook_id}`;
-      expect(gb.things_to_do).toEqual([]);
+      await db.sql`delete from ai_usage_monthly`;
+      const ok = await (await run()).json();
+      expect(ok.recommendations.skipped).toBeUndefined();
+      expect(await aiUsage(db.sql, OWNER)).toBe(1); // not 2: reading the listing and the places share it
+
+      await db.sql`update ai_usage_monthly set used = 3`;
+      await db.sql`delete from guidebook where user_id = ${OWNER}`; // Free keeps one; make room so only the AI runs are out
+      openaiCreate.mockClear();
+      const res = await run();
+      expect(res.status).toBe(403);
+      expect(await res.json()).toMatchObject({ upgrade: true, quota: "ai" });
+      expect(openaiCreate).not.toHaveBeenCalled();
     });
 
-    it("skips recommendations without a city or without Google configured, and refunds when they come back empty", async () => {
+    it("gives the run back when OpenAI fails, and charges nothing when the page can't be read", async () => {
+      wire();
+      await db.sql`delete from ai_usage_monthly`;
+      openaiCreate.mockRejectedValue(new Error("openai down"));
+      const err = vi.spyOn(console, "error").mockImplementation(() => {});
+      expect((await run()).status).toBe(502);
+      expect(await aiUsage(db.sql, OWNER)).toBe(0);
+      fetchMock.mockImplementation(async () => new Response("blocked", { status: 403 }));
+      expect((await run()).ok).toBe(false);
+      expect(await aiUsage(db.sql, OWNER)).toBe(0);
+      err.mockRestore();
+    });
+
+    it("skips recommendations without a city or without Google configured", async () => {
       wire({ extraction: { ...rich, address_city_state: "" } });
       expect((await (await run()).json()).recommendations.skipped).toBe("no_location");
       wire();
@@ -572,7 +590,7 @@ describe("listing import route", () => {
       );
       await db.sql`delete from ai_usage_monthly`;
       expect((await (await run()).json()).recommendations.skipped).toBe("failed");
-      expect(await aiUsage(db.sql, OWNER)).toBe(0);
+      expect(await aiUsage(db.sql, OWNER)).toBe(1); // the run paid for reading the listing, so it stays spent
     });
 
     it("stops before fetching anything when the plan's guidebook cap is reached", async () => {

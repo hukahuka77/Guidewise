@@ -520,7 +520,14 @@ async function fetchBestHtml(url: string): Promise<string> {
   }
 }
 
-export async function importListing(url: unknown): Promise<ImportedFields & { cover_image_url: string | null }> {
+/**
+ * Read a listing into guidebook fields. `beforeAi` runs just before the page is sent to OpenAI (pages that
+ * fail to load, or that have only photos, never get there), so callers can charge an AI run for it.
+ */
+export async function importListing(
+  url: unknown,
+  { beforeAi }: { beforeAi?: () => Promise<void> } = {},
+): Promise<ImportedFields & { cover_image_url: string | null }> {
   const html = await fetchBestHtml(url as string);
   let photoId: string | null = null;
   try {
@@ -539,7 +546,9 @@ export async function importListing(url: unknown): Promise<ImportedFields & { co
   }
   const [cover, fields] = await Promise.all([
     pickCover(coverCandidates),
-    context.length >= 400 ? extractGuidebookFields(context) : Promise.resolve(sanitizeExtractedFields({})),
+    context.length >= 400
+      ? (beforeAi ? beforeAi() : Promise.resolve()).then(() => extractGuidebookFields(context))
+      : Promise.resolve(sanitizeExtractedFields({})),
   ]);
   console.info(
     `listing import: fetched ${html.length} bytes, context ${context.length} chars, ${coverCandidates.length} photo candidates (${coverDiagnostics}), cover ${cover ? "found" : "none"}: ${cover ? cover.split("?")[0].split("/").slice(-2).join("/") : "-"}`,

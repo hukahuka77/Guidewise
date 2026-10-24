@@ -8,12 +8,14 @@ import { supabase } from "@/lib/supabaseClient";
 import Spinner from "@/components/ui/spinner";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import QRDownloadButton from "@/components/custom/QRDownloadButton";
+import { useQrCode } from "@/hooks/useQrCode";
 import { absoluteUrl } from "@/lib/publicUrl";
 import { offerUpgrade, throwApiError } from "@/lib/upgrade";
 import { notify } from "@/lib/dialog";
 import { cacheGet, cacheSet } from "@/lib/cache";
 import { claimGuestGuidebooks, isGuestSession } from "@/lib/guest";
 import { useDialog } from "@/hooks/useDialog";
+import { loginPath, takeRememberedNextPath } from "@/lib/nextPath";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 
@@ -199,6 +201,7 @@ export default function DashboardPage() {
   const [qrModalFor, setQrModalFor] = useState<string | null>(null); // guidebook id
   const qrDialogRef = useRef<HTMLDivElement>(null);
   useDialog(qrModalFor !== null, () => setQrModalFor(null), qrDialogRef);
+  const qrSrc = useQrCode(qrModalFor ? absoluteUrl(`/guidebook/${qrModalFor}`) : null);
   const [syncSuccess, setSyncSuccess] = useState(false);
   const [updateSuccess, setUpdateSuccess] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -235,11 +238,17 @@ export default function DashboardPage() {
       const { data } = await supabase.auth.getSession();
       const token = data.session?.access_token || null;
       if (!token) {
-        router.push("/login");
+        router.push(loginPath());
         return;
       }
       if (isGuestSession(data.session)) {
         router.push("/signup?save=1");
+        return;
+      }
+      // Google sign-in lands here; go on to the page that sent them to log in
+      const remembered = takeRememberedNextPath();
+      if (remembered && remembered !== "/dashboard") {
+        router.replace(remembered);
         return;
       }
       // Guidebooks built as a guest before signing up join the account first
@@ -265,7 +274,7 @@ export default function DashboardPage() {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.status === 401) {
-          router.push("/login");
+          router.push(loginPath());
           return;
         }
         if (!res.ok) throw new Error(`Failed to load guidebooks (${res.status})`);
@@ -317,8 +326,6 @@ export default function DashboardPage() {
   }, [searchParams]);
 
   const getQrTargetUrl = (id: string) => absoluteUrl(`/guidebook/${id}`);
-  const getQrImageUrl = (url: string, size = 300) =>
-    `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(url)}`;
 
   // Download print PDF with loading state
   const downloadPrintPdf = async (id: string, propertyName: string) => {
@@ -586,7 +593,8 @@ export default function DashboardPage() {
             </div>
             <p className="mt-1 text-sm text-[#5b524c]">Print it for the fridge or the front door. It always opens the live guidebook.</p>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={getQrImageUrl(getQrTargetUrl(qrModalFor), 400)} alt="Guidebook QR code" className="mx-auto mt-5 h-[240px] w-[240px] rounded-2xl bg-white p-3 ring-1 ring-black/5" />
+            {qrSrc ? <img src={qrSrc} alt="Guidebook QR code" className="mx-auto mt-5 h-[240px] w-[240px] rounded-2xl bg-white p-3 ring-1 ring-black/5" />
+              : <div aria-hidden className="mx-auto mt-5 h-[240px] w-[240px] rounded-2xl bg-[#f6f2ee]" />}
             <div className="mt-5 flex flex-wrap justify-center gap-2">
               <Link href={getQrTargetUrl(qrModalFor)} target="_blank" rel="noopener noreferrer" className="inline-flex h-10 items-center gap-2 rounded-full px-4 text-sm font-semibold text-[#1f1a17] no-underline ring-1 ring-[#1f1a17]/15 hover:bg-[#faf7f4] hover:no-underline">
                 <ExternalLink className="size-4" /> Open guidebook

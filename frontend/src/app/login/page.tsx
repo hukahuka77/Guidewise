@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { claimGuestGuidebooks, hasPendingBuild } from "@/lib/guest";
+import { rememberNextPath, safeNextPath } from "@/lib/nextPath";
 import AuthShell, { AuthAlert, OrDivider, authInput, authLabel, authLink, authPrimary, authSecondary } from "@/components/custom/AuthShell";
 
 export default function LoginPage() {
@@ -22,11 +23,14 @@ export default function LoginPage() {
   // Came from "Save your guidebook": the guidebook they built as a guest joins this account
   const [saving, setSaving] = useState(false);
   const [pendingBuild, setPendingBuild] = useState(false);
+  // Sent here from a page that needs an account: go back to it afterwards instead of the dashboard
+  const [next, setNext] = useState<string | null>(null);
 
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
     if (query.get("reset") === "1") setRecovering(true);
     if (query.get("save") === "1") setSaving(true);
+    setNext(safeNextPath(query.get("next")));
     setPendingBuild(hasPendingBuild());
     if (!supabase) return;
     const { data } = supabase.auth.onAuthStateChange((event) => {
@@ -70,7 +74,7 @@ export default function LoginPage() {
       if (error) throw error;
       const claimed = await claimGuestGuidebooks();
       // A guidebook they started before logging in opens (or gets built) on /onboarding
-      router.push(claimed[0] ? `/edit/${claimed[0]}?new=true` : hasPendingBuild() ? "/onboarding" : "/dashboard");
+      router.push(claimed[0] ? `/edit/${claimed[0]}?new=true` : hasPendingBuild() ? "/onboarding" : next || "/dashboard");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Login failed";
       setError(msg);
@@ -197,10 +201,12 @@ export default function LoginPage() {
               }
               try {
                 setOauthLoading(true);
+                if (!saving && !pendingBuild) rememberNextPath(next);
                 await supabase.auth.signInWithOAuth({
                   provider: 'google',
                   options: {
-                    // /onboarding claims a guest's guidebook and opens it in the editor
+                    // /onboarding claims a guest's guidebook and opens it in the editor; otherwise the
+                    // dashboard (an allowed redirect) sends them on to the page they came from
                     redirectTo: `${(process.env.NEXT_PUBLIC_SITE_URL || window.location.origin)}${saving || pendingBuild ? "/onboarding" : "/dashboard"}`,
                     queryParams: { prompt: 'select_account' },
                   },
@@ -221,7 +227,7 @@ export default function LoginPage() {
 
       <p className="mt-6 text-center text-sm text-[#5b524c]">
         New to Guidewise?{" "}
-        <Link href={saving ? "/signup?save=1" : pendingBuild ? "/signup?build=1" : "/signup"} className={authLink}>
+        <Link href={saving ? "/signup?save=1" : pendingBuild ? "/signup?build=1" : next ? `/signup?next=${encodeURIComponent(next)}` : "/signup"} className={authLink}>
           Create a free account
         </Link>
       </p>

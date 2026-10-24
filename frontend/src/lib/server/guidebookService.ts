@@ -5,7 +5,8 @@ import { DEFAULT_TEMPLATE_KEY, TEMPLATE_REGISTRY } from "@/lib/guidebook/render"
 import type { GuidebookRow } from "@/lib/guidebook/types";
 import type { Sql } from "./db";
 import { isPremiumStyle, PREMIUM_STYLE_MESSAGE } from "@/lib/guidebook/styles";
-import { assertCanCreateGuidebook, getUserPlan } from "./usage";
+import { removeGuidebookUploads } from "./uploadCleanup";
+import { assertCanCreateGuidebook, getUserPlan, lockGuidebookCreation } from "./usage";
 
 // Guidebook CRUD. Everything that touches several tables runs in one transaction.
 
@@ -182,6 +183,7 @@ export async function createGuidebook(sql: Sql, userId: string, data: Dict): Pro
   await assertCanCreateGuidebook(sql, userId);
 
   return sql.begin(async (tx) => {
+    await lockGuidebookCreation(tx as unknown as Sql, userId);
     // Host (optional)
     let hostId: number | null = null;
     const hostName = trimmedString(data.host_name);
@@ -463,9 +465,19 @@ export async function updateGuidebook(sql: Sql, userId: string, id: string, inpu
 // Delete, template
 // ---------------------------------------------------------------------------------------------
 
-export async function deleteGuidebook(sql: Sql, userId: string, id: string): Promise<void> {
-  const deleted = await sql`delete from guidebook where id = ${id} and user_id = ${userId} returning id`;
+/**
+ * Delete a guidebook with its cached PDF layout and the photos and media uploaded for it. Its view counts
+ * stay, so deleting and recreating can't reset a free plan's monthly views.
+ */
+export async function deleteGuidebook(sql: Sql, userId: string, id: string, removeUploads = removeGuidebookUploads): Promise<void> {
+  const deleted = await sql.begin(async (tx) => {
+    const rows = await tx`delete from guidebook where id = ${id} and user_id = ${userId} returning *`;
+    if (rows.length > 0) await tx`delete from guidebook_pdf_plan where guidebook_id = ${id}`;
+    return rows;
+  });
   if (deleted.length === 0) throw new ServiceError(404, "Not found");
+  const others = await sql`select cover_image_url, things_to_do, places_to_eat, house_manual, custom_sections from guidebook where user_id = ${userId}`;
+  await removeUploads(deleted[0], [...others]);
 }
 
 export async function setTemplateKey(sql: Sql, userId: string, id: string, templateKey: unknown): Promise<string> {

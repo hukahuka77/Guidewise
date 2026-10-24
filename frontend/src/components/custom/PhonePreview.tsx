@@ -6,8 +6,23 @@ import { useEffect, useRef, useState } from "react";
 // computer still get their normal scrollbar, because this is only added to the preview.
 const HIDE_SCROLLBAR_CSS = "html{scrollbar-width:none}html::-webkit-scrollbar,body::-webkit-scrollbar{display:none}";
 
-function withoutScrollbar(html: string): string {
-  const tag = `<style data-preview>${HIDE_SCROLLBAR_CSS}</style>`;
+const SCROLL_MESSAGE = "guidewise-preview-scroll";
+
+/**
+ * The sandboxed frame is another origin, so the parent cannot read its scroll position. This reports it
+ * (throttled) and, when the frame is replaced after a save, puts the reader back where they were, unless they
+ * already started scrolling. "instant" because the guidebook's own CSS asks for smooth scrolling.
+ */
+function scrollKeeper(top: number): string {
+  return `<script data-preview>(function(){var t=${Math.max(0, Math.round(top))},m=0,p=0;` +
+    `function go(){if(t&&!m&&Math.abs(scrollY-t)>2)scrollTo({top:t,behavior:"instant"})}` +
+    `["wheel","touchstart","keydown","pointerdown"].forEach(function(e){addEventListener(e,function(){m=1},{once:true,passive:true})});` +
+    `addEventListener("DOMContentLoaded",go);addEventListener("load",go);` +
+    `addEventListener("scroll",function(){if(p)return;p=setTimeout(function(){p=0;parent.postMessage({type:"${SCROLL_MESSAGE}",top:scrollY},"*")},150)},{passive:true})})()</script>`;
+}
+
+function withoutScrollbar(html: string, scrollTop = 0): string {
+  const tag = `<style data-preview>${HIDE_SCROLLBAR_CSS}</style>${scrollKeeper(scrollTop)}`;
   return html.includes("</head>") ? html.replace("</head>", `${tag}</head>`) : tag + html;
 }
 
@@ -84,6 +99,21 @@ export default function PhonePreview({ guidebookId, accessToken, refreshKey = 0,
   const [failed, setFailed] = useState(false);
   const peeked = useRef(false);
   const sampleRef = useRef<HTMLIFrameElement>(null);
+  const frameRef = useRef<HTMLIFrameElement>(null);
+  // Where the reader was, per guidebook, so a refresh after a save keeps their place (a different guidebook starts at the top)
+  const shown = useRef<string | null>(null);
+  const scroll = useRef<{ key: string | null; top: number }>({ key: null, top: 0 });
+
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      // Only this preview's own frame can move it
+      if (!frameRef.current || e.source !== frameRef.current.contentWindow) return;
+      const data = e.data as { type?: unknown; top?: unknown } | null;
+      if (data?.type === SCROLL_MESSAGE && typeof data.top === "number" && Number.isFinite(data.top)) scroll.current = { key: shown.current, top: data.top };
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
 
   const sampleReady = (frame: HTMLIFrameElement) => {
     hideScrollbar(frame);
@@ -115,7 +145,10 @@ export default function PhonePreview({ guidebookId, accessToken, refreshKey = 0,
         if (!res.ok) throw new Error(String(res.status));
         const text = await res.text();
         if (!cancelled) {
-          setHtml(text);
+          // Built once per fetch rather than on every render, so the frame only reloads with a new copy
+          const key = htmlUrl || guidebookId || null;
+          shown.current = key;
+          setHtml(withoutScrollbar(text, scroll.current.key === key ? scroll.current.top : 0));
           setFailed(false);
         }
       } catch {
@@ -137,9 +170,10 @@ export default function PhonePreview({ guidebookId, accessToken, refreshKey = 0,
             // Its own element (key) with the sandbox set before srcDoc: sandbox flags only apply on navigation, and
             // without allow-same-origin srcDoc would run the guidebook's scripts as this site, with the host's session
             key="guidebook"
+            ref={frameRef}
             sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
             title="Your guidebook"
-            srcDoc={withoutScrollbar(html)}
+            srcDoc={html}
             className="h-full w-full border-0 bg-white"
           />
         ) : (

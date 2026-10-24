@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { notify } from "@/lib/dialog";
+import { qrPngDataUrl } from "@/lib/qr";
 import { Button } from "@/components/ui/button";
 
 interface QRDownloadButtonProps {
@@ -19,29 +20,15 @@ export default function QRDownloadButton({
 }: QRDownloadButtonProps) {
   const [downloading, setDownloading] = useState(false);
 
-  const getQrImageUrl = (url: string, size = 300) =>
-    `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(url)}`;
-
   const handleDownload = async () => {
     setDownloading(true);
     try {
-      const qrUrl = getQrImageUrl(targetUrl, 800);
-
-      // Fetch the image as a blob to enable proper download
-      const response = await fetch(qrUrl);
-      const blob = await response.blob();
-
-      // Create object URL and download
-      const objectUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = objectUrl;
+      link.href = await qrPngDataUrl(targetUrl, 800);
       link.download = `${propertyName.toLowerCase().replace(/\s+/g, '-')}-qr-code.png`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-
-      // Clean up object URL
-      URL.revokeObjectURL(objectUrl);
     } catch (error) {
       console.error('Failed to download QR code:', error);
       notify('Couldn\'t download the QR code', 'Please try again.');

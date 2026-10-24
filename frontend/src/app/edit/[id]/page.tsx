@@ -20,6 +20,7 @@ import CustomSection, { CustomItem } from "@/components/sections/CustomSection";
 import PlacePickerModal from "@/components/places/PlacePickerModal";
 import EditTutorial from "@/components/ui/EditTutorial";
 import PhonePreview from "@/components/custom/PhonePreview";
+import { useMedia } from "@/components/home/useMedia";
 import { LIMITS } from "@/constants/limits";
 import { useGuidebookForm } from "@/hooks/useGuidebookForm";
 import { useAIRecommendations } from "@/hooks/useAIRecommendations";
@@ -34,9 +35,21 @@ import { EDIT_SECTIONS_ORDER } from "@/config/sections";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import { useDialog } from "@/hooks/useDialog";
 import { showDialog } from "@/lib/dialog";
+import { loginPath } from "@/lib/nextPath";
 
 const BUCKET_NAME = process.env.NEXT_PUBLIC_SUPABASE_FOOD_ACTIVITIES_BUCKET as string;
 const HOUSE_MEDIA_BUCKET = process.env.NEXT_PUBLIC_SUPABASE_USER_VIDEOS_BUCKET as string;
+// Waits before trying a failed autosave again; after the last one the editor asks the host instead
+const AUTOSAVE_RETRY_MS = [2000, 5000, 15000];
+
+/** A save the server answered with an error status. */
+class SaveError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
 
 
 type GuidebookDetail = {
@@ -178,10 +191,13 @@ export default function EditGuidebookPage() {
   const [templateKey, setTemplateKey] = useState<string>("template_original");
   const [publicSlug, setPublicSlug] = useState<string | null>(null);
   const [previewKey, setPreviewKey] = useState(0);
-  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "retrying" | "error">("idle");
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  // Only the preview on screen is mounted (side column from xl up, else the modal), so a save fetches the page once
+  const wide = useMedia("(min-width: 1280px)");
   const previewRef = useRef<HTMLDivElement>(null);
-  useDialog(previewOpen, () => setPreviewOpen(false), previewRef);
+  useDialog(previewOpen && !wide, () => setPreviewOpen(false), previewRef);
 
   // Check if this is first-time visiting edit page (skip on mobile)
   useEffect(() => {
@@ -209,7 +225,7 @@ export default function EditGuidebookPage() {
   useEffect(() => {
     if (!guidebookId || !authReady) return;
     if (!signedIn) {
-      router.push("/login");
+      router.push(loginPath());
       return;
     }
     // Editing is for saved guidebooks: guests create a free account first (their guidebook comes with them)
@@ -231,7 +247,7 @@ export default function EditGuidebookPage() {
         });
         if (cancelled) return;
         // 401 shouldn't occur because we verified accessToken above; still handle just in case
-        if (res.status === 401) { router.push("/login"); return; }
+        if (res.status === 401) { router.push(loginPath()); return; }
         if (res.status === 404 || res.status === 400) { setNotFound(true); return; }
         if (!res.ok) throw new Error(`Failed to load guidebook (${res.status})`);
         const data: GuidebookDetail = await res.json();
@@ -417,10 +433,13 @@ export default function EditGuidebookPage() {
       keepalive,
     });
     if (res.status === 401) {
-      router.push("/login");
+      router.push(loginPath());
       return false;
     }
-    if (!res.ok) throw new Error(`Update failed (${res.status})`);
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new SaveError(body.error || `Update failed (${res.status})`, res.status);
+    }
     return true;
   };
 
@@ -432,6 +451,7 @@ export default function EditGuidebookPage() {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+    cancelRetry();
     try {
       if (baseline.current !== null) baseline.current = snapshotRef.current;
       if (!(await persistRef.current())) return;
@@ -452,7 +472,18 @@ export default function EditGuidebookPage() {
   const baseline = useRef<string | null>(null);
   const baselineTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const snapshotRef = useRef("");
-  const autosave = useCallback(async () => {
+  // A save that failed on the network or the server is tried again on its own; a newer edit starts a fresh one instead
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retries = useRef(0);
+  const unsaved = useRef(false);
+  const cancelRetry = useCallback(() => {
+    if (retryTimer.current) clearTimeout(retryTimer.current);
+    retryTimer.current = null;
+  }, []);
+  const autosave = useCallback(async (retry = false) => {
+    cancelRetry();
+    if (!retry) retries.current = 0;
+    if (!loadedRef.current) return;
     if (saving.current) {
       again.current = true;
       return;
@@ -465,15 +496,27 @@ export default function EditGuidebookPage() {
         if (snapshotRef.current) baseline.current = snapshotRef.current;
         if (!(await persistRef.current())) return;
       } while (again.current);
+      unsaved.current = false;
       setSaveState("saved");
       setPreviewKey((k) => k + 1);
     } catch (err) {
       console.error("autosave failed", err);
-      setSaveState("error");
+      unsaved.current = true;
+      const status = err instanceof SaveError ? err.status : 0;
+      // fetch rejects with a TypeError when the request never got an answer
+      if ((err instanceof TypeError || status >= 500 || status === 429) && retries.current < AUTOSAVE_RETRY_MS.length) {
+        retryTimer.current = setTimeout(() => autosave(true), AUTOSAVE_RETRY_MS[retries.current++]);
+        setSaveState("retrying");
+      } else {
+        // The server's reason for a refused save (a field too long, say) is shown; retrying wouldn't help
+        setSaveError(status >= 400 && status < 500 && err instanceof Error ? err.message : null);
+        setSaveState("error");
+      }
     } finally {
       saving.current = false;
     }
-  }, []);
+  }, [cancelRetry]);
+  useEffect(() => cancelRetry, [cancelRetry]);
 
   const snapshot = JSON.stringify([
     formData, foodItems, activityItems, rules, houseManualItems, checkoutItems, customSections, customTabsMeta, included,
@@ -486,7 +529,7 @@ export default function EditGuidebookPage() {
     if (!loaded) return;
     const flush = () => {
       // A save still in flight is cancelled by the browser when the page unloads, so it is sent again with keepalive
-      if (baseline.current === null || (snapshotRef.current === baseline.current && !saving.current)) return;
+      if (baseline.current === null || (snapshotRef.current === baseline.current && !saving.current && !unsaved.current)) return;
       baseline.current = snapshotRef.current;
       // The browser may reject the promise as the page unloads even though the keepalive request still completes
       persistRef.current(true).catch(() => {});
@@ -623,8 +666,15 @@ export default function EditGuidebookPage() {
     <span className="inline-flex items-center gap-1.5 text-sm text-gray-500" aria-live="polite" data-save-status>
       {saveState === "saving" ? (
         <><Loader2 className="size-4 animate-spin" /> Saving…</>
+      ) : saveState === "retrying" ? (
+        <><Loader2 className="size-4 animate-spin" /> Couldn&apos;t save. Retrying…</>
+      ) : saveState === "error" && saveError ? (
+        <span className="text-red-600">{saveError}</span>
       ) : saveState === "error" ? (
-        <span className="text-red-600">Couldn&apos;t save. Try Done.</span>
+        <span className="text-red-600">
+          Couldn&apos;t save. Try Done or{" "}
+          <button type="button" onClick={() => autosave()} className="font-medium underline underline-offset-2 hover:text-red-700">retry</button>.
+        </span>
       ) : saveState === "saved" ? (
         <><Check className="size-4 text-emerald-600" /> Saved</>
       ) : (
@@ -779,7 +829,7 @@ export default function EditGuidebookPage() {
 
       <CreateGuidebookLayout
         topbar={topbar}
-        preview={preview}
+        preview={wide ? preview : undefined}
         sidebar={
           <div data-tutorial="sidebar">
             <SidebarNav
@@ -1045,7 +1095,7 @@ export default function EditGuidebookPage() {
       </CreateGuidebookLayout>
 
       {/* Preview on screens without the side column */}
-      {previewOpen && (
+      {previewOpen && !wide && (
         <div className="fixed inset-0 z-50 flex flex-col items-center overflow-y-auto bg-black/60 p-4 xl:hidden" onClick={() => setPreviewOpen(false)} role="dialog" aria-modal="true" aria-label="Guidebook preview">
           <div ref={previewRef} tabIndex={-1} className="my-auto flex w-full max-w-sm flex-col items-center gap-4 rounded-3xl bg-[#F8F5F1] p-5 outline-none" onClick={(e) => e.stopPropagation()}>
             <div className="flex w-full items-center justify-between">
