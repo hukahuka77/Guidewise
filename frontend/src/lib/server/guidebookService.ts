@@ -257,9 +257,12 @@ const GUIDEBOOK_WITH_RELATIONS = (sql: Sql, where: ReturnType<Sql>) => sql`
 
 /** GET /api/guidebooks */
 export async function listGuidebooks(sql: Sql, userId: string): Promise<Row[]> {
+  const limit = (await getUserPlan(sql, userId)).guidebookLimit;
+  // Same order as isGuidebookLocked: the oldest guidebooks, up to the plan's limit, are live
   const rows = await sql`
     select g.id, g.template_key, g.created_time, g.last_modified_time, g.cover_image_url,
-           g.public_slug, p.name as property_name
+           g.public_slug, p.name as property_name,
+           row_number() over (order by g.created_time asc nulls first, g.id) as position
       from guidebook g left join property p on p.id = g.property_id
      where g.user_id = ${userId}
      order by g.last_modified_time desc`;
@@ -273,6 +276,7 @@ export async function listGuidebooks(sql: Sql, userId: string): Promise<Row[]> {
       last_modified_time: isoOrNull(r.last_modified_time),
       cover_image_url: r.cover_image_url,
       public_slug: r.public_slug ?? (await ensurePublicSlug(sql, r.id, r.property_name)),
+      locked: limit !== null && Number(r.position) > limit,
     });
   }
   return items;

@@ -48,7 +48,7 @@ export default function PricingPage() {
       <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 md:py-16">
         <div className="mx-auto mb-12 max-w-3xl text-center">
           <h1 className="text-balance text-4xl font-semibold tracking-[-0.03em] text-[#1f1a17] md:text-5xl">Free to create. Pay when guests come.</h1>
-          <p className="mt-4 text-lg text-[#5b524c]">Build as many guidebooks as you like. Upgrade when you want unlimited guest views and more.</p>
+          <p className="mt-4 text-lg text-[#5b524c]">Your first guidebook is free. Upgrade for unlimited guest views, more guidebooks and more.</p>
         </div>
 
         {error && (

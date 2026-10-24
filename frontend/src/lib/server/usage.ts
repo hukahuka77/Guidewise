@@ -47,16 +47,33 @@ export function isNonViewRequest(request: Request): boolean {
   return ua === "" || BOT_PATTERN.test(ua);
 }
 
+/** A repeat visit from the same visitor counts again only after this long. */
+export const REPEAT_VIEW_HOURS = 6;
+
 /**
- * Salted hash of (visitor IP, guidebook, UTC day): one view per visitor per guidebook per day. The user
- * agent is left out on purpose, since anyone can change it to burn through a free host's views. No raw
- * IP is stored.
+ * The part of an IP address that identifies one visitor. One IPv6 connection usually holds a whole /64
+ * (billions of addresses), so the first four groups count as one visitor; IPv4 addresses are used as is.
  */
-export function visitorKey(request: Request, guidebookId: string, now = Date.now()): string {
-  const ip = clientIp(request);
-  const day = new Date(now).toISOString().slice(0, 10);
+export function visitorBlock(ip: string): string {
+  const addr = ip.trim().toLowerCase().replace(/^\[|\](:\d+)?$/g, "").split("%")[0];
+  if (!addr.includes(":")) return addr;
+  const mapped = addr.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+  if (mapped) return mapped[1];
+  const [head, tail = ""] = addr.split("::");
+  const front = head ? head.split(":") : [];
+  const back = addr.includes("::") ? (tail ? tail.split(":") : []) : [];
+  const groups = addr.includes("::") ? [...front, ...Array(Math.max(0, 8 - front.length - back.length)).fill("0"), ...back] : front;
+  return groups.slice(0, 4).map((g) => g.replace(/^0+(?=.)/, "")).join(":") + "::/64";
+}
+
+/**
+ * Salted hash of (visitor, guidebook). A visitor counts once per guidebook per REPEAT_VIEW_HOURS (see
+ * recordView). The user agent is left out on purpose, since anyone can change it to burn through a free
+ * host's views. No raw IP is stored.
+ */
+export function visitorKey(request: Request, guidebookId: string): string {
   const salt = process.env.VIEW_HASH_SALT || process.env.SUPABASE_SERVICE_ROLE_KEY || "guidewise-views";
-  return createHash("sha256").update(`${salt}|${guidebookId}|${ip}|${day}`).digest("hex");
+  return createHash("sha256").update(`${salt}|${guidebookId}|${visitorBlock(clientIp(request))}|v2`).digest("hex");
 }
 
 export async function monthlyViews(sql: Sql, userId: string): Promise<number> {
@@ -72,11 +89,15 @@ async function purgeOldDedupeKeys(sql: Sql) {
 }
 
 /**
- * Record one view unless this visitor already counted within the last half hour.
+ * Record one view unless this visitor already counted one in the last REPEAT_VIEW_HOURS.
  * Returns true when a view was added.
  */
 export async function recordView(sql: Sql, guidebookId: string, ownerId: string, key: string): Promise<boolean> {
-  const inserted = await sql`insert into public.view_dedupe (key) values (${key}) on conflict (key) do nothing returning key`;
+  const inserted = await sql`
+    insert into public.view_dedupe (key) values (${key})
+    on conflict (key) do update set created_at = now()
+     where public.view_dedupe.created_at < now() - make_interval(hours => ${REPEAT_VIEW_HOURS})
+    returning key`;
   if (inserted.length === 0) return false;
   await sql`
     insert into public.guidebook_view_daily (guidebook_id, user_id, day, views)
@@ -86,35 +107,53 @@ export async function recordView(sql: Sql, guidebookId: string, ownerId: string,
   return true;
 }
 
+/**
+ * Guidebooks beyond the plan's limit (after a downgrade, or a claimed guest or gift guidebook) stay
+ * editable but are paused for guests. The owner's oldest guidebooks, up to the limit, stay live.
+ */
+export async function isGuidebookLocked(sql: Sql, guidebookId: string, ownerId: string, plan?: PlanConfig): Promise<boolean> {
+  const limit = (plan ?? (await getUserPlan(sql, ownerId))).guidebookLimit;
+  if (limit === null) return false;
+  const [row] = await sql`
+    select position from (
+      select id, row_number() over (order by created_time asc nulls first, id) as position
+        from public.guidebook where user_id = ${ownerId}
+    ) ranked where id = ${guidebookId}`;
+  return !!row && Number(row.position) > limit;
+}
+
 export type ViewDecision =
   | { action: "serve"; cacheable: boolean; beacon: boolean }
-  | { action: "blocked"; limit: number };
+  | { action: "blocked"; reason: "views" | "locked" };
 
 /**
  * Decide how to serve a live guidebook:
  *  - free owners: every request reaches the server, is counted (deduped), and is blocked once the month's
  *    allowance is used up. Responses are not cached so the limit holds.
  *  - paid owners: unlimited; pages stay CDN-cacheable and a small beacon records the view instead.
+ *  - guidebooks beyond the plan's guidebook limit are paused for guests (isGuidebookLocked).
  * Any failure serves the page normally (never take a guidebook down because of a counter problem).
  */
 export async function decideView(sql: Sql, request: Request, guidebookId: string, ownerId: string | null): Promise<ViewDecision> {
   try {
     if (!ownerId) return { action: "serve", cacheable: true, beacon: false };
     const plan = await getUserPlan(sql, ownerId);
+    if (await isGuidebookLocked(sql, guidebookId, ownerId, plan)) return { action: "blocked", reason: "locked" };
     if (plan.viewsPerMonth === null) return { action: "serve", cacheable: true, beacon: true };
 
     if (isNonViewRequest(request)) {
       // Not counted, but a guidebook that is over its limit stays unavailable to everyone
       return (await monthlyViews(sql, ownerId)) >= plan.viewsPerMonth
-        ? { action: "blocked", limit: plan.viewsPerMonth }
+        ? { action: "blocked", reason: "views" }
         : { action: "serve", cacheable: false, beacon: false };
     }
 
     const key = visitorKey(request, guidebookId);
-    const seen = await sql`select 1 from public.view_dedupe where key = ${key}`;
+    const seen = await sql`
+      select 1 from public.view_dedupe where key = ${key} and created_at >= now() - make_interval(hours => ${REPEAT_VIEW_HOURS})`;
     if (seen.length > 0) return { action: "serve", cacheable: false, beacon: false };
 
-    if ((await monthlyViews(sql, ownerId)) >= plan.viewsPerMonth) return { action: "blocked", limit: plan.viewsPerMonth };
+    if ((await monthlyViews(sql, ownerId)) >= plan.viewsPerMonth) return { action: "blocked", reason: "views" };
     await recordView(sql, guidebookId, ownerId, key);
     return { action: "serve", cacheable: false, beacon: false };
   } catch (error) {
@@ -208,7 +247,7 @@ const MAX_CREATED_PER_DAY = 100;
 
 /**
  * Guidebooks are free, so creation is rate limited (shared across instances because it counts rows)
- * to stop scripts, and capped per plan (the cap is fine print, not advertised).
+ * to stop scripts, and capped per plan.
  */
 export async function assertCanCreateGuidebook(sql: Sql, userId: string): Promise<void> {
   const [recent] = await sql`
@@ -223,7 +262,7 @@ export async function assertCanCreateGuidebook(sql: Sql, userId: string): Promis
   if (plan.guidebookLimit !== null && recent.total >= plan.guidebookLimit) {
     throw new ServiceError(
       403,
-      `Your ${plan.name} plan includes up to ${plan.guidebookLimit} guidebooks. Upgrade your plan to create more.`,
+      `Your ${plan.name} plan includes ${plan.guidebookLimit === 1 ? "1 guidebook" : `up to ${plan.guidebookLimit} guidebooks`}. Upgrade your plan to create more.`,
       { upgrade: true, quota: "guidebooks" },
     );
   }

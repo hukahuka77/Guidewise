@@ -10,8 +10,8 @@ import { getSupabaseAdmin } from "./supabaseAdmin";
  * signed claim ticket for the anonymous user and hands it in afterwards to move the guidebooks over.
  */
 
-/** Guidebooks a guest can make before they need an account. */
-export const GUEST_GUIDEBOOK_LIMIT = 3;
+/** Guidebooks a guest can make before they need an account: the free plan's one. */
+export const GUEST_GUIDEBOOK_LIMIT = 1;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TICKET_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 

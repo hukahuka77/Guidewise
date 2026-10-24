@@ -189,7 +189,7 @@ describe("billingSummary", () => {
   it("defaults to the free plan for users without a profile", async () => {
     const out = await billingSummary(db.sql, null, user);
     expect(out).toMatchObject({
-      plan: "free", plan_display: "Free", guidebook_limit: null, guidebook_count: 0,
+      plan: "free", plan_display: "Free", guidebook_limit: 1, guidebook_count: 0,
       can_create_more: true, views_used: 0, views_limit: 30, ai_used: 0, ai_limit: 3,
       features: { all_pdf_templates: false, print_pdf: false, analytics: false },
       stripe: { customer_id: null, subscription: null, invoices: [] },
@@ -484,7 +484,7 @@ describe("billing routes", () => {
   it("summary and portal respond with the service results", async () => {
     setStripeForTests(fakeStripe({ customers: { list: vi.fn(async () => ({ data: [{ id: "cus_1" }] })) } }));
     const summary = await (await call(summaryRoute, "GET", "/api/billing/summary")).json() as Record<string, unknown>;
-    expect(summary).toMatchObject({ plan: "free", guidebook_limit: null, views_limit: 30, stripe: { customer_id: "cus_1" } });
+    expect(summary).toMatchObject({ plan: "free", guidebook_limit: 1, views_limit: 30, stripe: { customer_id: "cus_1" } });
     const portal = await call(portalRoute, "POST", "/api/billing/create-portal-session");
     expect(await portal.json()).toEqual({ url: "https://portal.stripe.test/p1" });
     const noEmail = await call(portalRoute, "POST", "/api/billing/create-portal-session", "noemail");

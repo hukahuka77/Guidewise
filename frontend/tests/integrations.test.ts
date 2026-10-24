@@ -396,6 +396,10 @@ describe("listing import route", () => {
     });
   const run = (url = "https://www.airbnb.com/rooms/1") => importRoute(post("/api/import-listing", { url }));
   const pageCalls = () => fetchMock.mock.calls.map((c) => String(c[0])).filter((u) => !/muscache\.com/.test(u));
+  // Several tests import more than the free plan's one guidebook
+  beforeEach(async () => {
+    await setPlan(db.sql, OWNER, "pro");
+  });
 
   it("requires auth and a valid url", async () => {
     expect((await importRoute(post("/api/import-listing", { url: "https://airbnb.com/rooms/1" }, "bad"))).status).toBe(401);
@@ -534,6 +538,7 @@ describe("listing import route", () => {
 
     it("still imports when the free AI allowance is used up, and says so", async () => {
       wire();
+      await setPlan(db.sql, OWNER, "free");
       await db.sql`insert into ai_usage_monthly (user_id, month, used) values (${OWNER}, ${monthStart()}::date, 3)`;
       const body = await (await run()).json();
       expect(body.recommendations).toEqual({ things_to_do: 0, places_to_eat: 0, skipped: "quota" });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { BookOpen, ExternalLink, LayoutGrid, List, MoreHorizontal, Plus, X } from "lucide-react";
+import { BookOpen, ExternalLink, LayoutGrid, List, Lock, MoreHorizontal, Plus, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
@@ -25,6 +25,8 @@ type GuidebookItem = {
   last_modified_time?: string | null;
   cover_image_url?: string | null;
   public_slug?: string | null;
+  /** Beyond the plan's guidebook limit: editable, but guests can't open it. */
+  locked?: boolean;
 };
 
 // Map internal template keys to human-friendly display names
@@ -128,6 +130,14 @@ const STYLE_CHIP: Record<string, string> = {
   Lifestyle: "bg-sky-50 text-sky-800",
   Welcoming: "bg-[#f1ede7] text-[#5b524c]",
 };
+
+function LockedTag() {
+  return (
+    <span title="Guests can't open this guidebook because it's beyond your plan's guidebook limit. Upgrade to make it live." className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 ring-1 ring-amber-200">
+      <Lock className="size-3" aria-hidden /> Locked
+    </span>
+  );
+}
 
 function StyleChip({ templateKey }: { templateKey?: string | null }) {
   const name = styleName(templateKey);
@@ -355,6 +365,8 @@ export default function DashboardPage() {
   const viewsShare = freeViews && usage.viewsLimit ? Math.min(1, usage.viewsUsed / usage.viewsLimit) : 0;
   const viewsOut = freeViews && usage.viewsLimit !== null && usage.viewsUsed >= usage.viewsLimit;
   const planName = plan ? plan.charAt(0).toUpperCase() + plan.slice(1) : "";
+  const lockedCount = items.filter((gb) => gb.locked).length;
+  const liveCount = items.length - lockedCount;
 
   return (
     <div className="space-y-6">
@@ -421,6 +433,18 @@ export default function DashboardPage() {
       )}
       {!loading && error && <div className="rounded-3xl bg-white p-6 text-red-700 ring-1 ring-red-100">{error}</div>}
 
+      {!loading && !error && lockedCount > 0 && (
+        <section aria-label="Locked guidebooks" className="flex flex-col gap-3 rounded-3xl bg-amber-50 p-5 text-sm text-amber-900 ring-1 ring-amber-200 sm:flex-row sm:items-center sm:justify-between">
+          <p>
+            <strong className="font-semibold">
+              {lockedCount === 1 ? "1 guidebook is locked." : `${lockedCount} guidebooks are locked.`}
+            </strong>{" "}
+            Your plan keeps your oldest {liveCount === 1 ? "guidebook" : `${liveCount} guidebooks`} live. You can still edit locked ones, but guests can&apos;t open them until you upgrade.
+          </p>
+          <Link href="/pricing" className="shrink-0 font-semibold text-amber-900 underline-offset-2 hover:underline">See plans</Link>
+        </section>
+      )}
+
       {!loading && !error && items.length === 0 && (
         <section className="flex flex-col items-center rounded-3xl bg-white px-6 py-14 text-center ring-1 ring-black/5">
           <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#fdf0f5] text-[#db2777]">
@@ -475,7 +499,10 @@ export default function DashboardPage() {
                       <Link href={`/edit/${gb.id}`} className="flex min-w-0 items-center gap-3 no-underline hover:no-underline">
                         <Cover url={gb.cover_image_url} className="hidden h-11 w-16 shrink-0 rounded-xl sm:block" />
                         <span className="min-w-0">
-                          <span className="block truncate font-medium text-[#1f1a17]" title={name}>{name}</span>
+                          <span className="flex min-w-0 items-center gap-2">
+                            <span className="truncate font-medium text-[#1f1a17]" title={name}>{name}</span>
+                            {gb.locked && <LockedTag />}
+                          </span>
                           <span className="block truncate text-xs text-[#8a7f77] sm:hidden">{updatedLabel(gb)}</span>
                         </span>
                       </Link>
@@ -516,6 +543,7 @@ export default function DashboardPage() {
                     <div className="min-w-0">
                       <h3 className="truncate font-semibold text-[#1f1a17]" title={name}>{name}</h3>
                       {updatedLabel(gb) && <p className="text-xs text-[#8a7f77]">Updated {updatedLabel(gb)}</p>}
+                      {gb.locked && <div className="mt-2"><LockedTag /></div>}
                     </div>
                     <StyleChip templateKey={gb.template_key} />
                   </div>
