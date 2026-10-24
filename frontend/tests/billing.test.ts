@@ -240,21 +240,32 @@ describe("billingSummary", () => {
 });
 
 describe("createPortalSession", () => {
-  it("needs an email (it must never pick an arbitrary customer)", async () => {
+  it("never trusts an email from the request, and never picks an arbitrary customer", async () => {
     const stripe = fakeStripe();
-    await rejects(createPortalSession(stripe, { id: OWNER, email: null }, {}, origin), 400);
+    await rejects(createPortalSession(db.sql, stripe, { id: OWNER, email: null }, origin), 404);
     expect(stripe.customers.list).not.toHaveBeenCalled();
-    // an email in the body is accepted when the token has none
-    const withBody = fakeStripe({ customers: { list: vi.fn(async () => ({ data: [{ id: "cus_b" }] })) } });
-    await createPortalSession(withBody, { id: OWNER, email: null }, { email: "body@example.com" }, origin);
-    expect(withBody.customers.list).toHaveBeenCalledWith({ email: "body@example.com", limit: 1 });
+    // the route ignores an email in the body
+    setStripeForTests(stripe);
+    const res = await portalRoute(new Request("http://x/api/billing/create-portal-session", {
+      method: "POST", headers: { Authorization: "Bearer noemail", "Content-Type": "application/json" }, body: JSON.stringify({ email: "victim@example.com" }),
+    }));
+    expect(res.status).toBe(404);
+    expect(stripe.customers.list).not.toHaveBeenCalled();
+  });
+
+  it("prefers the customer checkout stored on the profile", async () => {
+    await db.sql`insert into public.profiles (user_id, plan, stripe_customer_id) values (${OWNER}::uuid, 'pro', 'cus_stored')`;
+    const stripe = fakeStripe({ customers: { list: vi.fn(async () => ({ data: [{ id: "cus_email" }] })) } });
+    await createPortalSession(db.sql, stripe, user, origin);
+    expect(stripe.customers.list).not.toHaveBeenCalled();
+    expect(stripe.billingPortal.sessions.create).toHaveBeenCalledWith(expect.objectContaining({ customer: "cus_stored" }));
   });
 
   it("404s without a customer, otherwise opens the portal with the configuration and return url", async () => {
-    await rejects(createPortalSession(fakeStripe(), user, {}, origin), 404);
+    await rejects(createPortalSession(db.sql, fakeStripe(), user, origin), 404);
     process.env.STRIPE_PORTAL_CONFIGURATION_ID = "bpc_1";
     const stripe = fakeStripe({ customers: { list: vi.fn(async () => ({ data: [{ id: "cus_1" }] })) } });
-    expect(await createPortalSession(stripe, user, {}, origin)).toEqual({ url: "https://portal.stripe.test/p1" });
+    expect(await createPortalSession(db.sql, stripe, user, origin)).toEqual({ url: "https://portal.stripe.test/p1" });
     expect(stripe.billingPortal.sessions.create).toHaveBeenCalledWith({
       customer: "cus_1", return_url: "https://app.example.com/dashboard/billing?updated=1", configuration: "bpc_1",
     });
@@ -281,6 +292,11 @@ describe("handleStripeEvent", () => {
     const [p] = await db.sql`select * from profiles where user_id = ${OWNER}::uuid`;
     expect(p).toMatchObject({ plan: "starter", guidebook_limit: 5, stripe_subscription_id: "sub_x", pro_starts_at: null });
     expect((await db.sql`select count(*)::int as n from profiles`)[0].n).toBe(1);
+  });
+
+  it("checkout.session.completed waits for the payment when it is still unpaid", async () => {
+    await handleStripeEvent(db.sql, fakeStripe(), ev("checkout.session.completed", { metadata: { user_id: OWNER, plan: "pro" }, payment_status: "unpaid", subscription: "s", customer: "c" }));
+    expect(await db.sql`select * from public.profiles where user_id = ${OWNER}::uuid`).toHaveLength(0);
   });
 
   it("checkout.session.completed ignores events without a user or with an unknown plan", async () => {
@@ -472,6 +488,6 @@ describe("billing routes", () => {
     const portal = await call(portalRoute, "POST", "/api/billing/create-portal-session");
     expect(await portal.json()).toEqual({ url: "https://portal.stripe.test/p1" });
     const noEmail = await call(portalRoute, "POST", "/api/billing/create-portal-session", "noemail");
-    expect(noEmail.status).toBe(400);
+    expect(noEmail.status).toBe(404);
   });
 });

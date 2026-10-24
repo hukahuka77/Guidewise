@@ -90,8 +90,6 @@ export default function BillingPage() {
     setPortalLoading(true);
     try {
       if (!supabase) throw new Error("Supabase not initialized");
-      const { data } = await supabase.auth.getUser();
-      const email = data.user?.email || undefined;
       const sess = await supabase.auth.getSession();
       const token = sess.data.session?.access_token || null;
       const res = await fetch(`/api/billing/create-portal-session`, {
@@ -100,7 +98,7 @@ export default function BillingPage() {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ email }),
+        body: "{}",
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || `Failed to open billing portal (${res.status})`);

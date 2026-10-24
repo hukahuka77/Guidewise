@@ -1,15 +1,21 @@
 import { notConfigured } from "@/lib/server/apiRoute";
 import { isGoogleConfigured } from "@/lib/server/googlePlaces";
 import { resolvePlacePhoto } from "@/lib/server/placesService";
+import { clientIp, rateLimited } from "@/lib/server/rateLimit";
 
 export const dynamic = "force-dynamic";
 export const preferredRegion = "iad1";
 
-// Public (no auth): guidebook pages embed these URLs. The CDN caches the bytes for a week.
+// Public (no auth): guidebook pages embed these URLs. The CDN caches the bytes for a week, so only
+// cache misses get here; the per-visitor limit stops scripts from spending the Google quota.
+const PHOTOS_PER_MINUTE = 120;
 const CACHE_CONTROL = "public, max-age=604800, s-maxage=604800, stale-while-revalidate=86400";
 
 export async function GET(request: Request) {
   if (!isGoogleConfigured()) return notConfigured();
+  if (rateLimited(`place-photo:${clientIp(request)}`, PHOTOS_PER_MINUTE)) {
+    return Response.json({ error: "Too many requests" }, { status: 429, headers: { "Retry-After": "60" } });
+  }
 
   const params = new URL(request.url).searchParams;
   const photoReference = (params.get("photo_reference") || "").trim();

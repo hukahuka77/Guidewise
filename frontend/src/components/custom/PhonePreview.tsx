@@ -79,13 +79,17 @@ export default function PhonePreview({ guidebookId, accessToken, refreshKey = 0,
       <div className="relative h-full w-full overflow-hidden rounded-[2.1rem] bg-neutral-950">
         {html ? (
           <iframe
+            // Its own element (key) with the sandbox set before srcDoc: sandbox flags only apply on navigation, and
+            // without allow-same-origin srcDoc would run the guidebook's scripts as this site, with the host's session
+            key="guidebook"
+            sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
             title="Your guidebook"
             srcDoc={withoutScrollbar(html)}
-            sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
             className="h-full w-full border-0 bg-white"
           />
         ) : (
           <iframe
+            key="sample"
             title="Sample guidebook"
             src={`/sample-guidebook${sampleTemplate ? `?template=${encodeURIComponent(sampleTemplate)}` : ""}`}
             onLoad={hideScrollbarOnLoad}

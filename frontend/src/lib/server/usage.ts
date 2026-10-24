@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { Sql } from "./db";
 import { ServiceError } from "./guidebookService";
 import { normalizePlan, PLAN_CONFIGS, type PlanConfig } from "./plans";
+import { clientIp } from "./rateLimit";
 
 // Plan lookups and usage counters (guest views, AI generations, guidebook creation rate).
 
@@ -33,7 +34,6 @@ export function secondsUntilMonthEnd(now = new Date()): number {
 // Guest views
 // ---------------------------------------------------------------------------------------------
 
-const VIEW_DEDUPE_MINUTES = 30;
 
 const BOT_PATTERN =
   /bot|crawl|spider|slurp|preview|facebookexternalhit|whatsapp|telegram|discord|slack|linkedin|pinterest|embedly|curl|wget|python-requests|httpclient|headless|lighthouse|pingdom|uptime|monitor|vercel-screenshot|google-read-aloud|bingpreview|okhttp|axios|node-fetch|go-http-client/i;
@@ -47,13 +47,16 @@ export function isNonViewRequest(request: Request): boolean {
   return ua === "" || BOT_PATTERN.test(ua);
 }
 
-/** Salted hash of (visitor, guidebook, half-hour bucket). No raw IP is stored. */
+/**
+ * Salted hash of (visitor IP, guidebook, UTC day): one view per visitor per guidebook per day. The user
+ * agent is left out on purpose, since anyone can change it to burn through a free host's views. No raw
+ * IP is stored.
+ */
 export function visitorKey(request: Request, guidebookId: string, now = Date.now()): string {
-  const ip = (request.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || request.headers.get("x-real-ip") || "";
-  const ua = request.headers.get("user-agent") ?? "";
-  const bucket = Math.floor(now / (VIEW_DEDUPE_MINUTES * 60_000));
+  const ip = clientIp(request);
+  const day = new Date(now).toISOString().slice(0, 10);
   const salt = process.env.VIEW_HASH_SALT || process.env.SUPABASE_SERVICE_ROLE_KEY || "guidewise-views";
-  return createHash("sha256").update(`${salt}|${guidebookId}|${ip}|${ua}|${bucket}`).digest("hex");
+  return createHash("sha256").update(`${salt}|${guidebookId}|${ip}|${day}`).digest("hex");
 }
 
 export async function monthlyViews(sql: Sql, userId: string): Promise<number> {
