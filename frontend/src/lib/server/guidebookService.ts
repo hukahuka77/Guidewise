@@ -368,8 +368,8 @@ export async function updateGuidebook(sql: Sql, userId: string, id: string, inpu
     for (const [incoming, column] of Object.entries(jsonColumns)) {
       if (incoming in data) set[column] = jsonOrNull(tx, data[incoming]);
     }
-    // template_key is NOT NULL; ignore anything that is not a string rather than failing the whole save
-    if (typeof data.template_key === "string" && data.template_key && data.template_key !== gb.template_key) {
+    // template_key is NOT NULL; ignore anything that isn't a known style rather than failing the whole save
+    if (typeof data.template_key === "string" && ALLOWED_TEMPLATE_KEYS.includes(data.template_key) && data.template_key !== gb.template_key) {
       // A premium style needs a plan that includes it (a guidebook already on one keeps it)
       if (!isPremiumStyle(data.template_key) || (await getUserPlan(tx as unknown as Sql, userId)).premiumStyles) {
         set.template_key = data.template_key;

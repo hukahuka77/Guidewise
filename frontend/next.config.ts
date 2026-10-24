@@ -51,6 +51,8 @@ const nextConfig: NextConfig = {
     return [
       { source: "/:path*", headers: SECURITY_HEADERS },
       { source: "/((?!g/|guidebook/).*)", headers: NO_FRAMING },
+      // The editor's phone preview is a sandboxed (origin "null") frame; without this its fonts are blocked
+      { source: "/fonts/:path*", headers: [{ key: "Access-Control-Allow-Origin", value: "*" }] },
     ];
   },
   async redirects() {

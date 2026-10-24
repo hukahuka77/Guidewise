@@ -6,21 +6,21 @@
     "image_url": "CmRaAAAAref",
     "place_id": "ChIJ1"
    },
-   "expected": "/api/place-photo?maxwidth=800&place_id=ChIJ1&photo_reference=CmRaAAAAref&query=A"
+   "expected": "/api/place-photo?maxwidth=800&place_id=ChIJ1&photo_reference=CmRaAAAAref"
   },
   {
    "input": {
     "name": "A",
     "image_url": "CmRaAAAAref"
    },
-   "expected": "/api/place-photo?maxwidth=800&photo_reference=CmRaAAAAref&query=A"
+   "expected": "/api/place-photo?maxwidth=800&photo_reference=CmRaAAAAref"
   },
   {
    "input": {
     "name": "A",
     "place_id": "ChIJ1"
    },
-   "expected": "/api/place-photo?maxwidth=800&place_id=ChIJ1&query=A"
+   "expected": "/api/place-photo?maxwidth=800&place_id=ChIJ1"
   },
   {
    "input": {
@@ -47,7 +47,7 @@
     "name": "N",
     "address": "1 St"
    },
-   "expected": "/api/place-photo?maxwidth=800&photo_reference=REF%2Fabc+d&query=N%2C+1+St"
+   "expected": "/api/place-photo?maxwidth=800&photo_reference=REF%2Fabc+d"
   },
   {
    "input": {
@@ -76,7 +76,7 @@
     "name": " Name ",
     "address": " Addr "
    },
-   "expected": "/api/place-photo?maxwidth=800&place_id=pid&photo_reference=spaced+ref&query=Name%2C+Addr"
+   "expected": "/api/place-photo?maxwidth=800&place_id=pid&photo_reference=spaced+ref"
   },
   {
    "input": {
@@ -84,21 +84,21 @@
     "name": "Taco (best!) & more",
     "address": "55 Elm St, Austin"
    },
-   "expected": "/api/place-photo?maxwidth=800&photo_reference=ref%21%27%28%29%2A~+%26%3D%2F%2B&query=Taco+%28best%21%29+%26+more%2C+55+Elm+St%2C+Austin"
+   "expected": "/api/place-photo?maxwidth=800&photo_reference=ref%21%27%28%29%2A~+%26%3D%2F%2B"
   },
   {
    "input": {
     "image_url": "r",
     "name": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
    },
-   "expected": "/api/place-photo?maxwidth=800&photo_reference=r&query=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   "expected": "/api/place-photo?maxwidth=800&photo_reference=r"
   },
   {
    "input": {
     "image_url": "r",
     "name": "Caf\u00e9 \u00d1o\u00f1o \ud83d\ude00"
    },
-   "expected": "/api/place-photo?maxwidth=800&photo_reference=r&query=Caf%C3%A9+%C3%91o%C3%B1o+%F0%9F%98%80"
+   "expected": "/api/place-photo?maxwidth=800&photo_reference=r"
   },
   {
    "input": {

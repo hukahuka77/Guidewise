@@ -190,6 +190,9 @@ describe("createGuidebook", () => {
     expect(ok.publicSlug).toMatch(/^[a-z0-9-]+-[0-9a-f]{6}$/);
     const { guidebookId } = await createGuidebook(db.sql, OWNER, base());
     await rejects(updateGuidebook(db.sql, OWNER, guidebookId, { property_name: "y".repeat(500) }), 400);
+    // An unknown style name (even one that exists on every object, like "constructor") is ignored
+    await updateGuidebook(db.sql, OWNER, guidebookId, { template_key: "constructor" });
+    expect((await db.sql`select template_key from guidebook where id = ${guidebookId}`)[0].template_key).not.toBe("constructor");
   });
 
   it("defaults the template and tabs, and ignores unknown template keys", async () => {

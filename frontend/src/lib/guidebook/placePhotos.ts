@@ -1,8 +1,29 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { unquotePlus, urlencodeParams } from "./pyCompat";
 
 type Dict = Record<string, unknown>;
 
 const pyStr = (v: unknown): string => (v ? String(v) : "");
+
+function photoQueryKey(): Buffer | null {
+  const secret = process.env.PHOTO_SIGNING_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  return secret ? createHmac("sha256", secret).update("guidewise-place-photo-query-v1").digest() : null;
+}
+
+/**
+ * The search-by-name fallback runs a paid Google Text Search, so the photo proxy only accepts a query
+ * that our own pages signed. Without a configured secret nothing is signed and the fallback is off.
+ */
+export function signPhotoQuery(query: string): string | null {
+  const key = photoQueryKey();
+  return key ? createHmac("sha256", key).update(query).digest("base64url").slice(0, 22) : null;
+}
+
+export function photoQuerySignatureValid(query: string, signature: string): boolean {
+  const expected = signPhotoQuery(query);
+  if (!expected || signature.length !== expected.length) return false;
+  return timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+}
 
 /** The Google photo reference stored in an item's image URL, if any. */
 export function googlePhotoReference(imageUrl: string): string {
@@ -53,7 +74,12 @@ export function placePhotoUrl(item: unknown, maxwidth = 800): string {
   const name = pyStr(rec.name).trim();
   const address = pyStr(rec.address).trim();
   const query = [name, address].filter(Boolean).join(", ");
-  if (query) params.query = query.slice(0, 300);
+  // The proxy only searches by name when there's no place_id (legacy items)
+  const signature = query && !placeId ? signPhotoQuery(query.slice(0, 300)) : null;
+  if (signature) {
+    params.query = query.slice(0, 300);
+    params.sig = signature;
+  }
 
   return `/api/place-photo?${urlencodeParams(params)}`;
 }

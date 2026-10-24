@@ -21,6 +21,7 @@ import { POST as aiFood } from "../src/app/api/ai-food/route";
 import { POST as aiRecs } from "../src/app/api/ai-recommendations/route";
 import { POST as importRoute } from "../src/app/api/import-listing/route";
 import { GET as photoRoute } from "../src/app/api/place-photo/route";
+import { placePhotoUrl } from "../src/lib/guidebook/placePhotos";
 import { GET as enrichRoute } from "../src/app/api/places/enrich/route";
 import { POST as searchRoute } from "../src/app/api/places/search/route";
 import { setSqlForTests } from "../src/lib/server/db";
@@ -205,8 +206,19 @@ describe("place photo", () => {
       .mockResolvedValueOnce(json({ results: [{ place_id: "found" }] }))
       .mockResolvedValueOnce(json({ result: { photos: [{ photo_reference: "RECOVERED" }] } }))
       .mockResolvedValueOnce(img());
-    const res = await photoRoute(get("/api/place-photo?photo_reference=OLD&query=Joe%27s%20Pizza"));
+    process.env.PHOTO_SIGNING_SECRET = "test-secret";
+    const signed = placePhotoUrl({ image_url: "OLD", name: "Joe's Pizza" });
+    expect(signed).toContain("sig=");
+    const res = await photoRoute(get(signed));
+    delete process.env.PHOTO_SIGNING_SECRET;
     expect(res.status).toBe(200);
+  });
+
+  it("won't run the paid name search for a query our pages didn't sign", async () => {
+    fetchMock.mockResolvedValueOnce(new Response("x", { status: 400 })); // the reference fails
+    const forged = await photoRoute(get("/api/place-photo?photo_reference=OLD&query=anything%20at%20all&sig=nope"));
+    expect(forged.status).toBe(404);
+    expect(fetchMock).toHaveBeenCalledTimes(1); // no Text Search, Details or Photo calls
   });
 
   it("rejects non-image upstream responses with 404", async () => {
