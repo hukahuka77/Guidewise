@@ -11,6 +11,8 @@ export interface PlanCopy {
   price: number;
   tagline: string;
   features: string[];
+  /** The plan whose features this one also has ("Everything in Free +"). */
+  includes?: string;
   popular?: boolean;
 }
 
@@ -19,7 +21,7 @@ export const PLAN_COPY: PlanCopy[] = [
     key: "free",
     name: "Free",
     price: 0,
-    tagline: "Everything you need to try Guidewise",
+    tagline: "Everything you need to share a guidebook. No credit card, no trial clock.",
     features: [
       "Unlimited guidebooks",
       "30 guest views per month",
@@ -33,11 +35,11 @@ export const PLAN_COPY: PlanCopy[] = [
     name: "Starter",
     price: 5,
     tagline: "For hosts with a place or two",
+    includes: "Free",
     features: [
       "Unlimited guest views",
       "Print-ready PDF of your guidebook",
       "30 AI recommendation runs / month",
-      "Everything in Free",
     ],
   },
   {
@@ -45,13 +47,13 @@ export const PLAN_COPY: PlanCopy[] = [
     name: "Power",
     price: 15,
     tagline: "For growing portfolios",
+    includes: "Starter",
     popular: true,
     features: [
       "Up to 100 guidebooks",
       "Premium guidebook styles: Lifestyle and Welcoming",
       "View analytics for every guidebook",
       "150 AI recommendation runs / month",
-      "Everything in Starter",
     ],
   },
   {
@@ -59,11 +61,11 @@ export const PLAN_COPY: PlanCopy[] = [
     name: "Pro",
     price: 30,
     tagline: "For professional property managers",
+    includes: "Power",
     features: [
       "Unlimited guidebooks",
       "Highest AI allowance (500 runs / month)",
       "Priority support",
-      "Everything in Power",
     ],
   },
 ];
