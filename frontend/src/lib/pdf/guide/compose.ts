@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import OpenAI from "openai";
+import { jsonCompletion } from "@/lib/server/aiModel";
 import type { GuideModel } from "./model";
 import type { ThemeKey } from "./themes";
 
@@ -183,7 +184,6 @@ Rules: use only facts provided. Never invent numbers, times, prices, names, addr
 
 export interface ComposeOptions {
   client?: Pick<OpenAI, "chat">;
-  model?: string;
 }
 
 /** Asks the model for a plan; returns null on any failure so the caller falls back to the standard design. */
@@ -192,16 +192,16 @@ export async function composeGuidePlan(model: GuideModel, options: ComposeOption
   const secrets = secretsOf(model);
   try {
     const client = options.client ?? new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    const response = await client.chat.completions.create({
-      model: options.model ?? "gpt-4o",
-      temperature: 0.7,
-      messages: [
+    // Some variety in wording on non-reasoning models; reasoning models ignore temperature
+    const content = await jsonCompletion(
+      client,
+      [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: JSON.stringify(input) },
       ],
-      response_format: { type: "json_object" },
-    });
-    const parsed = JSON.parse(response.choices[0]?.message?.content ?? "null");
+      { temperature: 0.7 },
+    );
+    const parsed = JSON.parse(content ?? "null");
     return validatePlan(parsed, input, secrets);
   } catch (error) {
     console.error("composeGuidePlan failed", error);

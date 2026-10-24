@@ -258,7 +258,8 @@ describe("AI recommendations", () => {
     ]);
     const prompt = openaiCreate.mock.calls[0][0].messages[1].content as string;
     expect(prompt).toContain("exactly 10 items");
-    expect(openaiCreate.mock.calls[0][0].model).toBe("gpt-4o");
+    expect(openaiCreate.mock.calls[0][0].model).toBe("gpt-6-luna");
+    expect(openaiCreate.mock.calls[0][0].reasoning_effort).toBe("none");
     expect(openaiCreate.mock.calls[0][0].response_format).toEqual({ type: "json_object" });
   });
 
