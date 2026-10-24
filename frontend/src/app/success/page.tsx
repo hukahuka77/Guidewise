@@ -6,12 +6,14 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import QRDownloadButton from '@/components/custom/QRDownloadButton';
+import PhonePreview from '@/components/custom/PhonePreview';
 import { absoluteUrl } from '@/lib/publicUrl';
 
 // Shown after a new guidebook is created and its template chosen. The guidebook is already live.
 export default function SuccessPage() {
   const [guidebookId, setGuidebookId] = useState<string | null>(null);
   const [liveUrl, setLiveUrl] = useState<string | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -24,6 +26,7 @@ export default function SuccessPage() {
     (async () => {
       try {
         const token = (await supabase?.auth.getSession())?.data.session?.access_token || null;
+        setAccessToken(token);
         const res = await fetch(`/api/guidebooks/${guidebookId}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         });
@@ -53,11 +56,8 @@ export default function SuccessPage() {
               <h2 className="text-2xl font-semibold mb-2">Your Guidebook</h2>
               <p className="text-gray-600">Click around to experience it as your guests will.</p>
             </div>
-            <div className="rounded-2xl overflow-hidden shadow-xl border-4 border-gray-300 bg-gray-100 p-2">
-              <div className="rounded-xl overflow-hidden bg-white shadow-inner">
-                <iframe src={liveUrl} title="Your guidebook" className="w-full h-[700px] lg:h-[800px]" style={{ border: 'none' }} />
-              </div>
-            </div>
+            {/* The owner's copy, so looking at it here never uses up a guest view */}
+            <PhonePreview guidebookId={guidebookId} accessToken={accessToken} />
             <div className="flex gap-3 items-center flex-wrap justify-center mt-6">
               {guidebookId && (
                 <Link href={`/edit/${guidebookId}`}>
