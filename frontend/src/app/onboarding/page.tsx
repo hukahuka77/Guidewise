@@ -16,6 +16,7 @@ import { usePremiumStyles } from "@/hooks/usePremiumStyles";
 import { isPremiumStyle, PREMIUM_STYLE_MESSAGE, PREMIUM_STYLE_PLAN } from "@/lib/guidebook/styles";
 import { ensureSession, finishClaim, hasPendingClaim, isGuestSession, savePendingBuild, takeClaimed, takePendingBuild, type PendingBuild, rememberGuestGuidebook } from "@/lib/guest";
 import { supabase } from "@/lib/supabaseClient";
+import { parsePaidPlan, startStripeCheckout } from "@/lib/billing";
 import ImportQuestions, { EMPTY_ANSWERS, ImportProgress, answersToPayload, type ImportAnswers } from "@/components/onboarding/ImportQuestions";
 
 type Mode = "link" | "manual";
@@ -101,6 +102,28 @@ export default function OnboardingPage() {
     })();
     return () => { cancelled = true; };
   }, [router]);
+
+  // Chose a paid plan on /pricing before having an account: go on to checkout now that they're signed in
+  const [checkingOut, setCheckingOut] = useState(false);
+  useEffect(() => {
+    const plan = parsePaidPlan(new URLSearchParams(window.location.search).get("plan"));
+    if (!supabase || !plan) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase!.auth.getSession();
+      if (cancelled || !data.session || isGuestSession(data.session)) return;
+      // Coming back from Stripe (Back button) lands on plain onboarding instead of checkout again
+      window.history.replaceState(null, "", window.location.pathname);
+      setCheckingOut(true);
+      try {
+        await startStripeCheckout(plan);
+      } catch (e) {
+        setCheckingOut(false);
+        setError(e instanceof Error ? e.message : "Could not start checkout. Please try again.");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   // Signed up because guests weren't available: build what they asked for now that they're in
   const resumed = useRef(false);
@@ -318,6 +341,11 @@ export default function OnboardingPage() {
             <div className="flex flex-col items-center gap-4 py-16 text-center">
               <Spinner />
               <h1 className="text-2xl font-semibold text-gray-900">Saving your guidebook to your account…</h1>
+            </div>
+          ) : checkingOut ? (
+            <div className="flex flex-col items-center gap-4 py-16 text-center">
+              <Spinner />
+              <h1 className="text-2xl font-semibold text-gray-900">Taking you to checkout…</h1>
             </div>
           ) : inImportFlow ? (
             <>

@@ -13,6 +13,7 @@ import { offerUpgrade, throwApiError } from "@/lib/upgrade";
 import { notify } from "@/lib/dialog";
 import { cacheGet, cacheSet } from "@/lib/cache";
 import { claimGuestGuidebooks, isGuestSession } from "@/lib/guest";
+import { useDialog } from "@/hooks/useDialog";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 
@@ -186,6 +187,8 @@ export default function DashboardPage() {
 
   // UI state
   const [qrModalFor, setQrModalFor] = useState<string | null>(null); // guidebook id
+  const qrDialogRef = useRef<HTMLDivElement>(null);
+  useDialog(qrModalFor !== null, () => setQrModalFor(null), qrDialogRef);
   const [syncSuccess, setSyncSuccess] = useState(false);
   const [updateSuccess, setUpdateSuccess] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -546,7 +549,7 @@ export default function DashboardPage() {
 
       {qrModalFor && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setQrModalFor(null)}>
-          <div role="dialog" aria-modal="true" aria-label="Guidebook QR code" className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div ref={qrDialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Guidebook QR code" className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl outline-none" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-[#1f1a17]">QR code</h3>
               <button type="button" onClick={() => setQrModalFor(null)} aria-label="Close" className={ICON_BUTTON}>

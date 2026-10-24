@@ -6,6 +6,11 @@ import { supabase } from "@/lib/supabaseClient";
  */
 export type PaidPlan = 'starter' | 'power' | 'pro';
 
+/** A plan from a URL (`?plan=`), or null when it isn't one of the paid plans. */
+export function parsePaidPlan(value: string | null | undefined): PaidPlan | null {
+  return value === 'starter' || value === 'power' || value === 'pro' ? value : null;
+}
+
 export async function startStripeCheckout(plan: PaidPlan = 'starter'): Promise<void> {
   if (!supabase) throw new Error("Supabase client not initialized");
   const sess = await supabase.auth.getSession();

@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { Check } from "lucide-react";
 
-const PERKS = ["Free forever, no credit card", "Built from your Airbnb or VRBO link", "One link for every guest question"];
+const PERKS = ["Free forever, no credit card", "Built from your listing link in minutes", "One link for every guest question"];
 
 /** Shared frame for login and signup: the home photo and what Guidewise gives you, beside the form card. */
 export default function AuthShell({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
