@@ -15,7 +15,7 @@ export function POST(request: Request) {
       const data = await readJson(request);
       const type = data.type;
       const address = data.location || data.address;
-      const numItems = clampItems(data.num_items ?? 5);
+      const numItems = clampItems(data.num_items);
       if (!type) {
         return Response.json(
           { error: "Please provide a recommendation type (food, activities, nightlife, etc.)" },

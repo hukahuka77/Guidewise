@@ -27,9 +27,11 @@ export function resetRateLimitsForTests() {
 }
 
 export const MAX_AI_ITEMS = 10;
+/** Places per generated list (food, things to do) unless the caller asks for more: each one is a few paid Google lookups. */
+export const DEFAULT_AI_ITEMS = 3;
 
 /** Clamp a caller-supplied item count to 1..MAX_AI_ITEMS (non-numbers fall back to the default). */
-export function clampItems(value: unknown, fallback = 5): number {
+export function clampItems(value: unknown, fallback = DEFAULT_AI_ITEMS): number {
   const n = typeof value === "number" ? value : typeof value === "string" && value.trim() !== "" ? Number(value) : NaN;
   if (!Number.isFinite(n)) return fallback;
   return Math.max(1, Math.min(Math.trunc(n), MAX_AI_ITEMS));

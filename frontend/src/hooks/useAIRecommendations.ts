@@ -20,7 +20,7 @@ export function useAIRecommendations(options: UseAIRecommendationsOptions) {
    */
   const fetchFoodRecommendations = async (
     location: string,
-    count: number = 5
+    count: number = 3
   ): Promise<DynamicItem[]> => {
     setIsFetchingFood(true);
 
@@ -86,7 +86,7 @@ export function useAIRecommendations(options: UseAIRecommendationsOptions) {
    */
   const fetchActivityRecommendations = async (
     location: string,
-    count: number = 5
+    count: number = 3
   ): Promise<DynamicItem[]> => {
     setIsFetchingActivities(true);
 
