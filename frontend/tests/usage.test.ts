@@ -320,7 +320,7 @@ describe("AI recommendation quota", () => {
       expect((await post(aiRecs, { type: "food", location: "  " })).status).toBe(400);
       expect(await aiUsage(db.sql, OWNER)).toBe(0);
       await setPlan(db.sql, OWNER, "starter");
-      await db.sql`insert into ai_usage_monthly (user_id, month, used) values (${OWNER}, ${monthStart()}::date, 29)`;
+      await db.sql`insert into ai_usage_monthly (user_id, month, used) values (${OWNER}, ${monthStart()}::date, 14)`;
       await consumeAiQuota(db.sql, OWNER);
       await expect(consumeAiQuota(db.sql, OWNER)).rejects.toMatchObject({ status: 403 });
       await setPlan(db.sql, OWNER, "power");

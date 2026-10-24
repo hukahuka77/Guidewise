@@ -71,7 +71,7 @@ const updatedLabel = (gb: GuidebookItem) => {
 };
 
 /** The less common actions for a guidebook, behind a "…" button. */
-function RowMenu({ items }: { items: { label: string; onSelect: () => void; danger?: boolean; disabled?: boolean }[] }) {
+function RowMenu({ items, busy = false }: { items: { label: string; onSelect: () => void; danger?: boolean; disabled?: boolean }[]; busy?: boolean }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -90,13 +90,14 @@ function RowMenu({ items }: { items: { label: string; onSelect: () => void; dang
     <div className="relative" ref={ref}>
       <button
         type="button"
-        aria-label="More actions"
+        aria-label={busy ? "Working…" : "More actions"}
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-busy={busy}
         onClick={() => setOpen((o) => !o)}
         className={ICON_BUTTON}
       >
-        <MoreHorizontal className="size-4" />
+        {busy ? <Spinner size={16} colorClass="text-[#db2777]" /> : <MoreHorizontal className="size-4" />}
       </button>
       {open && (
         <div role="menu" className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-2xl bg-white py-1.5 shadow-[0_20px_40px_-16px_rgba(60,40,30,0.35)] ring-1 ring-black/5">
@@ -327,7 +328,7 @@ export default function DashboardPage() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${propertyName.replace(/[^a-z0-9]/gi, '_')}_print.pdf`;
+      link.download = `${propertyName.replace(/[^a-z0-9]/gi, '_')}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -343,7 +344,7 @@ export default function DashboardPage() {
   const menuFor = (gb: GuidebookItem, name: string, viewUrl: string | null) => [
     ...(viewUrl ? [{ label: "View guidebook", onSelect: () => window.open(viewUrl, "_blank", "noopener") }] : []),
     { label: "QR code", onSelect: () => setQrModalFor(gb.id) },
-    { label: downloadingPdf === gb.id ? "Generating print version…" : "Download print version", onSelect: () => downloadPrintPdf(gb.id, name), disabled: downloadingPdf === gb.id },
+    { label: downloadingPdf === gb.id ? "Creating PDF…" : "Download PDF version", onSelect: () => downloadPrintPdf(gb.id, name), disabled: downloadingPdf === gb.id },
     { label: "Delete", onSelect: () => setDeleteId(gb.id), danger: true },
   ];
 
@@ -486,7 +487,7 @@ export default function DashboardPage() {
                             <ExternalLink className="size-4" />
                           </Link>
                         )}
-                        <RowMenu items={menuFor(gb, name, viewUrl)} />
+                        <RowMenu items={menuFor(gb, name, viewUrl)} busy={downloadingPdf === gb.id} />
                       </div>
                     </td>
                   </tr>
@@ -522,7 +523,7 @@ export default function DashboardPage() {
                         <ExternalLink className="size-4" />
                       </Link>
                     )}
-                    <RowMenu items={menuFor(gb, name, viewUrl)} />
+                    <RowMenu items={menuFor(gb, name, viewUrl)} busy={downloadingPdf === gb.id} />
                   </div>
                 </div>
               </li>
@@ -610,6 +611,18 @@ export default function DashboardPage() {
             }
           }}
         />
+
+      {downloadingPdf && (
+        <div role="status" aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">
+          <div className="flex items-center gap-3 rounded-full bg-[#1f1a17] py-3 pl-4 pr-5 text-sm text-white shadow-[0_20px_40px_-12px_rgba(31,26,23,0.5)]">
+            <Spinner size={18} colorClass="text-[#f9a8d4]" />
+            <span>
+              <span className="font-semibold">Creating your PDF…</span>
+              <span className="text-white/70"> this takes a few seconds.</span>
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

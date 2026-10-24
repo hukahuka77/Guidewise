@@ -106,11 +106,11 @@ describe("create, read, update, delete over HTTP", () => {
 
   it("POST /api/generate: 403 with an upgrade hint once the plan's guidebook cap is reached", async () => {
     await setPlan(db.sql, OWNER, "starter");
-    for (let i = 0; i < 5; i++) expect((await createVia({ property_name: `House ${i}` })).res.status).toBe(201);
+    for (let i = 0; i < 3; i++) expect((await createVia({ property_name: `House ${i}` })).res.status).toBe(201);
     const { res, body } = await createVia({ property_name: "One too many" });
     expect(res.status).toBe(403);
     expect(body).toMatchObject({ upgrade: true, quota: "guidebooks" });
-    expect(body.error).toContain("up to 5 guidebooks");
+    expect(body.error).toContain("up to 3 guidebooks");
   });
 
   it("POST /api/generate: a new guidebook is live at its public URL; bad input is a 400", async () => {
