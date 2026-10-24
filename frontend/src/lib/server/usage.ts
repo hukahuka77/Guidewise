@@ -83,9 +83,14 @@ export async function monthlyViews(sql: Sql, userId: string): Promise<number> {
   return row.views as number;
 }
 
-async function purgeOldDedupeKeys(sql: Sql) {
+/** Daily view counts are kept this long (analytics shows the last 30 days and quotas use this month). */
+export const VIEW_HISTORY_DAYS = 400;
+
+/** Now and then, drop old dedupe keys and view counts older than the history window. */
+async function purgeOldViewData(sql: Sql) {
   if (Math.random() > 0.01) return;
   await sql`delete from public.view_dedupe where created_at < now() - interval '1 day'`.catch(() => undefined);
+  await sql`delete from public.guidebook_view_daily where day < current_date - ${VIEW_HISTORY_DAYS}::int`.catch(() => undefined);
 }
 
 /**
@@ -103,7 +108,7 @@ export async function recordView(sql: Sql, guidebookId: string, ownerId: string,
     insert into public.guidebook_view_daily (guidebook_id, user_id, day, views)
     values (${guidebookId}, ${ownerId}, (now() at time zone 'utc')::date, 1)
     on conflict (guidebook_id, day) do update set views = public.guidebook_view_daily.views + 1`;
-  void purgeOldDedupeKeys(sql);
+  void purgeOldViewData(sql);
   return true;
 }
 
@@ -266,4 +271,13 @@ export async function assertCanCreateGuidebook(sql: Sql, userId: string): Promis
       { upgrade: true, quota: "guidebooks" },
     );
   }
+}
+
+/**
+ * Run inside the transaction that inserts a guidebook: one creation at a time per user, then the cap and
+ * rate checks again, so several requests sent at once can't all pass the check made before the work.
+ */
+export async function lockGuidebookCreation(tx: Sql, userId: string): Promise<void> {
+  await tx`select pg_advisory_xact_lock(hashtext(${`guidebook-create:${userId}`}))`;
+  await assertCanCreateGuidebook(tx, userId);
 }

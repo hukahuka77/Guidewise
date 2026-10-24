@@ -35,21 +35,30 @@ const withTimeout = <T,>(p: Promise<T>, ms: number, fallback: T) =>
   Promise.race([p, new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))]);
 
 /**
- * Pre-fill things to do and places to eat for an imported listing: one AI allowance covers both lists
+ * Pre-fill things to do and places to eat for an imported listing: one AI run covers both lists
  * (restaurants and activities, enriched with Google Places photos, addresses and drive times).
  * Never throws: the import still succeeds without recommendations.
  */
-export async function recommendationsForListing(sql: Sql, userId: string, location: string): Promise<Recommendations> {
+export async function recommendationsForListing(
+  sql: Sql,
+  userId: string,
+  location: string,
+  { alreadyCharged = false }: { alreadyCharged?: boolean } = {},
+): Promise<Recommendations> {
   const empty: Recommendations = { things_to_do: [], places_to_eat: [] };
   if (!location.trim()) return { ...empty, skipped: "no_location" };
   if (!aiConfigured()) return { ...empty, skipped: "not_configured" };
+  // When the import's AI run already paid for reading the listing, it covers these too, and stays spent
+  const refund = () => (alreadyCharged ? Promise.resolve() : refundAiQuota(sql, userId));
 
-  try {
-    await consumeAiQuota(sql, userId);
-  } catch (error) {
-    if (error instanceof ServiceError && error.status === 403) return { ...empty, skipped: "quota" };
-    console.error("import: could not check the AI allowance", error);
-    return { ...empty, skipped: "failed" };
+  if (!alreadyCharged) {
+    try {
+      await consumeAiQuota(sql, userId);
+    } catch (error) {
+      if (error instanceof ServiceError && error.status === 403) return { ...empty, skipped: "quota" };
+      console.error("import: could not check the AI allowance", error);
+      return { ...empty, skipped: "failed" };
+    }
   }
 
   try {
@@ -59,13 +68,13 @@ export async function recommendationsForListing(sql: Sql, userId: string, locati
       [[], []] as [EnrichedItem[], EnrichedItem[]],
     );
     if (food.length === 0 && activities.length === 0) {
-      await refundAiQuota(sql, userId);
+      await refund();
       return { ...empty, skipped: "failed" };
     }
     return { things_to_do: activities.map(toItem), places_to_eat: food.map(toItem) };
   } catch (error) {
     console.error("import: recommendations failed", error);
-    await refundAiQuota(sql, userId);
+    await refund();
     return { ...empty, skipped: "failed" };
   }
 }
