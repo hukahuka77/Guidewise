@@ -257,9 +257,12 @@ const GUIDEBOOK_WITH_RELATIONS = (sql: Sql, where: ReturnType<Sql>) => sql`
 
 /** GET /api/guidebooks */
 export async function listGuidebooks(sql: Sql, userId: string): Promise<Row[]> {
+  const limit = (await getUserPlan(sql, userId)).guidebookLimit;
+  // Same order as isGuidebookLocked: the oldest guidebooks, up to the plan's limit, are live
   const rows = await sql`
     select g.id, g.template_key, g.created_time, g.last_modified_time, g.cover_image_url,
-           g.public_slug, p.name as property_name
+           g.public_slug, p.name as property_name,
+           row_number() over (order by g.created_time asc nulls first, g.id) as position
       from guidebook g left join property p on p.id = g.property_id
      where g.user_id = ${userId}
      order by g.last_modified_time desc`;
@@ -273,6 +276,7 @@ export async function listGuidebooks(sql: Sql, userId: string): Promise<Row[]> {
       last_modified_time: isoOrNull(r.last_modified_time),
       cover_image_url: r.cover_image_url,
       public_slug: r.public_slug ?? (await ensurePublicSlug(sql, r.id, r.property_name)),
+      locked: limit !== null && Number(r.position) > limit,
     });
   }
   return items;
@@ -364,8 +368,8 @@ export async function updateGuidebook(sql: Sql, userId: string, id: string, inpu
     for (const [incoming, column] of Object.entries(jsonColumns)) {
       if (incoming in data) set[column] = jsonOrNull(tx, data[incoming]);
     }
-    // template_key is NOT NULL; ignore anything that is not a string rather than failing the whole save
-    if (typeof data.template_key === "string" && data.template_key && data.template_key !== gb.template_key) {
+    // template_key is NOT NULL; ignore anything that isn't a known style rather than failing the whole save
+    if (typeof data.template_key === "string" && ALLOWED_TEMPLATE_KEYS.includes(data.template_key) && data.template_key !== gb.template_key) {
       // A premium style needs a plan that includes it (a guidebook already on one keeps it)
       if (!isPremiumStyle(data.template_key) || (await getUserPlan(tx as unknown as Sql, userId)).premiumStyles) {
         set.template_key = data.template_key;

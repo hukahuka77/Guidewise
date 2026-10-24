@@ -12,7 +12,8 @@ import {
   slugify,
   updateGuidebook,
 } from "../src/lib/server/guidebookService";
-import { assertCanCreateGuidebook, getUserPlan } from "../src/lib/server/usage";
+import { assertCanCreateGuidebook, getUserPlan, isGuidebookLocked } from "../src/lib/server/usage";
+import { normalizePlan } from "../src/lib/server/plans";
 import { OTHER, OWNER, setPlan, startTestDb, type TestDb } from "./helpers/testDb";
 
 let db: TestDb;
@@ -59,39 +60,62 @@ describe("slugify and rules input", () => {
 describe("plans, caps and creation limits", () => {
   it("resolves the plan, treating missing, legacy and unknown names sensibly", async () => {
     expect((await getUserPlan(db.sql, OWNER)).key).toBe("free"); // no profile
-    for (const [stored, expected] of [["starter", "starter"], ["power", "power"], ["growth", "power"], ["pro", "pro"], ["enterprise", "pro"], ["trial", "free"], ["???", "free"]]) {
+    for (const [stored, expected] of [["starter", "starter"], ["power", "power"], ["growth", "power"], ["pro", "pro"], ["enterprise", "pro"], ["trial", "free"]]) {
       await setPlan(db.sql, OWNER, stored);
       expect((await getUserPlan(db.sql, OWNER)).key).toBe(expected);
     }
     expect((await getUserPlan(db.sql, "not-a-uuid")).key).toBe("free");
+    // The database only stores known names; anything else read from elsewhere is free
+    expect(normalizePlan("???")).toBe("free");
   });
 
-  it("caps total guidebooks per plan (free unlimited, starter 5, power 100, pro unlimited)", async () => {
+  it("caps total guidebooks per plan (free 1, starter 3, power 15, pro 50)", async () => {
     const [{ id: pid }] = await db.sql`insert into property (name, user_id) values ('P', ${OWNER}) returning id`;
     const fill = async (n: number) => {
       await db.sql`delete from guidebook where user_id = ${OWNER}`;
       for (let i = 0; i < n; i++) await db.sql`insert into guidebook (id, property_id, user_id, template_key, created_time) values (${`g${i}`}, ${pid}, ${OWNER}, 'template_original', now() - interval '2 days')`;
     };
+    await expect(assertCanCreateGuidebook(db.sql, OWNER)).resolves.toBeUndefined(); // free, none yet
+    await fill(1);
+    const free = await rejects(assertCanCreateGuidebook(db.sql, OWNER), 403);
+    expect(free.message).toBe("Your Free plan includes 1 guidebook. Upgrade your plan to create more.");
+
     await setPlan(db.sql, OWNER, "starter");
-    await fill(4);
+    await fill(2);
     await expect(assertCanCreateGuidebook(db.sql, OWNER)).resolves.toBeUndefined();
-    await fill(5);
+    await fill(3);
     const err = await rejects(assertCanCreateGuidebook(db.sql, OWNER), 403);
-    expect(err.message).toBe("Your Starter plan includes up to 5 guidebooks. Upgrade your plan to create more.");
+    expect(err.message).toBe("Your Starter plan includes up to 3 guidebooks. Upgrade your plan to create more.");
     expect(err.extra).toMatchObject({ upgrade: true, quota: "guidebooks" });
     await rejects(createGuidebook(db.sql, OWNER, base()), 403);
 
-    await setPlan(db.sql, OWNER, "power");
-    await fill(99);
-    await expect(assertCanCreateGuidebook(db.sql, OWNER)).resolves.toBeUndefined();
-    await fill(100);
-    await rejects(assertCanCreateGuidebook(db.sql, OWNER), 403);
-
-    for (const plan of ["pro", "free"]) {
+    for (const [plan, cap] of [["power", 15], ["pro", 50]] as const) {
       await setPlan(db.sql, OWNER, plan);
-      await fill(150);
+      await fill(cap - 1);
       await expect(assertCanCreateGuidebook(db.sql, OWNER)).resolves.toBeUndefined();
+      await fill(cap);
+      await rejects(assertCanCreateGuidebook(db.sql, OWNER), 403);
     }
+  });
+
+  it("locks guidebooks beyond the plan's limit: the oldest stay live, the rest unlock on upgrade", async () => {
+    const [{ id: pid }] = await db.sql`insert into property (name, user_id) values ('P', ${OWNER}) returning id`;
+    for (const [id, age] of [["old", 3], ["mid", 2], ["new", 1]] as const) {
+      await db.sql`insert into guidebook (id, property_id, user_id, template_key, created_time) values (${id}, ${pid}, ${OWNER}, 'template_original', now() - make_interval(days => ${age}))`;
+    }
+    const locked = async () => {
+      const out: string[] = [];
+      for (const id of ["old", "mid", "new"]) if (await isGuidebookLocked(db.sql, id, OWNER)) out.push(id);
+      return out;
+    };
+    expect(await locked()).toEqual(["mid", "new"]); // free: one live
+    expect((await listGuidebooks(db.sql, OWNER)).filter((g) => g.locked).map((g) => g.id).sort()).toEqual(["mid", "new"]);
+    await setPlan(db.sql, OWNER, "starter");
+    expect(await locked()).toEqual([]);
+    expect((await listGuidebooks(db.sql, OWNER)).every((g) => g.locked === false)).toBe(true);
+    await setPlan(db.sql, OWNER, "free");
+    await db.sql`delete from guidebook where id = 'old'`;
+    expect(await locked()).toEqual(["new"]); // the next oldest takes over
   });
 
   it("rate limits creation per hour and per day on every plan to stop automation", async () => {
@@ -159,12 +183,16 @@ describe("createGuidebook", () => {
   });
 
   it("refuses a property name that would make an unusable page title and URL, and keeps slugs short", async () => {
+    await setPlan(db.sql, OWNER, "pro");
     await rejects(createGuidebook(db.sql, OWNER, base({ property_name: "x".repeat(121) })), 400);
     const ok = await createGuidebook(db.sql, OWNER, base({ property_name: "A really wonderful cottage by the lake with a great view and a big garden" }));
     expect(ok.publicSlug.length).toBeLessThanOrEqual(40 + 7);
     expect(ok.publicSlug).toMatch(/^[a-z0-9-]+-[0-9a-f]{6}$/);
     const { guidebookId } = await createGuidebook(db.sql, OWNER, base());
     await rejects(updateGuidebook(db.sql, OWNER, guidebookId, { property_name: "y".repeat(500) }), 400);
+    // An unknown style name (even one that exists on every object, like "constructor") is ignored
+    await updateGuidebook(db.sql, OWNER, guidebookId, { template_key: "constructor" });
+    expect((await db.sql`select template_key from guidebook where id = ${guidebookId}`)[0].template_key).not.toBe("constructor");
   });
 
   it("defaults the template and tabs, and ignores unknown template keys", async () => {
@@ -186,6 +214,7 @@ describe("createGuidebook", () => {
   });
 
   it("reuses an existing property and host by name for the same user, not across users", async () => {
+    await setPlan(db.sql, OWNER, "pro");
     await createGuidebook(db.sql, OWNER, base({ host_name: "Andrew", address_street: "1 Main" }));
     await createGuidebook(db.sql, OWNER, base({ host_name: "Andrew", address_street: "2 Elm" }));
     await createGuidebook(db.sql, OTHER, base({ host_name: "Andrew" }));
@@ -228,6 +257,7 @@ describe("read", () => {
   });
 
   it("lists only the user's guidebooks, newest edit first, each with its public slug", async () => {
+    await setPlan(db.sql, OWNER, "pro");
     const first = await createGuidebook(db.sql, OWNER, base({ property_name: "First One" }));
     const second = await createGuidebook(db.sql, OWNER, base({ property_name: "Second One" }));
     await createGuidebook(db.sql, OTHER, base({ property_name: "Not Mine" }));

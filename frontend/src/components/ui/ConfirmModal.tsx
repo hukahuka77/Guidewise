@@ -1,6 +1,7 @@
 "use client";
 
-import React from "react";
+import React, { useRef } from "react";
+import { useDialog } from "@/hooks/useDialog";
 
 interface ConfirmModalProps {
   open: boolean;
@@ -24,15 +25,19 @@ export default function ConfirmModal({
   onConfirm,
   onCancel,
 }: ConfirmModalProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialog(open, onCancel, dialogRef);
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onCancel}>
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="confirm-title"
-        className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl"
+        className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         <h3 id="confirm-title" className="text-lg font-semibold tracking-[-0.01em] text-gray-900">

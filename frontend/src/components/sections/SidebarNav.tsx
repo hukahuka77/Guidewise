@@ -1,8 +1,9 @@
 import React from "react";
-import { BookOpen, Compass, Eye, EyeOff, GripVertical, Home, KeyRound, ListChecks, Luggage, Plus, UtensilsCrossed, type LucideIcon } from "lucide-react";
+import { BookOpen, Compass, Eye, EyeOff, GripVertical, Home, KeyRound, ListChecks, Luggage, Plus, Trash2, UtensilsCrossed, type LucideIcon } from "lucide-react";
 import { LIMITS } from "../../constants/limits";
 import { cn } from "@/lib/utils";
 import { EDIT_SECTIONS_ORDER } from "@/config/sections";
+import { useDialog } from "@/hooks/useDialog";
 
 /** Editor labels, icons and helper text for the built-in sections. */
 export const SECTION_META: Record<string, { label: string; icon: LucideIcon; description: string }> = {
@@ -45,9 +46,11 @@ interface SidebarNavProps {
   customEnabled?: boolean;
   /** Custom section metadata from parent */
   customTabsMeta?: Record<string, { icon: string; label: string }>;
+  /** Delete a custom section (the parent confirms first and removes its content). */
+  onDeleteCustom?: (section: string) => void;
 }
 
-export default function SidebarNav({ currentSection, onSectionChange, included, excluded, onUpdate, onCustomMetaChange, allowedSections, customEnabled = true, customTabsMeta }: SidebarNavProps) {
+export default function SidebarNav({ currentSection, onSectionChange, included, excluded, onUpdate, onCustomMetaChange, allowedSections, customEnabled = true, customTabsMeta, onDeleteCustom }: SidebarNavProps) {
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const [dragOver, setDragOver] = React.useState<{
     list: "included" | "excluded" | null;
@@ -57,6 +60,8 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
   const [customEmoji, setCustomEmoji] = React.useState("");
   const [customTitle, setCustomTitle] = React.useState("");
   const [customMeta, setCustomMeta] = React.useState<Record<string, { icon: string; label: string }>>({});
+  const customModalRef = React.useRef<HTMLDivElement>(null);
+  useDialog(showCustomModal, () => setShowCustomModal(false), customModalRef);
   const EMOJI_OPTIONS = React.useMemo(
     () => [
       "📝","✨","⭐","📍","📷","🗺️","🏖️","⛰️","🌇","🌃",
@@ -66,6 +71,7 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
     ],
     []
   );
+  // Hidden custom sections still exist (and are saved), so they count; deleting one frees a slot
   const customCount = React.useMemo(() => (
     [...included, ...excluded].filter(k => k.startsWith("custom_")).length
   ), [included, excluded]);
@@ -259,10 +265,32 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
         <span className={cn("w-3 shrink-0 text-gray-300 transition", isDraggable ? "cursor-grab opacity-0 group-hover:opacity-100" : "opacity-0")} aria-hidden="true">
           <GripVertical className="size-3.5" />
         </span>
-        <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-lg", active ? "bg-white text-primary shadow-sm" : "bg-[#F5EFE7] text-gray-600", hidden && "opacity-60")} aria-hidden="true">
-          {Icon ? <Icon className="size-4" /> : <span className="text-sm leading-none">{emoji}</span>}
-        </span>
-        <span className="min-w-0 flex-1 truncate">{label}</span>
+        {/* A real button for keyboards and screen readers; its click bubbles to the row */}
+        <button
+          type="button"
+          disabled={!isEnabled}
+          aria-current={active ? "true" : undefined}
+          className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed"
+        >
+          <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-lg", active ? "bg-white text-primary shadow-sm" : "bg-[#F5EFE7] text-gray-600", hidden && "opacity-60")} aria-hidden="true">
+            {Icon ? <Icon className="size-4" /> : <span className="text-sm leading-none">{emoji}</span>}
+          </span>
+          <span className="min-w-0 flex-1 truncate">{label}</span>
+        </button>
+        {onDeleteCustom && section.startsWith("custom_") && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDeleteCustom(section);
+            }}
+            className="inline-flex size-7 shrink-0 items-center justify-center rounded-lg text-gray-400 opacity-0 transition hover:bg-white hover:text-red-600 focus:opacity-100 group-hover:opacity-100"
+            title="Delete section"
+            aria-label={`Delete ${label} section`}
+          >
+            <Trash2 className="size-4" />
+          </button>
+        )}
         {!isWelcome && (
           <button
             type="button"
@@ -399,8 +427,8 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
       {showCustomModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowCustomModal(false)} />
-          <div className="relative z-10 w-[92vw] max-w-sm rounded-2xl bg-white text-gray-900 p-6 shadow-xl">
-            <div className="text-lg font-semibold mb-1">Add a section</div>
+          <div ref={customModalRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="custom-section-title" className="relative z-10 w-[92vw] max-w-sm rounded-2xl bg-white text-gray-900 p-6 shadow-xl outline-none">
+            <div id="custom-section-title" className="text-lg font-semibold mb-1">Add a section</div>
             <p className="mb-4 text-sm text-gray-500">For anything that doesn&apos;t fit elsewhere: a pool guide, a kids corner, local transport.</p>
             <div className="space-y-3">
               <div>
@@ -430,10 +458,12 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
                 <p className="mt-1 text-xs text-gray-500">Pick from above or type a single emoji.</p>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Title</label>
+                <label htmlFor="custom-section-name" className="block text-sm font-medium mb-1">Title</label>
                 <input
+                  id="custom-section-name"
                   type="text"
-                  placeholder="e.g. Pool & hot tub"
+                  autoFocus
+                  placeholder="e.g. Hot tub"
                   className="w-full rounded-lg border border-[#E7DFD4] px-3 py-2 outline-none focus:border-primary focus:ring-4 focus:ring-primary/15"
                   value={customTitle}
                   maxLength={LIMITS.customTabTitle}

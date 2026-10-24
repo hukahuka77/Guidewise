@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { BookOpen, ExternalLink, LayoutGrid, List, MoreHorizontal, Plus, X } from "lucide-react";
+import { BookOpen, ExternalLink, LayoutGrid, List, Lock, MoreHorizontal, Plus, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
@@ -13,6 +13,7 @@ import { offerUpgrade, throwApiError } from "@/lib/upgrade";
 import { notify } from "@/lib/dialog";
 import { cacheGet, cacheSet } from "@/lib/cache";
 import { claimGuestGuidebooks, isGuestSession } from "@/lib/guest";
+import { useDialog } from "@/hooks/useDialog";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 
@@ -24,6 +25,8 @@ type GuidebookItem = {
   last_modified_time?: string | null;
   cover_image_url?: string | null;
   public_slug?: string | null;
+  /** Beyond the plan's guidebook limit: editable, but guests can't open it. */
+  locked?: boolean;
 };
 
 // Map internal template keys to human-friendly display names
@@ -71,7 +74,7 @@ const updatedLabel = (gb: GuidebookItem) => {
 };
 
 /** The less common actions for a guidebook, behind a "…" button. */
-function RowMenu({ items }: { items: { label: string; onSelect: () => void; danger?: boolean; disabled?: boolean }[] }) {
+function RowMenu({ items, busy = false }: { items: { label: string; onSelect: () => void; danger?: boolean; disabled?: boolean }[]; busy?: boolean }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -90,13 +93,14 @@ function RowMenu({ items }: { items: { label: string; onSelect: () => void; dang
     <div className="relative" ref={ref}>
       <button
         type="button"
-        aria-label="More actions"
+        aria-label={busy ? "Working…" : "More actions"}
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-busy={busy}
         onClick={() => setOpen((o) => !o)}
         className={ICON_BUTTON}
       >
-        <MoreHorizontal className="size-4" />
+        {busy ? <Spinner size={16} colorClass="text-[#db2777]" /> : <MoreHorizontal className="size-4" />}
       </button>
       {open && (
         <div role="menu" className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-2xl bg-white py-1.5 shadow-[0_20px_40px_-16px_rgba(60,40,30,0.35)] ring-1 ring-black/5">
@@ -126,6 +130,14 @@ const STYLE_CHIP: Record<string, string> = {
   Lifestyle: "bg-sky-50 text-sky-800",
   Welcoming: "bg-[#f1ede7] text-[#5b524c]",
 };
+
+function LockedTag() {
+  return (
+    <span title="Guests can't open this guidebook because it's beyond your plan's guidebook limit. Upgrade to make it live." className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 ring-1 ring-amber-200">
+      <Lock className="size-3" aria-hidden /> Locked
+    </span>
+  );
+}
 
 function StyleChip({ templateKey }: { templateKey?: string | null }) {
   const name = styleName(templateKey);
@@ -185,6 +197,8 @@ export default function DashboardPage() {
 
   // UI state
   const [qrModalFor, setQrModalFor] = useState<string | null>(null); // guidebook id
+  const qrDialogRef = useRef<HTMLDivElement>(null);
+  useDialog(qrModalFor !== null, () => setQrModalFor(null), qrDialogRef);
   const [syncSuccess, setSyncSuccess] = useState(false);
   const [updateSuccess, setUpdateSuccess] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -327,7 +341,7 @@ export default function DashboardPage() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${propertyName.replace(/[^a-z0-9]/gi, '_')}_print.pdf`;
+      link.download = `${propertyName.replace(/[^a-z0-9]/gi, '_')}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -343,7 +357,7 @@ export default function DashboardPage() {
   const menuFor = (gb: GuidebookItem, name: string, viewUrl: string | null) => [
     ...(viewUrl ? [{ label: "View guidebook", onSelect: () => window.open(viewUrl, "_blank", "noopener") }] : []),
     { label: "QR code", onSelect: () => setQrModalFor(gb.id) },
-    { label: downloadingPdf === gb.id ? "Generating print version…" : "Download print version", onSelect: () => downloadPrintPdf(gb.id, name), disabled: downloadingPdf === gb.id },
+    { label: downloadingPdf === gb.id ? "Creating PDF…" : "Download PDF version", onSelect: () => downloadPrintPdf(gb.id, name), disabled: downloadingPdf === gb.id },
     { label: "Delete", onSelect: () => setDeleteId(gb.id), danger: true },
   ];
 
@@ -351,6 +365,8 @@ export default function DashboardPage() {
   const viewsShare = freeViews && usage.viewsLimit ? Math.min(1, usage.viewsUsed / usage.viewsLimit) : 0;
   const viewsOut = freeViews && usage.viewsLimit !== null && usage.viewsUsed >= usage.viewsLimit;
   const planName = plan ? plan.charAt(0).toUpperCase() + plan.slice(1) : "";
+  const lockedCount = items.filter((gb) => gb.locked).length;
+  const liveCount = items.length - lockedCount;
 
   return (
     <div className="space-y-6">
@@ -417,6 +433,18 @@ export default function DashboardPage() {
       )}
       {!loading && error && <div className="rounded-3xl bg-white p-6 text-red-700 ring-1 ring-red-100">{error}</div>}
 
+      {!loading && !error && lockedCount > 0 && (
+        <section aria-label="Locked guidebooks" className="flex flex-col gap-3 rounded-3xl bg-amber-50 p-5 text-sm text-amber-900 ring-1 ring-amber-200 sm:flex-row sm:items-center sm:justify-between">
+          <p>
+            <strong className="font-semibold">
+              {lockedCount === 1 ? "1 guidebook is locked." : `${lockedCount} guidebooks are locked.`}
+            </strong>{" "}
+            Your plan keeps your oldest {liveCount === 1 ? "guidebook" : `${liveCount} guidebooks`} live. You can still edit locked ones, but guests can&apos;t open them until you upgrade.
+          </p>
+          <Link href="/pricing" className="shrink-0 font-semibold text-amber-900 underline-offset-2 hover:underline">See plans</Link>
+        </section>
+      )}
+
       {!loading && !error && items.length === 0 && (
         <section className="flex flex-col items-center rounded-3xl bg-white px-6 py-14 text-center ring-1 ring-black/5">
           <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#fdf0f5] text-[#db2777]">
@@ -471,7 +499,10 @@ export default function DashboardPage() {
                       <Link href={`/edit/${gb.id}`} className="flex min-w-0 items-center gap-3 no-underline hover:no-underline">
                         <Cover url={gb.cover_image_url} className="hidden h-11 w-16 shrink-0 rounded-xl sm:block" />
                         <span className="min-w-0">
-                          <span className="block truncate font-medium text-[#1f1a17]" title={name}>{name}</span>
+                          <span className="flex min-w-0 items-center gap-2">
+                            <span className="truncate font-medium text-[#1f1a17]" title={name}>{name}</span>
+                            {gb.locked && <LockedTag />}
+                          </span>
                           <span className="block truncate text-xs text-[#8a7f77] sm:hidden">{updatedLabel(gb)}</span>
                         </span>
                       </Link>
@@ -486,7 +517,7 @@ export default function DashboardPage() {
                             <ExternalLink className="size-4" />
                           </Link>
                         )}
-                        <RowMenu items={menuFor(gb, name, viewUrl)} />
+                        <RowMenu items={menuFor(gb, name, viewUrl)} busy={downloadingPdf === gb.id} />
                       </div>
                     </td>
                   </tr>
@@ -512,6 +543,7 @@ export default function DashboardPage() {
                     <div className="min-w-0">
                       <h3 className="truncate font-semibold text-[#1f1a17]" title={name}>{name}</h3>
                       {updatedLabel(gb) && <p className="text-xs text-[#8a7f77]">Updated {updatedLabel(gb)}</p>}
+                      {gb.locked && <div className="mt-2"><LockedTag /></div>}
                     </div>
                     <StyleChip templateKey={gb.template_key} />
                   </div>
@@ -522,7 +554,7 @@ export default function DashboardPage() {
                         <ExternalLink className="size-4" />
                       </Link>
                     )}
-                    <RowMenu items={menuFor(gb, name, viewUrl)} />
+                    <RowMenu items={menuFor(gb, name, viewUrl)} busy={downloadingPdf === gb.id} />
                   </div>
                 </div>
               </li>
@@ -545,7 +577,7 @@ export default function DashboardPage() {
 
       {qrModalFor && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setQrModalFor(null)}>
-          <div role="dialog" aria-modal="true" aria-label="Guidebook QR code" className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div ref={qrDialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Guidebook QR code" className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl outline-none" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-[#1f1a17]">QR code</h3>
               <button type="button" onClick={() => setQrModalFor(null)} aria-label="Close" className={ICON_BUTTON}>
@@ -610,6 +642,18 @@ export default function DashboardPage() {
             }
           }}
         />
+
+      {downloadingPdf && (
+        <div role="status" aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">
+          <div className="flex items-center gap-3 rounded-full bg-[#1f1a17] py-3 pl-4 pr-5 text-sm text-white shadow-[0_20px_40px_-12px_rgba(31,26,23,0.5)]">
+            <Spinner size={18} colorClass="text-[#f9a8d4]" />
+            <span>
+              <span className="font-semibold">Creating your PDF…</span>
+              <span className="text-white/70"> this takes a few seconds.</span>
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

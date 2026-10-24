@@ -50,7 +50,7 @@ function getEnv(): nunjucks.Environment {
 }
 
 export function resolveTemplateKey(key: string | null | undefined): string {
-  return key && key in TEMPLATE_REGISTRY ? key : FALLBACK_TEMPLATE_KEY;
+  return key && Object.hasOwn(TEMPLATE_REGISTRY, key) ? key : FALLBACK_TEMPLATE_KEY;
 }
 
 /** Hash of the template sources, so edits to templates invalidate cached pages and ETags. */

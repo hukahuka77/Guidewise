@@ -22,7 +22,7 @@ import { GET as byIdRoute } from "../src/app/guidebook/[id]/route";
 import { GET as slugRoute } from "../src/app/g/[slug]/route";
 import { setSqlForTests } from "../src/lib/server/db";
 import { resetRateLimitsForTests } from "../src/lib/server/rateLimit";
-import { aiUsage, consumeAiQuota, isNonViewRequest, monthStart, monthlyViews, recordView, secondsUntilMonthEnd, visitorKey } from "../src/lib/server/usage";
+import { aiUsage, consumeAiQuota, isNonViewRequest, monthStart, monthlyViews, recordView, secondsUntilMonthEnd, visitorBlock, visitorKey } from "../src/lib/server/usage";
 import { createGuidebook } from "../src/lib/server/guidebookService";
 
 // The page routes read guidebooks through Supabase's REST client; serve them from the test database instead.
@@ -95,18 +95,32 @@ describe("helpers", () => {
     expect(isNonViewRequest(r(BROWSER, {}, "HEAD"))).toBe(true);
   });
 
-  it("visitor keys differ per guidebook/visitor and day, and ignore the user agent", () => {
-    const a = new Request("http://x/", { headers: { "user-agent": BROWSER, "x-forwarded-for": "1.1.1.1" } });
-    const b = new Request("http://x/", { headers: { "user-agent": BROWSER, "x-forwarded-for": "2.2.2.2" } });
-    const t = Date.UTC(2026, 9, 22, 12, 0, 0);
-    expect(visitorKey(a, "g1", t)).toBe(visitorKey(a, "g1", t + 60_000));
-    expect(visitorKey(a, "g1", t)).not.toBe(visitorKey(b, "g1", t));
-    expect(visitorKey(a, "g1", t)).not.toBe(visitorKey(a, "g2", t));
-    expect(visitorKey(a, "g1", t)).toBe(visitorKey(a, "g1", t + 11 * 3600_000));
-    expect(visitorKey(a, "g1", t)).not.toBe(visitorKey(a, "g1", t + 12 * 3600_000));
-    const otherAgent = new Request("http://x/", { headers: { "user-agent": BROWSER + " x", "x-forwarded-for": "1.1.1.1" } });
-    expect(visitorKey(otherAgent, "g1", t)).toBe(visitorKey(a, "g1", t));
-    expect(visitorKey(a, "g1", t)).not.toContain("1.1.1.1");
+  it("visitor keys differ per guidebook and visitor, treat an IPv6 /64 as one visitor, and ignore the user agent", () => {
+    const from = (ip: string, ua = BROWSER) => new Request("http://x/", { headers: { "user-agent": ua, "x-forwarded-for": ip } });
+    const a = from("1.1.1.1");
+    expect(visitorKey(a, "g1")).toBe(visitorKey(from("1.1.1.1"), "g1"));
+    expect(visitorKey(a, "g1")).not.toBe(visitorKey(from("2.2.2.2"), "g1"));
+    expect(visitorKey(a, "g1")).not.toBe(visitorKey(a, "g2"));
+    expect(visitorKey(from("1.1.1.1", BROWSER + " x"), "g1")).toBe(visitorKey(a, "g1"));
+    expect(visitorKey(a, "g1")).not.toContain("1.1.1.1");
+    // Rotating addresses inside one IPv6 /64 doesn't make new visitors; another /64 does
+    expect(visitorKey(from("2001:db8:1:2::1"), "g1")).toBe(visitorKey(from("2001:db8:1:2:abcd:ef01:2345:6789"), "g1"));
+    expect(visitorKey(from("2001:db8:1:2::1"), "g1")).not.toBe(visitorKey(from("2001:db8:1:3::1"), "g1"));
+    expect(visitorBlock("2001:0db8:0001:0002:0000:0000:0000:0001")).toBe("2001:db8:1:2::/64");
+    expect(visitorBlock("2001:db8::1")).toBe("2001:db8:0:0::/64");
+    expect(visitorBlock("::ffff:9.9.9.9")).toBe("9.9.9.9");
+    expect(visitorBlock("9.9.9.9")).toBe("9.9.9.9");
+  });
+
+  it("the same visitor counts again only after six hours", async () => {
+    expect(await recordView(db.sql, gbId, OWNER, "repeat")).toBe(true);
+    expect(await recordView(db.sql, gbId, OWNER, "repeat")).toBe(false);
+    await db.sql`update view_dedupe set created_at = now() - interval '5 hours 59 minutes' where key = 'repeat'`;
+    expect(await recordView(db.sql, gbId, OWNER, "repeat")).toBe(false);
+    await db.sql`update view_dedupe set created_at = now() - interval '6 hours 1 minute' where key = 'repeat'`;
+    expect(await recordView(db.sql, gbId, OWNER, "repeat")).toBe(true);
+    expect(await recordView(db.sql, gbId, OWNER, "repeat")).toBe(false); // the window restarts from that view
+    expect(await views()).toBe(2);
   });
 
   it("recordView counts once per key and sums per month for the owner only", async () => {
@@ -148,7 +162,7 @@ describe("free plan: 30 views per month across all guidebooks", () => {
     const blocked = await slugRoute(guest(`/g/${slug}`), slugCtx());
     expect(blocked.headers.get("x-guidewise-limit")).toBe("views");
     expect(blocked.headers.get("cache-control")).toBe("private, no-store");
-    expect(await blocked.text()).toContain("temporarily unavailable");
+    expect(await blocked.text()).toContain("currently unavailable");
     expect(await views()).toBe(30);
 
     expect((await byIdRoute(guest(`/guidebook/${gbId}`), idCtx())).headers.get("x-guidewise-limit")).toBe("views");
@@ -167,14 +181,17 @@ describe("free plan: 30 views per month across all guidebooks", () => {
     expect((await slugRoute(guest(`/g/${slug}`), slugCtx())).headers.get("x-guidewise-limit")).toBeNull();
   }, 60000);
 
-  it("shares one allowance across the owner's guidebooks", async () => {
-    const second = await createGuidebook(db.sql, OWNER, { property_name: "Second House" });
-    for (let i = 0; i < 20; i++) await slugRoute(guest(`/g/${slug}`), slugCtx());
-    for (let i = 0; i < 10; i++) await slugRoute(guest(`/g/${second.publicSlug}`), { params: Promise.resolve({ slug: second.publicSlug as string }) });
-    expect((await slugRoute(guest(`/g/${slug}`), slugCtx())).headers.get("x-guidewise-limit")).toBe("views");
-    const other = await slugRoute(guest(`/g/${second.publicSlug}`), { params: Promise.resolve({ slug: second.publicSlug as string }) });
-    expect(other.headers.get("x-guidewise-limit")).toBe("views");
-  }, 60000);
+  it("a second guidebook on Free is locked for guests and uses none of the views", async () => {
+    await db.sql`insert into guidebook (id, property_id, user_id, template_key, public_slug)
+      select 'claimed', property_id, user_id, template_key, 'claimed-house' from guidebook where public_slug = ${slug}`;
+    const locked = await slugRoute(guest("/g/claimed-house"), { params: Promise.resolve({ slug: "claimed-house" }) });
+    expect(locked.headers.get("x-guidewise-limit")).toBe("locked");
+    expect(await locked.text()).toContain("currently unavailable");
+    expect(await monthlyViews(db.sql, OWNER)).toBe(0);
+    expect((await slugRoute(guest(`/g/${slug}`), slugCtx())).headers.get("x-guidewise-limit")).toBeNull();
+    await setPlan(db.sql, OWNER, "starter");
+    expect((await slugRoute(guest("/g/claimed-house"), { params: Promise.resolve({ slug: "claimed-house" }) })).headers.get("x-guidewise-limit")).toBeNull();
+  });
 
   it("another owner's allowance is unaffected", async () => {
     const theirs = await createGuidebook(db.sql, OTHER, { property_name: "Theirs" });
@@ -320,7 +337,7 @@ describe("AI recommendation quota", () => {
       expect((await post(aiRecs, { type: "food", location: "  " })).status).toBe(400);
       expect(await aiUsage(db.sql, OWNER)).toBe(0);
       await setPlan(db.sql, OWNER, "starter");
-      await db.sql`insert into ai_usage_monthly (user_id, month, used) values (${OWNER}, ${monthStart()}::date, 29)`;
+      await db.sql`insert into ai_usage_monthly (user_id, month, used) values (${OWNER}, ${monthStart()}::date, 14)`;
       await consumeAiQuota(db.sql, OWNER);
       await expect(consumeAiQuota(db.sql, OWNER)).rejects.toMatchObject({ status: 403 });
       await setPlan(db.sql, OWNER, "power");

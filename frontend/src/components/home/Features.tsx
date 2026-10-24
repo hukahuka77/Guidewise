@@ -25,7 +25,7 @@ const ROWS = [
   },
   {
     title: "On the fridge, too.",
-    body: "Download a QR code that opens the live guidebook, and on Starter and up, print the whole guide as a polished PDF. Guests find it the moment they walk in.",
+    body: "Download a QR code that opens the live guidebook, and on Starter and up, download the whole guide as a polished PDF to print. Guests find it the moment they walk in.",
     Visual: PrintVisual,
   },
 ];

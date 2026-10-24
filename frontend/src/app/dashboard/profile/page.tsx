@@ -112,8 +112,9 @@ export default function ProfilePage() {
             )}
 
             <div>
-              <label className="block text-sm font-medium text-[#1f1a17]">Email</label>
+              <label htmlFor="profile-email" className="block text-sm font-medium text-[#1f1a17]">Email</label>
               <input
+                id="profile-email"
                 type="email"
                 disabled
                 value={email}
@@ -124,8 +125,9 @@ export default function ProfilePage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-[#1f1a17]">Full Name</label>
+                <label htmlFor="profile-name" className="block text-sm font-medium text-[#1f1a17]">Full Name</label>
                 <input
+                  id="profile-name"
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -134,8 +136,9 @@ export default function ProfilePage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-[#1f1a17]">Company</label>
+                <label htmlFor="profile-company" className="block text-sm font-medium text-[#1f1a17]">Company</label>
                 <input
+                  id="profile-company"
                   type="text"
                   value={company}
                   onChange={(e) => setCompany(e.target.value)}
@@ -144,8 +147,9 @@ export default function ProfilePage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-[#1f1a17]">Phone</label>
+                <label htmlFor="profile-phone" className="block text-sm font-medium text-[#1f1a17]">Phone</label>
                 <input
+                  id="profile-phone"
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}

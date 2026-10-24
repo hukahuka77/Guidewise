@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { claimInBackground, isGuestSession } from "@/lib/guest";
+import { cacheClear } from "@/lib/cache";
 import { useRouter } from "next/navigation";
 import { Marcellus } from "next/font/google";
 
@@ -33,6 +34,8 @@ export default function Navbar() {
       setIsAuthed(!!session && !isGuestSession(session));
       // Signed in after building a guidebook as a guest: move it into the account, wherever they landed
       if (event === "SIGNED_IN" && session && !isGuestSession(session)) claimInBackground();
+      // The account's guidebooks and profile are cached in memory: never show them to whoever signs in next
+      if (event === "SIGNED_OUT") cacheClear();
     });
     return () => {
       mounted = false;
@@ -68,6 +71,7 @@ export default function Navbar() {
                 try {
                   await supabase?.auth.signOut();
                 } finally {
+                  cacheClear();
                   router.push("/");
                 }
               }}
@@ -127,6 +131,7 @@ export default function Navbar() {
                     try {
                       await supabase?.auth.signOut();
                     } finally {
+                      cacheClear();
                       setMobileOpen(false);
                       router.push("/");
                     }

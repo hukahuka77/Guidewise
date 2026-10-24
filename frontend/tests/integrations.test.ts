@@ -21,6 +21,7 @@ import { POST as aiFood } from "../src/app/api/ai-food/route";
 import { POST as aiRecs } from "../src/app/api/ai-recommendations/route";
 import { POST as importRoute } from "../src/app/api/import-listing/route";
 import { GET as photoRoute } from "../src/app/api/place-photo/route";
+import { placePhotoUrl } from "../src/lib/guidebook/placePhotos";
 import { GET as enrichRoute } from "../src/app/api/places/enrich/route";
 import { POST as searchRoute } from "../src/app/api/places/search/route";
 import { setSqlForTests } from "../src/lib/server/db";
@@ -205,8 +206,17 @@ describe("place photo", () => {
       .mockResolvedValueOnce(json({ results: [{ place_id: "found" }] }))
       .mockResolvedValueOnce(json({ result: { photos: [{ photo_reference: "RECOVERED" }] } }))
       .mockResolvedValueOnce(img());
-    const res = await photoRoute(get("/api/place-photo?photo_reference=OLD&query=Joe%27s%20Pizza"));
+    const signed = placePhotoUrl({ image_url: "OLD", name: "Joe's Pizza" });
+    expect(signed).toContain("sig=");
+    const res = await photoRoute(get(signed));
     expect(res.status).toBe(200);
+  });
+
+  it("won't run the paid name search for a query our pages didn't sign", async () => {
+    fetchMock.mockResolvedValueOnce(new Response("x", { status: 400 })); // the reference fails
+    const forged = await photoRoute(get("/api/place-photo?photo_reference=OLD&query=anything%20at%20all&sig=nope"));
+    expect(forged.status).toBe(404);
+    expect(fetchMock).toHaveBeenCalledTimes(1); // no Text Search, Details or Photo calls
   });
 
   it("rejects non-image upstream responses with 404", async () => {
@@ -396,6 +406,10 @@ describe("listing import route", () => {
     });
   const run = (url = "https://www.airbnb.com/rooms/1") => importRoute(post("/api/import-listing", { url }));
   const pageCalls = () => fetchMock.mock.calls.map((c) => String(c[0])).filter((u) => !/muscache\.com/.test(u));
+  // Several tests import more than the free plan's one guidebook
+  beforeEach(async () => {
+    await setPlan(db.sql, OWNER, "pro");
+  });
 
   it("requires auth and a valid url", async () => {
     expect((await importRoute(post("/api/import-listing", { url: "https://airbnb.com/rooms/1" }, "bad"))).status).toBe(401);
@@ -534,6 +548,7 @@ describe("listing import route", () => {
 
     it("still imports when the free AI allowance is used up, and says so", async () => {
       wire();
+      await setPlan(db.sql, OWNER, "free");
       await db.sql`insert into ai_usage_monthly (user_id, month, used) values (${OWNER}, ${monthStart()}::date, 3)`;
       const body = await (await run()).json();
       expect(body.recommendations).toEqual({ things_to_do: 0, places_to_eat: 0, skipped: "quota" });

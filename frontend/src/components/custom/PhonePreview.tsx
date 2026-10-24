@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // The phone frame shows the page like a phone does: no desktop scrollbar down the side. Guests on a
 // computer still get their normal scrollbar, because this is only added to the preview.
@@ -12,9 +12,9 @@ function withoutScrollbar(html: string): string {
 }
 
 /** For the same-origin sample page, which is loaded by URL rather than as srcDoc. */
-function hideScrollbarOnLoad(e: React.SyntheticEvent<HTMLIFrameElement>) {
+function hideScrollbar(frame: HTMLIFrameElement) {
   try {
-    const doc = e.currentTarget.contentDocument;
+    const doc = frame.contentDocument;
     if (!doc || doc.querySelector("style[data-preview]")) return;
     const style = doc.createElement("style");
     style.setAttribute("data-preview", "");
@@ -38,17 +38,70 @@ interface Props {
   sampleTemplate?: string;
   /** Render this URL's HTML instead of the owner's copy (no token needed, e.g. a gift link). */
   htmlUrl?: string | null;
+  /** Scroll the sample down a little and back once it is on screen, to show that it scrolls. */
+  peek?: boolean;
   className?: string;
+}
+
+/**
+ * Once the sample is on screen, glide it down and back up so visitors can see it is a real page they can
+ * scroll. Stops at once if the visitor touches it, and never runs for people who prefer reduced motion.
+ */
+function peekOnce(frame: HTMLIFrameElement) {
+  const win = frame.contentWindow;
+  const doc = frame.contentDocument;
+  if (!win || !doc || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  let stopped = false;
+  const timers: number[] = [];
+  const stop = () => {
+    stopped = true;
+    timers.forEach((t) => window.clearTimeout(t));
+  };
+  for (const type of ["pointerdown", "wheel", "touchstart", "keydown"]) doc.addEventListener(type, stop, { once: true, passive: true });
+  const glide = () => {
+    if (stopped) return;
+    win.scrollTo({ top: Math.min(420, doc.documentElement.scrollHeight / 3), behavior: "smooth" });
+    timers.push(window.setTimeout(() => !stopped && win.scrollTo({ top: 0, behavior: "smooth" }), 1500));
+  };
+  const seen = new IntersectionObserver(
+    (entries) => {
+      if (!entries.some((e) => e.isIntersecting)) return;
+      seen.disconnect();
+      timers.push(window.setTimeout(glide, 1200));
+    },
+    { threshold: 0.6 },
+  );
+  seen.observe(frame);
 }
 
 /**
  * The guidebook in a phone, exactly as guests see it and fully interactive. It renders the owner's copy
  * (`/api/guidebooks/<id>/html`), so previewing never counts as a guest view.
  */
-export default function PhonePreview({ guidebookId, accessToken, refreshKey = 0, message, sampleTemplate, htmlUrl, className = "" }: Props) {
+export default function PhonePreview({ guidebookId, accessToken, refreshKey = 0, message, sampleTemplate, htmlUrl, peek = false, className = "" }: Props) {
   const [html, setHtml] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [failed, setFailed] = useState(false);
+  const peeked = useRef(false);
+  const sampleRef = useRef<HTMLIFrameElement>(null);
+
+  const sampleReady = (frame: HTMLIFrameElement) => {
+    hideScrollbar(frame);
+    if (!peek || peeked.current) return;
+    peeked.current = true;
+    try {
+      peekOnce(frame);
+    } catch {
+      // Not same-origin: no peek
+    }
+  };
+
+  // On a server-rendered page the sample can finish loading before React attaches onLoad
+  useEffect(() => {
+    const frame = sampleRef.current;
+    if (frame?.contentDocument?.readyState === "complete" && frame.contentWindow?.location.href !== "about:blank") sampleReady(frame);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!htmlUrl && (!guidebookId || !accessToken)) return;
@@ -94,7 +147,8 @@ export default function PhonePreview({ guidebookId, accessToken, refreshKey = 0,
             key="sample"
             title="Sample guidebook"
             src={`/sample-guidebook${sampleTemplate ? `?template=${encodeURIComponent(sampleTemplate)}` : ""}`}
-            onLoad={hideScrollbarOnLoad}
+            ref={sampleRef}
+            onLoad={(e) => sampleReady(e.currentTarget)}
             sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
             className="h-full w-full border-0 bg-white"
           />

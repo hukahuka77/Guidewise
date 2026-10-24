@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, ArrowRight, Check, ExternalLink, EyeOff, Loader2, Lock, Search, Smartphone, Sparkles, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ExternalLink, EyeOff, Loader2, Lock, Search, Smartphone, Sparkles, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/editor/primitives";
 
@@ -32,6 +32,8 @@ import { useSectionNavigation } from "@/hooks/useSectionNavigation";
 import { buildGuidebookPayload } from "@/utils/guidebookPayload";
 import { EDIT_SECTIONS_ORDER } from "@/config/sections";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import { useDialog } from "@/hooks/useDialog";
+import { showDialog } from "@/lib/dialog";
 
 const BUCKET_NAME = process.env.NEXT_PUBLIC_SUPABASE_FOOD_ACTIVITIES_BUCKET as string;
 const HOUSE_MEDIA_BUCKET = process.env.NEXT_PUBLIC_SUPABASE_USER_VIDEOS_BUCKET as string;
@@ -90,6 +92,11 @@ export default function EditGuidebookPage() {
     requireAuth: false, // Edit doesn't redirect immediately, loads data first
   });
   const premiumStyles = usePremiumStyles(accessToken, isGuest);
+  // Supabase refreshes the token in the background: requests read the latest one from here, so a refresh
+  // never re-runs the load (which would reset the form to the saved copy and lose unsaved edits)
+  const tokenRef = useRef(accessToken);
+  tokenRef.current = accessToken;
+  const signedIn = Boolean(accessToken);
 
   // Use consolidated form hook
   const {
@@ -158,9 +165,13 @@ export default function EditGuidebookPage() {
   });
 
   const [isLoading, setIsLoading] = useState(false);
-  const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
+  // Saving is only ever allowed once the guidebook loaded: a blank form saved over it would wipe it
+  const [loaded, setLoaded] = useState(false);
+  const loadedRef = useRef(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [pendingHouseMediaIndex, setPendingHouseMediaIndex] = useState<number | null>(null);
   const [showHouseMediaConfirm, setShowHouseMediaConfirm] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
@@ -169,17 +180,19 @@ export default function EditGuidebookPage() {
   const [previewKey, setPreviewKey] = useState(0);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [previewOpen, setPreviewOpen] = useState(false);
+  const previewRef = useRef<HTMLDivElement>(null);
+  useDialog(previewOpen, () => setPreviewOpen(false), previewRef);
 
   // Check if this is first-time visiting edit page (skip on mobile)
   useEffect(() => {
-    if (!initialLoading) {
+    if (loaded) {
       const isMobile = window.innerWidth < 768; // Skip tutorial on mobile/tablet
       const hasSeenTutorial = localStorage.getItem('hasSeenEditTutorial') === 'true';
       if (!hasSeenTutorial && !isMobile) {
         setShowTutorial(true);
       }
     }
-  }, [initialLoading]);
+  }, [loaded]);
 
   // Hide tutorial if window is resized to mobile
   useEffect(() => {
@@ -192,10 +205,10 @@ export default function EditGuidebookPage() {
     return () => window.removeEventListener('resize', handleResize);
   }, [showTutorial]);
 
-  // Fetch existing guidebook details
+  // Fetch existing guidebook details, once per guidebook (not again on a token refresh)
   useEffect(() => {
     if (!guidebookId || !authReady) return;
-    if (!accessToken) {
+    if (!signedIn) {
       router.push("/login");
       return;
     }
@@ -204,21 +217,25 @@ export default function EditGuidebookPage() {
       router.replace("/signup?save=1");
       return;
     }
+    if (loadedRef.current) return;
+    let cancelled = false;
     (async () => {
       try {
         setIsLoading(true);
-        setInitialLoading(true);
+        setLoadError(null);
         const res = await fetch(`/api/guidebooks/${guidebookId}`, {
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
+            Authorization: `Bearer ${tokenRef.current}`,
           },
         });
+        if (cancelled) return;
         // 401 shouldn't occur because we verified accessToken above; still handle just in case
         if (res.status === 401) { router.push("/login"); return; }
         if (res.status === 404 || res.status === 400) { setNotFound(true); return; }
         if (!res.ok) throw new Error(`Failed to load guidebook (${res.status})`);
         const data: GuidebookDetail = await res.json();
+        if (cancelled) return;
 
         // Map payload into form state
         setFormData(prev => ({
@@ -331,16 +348,19 @@ export default function EditGuidebookPage() {
         }));
         if (data.cover_image_url) setPreviewUrl(data.cover_image_url);
         if (data.host?.photo_url) setHostPhotoPreviewUrl(data.host.photo_url);
+        loadedRef.current = true;
+        setLoaded(true);
       } catch (e: unknown) {
         console.error(e);
-        const msg = e instanceof Error ? e.message : "Failed to load guidebook";
-        setError(msg);
+        if (!cancelled) setLoadError(e instanceof Error ? e.message : "Failed to load guidebook");
       } finally {
-        setIsLoading(false);
-        setInitialLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     })();
-  }, [guidebookId, accessToken, authReady, isGuest, router, setActivityItems, setCheckoutItems, setCustomSections, setCustomTabsMeta, setExcluded, setFoodItems, setFormData, setHostPhotoPreviewUrl, setHouseManualItems, setIncluded, setPreviewUrl, setRules]);
+    return () => {
+      cancelled = true;
+    };
+  }, [guidebookId, signedIn, authReady, loadAttempt, isGuest, router, setActivityItems, setCheckoutItems, setCustomSections, setCustomTabsMeta, setExcluded, setFoodItems, setFormData, setHostPhotoPreviewUrl, setHouseManualItems, setIncluded, setPreviewUrl, setRules]);
 
   // Image handlers are now provided by useGuidebookForm hook
 
@@ -352,6 +372,7 @@ export default function EditGuidebookPage() {
    * With `keepalive` (the page is closing) photos are not uploaded and the request outlives the page.
    */
   const persist = async (keepalive = false): Promise<boolean> => {
+    if (!loadedRef.current) return false;
     let coverImageUrl: string | undefined = undefined;
     let hostPhotoUrl: string | undefined = undefined;
     if (keepalive) {
@@ -390,7 +411,7 @@ export default function EditGuidebookPage() {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        ...(tokenRef.current ? { Authorization: `Bearer ${tokenRef.current}` } : {}),
       },
       body: JSON.stringify(payload),
       keepalive,
@@ -462,7 +483,7 @@ export default function EditGuidebookPage() {
 
   // Leaving the page (closing the tab, or navigating away) before the debounce fires must not lose the last edit
   useEffect(() => {
-    if (initialLoading) return;
+    if (!loaded) return;
     const flush = () => {
       // A save still in flight is cancelled by the browser when the page unloads, so it is sent again with keepalive
       if (baseline.current === null || (snapshotRef.current === baseline.current && !saving.current)) return;
@@ -475,10 +496,10 @@ export default function EditGuidebookPage() {
       window.removeEventListener("pagehide", flush);
       flush();
     };
-  }, [initialLoading]);
+  }, [loaded]);
 
   useEffect(() => {
-    if (initialLoading) return;
+    if (!loaded) return;
     if (baseline.current === null) {
       // What was just loaded (plus state that settles in the renders right after) is the starting point.
       // Captured once: a timer that restarted on every change would swallow edits made right after the page opened.
@@ -488,7 +509,7 @@ export default function EditGuidebookPage() {
     if (snapshot === baseline.current) return;
     const t = setTimeout(autosave, 1200);
     return () => clearTimeout(t);
-  }, [snapshot, initialLoading, autosave]);
+  }, [snapshot, loaded, autosave]);
 
   const switchTemplate = async (key: string) => {
     if (key === templateKey || !accessToken) return;
@@ -537,7 +558,23 @@ export default function EditGuidebookPage() {
     });
   }, [formData.location, setFormData]);
 
-  if (initialLoading) {
+  if (loadError) {
+    return (
+      <div className="w-full min-h-[60vh] flex flex-col items-center justify-center gap-4 px-4 text-center" role="alert">
+        <h1 className="text-2xl font-semibold text-gray-800">Couldn&apos;t load this guidebook</h1>
+        <p className="text-gray-600">Your guidebook is safe. Check your connection and try again.</p>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => router.push("/dashboard")}>Back to dashboard</Button>
+          <Button onClick={() => setLoadAttempt((n) => n + 1)} disabled={isLoading}>
+            {isLoading ? <Loader2 className="size-4 animate-spin" /> : null}
+            Try again
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!loaded && !notFound) {
     return (
       <div className="w-full min-h-[60vh] flex items-center justify-center">
         <div className="flex items-center gap-3 text-gray-700">
@@ -624,6 +661,32 @@ export default function EditGuidebookPage() {
     }
   };
 
+  /** Removes a custom section and its content, after asking (this frees a custom section slot) */
+  const deleteCustomSection = (key: string) => {
+    const label = customTabsMeta[key]?.label || "this section";
+    showDialog({
+      title: "Delete section?",
+      message: `"${label}" and everything in it will be removed from your guidebook.`,
+      confirmLabel: "Delete",
+      cancelLabel: "Cancel",
+      onConfirm: () => {
+        setIncluded((prev) => prev.filter((k) => k !== key));
+        setExcluded((prev) => prev.filter((k) => k !== key));
+        setCustomSections((prev) => {
+          const next = { ...prev };
+          delete next[key];
+          return next;
+        });
+        setCustomTabsMeta((prev) => {
+          const next = { ...prev };
+          delete next[key];
+          return next;
+        });
+        if (currentSection === key) goToSection("welcome");
+      },
+    });
+  };
+
   /** AI suggestions are added to the list (up to the limit) instead of replacing what the host already has. */
   const mergeSuggestions = (current: DynamicItem[], suggested: DynamicItem[]) => {
     const seen = new Set(current.map((i) => i.name.trim().toLowerCase()));
@@ -664,7 +727,7 @@ export default function EditGuidebookPage() {
   const topbar = (
     <div className="sticky top-14 z-30 border-b border-[#ECE5DB] bg-[#F8F5F1]/90 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-[1600px] items-center gap-3 px-4 lg:px-6">
-        <button type="button" onClick={() => router.push("/dashboard")} className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-gray-600 hover:bg-white hover:text-gray-900">
+        <button type="button" onClick={() => router.push("/dashboard")} aria-label="Back to guidebooks" className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-gray-600 hover:bg-white hover:text-gray-900">
           <ArrowLeft className="size-4" />
           <span className="hidden sm:inline">Guidebooks</span>
         </button>
@@ -676,7 +739,7 @@ export default function EditGuidebookPage() {
             <span className="hidden sm:inline">· {saveStatus}</span>
           </p>
         </div>
-        <button type="button" onClick={() => setPreviewOpen(true)} className="inline-flex items-center gap-1.5 rounded-xl border border-[#E2D9CC] bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 xl:hidden">
+        <button type="button" onClick={() => setPreviewOpen(true)} aria-label="Preview guidebook" className="inline-flex items-center gap-1.5 rounded-xl border border-[#E2D9CC] bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 xl:hidden">
           <Smartphone className="size-4" /> <span className="hidden sm:inline">Preview</span>
         </button>
         {liveUrl && (
@@ -730,6 +793,7 @@ export default function EditGuidebookPage() {
               }}
               onCustomMetaChange={(meta) => setCustomTabsMeta(meta)}
               customTabsMeta={customTabsMeta}
+              onDeleteCustom={deleteCustomSection}
             />
           </div>
         }
@@ -747,8 +811,15 @@ export default function EditGuidebookPage() {
               </div>
             </div>
             {currentSection !== "welcome" && (
-              <div className="shrink-0 rounded-xl border border-[#ECE5DB] bg-white px-3 py-2">
-                <Switch checked={sectionShown} onChange={setSectionShown} label="Show in guidebook" />
+              <div className="flex shrink-0 items-center gap-2">
+                <div className="rounded-xl border border-[#ECE5DB] bg-white px-3 py-2">
+                  <Switch checked={sectionShown} onChange={setSectionShown} label="Show in guidebook" />
+                </div>
+                {isCustom && (
+                  <button type="button" onClick={() => deleteCustomSection(currentSection)} className="inline-flex items-center gap-1.5 rounded-xl border border-[#ECE5DB] bg-white px-3 py-2 text-sm text-gray-600 hover:border-red-200 hover:text-red-600">
+                    <Trash2 className="size-4" /> Delete section
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -976,7 +1047,7 @@ export default function EditGuidebookPage() {
       {/* Preview on screens without the side column */}
       {previewOpen && (
         <div className="fixed inset-0 z-50 flex flex-col items-center overflow-y-auto bg-black/60 p-4 xl:hidden" onClick={() => setPreviewOpen(false)} role="dialog" aria-modal="true" aria-label="Guidebook preview">
-          <div className="my-auto flex w-full max-w-sm flex-col items-center gap-4 rounded-3xl bg-[#F8F5F1] p-5" onClick={(e) => e.stopPropagation()}>
+          <div ref={previewRef} tabIndex={-1} className="my-auto flex w-full max-w-sm flex-col items-center gap-4 rounded-3xl bg-[#F8F5F1] p-5 outline-none" onClick={(e) => e.stopPropagation()}>
             <div className="flex w-full items-center justify-between">
               <p className="font-semibold text-gray-900">Preview</p>
               <button type="button" onClick={() => setPreviewOpen(false)} className="inline-flex size-8 items-center justify-center rounded-lg text-gray-500 hover:bg-white" aria-label="Close preview">

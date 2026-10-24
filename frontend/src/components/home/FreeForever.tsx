@@ -6,7 +6,7 @@ import { motion, MotionValue, useReducedMotion, useScroll, useTransform } from "
 import { Check } from "lucide-react";
 
 const INCLUDED = [
-  "Unlimited guidebooks",
+  "A guidebook for your place",
   "Airbnb and VRBO import",
   "Signature guidebook style",
   "AI local recommendations",
