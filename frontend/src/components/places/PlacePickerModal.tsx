@@ -1,7 +1,8 @@
 "use client";
 import { getAuthHeaders } from "@/lib/authHeaders";
 
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
+import { useDialog } from "@/hooks/useDialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -34,6 +35,10 @@ export default function PlacePickerModal({ open, onClose, onSelect, near, title 
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<PlaceSearchItem[]>([]);
   const [searched, setSearched] = useState("");
+  // Blocks a second Select (a double-click) while the first place's details are loading
+  const picking = useRef(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialog(open, onClose, dialogRef);
 
   if (!open) return null;
 
@@ -60,6 +65,8 @@ export default function PlacePickerModal({ open, onClose, onSelect, near, title 
   };
 
   const pick = async (place_id: string) => {
+    if (picking.current) return;
+    picking.current = true;
     setLoading(true);
     setError(null);
     try {
@@ -76,15 +83,16 @@ export default function PlacePickerModal({ open, onClose, onSelect, near, title 
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to fetch details");
     } finally {
+      picking.current = false;
       setLoading(false);
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-2xl w-[95vw] max-w-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="place-picker-title" className="bg-white rounded-xl shadow-2xl w-[95vw] max-w-2xl overflow-hidden outline-none" onClick={(e) => e.stopPropagation()}>
         <div className="p-4 border-b flex items-center justify-between">
-          <h3 className="font-semibold">{title || "Add from Google Places"}</h3>
+          <h3 id="place-picker-title" className="font-semibold">{title || "Add from Google Places"}</h3>
           <Button size="sm" variant="outline" onClick={onClose}>Close</Button>
         </div>
         <div className="p-4 flex gap-2">
@@ -110,7 +118,7 @@ export default function PlacePickerModal({ open, onClose, onSelect, near, title 
                   <div className="font-medium truncate">{r.name}</div>
                   <div className="text-xs text-gray-600 truncate">{r.address}</div>
                 </div>
-                <Button size="sm" onClick={() => pick(r.place_id)}>Select</Button>
+                <Button size="sm" onClick={() => pick(r.place_id)} disabled={loading}>Select</Button>
               </li>
             ))}
           </ul>

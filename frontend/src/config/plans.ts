@@ -22,7 +22,7 @@ export const PLAN_COPY: PlanCopy[] = [
     price: 0,
     tagline: "Everything you need to share a guidebook. No credit card, no trial clock.",
     features: [
-      "Unlimited guidebooks",
+      "1 guidebook",
       "30 guest views per month",
       "Signature guidebook style",
       "AI content and place recommendations (3 runs / month)",
@@ -37,7 +37,7 @@ export const PLAN_COPY: PlanCopy[] = [
     includes: "Free",
     features: [
       "Unlimited guest views on up to 3 guidebooks",
-      "Print-ready PDF of your guidebook",
+      "Download your guidebook as a PDF",
       "15 AI recommendation runs / month",
     ],
   },
@@ -70,4 +70,4 @@ export const PLAN_COPY: PlanCopy[] = [
 ];
 
 export const PRICING_FINE_PRINT =
-  "Guest views are counted per visitor (each visitor counts once per guidebook per day, and search engines and link previews are not counted) across all of your guidebooks, each calendar month. When a Free account reaches its monthly views, its guidebooks show a temporary \"unavailable\" notice to guests until the next month or until the host upgrades. Need more than 50 guidebooks? Contact us for a custom plan. Free and Starter guidebooks use the Signature style; the Lifestyle and Welcoming styles come with Power and Pro. AI allowances reset monthly. Prices in USD, billed monthly. Cancel anytime; guidebooks stay online on the Free plan.";
+  "Guest views are counted per visitor (each visitor counts once per guidebook per day, and search engines and link previews are not counted) across all of your guidebooks, each calendar month. When a Free account reaches its monthly views, its guidebooks show a temporary \"unavailable\" notice to guests until the next month or until the host upgrades. If you move to a plan with fewer guidebooks, your oldest ones stay live and the rest are paused for guests (you can still edit them) until you upgrade. Need more than 50 guidebooks? Contact us for a custom plan. Free and Starter guidebooks use the Signature style; the Lifestyle and Welcoming styles come with Power and Pro. AI allowances reset monthly. Prices in USD, billed monthly. Cancel anytime; guidebooks stay online on the Free plan.";

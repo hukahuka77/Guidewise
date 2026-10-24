@@ -332,8 +332,8 @@ describe("guests: build first, create an account to save", () => {
     }
   });
 
-  it("a guest can make a few guidebooks before an account is needed", async () => {
-    for (let i = 0; i < 3; i++) expect((await createVia({ property_name: `Try ${i}` }, "guest")).res.status).toBe(201);
+  it("a guest can make the free plan's one guidebook before an account is needed", async () => {
+    expect((await createVia({ property_name: "Try" }, "guest")).res.status).toBe(201);
     const { res, body } = await createVia({ property_name: "One more" }, "guest");
     expect(res.status).toBe(403);
     expect(body).toMatchObject({ code: "account_required" });
@@ -364,7 +364,10 @@ describe("guests: build first, create an account to save", () => {
   it("claiming lists the guest's newest guidebook first, so that's the one that opens", async () => {
     const { body: first } = await createVia({ property_name: "First Try" }, "guest");
     await db.sql`update guidebook set created_time = now() - interval '1 hour' where id = ${first.guidebook_id}`;
-    const { body: second } = await createVia({ property_name: "Second Try" }, "guest");
+    // Guests made up to three before Free became one guidebook; their tickets still move them all
+    const second = { guidebook_id: "second-try" };
+    await db.sql`insert into guidebook (id, property_id, user_id, template_key)
+      select ${second.guidebook_id}, property_id, user_id, template_key from guidebook where id = ${first.guidebook_id}`;
     const { ticket } = await json(await guestTicket(req("POST", "/api/guest/ticket", "guest")));
     expect(await json(await guestClaim(req("POST", "/api/guest/claim", "owner", { ticket })))).toEqual({
       guidebook_ids: [second.guidebook_id, first.guidebook_id],

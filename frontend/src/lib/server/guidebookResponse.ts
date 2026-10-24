@@ -44,15 +44,19 @@ function withBeacon(html: string, gb: GuidebookRow, enabled: boolean | undefined
 }
 
 /** Shown to guests when a free host has used this month's views. */
-export function limitReachedResponse(): Response {
-  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>Guidebook unavailable</title><style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#F8F5F1;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#1f2937}main{max-width:28rem;margin:1.5rem;padding:2rem;background:#fff;border-radius:1rem;box-shadow:0 1px 3px rgba(0,0,0,.1);text-align:center}h1{font-size:1.25rem;margin:0 0 .75rem}p{margin:.5rem 0;color:#4b5563;line-height:1.5}</style></head><body><main><h1>This guidebook is temporarily unavailable</h1><p>It has reached its view limit for this month.</p><p>Please contact your host, or check back next month.</p></main></body></html>`;
+/** Shown to guests when a guidebook is paused: its free host used up the month's views, or it's beyond the host's plan. */
+export function limitReachedResponse(reason: "views" | "locked" = "views"): Response {
+  const why = reason === "views"
+    ? "<p>It has reached its view limit for this month.</p><p>Please contact your host, or check back next month.</p>"
+    : "<p>Please contact your host for the details you need.</p>";
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>Guidebook unavailable</title><style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#F8F5F1;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#1f2937}main{max-width:28rem;margin:1.5rem;padding:2rem;background:#fff;border-radius:1rem;box-shadow:0 1px 3px rgba(0,0,0,.1);text-align:center}h1{font-size:1.25rem;margin:0 0 .75rem}p{margin:.5rem 0;color:#4b5563;line-height:1.5}</style></head><body><main><h1>Sorry, this guidebook is currently unavailable</h1>${why}</main></body></html>`;
   return new Response(html, {
     status: 200,
     headers: {
       "Content-Type": "text/html; charset=utf-8",
       "Cache-Control": "private, no-store",
       "X-Robots-Tag": "noindex",
-      "X-Guidewise-Limit": "views",
+      "X-Guidewise-Limit": reason,
     },
   });
 }

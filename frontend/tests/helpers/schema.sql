@@ -18,7 +18,8 @@ create table guidebook (
 );
 create unique index ux_guidebook_public_slug on guidebook (public_slug);
 create table profiles (
-  user_id uuid primary key, plan text not null default 'free', pro_expires_at timestamptz,
+  user_id uuid primary key, plan text not null default 'free'
+    check (plan in ('free', 'starter', 'power', 'pro', 'trial', 'growth', 'enterprise')), pro_expires_at timestamptz,
   created_at timestamptz not null default now(), updated_at timestamptz not null default now(),
   guidebook_limit integer, stripe_customer_id text, stripe_subscription_id text, pro_starts_at timestamptz
 );

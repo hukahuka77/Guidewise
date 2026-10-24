@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { rememberHeardAbout } from "@/lib/attribution";
+import { parsePaidPlan, type PaidPlan } from "@/lib/billing";
 import AuthShell, { AuthAlert, OrDivider, authInput, authLabel, authLink, authPrimary, authSecondary } from "@/components/custom/AuthShell";
 
 const HEARD_OPTIONS = ["A message from Guidewise", "Facebook group", "Reddit", "Google search", "TikTok, Instagram or YouTube", "A guest guidebook I saw", "A friend or co-host", "Other"];
@@ -22,11 +23,15 @@ export default function SignupPage() {
   const [saving, setSaving] = useState(false);
   // Came from "Build my guidebook" when guests aren't available: /onboarding builds it once they're in
   const [building, setBuilding] = useState(false);
+  // Came from a paid plan on /pricing: checkout starts on /onboarding once they're signed in
+  const [plan, setPlan] = useState<PaidPlan | null>(null);
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
     setSaving(query.get("save") === "1");
     setBuilding(query.get("build") === "1");
+    setPlan(parsePaidPlan(query.get("plan")));
   }, []);
+  const afterSignup = plan ? `/onboarding?plan=${plan}` : "/onboarding";
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,7 +52,7 @@ export default function SignupPage() {
       if (typeof window !== 'undefined') {
         // Prefer runtime origin in the browser to avoid using a prod URL during local dev
         const baseUrl = window.location.origin || process.env.NEXT_PUBLIC_SITE_URL;
-        emailRedirectTo = `${baseUrl}/onboarding`;
+        emailRedirectTo = `${baseUrl}${afterSignup}`;
       }
       const { error, data } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo } });
       if (error) {
@@ -65,7 +70,7 @@ export default function SignupPage() {
       
       // Depending on Supabase email confirmation settings, user may need to confirm via email
       if (data.session) {
-        router.push("/onboarding");
+        router.push(afterSignup);
         return;
       }
       setMessage(saving
@@ -154,7 +159,7 @@ export default function SignupPage() {
             await supabase.auth.signInWithOAuth({
               provider: 'google',
               options: {
-                redirectTo: `${(typeof window !== 'undefined' ? window.location.origin : process.env.NEXT_PUBLIC_SITE_URL)}/onboarding`,
+                redirectTo: `${(typeof window !== 'undefined' ? window.location.origin : process.env.NEXT_PUBLIC_SITE_URL)}${afterSignup}`,
                 queryParams: { prompt: 'select_account' },
               },
             });

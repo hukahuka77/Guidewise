@@ -18,8 +18,9 @@ export function POST(request: Request) {
         return Response.json({ error: "Too many requests. Please slow down." }, { status: 429 });
       }
       // Check the guidebook cap and creation rate before spending a fetch, OpenAI and Places calls
-      await assertCanCreateGuidebook(sql, user.id);
+      // (a guest hears they need an account, rather than an upgrade they can't buy yet)
       if (user.isGuest) await assertGuestCanCreate(sql, user.id);
+      await assertCanCreateGuidebook(sql, user.id);
       const data = await readJson(request);
       let fields;
       try {

@@ -1,5 +1,6 @@
 import { notConfigured } from "@/lib/server/apiRoute";
 import { isGoogleConfigured } from "@/lib/server/googlePlaces";
+import { photoQuerySignatureValid } from "@/lib/guidebook/placePhotos";
 import { resolvePlacePhoto } from "@/lib/server/placesService";
 import { clientIp, rateLimited } from "@/lib/server/rateLimit";
 
@@ -20,7 +21,9 @@ export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
   const photoReference = (params.get("photo_reference") || "").trim();
   const placeId = (params.get("place_id") || "").trim();
-  const query = (params.get("query") || "").trim().slice(0, 300);
+  // The name search costs a Google Text Search per request, so it only runs for links our pages signed
+  const rawQuery = (params.get("query") || "").trim().slice(0, 300);
+  const query = rawQuery && photoQuerySignatureValid(rawQuery, params.get("sig") || "") ? rawQuery : "";
   const rawWidth = params.get("maxwidth") ?? "800";
   if (!/^[+-]?\d+$/.test(rawWidth.trim())) {
     return Response.json({ error: "maxwidth must be an integer" }, { status: 400 });

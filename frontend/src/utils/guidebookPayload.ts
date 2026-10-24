@@ -102,7 +102,8 @@ export function buildGuidebookPayload(options: BuildPayloadOptions): Record<stri
     address_zip: formData.address_zip,
     access_info: formData.access_info,
     wifi_network: formData.wifiNetwork,
-    wifi_password: formData.wifiPassword || undefined,
+    // Sent even when empty, so clearing the password removes it
+    wifi_password: formData.wifiPassword,
     check_in_time: formData.checkInTime,
     check_out_time: formData.checkOutTime,
     safety_info: {
