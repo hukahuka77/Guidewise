@@ -20,8 +20,9 @@ describe("showing a hidden section again", () => {
 describe("answers given while a listing imports", () => {
   it("only sends what the host answered, trimmed", async () => {
     const { answersToPayload, EMPTY_ANSWERS } = await import("../src/components/onboarding/ImportQuestions");
-    expect(answersToPayload(EMPTY_ANSWERS)).toEqual({});
-    expect(answersToPayload({ ...EMPTY_ANSWERS, address: " 1 Main St ", wifiPassword: "pw", hostContact: "555 0101", checkIn: "" })).toEqual({
+    // check-in and check-out start at 4 PM and 11 AM
+    expect(answersToPayload(EMPTY_ANSWERS)).toEqual({ check_in_time: "16:00", check_out_time: "11:00" });
+    expect(answersToPayload({ ...EMPTY_ANSWERS, address: " 1 Main St ", wifiPassword: "pw", hostContact: "555 0101", checkIn: "", checkOut: "" })).toEqual({
       address_street: "1 Main St",
       wifi_password: "pw",
       host_contact: "555 0101",
