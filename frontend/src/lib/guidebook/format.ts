@@ -66,7 +66,7 @@ export interface GuideSection {
   key: string;
   label: string;
   short: string;
-  /** Icon name for built-in sections; null for custom sections, which use `emoji`. */
+  /** Icon name; custom sections all share the generic "section" icon. */
   icon: string | null;
   emoji: string | null;
   num: string;
@@ -118,7 +118,7 @@ export function guideSections(ctx: unknown): GuideSection[] {
       if (!customHasContent(custom[key])) continue;
       const m = isDict(meta[key]) ? meta[key] : {};
       const label = text(m.label) || key.replace(/^custom_/, "").replace(/_/g, " ");
-      shown.push({ key, label, short: label, icon: null, emoji: text(m.icon) || null });
+      shown.push({ key, label, short: label, icon: "section", emoji: null });
       continue;
     }
     const base = BUILT_IN[key];

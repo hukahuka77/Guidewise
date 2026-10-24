@@ -61,7 +61,7 @@ describe("format helpers", () => {
       custom_tabs_meta: { custom_pool: { label: "Pool", icon: "🏊" } },
     });
     expect(sections.map((s) => [s.key, s.num])).toEqual([["checkout", "01"], ["welcome", "02"], ["custom_pool", "03"], ["rules", "04"]]);
-    expect(sections[2]).toMatchObject({ label: "Pool", emoji: "🏊", icon: null });
+    expect(sections[2]).toMatchObject({ label: "Pool", emoji: null, icon: "section" }); // added sections share one icon, whatever emoji older ones saved
   });
 });
 

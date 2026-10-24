@@ -1,5 +1,5 @@
 import React from "react";
-import { BookOpen, Compass, Eye, EyeOff, GripVertical, Home, KeyRound, ListChecks, Luggage, Plus, Trash2, UtensilsCrossed, type LucideIcon } from "lucide-react";
+import { BookOpen, Bookmark, Compass, Eye, EyeOff, GripVertical, Home, KeyRound, ListChecks, Luggage, Plus, Trash2, UtensilsCrossed, type LucideIcon } from "lucide-react";
 import { LIMITS } from "../../constants/limits";
 import { cn } from "@/lib/utils";
 import { EDIT_SECTIONS_ORDER } from "@/config/sections";
@@ -57,20 +57,10 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
     index: number; // insertion index (0..length)
   }>({ list: null, index: -1 });
   const [showCustomModal, setShowCustomModal] = React.useState(false);
-  const [customEmoji, setCustomEmoji] = React.useState("");
   const [customTitle, setCustomTitle] = React.useState("");
   const [customMeta, setCustomMeta] = React.useState<Record<string, { icon: string; label: string }>>({});
   const customModalRef = React.useRef<HTMLDivElement>(null);
   useDialog(showCustomModal, () => setShowCustomModal(false), customModalRef);
-  const EMOJI_OPTIONS = React.useMemo(
-    () => [
-      "📝","✨","⭐","📍","📷","🗺️","🏖️","⛰️","🌇","🌃",
-      "🍽️","🍕","🍔","🍣","☕","🍺","🍷","🍹","🧁","🍩",
-      "🎡","🎟️","🎵","🏃","🚴","🏊","🛶","🎨","🏛️","🛍️",
-      "🚗","🚕","🚆","✈️","⛵","🧭","🪪","💡","🔧","🧼"
-    ],
-    []
-  );
   // Hidden custom sections still exist (and are saved), so they count; deleting one frees a slot
   const customCount = React.useMemo(() => (
     [...included, ...excluded].filter(k => k.startsWith("custom_")).length
@@ -211,13 +201,13 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
 
   const metaFor = (section: string) => {
     const builtIn = SECTION_META[section];
-    if (builtIn) return { label: builtIn.label, Icon: builtIn.icon as LucideIcon | null, emoji: null as string | null };
-    const custom = customMeta[section];
-    return { label: custom?.label || "Custom section", Icon: null as LucideIcon | null, emoji: custom?.icon || "📝" };
+    if (builtIn) return { label: builtIn.label, Icon: builtIn.icon };
+    // Every added section shares one icon, in the same style as the built-in ones
+    return { label: customMeta[section]?.label || "Custom section", Icon: Bookmark };
   };
 
   const renderItem = (section: string, index: number, listName: "included" | "excluded") => {
-    const { label, Icon, emoji } = metaFor(section);
+    const { label, Icon } = metaFor(section);
     const isEnabled = listName === "included" ? (!allowedSections || allowedSections.includes(section)) : true;
     const isWelcome = section === "welcome";
     const isDraggable = !isWelcome;
@@ -273,7 +263,7 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
           className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed"
         >
           <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-lg", active ? "bg-white text-primary shadow-sm" : "bg-[#F5EFE7] text-gray-600", hidden && "opacity-60")} aria-hidden="true">
-            {Icon ? <Icon className="size-4" /> : <span className="text-sm leading-none">{emoji}</span>}
+            <Icon className="size-4" />
           </span>
           <span className="min-w-0 flex-1 truncate">{label}</span>
         </button>
@@ -319,7 +309,7 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
       {/* Phones and small tablets: a scrollable strip of the visible sections */}
       <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 md:hidden">
         {included.map((section) => {
-          const { label, Icon, emoji } = metaFor(section);
+          const { label, Icon } = metaFor(section);
           const active = currentSection === section;
           return (
             <button
@@ -331,7 +321,7 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
                 active ? "border-primary bg-primary/10 font-semibold text-gray-900" : "border-[#E7DFD4] bg-white text-gray-700",
               )}
             >
-              {Icon ? <Icon className="size-4 text-primary" /> : <span aria-hidden="true">{emoji}</span>}
+              <Icon className="size-4 text-primary" />
               {label}
             </button>
           );
@@ -432,32 +422,6 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
             <p className="mb-4 text-sm text-gray-500">For anything that doesn&apos;t fit elsewhere: a pool guide, a kids corner, local transport.</p>
             <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium mb-1">Emoji</label>
-                <div className="grid grid-cols-10 gap-1 mb-2">
-                  {EMOJI_OPTIONS.map((e) => (
-                    <button
-                      key={e}
-                      type="button"
-                      className={`h-9 w-9 flex items-center justify-center rounded border text-lg hover:bg-gray-50 ${customEmoji === e ? 'ring-2 ring-primary' : ''}`}
-                      onClick={() => setCustomEmoji(e)}
-                      aria-label={`Choose ${e}`}
-                    >
-                      {e}
-                    </button>
-                  ))}
-                </div>
-                <input
-                  type="text"
-                  inputMode="text"
-                  placeholder="Or type/paste an emoji (1 char)"
-                  className="w-full rounded-lg border border-[#E7DFD4] px-3 py-2 outline-none focus:border-primary focus:ring-4 focus:ring-primary/15"
-                  value={customEmoji}
-                  maxLength={LIMITS.customTabEmojiChars}
-                  onChange={(e) => setCustomEmoji(e.target.value.slice(0, LIMITS.customTabEmojiChars))}
-                />
-                <p className="mt-1 text-xs text-gray-500">Pick from above or type a single emoji.</p>
-              </div>
-              <div>
                 <label htmlFor="custom-section-name" className="block text-sm font-medium mb-1">Title</label>
                 <input
                   id="custom-section-name"
@@ -484,10 +448,9 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
                 className={`px-4 py-2 rounded-lg bg-gradient-to-r from-[#db2777] to-[#f97316] font-medium text-white hover:opacity-90 ${!canAddCustom ? 'opacity-50 cursor-not-allowed' : ''}`}
                 onClick={() => {
                   const title = customTitle.trim().slice(0, LIMITS.customTabTitle);
-                  const emoji = ((customEmoji || "").trim().slice(0, LIMITS.customTabEmojiChars)) || "📝";
                   if (!title || !canAddCustom) return;
                   const key = `custom_${Date.now()}`;
-                  const newMeta = { ...customMeta, [key]: { icon: emoji, label: title } };
+                  const newMeta = { ...customMeta, [key]: { icon: "", label: title } };
                   setCustomMeta(newMeta);
                   // Notify parent of the new custom section
                   if (onCustomMetaChange) {
@@ -496,7 +459,6 @@ export default function SidebarNav({ currentSection, onSectionChange, included, 
                   onUpdate([...included, key], excluded);
                   onSectionChange(key);
                   setShowCustomModal(false);
-                  setCustomEmoji("");
                   setCustomTitle("");
                 }}
                 disabled={!canAddCustom}
